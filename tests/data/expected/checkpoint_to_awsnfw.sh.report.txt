@@ -1,0 +1,91 @@
+FWShift conversion report
+  source: checkpoint (Network)
+  target: aws-network-firewall
+
+Summary
+  Security rules:     22   exact 7, approximated 2, needs review 13 (8 emitted disabled), skipped 0
+  NAT rules:           9   exact 0, approximated 0, needs review 0, skipped 9
+  Addresses:          16   exact 13, approximated 1, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')
+  [needs-review] AWSNFW_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 sends each with --dry-run, without either it creates the stateful rule group fwshift-rules and the firewall policy fwshift, and stops if one of that name exists. The policy is attached to no firewall: nothing changes until you associate it (aws network-firewall associate-firewall-policy)
+  [needs-review] AWSNFW_ORDER: the policy decides every packet the firewall sees, in strict order: no stateless rules (every packet goes to the stateful engine), the rules of the model in their order, each for the first packet of a connection (flow:to_server), then aws:drop_strict for what no rule passed. Check it against what the firewall's route tables send through it
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a pass rule of Network Firewall does not, a drop or reject rule sends an alert when the firewall has alert logging configured
+
+Security rules
+  rule-2  ->  needs-review  (emitted as 1 rule of the rule group (sid 3))
+      [needs-review] DEVICE_TARGET: the rule is installed only on gw-edge; decide whether it belongs on the target firewall
+  Web out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone InternalZone, and a rule of Network Firewall names no zone: give the networks behind InternalZone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone ExternalZone, and a rule of Network Firewall names no zone: give the networks behind ExternalZone with --zone-network.
+  Social  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-6' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Facebook': object of type 'application-site'.
+  Admins  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netadmins': access role whose networks and users are not in the export (add the output of 'show access-roles details-level full').
+  PLC access (plc-operators)  ->  needs-review, emitted disabled
+      [needs-review] ACCESS_ROLE: access role plc-operators: the rule matches the networks of the role for its users ad_group_PLC-Operators, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [needs-review] USER_MATCH: source user match ad_group_PLC-Operators is not converted.
+  PLC access (vendor-support)  ->  needs-review, emitted disabled
+      [needs-review] ACCESS_ROLE: access role vendor-support: the rule matches the networks of the role for its users ad_group_Vendor-Support, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [needs-review] USER_MATCH: source user match ad_group_Vendor-Support is not converted.
+  DMZ users  ->  needs-review, emitted disabled
+      [needs-review] ACCESS_ROLE: access role all-identified: the rule matches the networks of the role for all identified users, written 'known-user' as PAN-OS calls them
+      [needs-review] USER_MATCH: source user match known-user is not converted.
+  Updates  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work-Hours' is not converted; the rule would apply at all times.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object .updates.example.com: a rule of Network Firewall names addresses (a domain list matches TLS and HTTP names, which is something else).
+  Partners  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: VPN community match Partner-VPN.
+  Public web  ->  approximated  (emitted as 1 rule of the rule group (sid 7))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-1_valid_address' with post-NAT 'web-1' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+  DMZ access / Web in  ->  needs-review  (emitted as 1 rule of the rule group (sid 8))
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-1', the address NAT rule 'nat-2' translates 'web-1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web-1_valid_address' now matches this rule; on the source it did not
+  DMZ access / Mail in  ->  needs-review  (emitted as 1 rule of the rule group (sid 9))
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail-1', the address NAT rule 'nat-6' translates 'mail-public' to. The target looks rules up after that translation, so traffic sent to 'mail-public' now matches this rule; on the source it did not
+  DMZ access / Ping from LAN  ->  needs-review  (emitted as 1 rule of the rule group (sid 10))
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-1', the address NAT rule 'nat-2' translates 'web-1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web-1_valid_address' now matches this rule; on the source it did not
+  DMZ access (cleanup of DMZ-Layer)  ->  needs-review  (emitted as 1 rule of the rule group (sid 11))
+      [info] INLINE_CLEANUP: added for the implicit cleanup of inline layer 'DMZ-Layer', which is drop
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-1', the address NAT rule 'nat-2' translates 'web-1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web-1_valid_address' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail-1', the address NAT rule 'nat-6' translates 'mail-public' to. The target looks rules up after that translation, so traffic sent to 'mail-public' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+  Tunnels  ->  approximated  (emitted as 1 rule of the rule group (sid 12))
+      [approximated] GATEWAY_OBJECT: matches gateway object gw-edge, which stood for every address of the gateway; only its main address is known, so the converted rule no longer applies to its other addresses
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  nat-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  nat-3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  nat-4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  nat-5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  nat-6  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  nat-7  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  nat-8  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  nat-9  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+
+Addresses
+  web-1  ->  exact
+      [info] AUTOMATIC_NAT: the object has automatic static NAT to 203.0.113.10: as on Check Point, rules and groups that name it also match that address, written as 'web-1_valid_address'
+  netadmins  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: access role whose networks and users are not in the export (add the output of 'show access-roles details-level full') cannot be converted
+  lan-without-guests  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'group-with-exclusion' cannot be converted
+  gw-edge  ->  approximated
+      [approximated] GATEWAY_OBJECT: a gateway object stands for every address of the gateway; only its main address 198.51.100.1 is in the export
+
+Services
+  Facebook  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: object of type 'application-site': not converted

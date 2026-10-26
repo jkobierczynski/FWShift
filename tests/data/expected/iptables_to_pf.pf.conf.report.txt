@@ -1,0 +1,21 @@
+FWShift conversion report
+  source: iptables (IPv4)
+  target: pf
+
+Summary
+  Security rules:     15   exact 13, approximated 0, needs review 2 (1 emitted disabled), skipped 0
+  NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain INPUT (3 rules, policy DROP) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] PF_LOAD: the output is a ruleset for the anchor 'fwshift': check it with 'pfctl -vnf FILE -a fwshift', load it with 'pfctl -a fwshift -f FILE'. The main ruleset must call it ('anchor "fwshift"'), before rules that pass or block forwarded traffic quick; rules after the anchor that are not quick can still change what it decides. It lets in what arrives on the interfaces of the zones that a rule may allow (never to the firewall's own addresses), decides when the traffic leaves, and needs OpenBSD pf or FreeBSD 15 or later (match rules with tag, nat-to, rdr-to)
+  [needs-review] INTERFACES_REQUIRED: zones are written as interfaces or interface groups, a macro each at the top of the file: set each to the interface (or group) of the zone, or convert with --zone-map: eth1, eth0, eth2, eth3
+  [info] PASSIVE_TARGETS: 1 FORWARD rule with target LOG decides nothing and was left out; a LOG rule directly before a rule with the same match sets its logging
+  [info] PF_ZONES_ONLY: the anchor decides about traffic that arrives on the interfaces of the zones (eth1, eth0, eth2, eth3); what arrives on another interface is left to the main ruleset
+
+Security rules
+  Block bad host  ->  needs-review  (emitted as 4 rules)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Rate limited mail  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: match module 'limit'.

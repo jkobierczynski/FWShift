@@ -1,0 +1,98 @@
+FWShift conversion report
+  source: aws-network-firewall (pol-inspection)
+  target: gcp
+
+Summary
+  Security rules:     41   exact 18, approximated 9, needs review 10 (8 emitted disabled), skipped 4
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           21   exact 21, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWSNFW_ASYMMETRIC: one direction of some connections is passed by the stateless rules and the other forwarded to the stateful engine, which then sees half a flow and may drop it (sl-edge-8, the stateless default action aws:forward_to_sfe). The converted policy leaves those connections to the stateful rules
+  [needs-review] AWSNFW_STATELESS_NOT_WORKED_OUT: some stateless rules cannot be read (TCP flags, a rule group not in the input, a value that cannot be read): they are not converted, and what the rules after them and the replies meet was worked out as if they matched nothing
+  [needs-review] AWSNFW_GROUP_MISSING: the policy names rule groups that are not in the input: ThreatSignaturesMalwareStrictOrder. Their rules are not converted; add the answers of describe-rule-group
+  [needs-review] GCP_LOAD: the output is a shell script of gcloud commands (section 10): DRY_RUN=1 prints them, without it it creates a new global network firewall policy (fwshift) with its rules, and stops if a policy of that name exists. It is associated with no network: nothing changes until you associate it
+  [needs-review] GCP_ORDER: the policy decides every connection of the network it is associated with: it ends in the default of the source. With the network's enforcement order AFTER_CLASSIC_FIREWALL (the default) the VPC firewall rules of the network decide first; set it to BEFORE_CLASSIC_FIREWALL (gcloud compute networks update NETWORK --network-firewall-policy-enforcement-order=BEFORE_CLASSIC_FIREWALL), or remove the VPC firewall rules
+  [info] AWSNFW_FRAGMENTS: UDP fragments that no stateless rule matches are handled by aws:drop, other packets by the default for full packets; the model has no fragments, and the converted policy follows the default for full packets. Fragments of other protocols are dropped
+  [info] AWSNFW_STATELESS_FORWARD: these stateless rules forward what they match to the stateful engine, so the stateless rules below them do not see it: sl-edge-10
+  [info] AWSNFW_ALERT_RULES: 1 alert rule decides nothing (an alert only logs) and was left out
+  [info] AWSNFW_CUSTOM_ACTIONS: custom actions publish metrics to CloudWatch; they decide nothing and are not converted
+  [info] AWSNFW_HOME_NET: HOME_NET is 10.20.0.0/16, 2001:db8:20::/56 (the CIDR blocks of VPC vpc-0a1b2c3d4e5f60789); EXTERNAL_NET is everything else, unless a rule group sets it
+  [info] AWSNFW_NO_ZONES: the firewall sits in a route path and names no zones or interfaces: the converted policy has none. A target with zones needs the networks behind them (--zone-network)
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have logging enabled
+
+Security rules
+  sl-edge-1-replies  ->  approximated  (emitted as 2 rules of the policy)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-1, which drops them, so the connections are blocked whatever else would allow them
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  sl-edge-20-replies  ->  approximated  (emitted as 2 rules of the policy)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  sl-edge-20-replies-2  ->  approximated  (emitted as 2 rules of the policy)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  sl-edge-6  ->  skipped
+      [approximated] GCP_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some) and is not written: the converted rule allows less
+      [needs-review] GCP_NOT_WRITTEN: nothing of what the rule allows can be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some): not written
+  sl-edge-12  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: TCP flags: the rule matches some packets of a connection and not others. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ThreatSignaturesMalwareStrictOrder-1  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule group ThreatSignaturesMalwareStrictOrder is not in the input; add the answer of describe-rule-group for arn:aws:network-firewall:eu-west-1:aws-managed:stateful-rulegroup/ThreatSignaturesMalwareStrictOrder (an AWS managed rule group, whose rules AWS may not show). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-102-rev  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  sf-baseline-103  ->  exact  (emitted as 2 rules of the policy)
+      [info] REJECT_AS_DENY: action reset-client: a rule of Google Cloud denies without an answer
+  sf-baseline-105  ->  skipped
+      [approximated] GCP_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some) and is not written: the converted rule allows less
+      [needs-review] GCP_NOT_WRITTEN: nothing of what the rule allows can be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some): not written
+  sf-baseline-107  ->  skipped
+      [approximated] GCP_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some) and is not written: the converted rule allows less
+      [needs-review] GCP_NOT_WRITTEN: nothing of what the rule allows can be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some): not written
+  sf-app-1003  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+  sf-app-1005  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+      [needs-review] ZONE_DYNAMIC: the source 'branches' holds members only its platform knows; a rule of Google Cloud names addresses.
+  sf-app-1005-rev  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+      [needs-review] ZONE_DYNAMIC: the destination 'branches' holds members only its platform knows; a rule of Google Cloud names addresses.
+  sf-app-1011  ->  exact  (emitted as 2 rules of the policy)
+      [info] AWSNFW_REJECT_NOT_TCP: reject sends a TCP reset, and is for TCP only; the rule, which matches other protocols too, is read as drop
+  stateful-default-not-tcp  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  sf-baseline-100-reply  ->  skipped
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-100 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [approximated] GCP_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some) and is not written: the converted rule allows less
+      [needs-review] GCP_NOT_WRITTEN: nothing of what the rule allows can be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some): not written
+  sf-baseline-103-reply  ->  approximated  (emitted as 2 rules of the policy)
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-103 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [info] REJECT_AS_DENY: action reset-server: a rule of Google Cloud denies without an answer
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  sf-app-1003-reply  ->  approximated  (emitted as 4 rules of the policy)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1003 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+  sf-app-1009-reply  ->  exact  (emitted as 4 rules of the policy)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1009 matches packets in the direction of its header, so also the first reply of a connection opened the other way; this rule is what it decides then
+  sf-app-1002  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+  sf-app-1006  ->  needs-review, emitted disabled
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword http.uri. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword content:"/admin". This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-block-1  ->  needs-review, emitted disabled
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-egress-1  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address.
+  dl-egress-2  ->  needs-review  (emitted as 4 rules of the policy)
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+  dl-egress-3  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications web-browsing reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: http.host: the rule matches by domain name, which is not an address.
+  dl-egress-4  ->  needs-review  (emitted as 4 rules of the policy)
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+  sf-app-1010  ->  exact  (emitted as 4 rules of the policy)
+      [info] AWSNFW_NEVER_MATCHES: with aws:drop_established a flow that no rule passed is dropped before this rule can match; the rule is disabled in the converted policy: pass tcp any any -> $HOME_NET any (msg:"established to clients"; flow:established,to_client; sid:1010;)

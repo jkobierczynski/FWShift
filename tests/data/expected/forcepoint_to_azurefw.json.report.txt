@@ -1,0 +1,109 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: azure-firewall
+
+Summary
+  Security rules:     32   exact 11, approximated 3, needs review 9 (9 emitted disabled), skipped 9
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] AZFW_LOAD: the output is an ARM template (section 10) that creates firewall policy FWShift with its rule collection groups; look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode), then associate the policy with a firewall or a secured hub. Nothing changes before that. Deploying it where a policy of that name exists changes that policy
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] AZFW_TARGET_SNAT: Azure Firewall translates the source of what goes to a public address (outside RFC 1918 and RFC 6598, or the private ranges set on the policy) to its own public address, and, community sources say, the source of DNAT traffic to one of its private addresses: servers may see other source addresses than with the source
+  [info] AZFW_TARGET_DEFAULTS: the policy is written with network rules only; after them Azure Firewall still allows the FQDNs of its built-in infrastructure rule collection, then denies. Threat intelligence is set to Alert, which blocks nothing
+  [info] AZFW_TARGET_IPV6: the policy holds IPv6; Azure Firewall filters IPv4 only, and the IPv6 parts of the rules are not written (blocking rules lose nothing by it: the firewall forwards no IPv6)
+  [info] AZFW_DNS_PROXY: network rules name FQDNs: the policy enables DNS proxy, which they need. Clients must use the firewall as their DNS server for the names to resolve to the same addresses
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Azure Firewall does not choose: its diagnostic settings send the logs of every rule (AZFWNetworkRule, AZFWNatRule) to a workspace
+
+Security rules
+  Rule @900.0  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+  admins in  ->  exact  (emitted as rule collection to_admin_sub-policy___admins_in of group fwshift-network-1)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  others out  ->  exact  (emitted as rule collection to_admin_sub-policy___others_out of group fwshift-network-1)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  refuse admins 8443  ->  approximated  (emitted as rule collection refuse_admins_8443 of group fwshift-network-1)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] REJECT_AS_DENY: action reset-client: a rule of Azure Firewall denies, and whether it answers is not documented
+  internal zone out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Internal, and a rule of Azure Firewall names no zone: give the networks behind Internal with --zone-network.
+  zone or web host out  ->  needs-review, emitted disabled
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Internal, and a rule of Azure Firewall names no zone: give the networks behind Internal with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a rule of Azure Firewall names no zone: give the networks behind External with --zone-network.
+  zone or web host out (2)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a rule of Azure Firewall names no zone: give the networks behind External with --zone-network.
+  vpn only  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN).
+  ping out  ->  skipped
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  no social  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) Facebook; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_UNKNOWN: a service of the rule cannot be read. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  helpdesk to dmz  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match helpdesk is not converted.
+  office web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times.
+  limited guests  ->  approximated  (emitted as rule collection limited_guests of group fwshift-network-1)
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (deep_inspection=on); attach equivalent inspection on the target
+  block list  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  gre to isp  ->  skipped
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  lan but admins  ->  skipped
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  Rule @902.0  ->  approximated  (emitted as rule collection Rule__902.0 of group fwshift-network-1)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] REJECT_AS_DENY: action reset-client: a rule of Azure Firewall denies, and whether it answers is not documented
+  v6 web  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  v6 ping  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows ICMPv6; Azure Firewall filters IPv4 only, and that part is not written
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  v6 mail  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  v6 guests  ->  skipped
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] REJECT_AS_DENY: action reset-client: a rule of Azure Firewall denies, and whether it answers is not documented
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  Rule @952.0  ->  skipped
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] REJECT_AS_DENY: action reset-client: a rule of Azure Firewall denies, and whether it answers is not documented
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  Rule @953.0  ->  skipped
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+
+NAT rules
+  publish web  ->  skipped
+      [needs-review] AZFW_DNAT_NOT_ALLOWED: Azure Firewall allows what a DNAT rule translates, before any network rule; the policy does not allow all this NAT rule translates (rule no social may block part of it), so it is not written. Write the DNAT rule by hand for what the policy allows
+  no nat inside  ->  skipped
+      [needs-review] AZFW_NAT_NOT_WRITTEN: a NAT rule that translates nothing (an exemption): Azure Firewall leaves the source of traffic to its private ranges as it is, which the policy's SNAT settings choose, not a rule. Not written
+  lan out  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  mail static  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  guests hide  ->  skipped
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written

@@ -1,0 +1,80 @@
+FWShift conversion report
+  source: pf
+  target: watchguard
+
+Summary
+  Security rules:     31   exact 17, approximated 2, needs review 11 (8 emitted disabled), skipped 1
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 7, approximated 0, needs review 2, skipped 0
+  Services:           20   exact 20, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PF_ANCHOR: the rules of these anchors are not converted: 'relayd/*' (line 94). Rules loaded into an anchor decide where the anchor stands, before or after any converted rule; add them to the file to convert them
+  [needs-review] WATCHGUARD_LOAD: the output is the policy part of a configuration file of Policy Manager: address groups, aliases, services, static NAT actions and policies in manual order. It holds no interfaces and no system settings, so it is not a file to restore on a Firebox as it is (a restore replaces the whole configuration). Merge its lists into a configuration saved from the target, open the result in Policy Manager and check it there before it goes to the Firebox. WatchGuard publishes no schema of the file: the elements are those of the published readers of the format, and the words for the action of a policy (Allow, Deny) are assumed
+  [needs-review] INTERFACES_REQUIRED: the policies name these zones as interfaces of the Firebox, which must exist under these names (or be renamed with --zone-map): em0, em1, em2
+  [needs-review] INTERZONE_DEFAULT: the source allows what no rule matches; the Firebox denies it. Add a policy that allows it if that was intended
+  [info] PF_LAST_MATCH: 22 rules are not quick: pf decides by the last rule that matches unless a quick rule matches first. The model is first match: the quick rules come first, in their order, then the others, the last one first
+  [info] PF_DEFAULT_PASS: pf passes what no rule matches; the model records that as its default action
+  [info] PF_HOST_NAMES: pfctl resolves host names once, when the rules are loaded: www.example.com. They are host name objects here
+  [info] PF_OVERLOAD: rules that add addresses to a table when they exceed a limit (overload): 'line 57'. The table they fill is empty in pf.conf
+
+Security rules
+  line 72  ->  exact
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+  line 75  ->  exact
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+  line 46 out  ->  needs-review
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by every interface: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic, less what the rules before it that decide pass ('line 50', 'line 74')
+      [needs-review] PF_OUT_UNNAMED: the rule blocks what leaves by any interface, less what rules for some interfaces pass; it is written for the interfaces this ruleset names, and traffic that leaves by another interface is not blocked by it
+  line 41  ->  needs-review
+      [needs-review] NAT_NOT_IN_POLICY: the rule allows the destination of NAT rule 'line 41 rdr' for other services or zones than the NAT rule translates: on a Firebox the translation is part of the policy, and it is not written into this one, which allows the address without translating it
+  antispoof em1 network  ->  needs-review, emitted disabled
+      [needs-review] PF_NEGATED_INTERFACE: 'on ! em1' is every interface but em1; it is written for the other interfaces this ruleset names, em0, em2, and not for interfaces it does not name
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 network': the network of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  antispoof em1 address  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 address': the address of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  brute force  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'bruteforce': it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  line 49  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'spamd': its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  admin ssh  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em2 network': the network of em2 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+  line 92  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: the user of the socket (user proxy), which only traffic of the firewall itself has.
+  line 91  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'egress address': the address of egress is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+  line 90  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: a mark set by another rule (tagged INTERNAL).
+  line 87  ->  needs-review
+      [needs-review] PF_ROUTE_TO: the rule sends what it matches elsewhere (route-to ( em3 10.30.0.1 )); the converted rule decides only whether it passes, and the traffic takes the route the target chooses
+  line 84  ->  approximated
+      [approximated] PF_NO_STATE: the rule passes packets without keeping state (no state): the replies need a rule of their own on pf. The converted rule allows the connection, replies included
+  line 81  ->  exact
+      [info] RESET_ACTION: action reset-client becomes Deny
+  line 69  ->  exact
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+      [info] NEGATION_EXPANDED: Fireware has no negation: 'not source 10.10.5.10' is written as the addresses that are left
+  line 69.2  ->  exact
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+      [info] NEGATION_EXPANDED: Fireware has no negation: 'not source 10.10.5.11' is written as the addresses that are left
+  line 57  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.1.10' because of NAT rule 'line 39 rdr'; check that this rule is meant to cover the translated traffic
+  line 73  ->  skipped
+      [info] PF_OUT_SHADOWED: the rule blocks traffic that leaves, but the rules before it that decide ('line 74') pass all of it: it decides nothing for forwarded traffic and is not converted for that direction
+
+NAT rules
+  line 36 nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  line 37 nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  line 39 rdr  ->  skipped
+      [info] NAT_NO_POLICY: on a Firebox static NAT is part of a policy, and no rule allows exactly the traffic this rule translates: the action is written and used by no policy
+  line 41 rdr  ->  skipped
+      [info] NAT_NO_POLICY: on a Firebox static NAT is part of a policy, and no rule allows exactly the traffic this rule translates: the action is written and used by no policy
+
+Address groups
+  bruteforce  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <bruteforce> cannot be converted: it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload)
+  spamd  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <spamd> cannot be converted: its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf

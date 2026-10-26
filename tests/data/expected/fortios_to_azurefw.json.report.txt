@@ -1,0 +1,67 @@
+FWShift conversion report
+  source: fortios
+  target: azure-firewall
+
+Summary
+  Security rules:     14   exact 3, approximated 2, needs review 4 (4 emitted disabled), skipped 5
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
+  [needs-review] AZFW_LOAD: the output is an ARM template (section 10) that creates firewall policy FWShift with its rule collection groups; look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode), then associate the policy with a firewall or a secured hub. Nothing changes before that. Deploying it where a policy of that name exists changes that policy
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. --no-source-networks takes none of them
+  [info] AZFW_TARGET_SNAT: Azure Firewall translates the source of what goes to a public address (outside RFC 1918 and RFC 6598, or the private ranges set on the policy) to its own public address, and, community sources say, the source of DNAT traffic to one of its private addresses: servers may see other source addresses than with the source
+  [info] AZFW_TARGET_DEFAULTS: the policy is written with network rules only; after them Azure Firewall still allows the FQDNs of its built-in infrastructure rule collection, then denies. Threat intelligence is set to Alert, which blocks nothing
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Azure Firewall does not choose: its diagnostic settings send the logs of every rule (AZFWNetworkRule, AZFWNatRule) to a workspace
+
+Security rules
+  LAN to Internet  ->  approximated  (emitted as rule collection LAN_to_Internet of group fwshift-network-1)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
+  LAN basics  ->  approximated  (emitted as rule collection LAN_basics of group fwshift-network-1)
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+  Inbound web  ->  skipped
+      [needs-review] NAT_PORT_TRANSLATION: virtual IP 'vip-web' forwards port 443 to 8443; FortiOS policies name the mapped port, the neutral model the original one. Check the service of this rule
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  Inbound mail  ->  skipped
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  Admins to DMZ  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+  Block geo  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ out via pool  ->  needs-review, emitted disabled
+      [needs-review] ZONE_DYNAMIC: the destination of the rule is in zone wan1, and an FQDN, a service tag or an IP group cannot be cut down to the networks of a zone.
+  Partner tunnel  ->  skipped
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  LAN v6 out  ->  skipped
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  policy-12  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  Timestamp probes  ->  skipped
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+
+NAT rules
+  vip-web  ->  skipped
+      [needs-review] AZFW_DNAT_NOT_ALLOWED: Azure Firewall allows what a DNAT rule translates, before any network rule; the policy does not allow all this NAT rule translates (part of it reaches the policy's default, which blocks), so it is not written. Write the DNAT rule by hand for what the policy allows
+  vip-mail  ->  skipped
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+      [needs-review] AZFW_NAT_NOT_WRITTEN: not written: it is for every service; a DNAT rule is for TCP or UDP ports
+  snat-1  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  snat-2  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  snat-7  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted

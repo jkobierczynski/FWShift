@@ -1078,6 +1078,7 @@ class _Emitter:
         written = {nat.origin for nat in self.p.nat_rules if not self.report.item("nat", nat.origin).skipped}
         transform.note_nat_order(self.p, self.report, written, "per-direction", tied=self.tied, whole=self.whole)
         access_lists, groups = self._access_lists()
+        self._real_address_rules(written)
         self._drop_unused_interface_objects(access_lists + self.nat)
         self._notes()
         out = [
@@ -1088,6 +1089,59 @@ class _Emitter:
         out += self.objects + access_lists + self.nat
         out += ["! Binding the access lists puts the policy in force."] + groups
         return "\n".join(out) + "\n"
+
+    def _published_port(self, nat: NatRule) -> Tuple[bool, Optional[Tuple[str, int]]]:
+        """(known, port): the one port, after translation, that a static NAT rule translates; None for every port.
+        Not known when the rule's service has more than one port."""
+        if nat.service == ANY:
+            return True, None
+        entries = transform.flatten_services(self.p, nat.service) or []
+        if len(entries) != 1 or not entries[0].dst_ports.isdigit():
+            return False, None
+        translated = nat.destination_translation.port if nat.destination_translation is not None else ""
+        port = translated if translated.isdigit() else entries[0].dst_ports
+        return True, (entries[0].protocol.value, int(port))
+
+    def _real_address_rules(self, written: Set[str]) -> None:
+        """Rules that let the outside reach the real address of a host an ASA translates statically. The ASA checks a
+        new connection's replies against the NAT rules as well: the host answering from its real address (and port)
+        matches the static rule, which would translate the reply, so the connection is dropped ("NAT reverse path
+        failed", syslog 305013), though the access list let it in (the ASAv of the FWShift lab, 0.40.21: out10 to
+        dmz10 port 80 counted by outside-web's access list entry, then dropped as nat-rpf-failed)."""
+        if self.p.vendor in ("asa", "fmc", "fdm", "ios"):
+            return  # (the source's static NAT also fails such a connection: nothing that differs)
+        for nat in self.p.nat_rules:
+            if nat.origin not in written or not nat.enabled:
+                continue
+            source, destination = nat.source_translation, nat.destination_translation
+            hosts: List[Interval] = []
+            outside: List[str] = []
+            if destination is not None and source is None:
+                if ANY not in nat.sources and ANY_V4 not in nat.sources:
+                    continue  # (the reverse match needs the client among the rule's sources)
+                inner = transform.known_intervals(self.p, destination.address)[0] if destination.address != ANY else []
+                hosts = inner if len(inner) == 1 else []
+                outside = [z for z in nat.src_zones if z != ANY]
+            elif destination is None and source is not None and source.kind == SnatKind.STATIC:
+                if ANY not in nat.destinations and ANY_V4 not in nat.destinations:
+                    continue
+                hosts = [i for m in nat.sources if m not in (ANY, ANY_V4) for i in transform.known_intervals(self.p, m)[0]]
+                outside = [z for z in nat.dst_zones if z != ANY]
+            known, port = self._published_port(nat)
+            if not known:
+                continue
+            for host in hosts:
+                if host in (FULL_V4, FULL_V6):
+                    continue
+                for rule in transform.rules_to_real_address(self.p, self.report, nat, host, port, outside):
+                    what = f"{port[0]}/{port[1]} of " if port else ""
+                    self.report.add(
+                        "rule", rule.origin, Severity.REVIEW, "ASA_STATIC_NAT_RPF",
+                        f"it lets the outside reach {what}{int_to_ip(host[0], host[1])}, which NAT rule '{nat.name}' "
+                        "translates statically: an ASA checks a connection's replies against the NAT rules too, and drops "
+                        "a connection made to the real address (\"NAT reverse path failed\") though the access list lets it in",
+                        nat.origin,
+                    )  # fmt: skip
 
     def _drop_unused_interface_objects(self, lines: List[str]) -> None:
         """An object that stood for "interface" in the NAT rules of an ASA and is not needed now that the word is back."""

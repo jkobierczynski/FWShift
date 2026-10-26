@@ -1,0 +1,28 @@
+FWShift conversion report
+  source: vyos
+  target: nftables
+
+Summary
+  Security rules:     13   exact 11, approximated 0, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 rule-set WAN_LOCAL on pppoe0 local filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] PARTS_NOT_READ: parts of the configuration this parser does not read: port-forward (EdgeOS)
+  [needs-review] NFT_LOAD: the output is one table, inet fwshift, which replaces itself when loaded: check it with 'nft -c -f FILE', load it with 'nft -f FILE'. Other tables stay as they are, but every base chain at the forward hook sees each packet: the drop policy here drops what this table does not accept even where another table (firewalld, Docker, libvirt, iptables-nft) accepts it, and a drop in another table still wins over an accept here
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: pppoe0, eth1, eth1.10
+  [info] VYOS_FORMAT: read as the configuration of EdgeOS (Vyatta), release v2.0.9: rule-sets on interfaces, accept in a rule-set and the zone policy were read as VyOS 1.4 has them after its own migration (a jump from the forward filter for each rule-set on an interface, the in ones first; accept as return, so that the rule-set of the other interface still decides)
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] LOG_STATEMENTS: rules that log the start of a connection have a log statement, which writes a line to the kernel log for the first packet of each connection they accept (and for every packet a deny rule drops)
+
+Security rules
+  no media from the guests-2  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sessions of the voip box  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address).

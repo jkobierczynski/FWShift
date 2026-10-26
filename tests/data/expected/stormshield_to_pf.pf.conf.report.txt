@@ -1,0 +1,47 @@
+FWShift conversion report
+  source: stormshield
+  target: pf
+
+Summary
+  Security rules:     18   exact 8, approximated 2, needs review 6 (1 emitted disabled), skipped 2
+  Addresses:          22   exact 22, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  [needs-review] STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  [needs-review] STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  [needs-review] STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+  [needs-review] PF_LOAD: the output is a ruleset for the anchor 'fwshift': check it with 'pfctl -vnf FILE -a fwshift', load it with 'pfctl -a fwshift -f FILE'. The main ruleset must call it ('anchor "fwshift"'), before rules that pass or block forwarded traffic quick; rules after the anchor that are not quick can still change what it decides. It lets in what arrives on the interfaces of the zones that a rule may allow (never to the firewall's own addresses), decides when the traffic leaves, and needs OpenBSD pf or FreeBSD 15 or later (match rules with tag, nat-to, rdr-to)
+  [needs-review] INTERFACES_REQUIRED: zones are written as interfaces or interface groups, a macro each at the top of the file: set each to the interface (or group) of the zone, or convert with --zone-map: out, in, dmz1, lab, labbridge
+  [info] STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  [info] STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+  [info] PF_ZONES_ONLY: the anchor decides about traffic that arrives on the interfaces of the zones (out, in, dmz1, lab, labbridge); what arrives on another interface is left to the main ruleset
+  [info] LOGGING_AT_END: rules that log the end of a connection on the source are written without log: pf logs the packet a rule matches; the rules that log the start of a connection have 'log'
+
+Security rules
+  local 1  ->  needs-review  (emitted as 1 rule)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+  local 2  ->  needs-review  (emitted as 5 rules)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 4  ->  needs-review  (emitted as 5 rules)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (inspection=ips); attach equivalent inspection on the target
+  local 6  ->  needs-review  (emitted as 5 rules)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 10  ->  needs-review  (emitted as 1 rule)
+      [needs-review] STORMSHIELD_BRIDGE: names a bridge or a port of one: read as that interface only; whether the firewall matches the bridge for its ports, or the reverse, is not documented
+  local 11  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match staff@corp.example is not converted.
+  local 13  ->  approximated  (emitted as 10 rules)
+      [approximated] FQDN_RESOLVED_ONCE: 'updates.example.com' is a host name: pfctl resolves it once, when the rules are loaded, and keeps the addresses it got then
+  local 15  ->  approximated  (emitted as 5 rules)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application protocol=http); attach equivalent inspection on the target
+      [approximated] FQDN_RESOLVED_ONCE: 'www.example.org' is a host name: pfctl resolves it once, when the rules are loaded, and keeps the addresses it got then
+  global 2  ->  skipped
+      [info] STORMSHIELD_DELEG: deleg of everything: the rest goes to the local policy
+  local 7  ->  skipped
+      [info] STORMSHIELD_NON_TERMINAL: action decrypt: the firewall goes on to the next rule; nothing is decided here

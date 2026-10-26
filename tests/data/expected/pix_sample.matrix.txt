@@ -1,0 +1,94 @@
+FWShift zone matrix
+  source: pix (PIX Version 6.3(5))
+  security rules: 21 (0 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+           outside           inside            dmz               lab               partner
+  outside  -                 icmp type 0 +2~   icmp type 0 +7~   icmp type 0 +2~   icmp type 0 +2~
+  inside   any               -                 any               -                 any
+  dmz      tcp/25 udp/53~    tcp/25 +3~        -                 tcp/25 udp/53~    tcp/25 udp/53~
+  lab      -                 icmp type 0 +1~   -                 -                 -
+  partner  any~              icmp type 0 +1~   icmp type 0~      icmp type 0~      -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+outside -> inside
+  allowed: icmp type 0, icmp type 3, icmp type 11 ~
+  rule 'outside_in-4': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 0, icmp type 3, icmp type 11 ~
+outside -> dmz
+  allowed: icmp type 0, icmp type 3, icmp type 11, tcp/22, tcp/25, tcp/80, tcp/443, tcp/8443 ~
+  rule 'outside_in-1': 0.0.0.0/0 -> 203.0.113.10: tcp/80, tcp/443
+  rule 'outside_in-2': 0.0.0.0/0 -> 203.0.113.25: tcp/25
+  rule 'outside_in-3': 0.0.0.0/0 -> outside-interface: tcp/8443
+  rule 'outside_in-4': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 0, icmp type 3, icmp type 11 ~
+  rule 'outside_in-6': 192.0.2.80 -> 10.20.0.10: tcp/22 ~
+outside -> lab
+  allowed: icmp type 0, icmp type 3, icmp type 11 ~
+  rule 'outside_in-4': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 0, icmp type 3, icmp type 11 ~
+outside -> partner
+  allowed: icmp type 0, icmp type 3, icmp type 11 ~
+  rule 'outside_in-4': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 0, icmp type 3, icmp type 11 ~
+inside -> outside
+  allowed: any
+  rule 'implicit-inside-outside': 0.0.0.0/0 -> 0.0.0.0/0: any
+inside -> dmz
+  allowed: any
+  rule 'implicit-inside-dmz': 0.0.0.0-10.10.9.255, 10.10.11.0-255.255.255.255 -> 0.0.0.0/0: any
+inside -> partner
+  allowed: any
+  rule 'implicit-inside-partner': 10.10.0.0/16 -> 0.0.0.0/0: any
+dmz -> outside
+  allowed: tcp/25, udp/53 ~
+  rule 'dmz_in-1': dmz-servers -> 0.0.0.0/0: udp/53 ~
+  rule 'dmz_in-2': 10.20.0.25 -> 0.0.0.0/0: tcp/25 ~
+dmz -> inside
+  allowed: tcp/25, tcp/445, tcp/1433, udp/53 ~
+  cleartext or remote administration: smb (rule 'dmz_in-4')
+  rule 'dmz_in-1': dmz-servers -> 0.0.0.0/0: udp/53 ~
+  rule 'dmz_in-2': 10.20.0.25 -> 0.0.0.0/0: tcp/25 ~
+  rule 'dmz_in-3': 10.20.0.10 -> 10.10.0.50: tcp/1433
+  rule 'dmz_in-4': 10.20.0.10 -> 10.10.0.0/16: tcp/445 ~
+dmz -> lab
+  allowed: tcp/25, udp/53 ~
+  rule 'dmz_in-1': dmz-servers -> 0.0.0.0/0: udp/53 ~
+  rule 'dmz_in-2': 10.20.0.25 -> 0.0.0.0/0: tcp/25 ~
+dmz -> partner
+  allowed: tcp/25, udp/53 ~
+  rule 'dmz_in-1': dmz-servers -> 0.0.0.0/0: udp/53 ~
+  rule 'dmz_in-2': 10.20.0.25 -> 0.0.0.0/0: tcp/25 ~
+lab -> inside
+  allowed: icmp type 0, tcp/3389 ~
+  cleartext or remote administration: rdp (rule 'conduit-1')
+  rule 'conduit-1': 10.30.0.0/24 -> 10.10.0.60: tcp/3389 ~
+  rule 'conduit-2': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 0 ~
+partner -> outside
+  allowed: any ~
+  rule 'implicit-partner-outside': 10.30.0.0/24 -> 0.0.0.0/0: any (only with outbound list 10 (outgoing_src: deny 0.0.0.0 0.0.0.0 0 0; permit 10.30.0.0 255.255.255.0 80 tcp) applied to partner, which is not converted, which is not in the model) ~
+partner -> inside
+  allowed: icmp type 0, tcp/3389 ~
+  cleartext or remote administration: rdp (rule 'conduit-1')
+  rule 'conduit-1': 10.30.0.0/24 -> 10.10.0.60: tcp/3389 ~
+  rule 'conduit-2-2': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 0 ~
+partner -> dmz
+  allowed: icmp type 0 ~
+  rule 'conduit-2-2': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 0 ~
+partner -> lab
+  allowed: icmp type 0 ~
+  rule 'conduit-2-2': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 0 ~
+
+From reading the configuration
+  PIX_OUTBOUND: outbound lists (outbound and apply) limit what interfaces without an access list let out: partner: outbound list 10 (outgoing_src: deny 0.0.0.0 0.0.0.0 0 0; permit 10.30.0.0 255.255.255.0 80 tcp). The PIX decides them by the best match, not in order; they are not converted, and the implicit rules of those interfaces are written disabled. Write their restrictions as rules
+  UNBOUND_ACL: 3 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: inside_nat0, partner_nat, unused
+  PIX_CONDUIT_IGNORED: the PIX ignores conduits for interfaces with an access list: outside, dmz
+  ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; inside=10.10.0.0/16,10.11.0.0/16; lab=10.40.0.0/24; outside=0.0.0.0/0,203.0.113.0/24; partner=10.30.0.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  EGRESS_BY_ROUTE: a PIX access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the statics that publish them and from the interface addresses and static routes in the configuration
+  PIX_NO_TRANSLATION: no translation (nat with a global, static, exemption) covers traffic from inside to lab, lab to outside, lab to dmz, lab to partner: the PIX passes none of it, and no implicit rule was written for it
+  ICMP_STATELESS: a PIX 6.x keeps no state for ICMP: the reply to a permitted ICMP request got through only where an access list or conduit permitted the reply too. Every target lets the replies to a permitted request through by itself
+  VPN_BYPASS: 'sysopt connection permit-ipsec' lets traffic that arrives through VPN tunnels past the access lists and conduits. The converted rules do not allow that traffic; add rules for it on the target
+  PIX_FIXUP: application inspection (fixup) is not converted; the targets inspect with helpers of their own. On: dns maximum-length, ftp 21, http 80, smtp 25, sqlnet 1521. Off: sip 5060.
+  PIX_ESTABLISHED: the established command lets connections in that belong to connections out (established tcp 6000 0 permitto tcp 6000). It is not converted: the result does not allow those connections; write rules for them if they are needed
+
+Notes
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

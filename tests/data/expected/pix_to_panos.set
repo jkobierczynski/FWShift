@@ -1,0 +1,313 @@
+set address outside-interface ip-netmask 203.0.113.2/32
+set address outside-interface description "address of interface outside when the configuration was read"
+set address h-10.20.0.10 ip-netmask 10.20.0.10
+set address h-10.20.0.25 ip-netmask 10.20.0.25
+set address-group dmz-servers static [ h-10.20.0.10 h-10.20.0.25 ]
+set address n-10.10.5.0_28 ip-netmask 10.10.5.0/28
+set address-group admins static n-10.10.5.0_28
+set service web-ports protocol tcp port 80,443
+set service tcp-25 protocol tcp port 25
+set service tcp-8443 protocol tcp port 8443
+set service tcp-22 protocol tcp port 22
+set service udp-53 protocol udp port 53
+set service tcp-1433 protocol tcp port 1433
+set service tcp-445 protocol tcp port 445
+set service tcp-3389 protocol tcp port 3389
+set service tcp-23 protocol tcp port 23
+set rulebase security rules outside_in-1 from outside
+set rulebase security rules outside_in-1 to dmz
+set rulebase security rules outside_in-1 source 0.0.0.0/0
+set rulebase security rules outside_in-1 destination 203.0.113.10
+set rulebase security rules outside_in-1 source-user any
+set rulebase security rules outside_in-1 category any
+set rulebase security rules outside_in-1 application any
+set rulebase security rules outside_in-1 service web-ports
+set rulebase security rules outside_in-1 action allow
+set rulebase security rules outside_in-1 log-end no
+set rulebase security rules outside_in-1 description "Published servers, by their global addresses"
+set rulebase security rules outside_in-2 from outside
+set rulebase security rules outside_in-2 to dmz
+set rulebase security rules outside_in-2 source 0.0.0.0/0
+set rulebase security rules outside_in-2 destination 203.0.113.25
+set rulebase security rules outside_in-2 source-user any
+set rulebase security rules outside_in-2 category any
+set rulebase security rules outside_in-2 application any
+set rulebase security rules outside_in-2 service tcp-25
+set rulebase security rules outside_in-2 action allow
+set rulebase security rules outside_in-2 log-end no
+set rulebase security rules outside_in-3 from outside
+set rulebase security rules outside_in-3 to dmz
+set rulebase security rules outside_in-3 source 0.0.0.0/0
+set rulebase security rules outside_in-3 destination outside-interface
+set rulebase security rules outside_in-3 source-user any
+set rulebase security rules outside_in-3 category any
+set rulebase security rules outside_in-3 application any
+set rulebase security rules outside_in-3 service tcp-8443
+set rulebase security rules outside_in-3 action allow
+set rulebase security rules outside_in-3 log-end no
+set rulebase security rules outside_in-4 from outside
+set rulebase security rules outside_in-4 to [ inside dmz lab partner ]
+set rulebase security rules outside_in-4 source 0.0.0.0/0
+set rulebase security rules outside_in-4 destination 0.0.0.0/0
+set rulebase security rules outside_in-4 source-user any
+set rulebase security rules outside_in-4 category any
+set rulebase security rules outside_in-4 application icmp
+set rulebase security rules outside_in-4 service application-default
+set rulebase security rules outside_in-4 action allow
+set rulebase security rules outside_in-4 log-end no
+set rulebase security rules outside_in-5 from outside
+set rulebase security rules outside_in-5 to any
+set rulebase security rules outside_in-5 source 192.0.2.66
+set rulebase security rules outside_in-5 destination 0.0.0.0/0
+set rulebase security rules outside_in-5 source-user any
+set rulebase security rules outside_in-5 category any
+set rulebase security rules outside_in-5 application any
+set rulebase security rules outside_in-5 service any
+set rulebase security rules outside_in-5 action drop
+set rulebase security rules outside_in-5 log-end yes
+set rulebase security rules outside_in-6 from outside
+set rulebase security rules outside_in-6 to dmz
+set rulebase security rules outside_in-6 source 192.0.2.80
+set rulebase security rules outside_in-6 destination 10.20.0.10
+set rulebase security rules outside_in-6 source-user any
+set rulebase security rules outside_in-6 category any
+set rulebase security rules outside_in-6 application any
+set rulebase security rules outside_in-6 service tcp-22
+set rulebase security rules outside_in-6 action allow
+set rulebase security rules outside_in-6 log-end no
+set rulebase security rules outside_in-6 description "A mistake: the real address, which no static publishes to the outside"
+set rulebase security rules outside_in-7 from outside
+set rulebase security rules outside_in-7 to any
+set rulebase security rules outside_in-7 source 0.0.0.0/0
+set rulebase security rules outside_in-7 destination 0.0.0.0/0
+set rulebase security rules outside_in-7 source-user any
+set rulebase security rules outside_in-7 category any
+set rulebase security rules outside_in-7 application any
+set rulebase security rules outside_in-7 service any
+set rulebase security rules outside_in-7 action drop
+set rulebase security rules outside_in-7 log-end yes
+set rulebase security rules dmz_in-1 from dmz
+set rulebase security rules dmz_in-1 to [ outside inside lab partner ]
+set rulebase security rules dmz_in-1 source dmz-servers
+set rulebase security rules dmz_in-1 destination 0.0.0.0/0
+set rulebase security rules dmz_in-1 source-user any
+set rulebase security rules dmz_in-1 category any
+set rulebase security rules dmz_in-1 application any
+set rulebase security rules dmz_in-1 service udp-53
+set rulebase security rules dmz_in-1 action allow
+set rulebase security rules dmz_in-1 log-end no
+set rulebase security rules dmz_in-2 from dmz
+set rulebase security rules dmz_in-2 to [ outside inside lab partner ]
+set rulebase security rules dmz_in-2 source 10.20.0.25
+set rulebase security rules dmz_in-2 destination 0.0.0.0/0
+set rulebase security rules dmz_in-2 source-user any
+set rulebase security rules dmz_in-2 category any
+set rulebase security rules dmz_in-2 application any
+set rulebase security rules dmz_in-2 service tcp-25
+set rulebase security rules dmz_in-2 action allow
+set rulebase security rules dmz_in-2 log-end no
+set rulebase security rules dmz_in-3 from dmz
+set rulebase security rules dmz_in-3 to inside
+set rulebase security rules dmz_in-3 source 10.20.0.10
+set rulebase security rules dmz_in-3 destination 10.10.0.50
+set rulebase security rules dmz_in-3 source-user any
+set rulebase security rules dmz_in-3 category any
+set rulebase security rules dmz_in-3 application any
+set rulebase security rules dmz_in-3 service tcp-1433
+set rulebase security rules dmz_in-3 action allow
+set rulebase security rules dmz_in-3 log-end no
+set rulebase security rules dmz_in-4 from dmz
+set rulebase security rules dmz_in-4 to inside
+set rulebase security rules dmz_in-4 source 10.20.0.10
+set rulebase security rules dmz_in-4 destination 10.10.0.0/16
+set rulebase security rules dmz_in-4 source-user any
+set rulebase security rules dmz_in-4 category any
+set rulebase security rules dmz_in-4 application any
+set rulebase security rules dmz_in-4 service tcp-445
+set rulebase security rules dmz_in-4 action allow
+set rulebase security rules dmz_in-4 log-end no
+set rulebase security rules dmz_in-5 from dmz
+set rulebase security rules dmz_in-5 to any
+set rulebase security rules dmz_in-5 source 0.0.0.0/0
+set rulebase security rules dmz_in-5 destination 0.0.0.0/0
+set rulebase security rules dmz_in-5 source-user any
+set rulebase security rules dmz_in-5 category any
+set rulebase security rules dmz_in-5 application any
+set rulebase security rules dmz_in-5 service any
+set rulebase security rules dmz_in-5 action drop
+set rulebase security rules dmz_in-5 log-end yes
+set rulebase security rules implicit-inside-outside from inside
+set rulebase security rules implicit-inside-outside to outside
+set rulebase security rules implicit-inside-outside source 0.0.0.0/0
+set rulebase security rules implicit-inside-outside destination 0.0.0.0/0
+set rulebase security rules implicit-inside-outside source-user any
+set rulebase security rules implicit-inside-outside category any
+set rulebase security rules implicit-inside-outside application any
+set rulebase security rules implicit-inside-outside service any
+set rulebase security rules implicit-inside-outside action allow
+set rulebase security rules implicit-inside-outside log-end no
+set rulebase security rules implicit-inside-outside description "PIX implicit rule: traffic to an interface of a lower security level, from what a translation covers"
+set rulebase security rules implicit-inside-dmz from inside
+set rulebase security rules implicit-inside-dmz to dmz
+set rulebase security rules implicit-inside-dmz source [ 0.0.0.0-10.10.9.255 10.10.11.0-255.255.255.255 ]
+set rulebase security rules implicit-inside-dmz destination 0.0.0.0/0
+set rulebase security rules implicit-inside-dmz source-user any
+set rulebase security rules implicit-inside-dmz category any
+set rulebase security rules implicit-inside-dmz application any
+set rulebase security rules implicit-inside-dmz service any
+set rulebase security rules implicit-inside-dmz action allow
+set rulebase security rules implicit-inside-dmz log-end no
+set rulebase security rules implicit-inside-dmz description "PIX implicit rule: traffic to an interface of a lower security level, from what a translation covers"
+set rulebase security rules implicit-inside-partner from inside
+set rulebase security rules implicit-inside-partner to partner
+set rulebase security rules implicit-inside-partner source 10.10.0.0/16
+set rulebase security rules implicit-inside-partner destination 0.0.0.0/0
+set rulebase security rules implicit-inside-partner source-user any
+set rulebase security rules implicit-inside-partner category any
+set rulebase security rules implicit-inside-partner application any
+set rulebase security rules implicit-inside-partner service any
+set rulebase security rules implicit-inside-partner action allow
+set rulebase security rules implicit-inside-partner log-end no
+set rulebase security rules implicit-inside-partner description "PIX implicit rule: traffic to an interface of a lower security level, from what a translation covers"
+set rulebase security rules implicit-partner-outside from partner
+set rulebase security rules implicit-partner-outside to outside
+set rulebase security rules implicit-partner-outside source 10.30.0.0/24
+set rulebase security rules implicit-partner-outside destination 0.0.0.0/0
+set rulebase security rules implicit-partner-outside source-user any
+set rulebase security rules implicit-partner-outside category any
+set rulebase security rules implicit-partner-outside application any
+set rulebase security rules implicit-partner-outside service any
+set rulebase security rules implicit-partner-outside action allow
+set rulebase security rules implicit-partner-outside log-end no
+set rulebase security rules implicit-partner-outside disabled yes
+set rulebase security rules implicit-partner-outside description "FWSHIFT: disabled by the converter, see the report. PIX implicit rule: traffic to an interface of a lower security level, from what a translation covers"
+set rulebase security rules conduit-1 from [ lab partner ]
+set rulebase security rules conduit-1 to inside
+set rulebase security rules conduit-1 source 10.30.0.0/24
+set rulebase security rules conduit-1 destination 10.10.0.60
+set rulebase security rules conduit-1 source-user any
+set rulebase security rules conduit-1 category any
+set rulebase security rules conduit-1 application any
+set rulebase security rules conduit-1 service tcp-3389
+set rulebase security rules conduit-1 action allow
+set rulebase security rules conduit-1 log-end no
+set rulebase security rules conduit-2 from lab
+set rulebase security rules conduit-2 to inside
+set rulebase security rules conduit-2 source 0.0.0.0/0
+set rulebase security rules conduit-2 destination 0.0.0.0/0
+set rulebase security rules conduit-2 source-user any
+set rulebase security rules conduit-2 category any
+set rulebase security rules conduit-2 application icmp
+set rulebase security rules conduit-2 service application-default
+set rulebase security rules conduit-2 action allow
+set rulebase security rules conduit-2 log-end no
+set rulebase security rules conduit-2-2 from partner
+set rulebase security rules conduit-2-2 to [ inside dmz lab ]
+set rulebase security rules conduit-2-2 source 0.0.0.0/0
+set rulebase security rules conduit-2-2 destination 0.0.0.0/0
+set rulebase security rules conduit-2-2 source-user any
+set rulebase security rules conduit-2-2 category any
+set rulebase security rules conduit-2-2 application icmp
+set rulebase security rules conduit-2-2 service application-default
+set rulebase security rules conduit-2-2 action allow
+set rulebase security rules conduit-2-2 log-end no
+set rulebase security rules conduit-3 from lab
+set rulebase security rules conduit-3 to inside
+set rulebase security rules conduit-3 source 0.0.0.0/0
+set rulebase security rules conduit-3 destination 0.0.0.0/0
+set rulebase security rules conduit-3 source-user any
+set rulebase security rules conduit-3 category any
+set rulebase security rules conduit-3 application any
+set rulebase security rules conduit-3 service tcp-23
+set rulebase security rules conduit-3 action drop
+set rulebase security rules conduit-3 log-end yes
+set rulebase security rules conduit-3-2 from partner
+set rulebase security rules conduit-3-2 to [ inside dmz lab ]
+set rulebase security rules conduit-3-2 source 0.0.0.0/0
+set rulebase security rules conduit-3-2 destination 0.0.0.0/0
+set rulebase security rules conduit-3-2 source-user any
+set rulebase security rules conduit-3-2 category any
+set rulebase security rules conduit-3-2 application any
+set rulebase security rules conduit-3-2 service tcp-23
+set rulebase security rules conduit-3-2 action drop
+set rulebase security rules conduit-3-2 log-end yes
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules static-1 from dmz
+set rulebase nat rules static-1 to outside
+set rulebase nat rules static-1 source 10.20.0.10
+set rulebase nat rules static-1 destination any
+set rulebase nat rules static-1 service any
+set rulebase nat rules static-1 source-translation static-ip translated-address 203.0.113.10
+set rulebase nat rules static-1 source-translation static-ip bi-directional yes
+set rulebase nat rules static-2 from dmz
+set rulebase nat rules static-2 to outside
+set rulebase nat rules static-2 source 10.20.0.25
+set rulebase nat rules static-2 destination any
+set rulebase nat rules static-2 service any
+set rulebase nat rules static-2 source-translation static-ip translated-address 203.0.113.25
+set rulebase nat rules static-2 source-translation static-ip bi-directional yes
+set rulebase nat rules static-4 from inside
+set rulebase nat rules static-4 to dmz
+set rulebase nat rules static-4 source 10.10.0.50
+set rulebase nat rules static-4 destination any
+set rulebase nat rules static-4 service any
+set rulebase nat rules static-4 description "static (inside,dmz) 10.10.0.50 10.10.0.50: not translated"
+set rulebase nat rules static-5 from inside
+set rulebase nat rules static-5 to partner
+set rulebase nat rules static-5 source 10.10.0.0/16
+set rulebase nat rules static-5 destination any
+set rulebase nat rules static-5 service any
+set rulebase nat rules static-5 description "static (inside,partner) 10.10.0.0/16 10.10.0.0/16: not translated"
+set rulebase nat rules static-3 from outside
+set rulebase nat rules static-3 to outside
+set rulebase nat rules static-3 source any
+set rulebase nat rules static-3 destination outside-interface
+set rulebase nat rules static-3 service tcp-8443
+set rulebase nat rules static-3 destination-translation translated-address 10.20.0.30
+set rulebase nat rules static-3 destination-translation translated-port 443
+set rulebase nat rules nat3-inside-1 from inside
+set rulebase nat rules nat3-inside-1 to outside
+set rulebase nat rules nat3-inside-1 source 10.10.20.0/24
+set rulebase nat rules nat3-inside-1 destination 198.51.100.0/24
+set rulebase nat rules nat3-inside-1 service any
+set rulebase nat rules nat3-inside-1 source-translation dynamic-ip-and-port translated-address 203.0.113.200
+set rulebase nat rules nat3-inside-1 description "nat (inside) 3 access-list partner_nat"
+set rulebase nat rules nat2-inside from inside
+set rulebase nat rules nat2-inside to outside
+set rulebase nat rules nat2-inside source 10.10.10.0/24
+set rulebase nat rules nat2-inside destination any
+set rulebase nat rules nat2-inside service any
+set rulebase nat rules nat2-inside source-translation dynamic-ip translated-address 203.0.113.100-203.0.113.150
+set rulebase nat rules nat2-inside description "nat (inside) 2 with global (outside) 2"
+set rulebase nat rules nat1-inside-outside from inside
+set rulebase nat rules nat1-inside-outside to outside
+set rulebase nat rules nat1-inside-outside source 0.0.0.0/0
+set rulebase nat rules nat1-inside-outside destination any
+set rulebase nat rules nat1-inside-outside service any
+set rulebase nat rules nat1-inside-outside source-translation dynamic-ip-and-port translated-address 203.0.113.2
+set rulebase nat rules nat1-inside-outside description "nat (inside) 1 with global (outside) 1"
+set rulebase nat rules nat1-inside-dmz from inside
+set rulebase nat rules nat1-inside-dmz to dmz
+set rulebase nat rules nat1-inside-dmz source 0.0.0.0/0
+set rulebase nat rules nat1-inside-dmz destination any
+set rulebase nat rules nat1-inside-dmz service any
+set rulebase nat rules nat1-inside-dmz source-translation dynamic-ip-and-port translated-address 10.20.0.200
+set rulebase nat rules nat1-inside-dmz description "nat (inside) 1 with global (dmz) 1"
+set rulebase nat rules nat1-partner from partner
+set rulebase nat rules nat1-partner to outside
+set rulebase nat rules nat1-partner source 10.30.0.0/24
+set rulebase nat rules nat1-partner destination any
+set rulebase nat rules nat1-partner service any
+set rulebase nat rules nat1-partner source-translation dynamic-ip-and-port translated-address 203.0.113.2
+set rulebase nat rules nat1-partner description "nat (partner) 1 with global (outside) 1"

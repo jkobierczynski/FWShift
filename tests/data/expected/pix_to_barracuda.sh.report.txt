@@ -1,0 +1,115 @@
+FWShift conversion report
+  source: pix (PIX Version 6.3(5))
+  target: barracuda
+
+Summary
+  Security rules:     21   exact 12, approximated 0, needs review 9 (4 emitted disabled), skipped 0
+  NAT rules:          11   exact 0, approximated 0, needs review 0, skipped 11
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 9, approximated 0, needs review 2, skipped 0
+
+Notes for the whole policy
+  [needs-review] PIX_OUTBOUND: outbound lists (outbound and apply) limit what interfaces without an access list let out: partner: outbound list 10 (outgoing_src: deny 0.0.0.0 0.0.0.0 0 0; permit 10.30.0.0 255.255.255.0 80 tcp). The PIX decides them by the best match, not in order; they are not converted, and the implicit rules of those interfaces are written disabled. Write their restrictions as rules
+  [needs-review] PIX_ESTABLISHED: the established command lets connections in that belong to connections out (established tcp 6000 0 permitto tcp 6000). It is not converted: the result does not allow those connections; write rules for them if they are needed
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [approximated] ICMP_STATELESS: a PIX 6.x keeps no state for ICMP: the reply to a permitted ICMP request got through only where an access list or conduit permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: 'sysopt connection permit-ipsec' lets traffic that arrives through VPN tunnels past the access lists and conduits. The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 3 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: inside_nat0, partner_nat, unused
+  [info] PIX_CONDUIT_IGNORED: the PIX ignores conduits for interfaces with an access list: outside, dmz
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; inside=10.10.0.0/16,10.11.0.0/16; lab=10.40.0.0/24; outside=0.0.0.0/0,203.0.113.0/24; partner=10.30.0.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] EGRESS_BY_ROUTE: a PIX access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the statics that publish them and from the interface addresses and static routes in the configuration
+  [info] PIX_NO_TRANSLATION: no translation (nat with a global, static, exemption) covers traffic from inside to lab, lab to outside, lab to dmz, lab to partner: the PIX passes none of it, and no implicit rule was written for it
+  [info] PIX_FIXUP: application inspection (fixup) is not converted; the targets inspect with helpers of their own. On: dns maximum-length, ftp 21, http 80, smtp 25, sqlnet 1521. Off: sip 5060.
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; inside=10.10.0.0/16,10.11.0.0/16; lab=10.40.0.0/24; outside=0.0.0.0/0,203.0.113.0/24; partner=10.30.0.0/24. --no-source-networks takes none of them
+
+Security rules
+  outside_in-1  ->  exact
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+  outside_in-2  ->  exact
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+  outside_in-3  ->  exact
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+  outside_in-4  ->  needs-review, emitted disabled
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers outside to inside: destinations 0.0.0.0/0; outside to dmz: destinations 0.0.0.0-203.0.113.1, 203.0.113.3-203.0.113.9, 203.0.113.11-203.0.113.24 ...; outside to lab: destinations 0.0.0.0/0; outside to partner: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ping-replies': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+  outside_in-6  ->  needs-review
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers outside to dmz: destinations 10.20.0.10. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  outside_in-7  ->  exact
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written without the networks given for the other zones with --zone-network
+  dmz_in-1  ->  needs-review
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 0.0.0.0-10.10.0.49, 10.10.0.51-255.255.255.255; dmz to lab: destinations 0.0.0.0/0; dmz to partner: sources 10.20.0.10, 10.20.0.25. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  dmz_in-2  ->  needs-review
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 0.0.0.0-10.10.0.49, 10.10.0.51-255.255.255.255; dmz to lab: destinations 0.0.0.0/0; dmz to partner: sources 10.20.0.25. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  dmz_in-4  ->  needs-review
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 10.10.0.0-10.10.0.49, 10.10.0.51-10.10.255.255. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  dmz_in-5  ->  exact
+      [info] ZONE_BY_NETWORKS: the source in zone dmz is written without the networks given for the other zones with --zone-network
+  implicit-inside-outside  ->  exact
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'outside' (security level 0), for every source (NAT is mandatory). This rule says so
+      [info] ZONE_BY_NETWORKS: the source in zone inside is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone outside is written as the addresses of the networks given for it with --zone-network
+  implicit-inside-dmz  ->  exact
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'dmz' (security level 50), for the sources a translation covers (NAT is mandatory). This rule says so
+      [info] ZONE_BY_NETWORKS: the source in zone inside is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+  implicit-inside-partner  ->  exact
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'partner' (security level 20), for the sources a translation covers (NAT is mandatory). This rule says so
+      [info] ZONE_BY_NETWORKS: the destination in zone partner is written as the addresses of the networks given for it with --zone-network
+  implicit-partner-outside  ->  needs-review, emitted disabled
+      [info] IMPLICIT_PERMIT: interface 'partner' (security level 20) has no access list: the PIX lets its traffic out to 'outside' (security level 0), for the sources a translation covers (NAT is mandatory). This rule says so
+      [info] ZONE_BY_NETWORKS: the destination in zone outside is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: outbound list 10 (outgoing_src: deny 0.0.0.0 0.0.0.0 0 0; permit 10.30.0.0 255.255.255.0 80 tcp) applied to partner, which is not converted.
+  conduit-1  ->  needs-review
+      [info] PIX_CONDUIT: from the conduit 'conduit permit tcp host terminal-srv eq 3389 10.30.0.0 255.255.255.0', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers lab to inside: destinations 10.10.0.60. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  conduit-2  ->  needs-review, emitted disabled
+      [info] PIX_CONDUIT: from the conduit 'conduit permit icmp any any echo-reply', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers lab to inside: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [info] ZONE_BY_NETWORKS: the source in zone lab is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-0': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+  conduit-2-2  ->  needs-review, emitted disabled
+      [info] PIX_CONDUIT: from the conduit 'conduit permit icmp any any echo-reply', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers partner to inside: destinations 0.0.0.0-10.9.255.255, 10.11.0.0-255.255.255.255; partner to dmz: destinations 0.0.0.0/0; partner to lab: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [info] ZONE_BY_NETWORKS: the source in zone partner is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-0': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+  conduit-3  ->  exact
+      [info] PIX_CONDUIT: from the conduit 'conduit deny tcp any eq telnet any', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [info] ZONE_BY_NETWORKS: the source in zone lab is written without the networks given for the other zones with --zone-network
+  conduit-3-2  ->  exact
+      [info] PIX_CONDUIT: from the conduit 'conduit deny tcp any eq telnet any', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [info] ZONE_BY_NETWORKS: the source in zone partner is written without the networks given for the other zones with --zone-network
+
+NAT rules
+  nat0-inside-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  static-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  static-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  static-4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  static-5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  static-3  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the configuration, 203.0.113.2
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  nat3-inside-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  nat2-inside  ->  skipped
+      [approximated] PIX_PAT_FALLBACK: the PIX hands out the addresses of the pool and, when they run out, translates to the PAT address of global (outside) 2; only the pool is converted
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  nat1-inside-outside  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  nat1-inside-dmz  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  nat1-partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+
+Services
+  ping-replies  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
+  icmp-0  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated

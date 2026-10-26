@@ -1,0 +1,541 @@
+set address updates.example.com fqdn updates.example.com
+set address updates.example.com description "host name in a VyOS rule or domain-group"
+set address mirror.example.org fqdn mirror.example.org
+set address mirror.example.org description "host name in a VyOS rule or domain-group"
+set address "https to web1 destination" ip-netmask 203.0.113.10
+set address "https to web1 destination" description "the destination of VyOS destination NAT rule 'https to web1'"
+set address n-198.51.100.0_24 ip-netmask 198.51.100.0/24
+set address n-203.0.113.128_25 ip-netmask 203.0.113.128/25
+set address-group BLOCKLIST static [ n-198.51.100.0_24 n-203.0.113.128_25 ]
+set address-group BLOCKLIST description "VyOS firewall group network-group BLOCKLIST (with BLOCKLIST-EXTRA)"
+set address n-192.168.10.0_24 ip-netmask 192.168.10.0/24
+set address n-192.168.20.0_24 ip-netmask 192.168.20.0/24
+set address-group INSIDE-NETS static [ n-192.168.10.0_24 n-192.168.20.0_24 ]
+set address-group INSIDE-NETS description "VyOS firewall group network-group INSIDE-NETS"
+set address h-192.168.30.10 ip-netmask 192.168.30.10
+set address r-192.168.30.11-192.168.30.12 ip-range 192.168.30.11-192.168.30.12
+set address-group WEB-SERVERS static [ h-192.168.30.10 r-192.168.30.11-192.168.30.12 ]
+set address-group WEB-SERVERS description "VyOS firewall group address-group WEB-SERVERS"
+set address-group UPDATES static [ updates.example.com mirror.example.org ]
+set address-group UPDATES description "VyOS firewall group domain-group UPDATES"
+set address EMPTY ip-netmask 0.0.0.0/32
+set address EMPTY description "FWSHIFT PLACEHOLDER, matches nothing: empty address group"
+set address n-2001_db8_30___64 ip-netmask 2001:db8:30::/64
+set address-group DMZ6 static n-2001_db8_30___64
+set address-group DMZ6 description "VyOS firewall group ipv6-network-group DMZ6"
+set service tcp-443 protocol tcp port 443
+set service tcp-2222 protocol tcp port 2222
+set service tcp-25 protocol tcp port 25
+set service tcp-any protocol tcp port 1-65535
+set service tcp-23 protocol tcp port 23
+set service tcp-20-21_23 protocol tcp port 20-21,23
+set service tcp-8443 protocol tcp port 8443
+set service tcp-80_443_8080-8090 protocol tcp port 80,443,8080-8090
+set service tcp-3389 protocol tcp port 3389
+set service udp-1194 protocol udp port 1194
+set service tcp-53_udp-53-tcp protocol tcp port 53
+set service tcp-53_udp-53-udp protocol udp port 53
+set service-group tcp-53_udp-53 members [ tcp-53_udp-53-tcp tcp-53_udp-53-udp ]
+set service tcp-22 protocol tcp port 22
+set rulebase security rules "drop the blocklist" from any
+set rulebase security rules "drop the blocklist" to any
+set rulebase security rules "drop the blocklist" source BLOCKLIST
+set rulebase security rules "drop the blocklist" destination any
+set rulebase security rules "drop the blocklist" source-user any
+set rulebase security rules "drop the blocklist" category any
+set rulebase security rules "drop the blocklist" application any
+set rulebase security rules "drop the blocklist" service any
+set rulebase security rules "drop the blocklist" action drop
+set rulebase security rules "drop the blocklist" log-end no
+set rulebase security rules "drop the blocklist" description "VyOS ipv4 forward filter rule 10 (forward-10)"
+set rulebase security rules "no outbound mail" from [ GUEST LAN ]
+set rulebase security rules "no outbound mail" to WAN
+set rulebase security rules "no outbound mail" source 0.0.0.0/0
+set rulebase security rules "no outbound mail" destination any
+set rulebase security rules "no outbound mail" source-user any
+set rulebase security rules "no outbound mail" category any
+set rulebase security rules "no outbound mail" application any
+set rulebase security rules "no outbound mail" service tcp-25
+set rulebase security rules "no outbound mail" action deny
+set rulebase security rules "no outbound mail" log-end no
+set rulebase security rules "no outbound mail" description "VyOS ipv4 name INSIDE-OUT rule 10 (forward-20.INSIDE-OUT-10)"
+set rulebase security rules "spoofed inside sources" from [ GUEST LAN ]
+set rulebase security rules "spoofed inside sources" to any
+set rulebase security rules "spoofed inside sources" source INSIDE-NETS
+set rulebase security rules "spoofed inside sources" destination 0.0.0.0/0
+set rulebase security rules "spoofed inside sources" source-user any
+set rulebase security rules "spoofed inside sources" category any
+set rulebase security rules "spoofed inside sources" application any
+set rulebase security rules "spoofed inside sources" service any
+set rulebase security rules "spoofed inside sources" action drop
+set rulebase security rules "spoofed inside sources" negate-source yes
+set rulebase security rules "spoofed inside sources" log-start yes
+set rulebase security rules "spoofed inside sources" log-end no
+set rulebase security rules "spoofed inside sources" description "VyOS ipv4 name INSIDE-OUT rule 30 (forward-20.INSIDE-OUT-30)"
+set rulebase security rules forward-30 from any
+set rulebase security rules forward-30 to any
+set rulebase security rules forward-30 source any
+set rulebase security rules forward-30 destination [ 192.168.30.0/24 "https to web1 destination" ]
+set rulebase security rules forward-30 source-user any
+set rulebase security rules forward-30 category any
+set rulebase security rules forward-30 application any
+set rulebase security rules forward-30 service tcp-any
+set rulebase security rules forward-30 action drop
+set rulebase security rules forward-30 log-end no
+set rulebase security rules forward-30 disabled yes
+set rulebase security rules forward-30 description "VyOS ipv4 forward filter rule 30"
+set rulebase security rules forward-40 from [ DMZ GUEST LAN VPN br0 ]
+set rulebase security rules forward-40 to any
+set rulebase security rules forward-40 source any
+set rulebase security rules forward-40 destination 203.0.113.0/24
+set rulebase security rules forward-40 source-user any
+set rulebase security rules forward-40 category any
+set rulebase security rules forward-40 application any
+set rulebase security rules forward-40 service tcp-23
+set rulebase security rules forward-40 action deny
+set rulebase security rules forward-40 log-end no
+set rulebase security rules forward-40 description "VyOS ipv4 forward filter rule 40"
+set rulebase security rules "no telnet or ftp out" from LAN
+set rulebase security rules "no telnet or ftp out" to WAN
+set rulebase security rules "no telnet or ftp out" source 0.0.0.0/0
+set rulebase security rules "no telnet or ftp out" destination any
+set rulebase security rules "no telnet or ftp out" source-user any
+set rulebase security rules "no telnet or ftp out" category any
+set rulebase security rules "no telnet or ftp out" application any
+set rulebase security rules "no telnet or ftp out" service tcp-20-21_23
+set rulebase security rules "no telnet or ftp out" action drop
+set rulebase security rules "no telnet or ftp out" log-end no
+set rulebase security rules "no telnet or ftp out" description "VyOS ipv4 name LAN-WAN rule 10 (zone-WAN.from-LAN.LAN-WAN-10)"
+set rulebase security rules zone-WAN.from-LAN.LAN-WAN-20 from LAN
+set rulebase security rules zone-WAN.from-LAN.LAN-WAN-20 to WAN
+set rulebase security rules zone-WAN.from-LAN.LAN-WAN-20 source 0.0.0.0/0
+set rulebase security rules zone-WAN.from-LAN.LAN-WAN-20 destination UPDATES
+set rulebase security rules zone-WAN.from-LAN.LAN-WAN-20 source-user any
+set rulebase security rules zone-WAN.from-LAN.LAN-WAN-20 category any
+set rulebase security rules zone-WAN.from-LAN.LAN-WAN-20 application any
+set rulebase security rules zone-WAN.from-LAN.LAN-WAN-20 service any
+set rulebase security rules zone-WAN.from-LAN.LAN-WAN-20 action allow
+set rulebase security rules zone-WAN.from-LAN.LAN-WAN-20 log-end no
+set rulebase security rules zone-WAN.from-LAN.LAN-WAN-20 description "VyOS ipv4 name LAN-WAN rule 20"
+set rulebase security rules zone-WAN.from-LAN.default from LAN
+set rulebase security rules zone-WAN.from-LAN.default to WAN
+set rulebase security rules zone-WAN.from-LAN.default source 0.0.0.0/0
+set rulebase security rules zone-WAN.from-LAN.default destination any
+set rulebase security rules zone-WAN.from-LAN.default source-user any
+set rulebase security rules zone-WAN.from-LAN.default category any
+set rulebase security rules zone-WAN.from-LAN.default application any
+set rulebase security rules zone-WAN.from-LAN.default service any
+set rulebase security rules zone-WAN.from-LAN.default action allow
+set rulebase security rules zone-WAN.from-LAN.default log-end no
+set rulebase security rules zone-WAN.from-LAN.default description "VyOS ipv4 name LAN-WAN default-action accept"
+set rulebase security rules zone-WAN.from-GUEST.GUEST-WAN-10 from GUEST
+set rulebase security rules zone-WAN.from-GUEST.GUEST-WAN-10 to WAN
+set rulebase security rules zone-WAN.from-GUEST.GUEST-WAN-10 source any
+set rulebase security rules zone-WAN.from-GUEST.GUEST-WAN-10 destination INSIDE-NETS
+set rulebase security rules zone-WAN.from-GUEST.GUEST-WAN-10 source-user any
+set rulebase security rules zone-WAN.from-GUEST.GUEST-WAN-10 category any
+set rulebase security rules zone-WAN.from-GUEST.GUEST-WAN-10 application any
+set rulebase security rules zone-WAN.from-GUEST.GUEST-WAN-10 service any
+set rulebase security rules zone-WAN.from-GUEST.GUEST-WAN-10 action drop
+set rulebase security rules zone-WAN.from-GUEST.GUEST-WAN-10 log-end no
+set rulebase security rules zone-WAN.from-GUEST.GUEST-WAN-10 description "VyOS ipv4 name GUEST-WAN rule 10"
+set rulebase security rules zone-WAN.from-GUEST.default from GUEST
+set rulebase security rules zone-WAN.from-GUEST.default to WAN
+set rulebase security rules zone-WAN.from-GUEST.default source 0.0.0.0/0
+set rulebase security rules zone-WAN.from-GUEST.default destination any
+set rulebase security rules zone-WAN.from-GUEST.default source-user any
+set rulebase security rules zone-WAN.from-GUEST.default category any
+set rulebase security rules zone-WAN.from-GUEST.default application any
+set rulebase security rules zone-WAN.from-GUEST.default service any
+set rulebase security rules zone-WAN.from-GUEST.default action allow
+set rulebase security rules zone-WAN.from-GUEST.default log-end no
+set rulebase security rules zone-WAN.from-GUEST.default description "VyOS ipv4 name GUEST-WAN default-action accept"
+set rulebase security rules zone-WAN.default from [ DMZ GUEST LAN VPN br0 ]
+set rulebase security rules zone-WAN.default to WAN
+set rulebase security rules zone-WAN.default source 0.0.0.0/0
+set rulebase security rules zone-WAN.default destination any
+set rulebase security rules zone-WAN.default source-user any
+set rulebase security rules zone-WAN.default category any
+set rulebase security rules zone-WAN.default application any
+set rulebase security rules zone-WAN.default service any
+set rulebase security rules zone-WAN.default action drop
+set rulebase security rules zone-WAN.default log-end no
+set rulebase security rules zone-WAN.default description "VyOS zone WAN default-action drop"
+set rulebase security rules zone-LAN.intra from LAN
+set rulebase security rules zone-LAN.intra to LAN
+set rulebase security rules zone-LAN.intra source 0.0.0.0/0
+set rulebase security rules zone-LAN.intra destination any
+set rulebase security rules zone-LAN.intra source-user any
+set rulebase security rules zone-LAN.intra category any
+set rulebase security rules zone-LAN.intra application any
+set rulebase security rules zone-LAN.intra service any
+set rulebase security rules zone-LAN.intra action drop
+set rulebase security rules zone-LAN.intra log-end no
+set rulebase security rules zone-LAN.intra description "VyOS zone LAN intra-zone-filtering action drop"
+set rulebase security rules zone-LAN.from-WAN.WAN-LAN-10 from WAN
+set rulebase security rules zone-LAN.from-WAN.WAN-LAN-10 to LAN
+set rulebase security rules zone-LAN.from-WAN.WAN-LAN-10 source any
+set rulebase security rules zone-LAN.from-WAN.WAN-LAN-10 destination 192.168.10.50
+set rulebase security rules zone-LAN.from-WAN.WAN-LAN-10 source-user any
+set rulebase security rules zone-LAN.from-WAN.WAN-LAN-10 category any
+set rulebase security rules zone-LAN.from-WAN.WAN-LAN-10 application any
+set rulebase security rules zone-LAN.from-WAN.WAN-LAN-10 service tcp-8443
+set rulebase security rules zone-LAN.from-WAN.WAN-LAN-10 action allow
+set rulebase security rules zone-LAN.from-WAN.WAN-LAN-10 log-end no
+set rulebase security rules zone-LAN.from-WAN.WAN-LAN-10 description "VyOS ipv4 name WAN-LAN rule 10"
+set rulebase security rules zone-LAN.from-WAN.default from WAN
+set rulebase security rules zone-LAN.from-WAN.default to LAN
+set rulebase security rules zone-LAN.from-WAN.default source 0.0.0.0/0
+set rulebase security rules zone-LAN.from-WAN.default destination any
+set rulebase security rules zone-LAN.from-WAN.default source-user any
+set rulebase security rules zone-LAN.from-WAN.default category any
+set rulebase security rules zone-LAN.from-WAN.default application any
+set rulebase security rules zone-LAN.from-WAN.default service any
+set rulebase security rules zone-LAN.from-WAN.default action drop
+set rulebase security rules zone-LAN.from-WAN.default log-end no
+set rulebase security rules zone-LAN.from-WAN.default description "VyOS ipv4 name WAN-LAN default-action drop"
+set rulebase security rules zone-LAN.default from any
+set rulebase security rules zone-LAN.default to LAN
+set rulebase security rules zone-LAN.default source 0.0.0.0/0
+set rulebase security rules zone-LAN.default destination any
+set rulebase security rules zone-LAN.default source-user any
+set rulebase security rules zone-LAN.default category any
+set rulebase security rules zone-LAN.default application any
+set rulebase security rules zone-LAN.default service any
+set rulebase security rules zone-LAN.default action drop
+set rulebase security rules zone-LAN.default log-end no
+set rulebase security rules zone-LAN.default description "VyOS zone LAN default-action drop"
+set rulebase security rules zone-GUEST.default from [ DMZ LAN VPN WAN br0 ]
+set rulebase security rules zone-GUEST.default to GUEST
+set rulebase security rules zone-GUEST.default source 0.0.0.0/0
+set rulebase security rules zone-GUEST.default destination any
+set rulebase security rules zone-GUEST.default source-user any
+set rulebase security rules zone-GUEST.default category any
+set rulebase security rules zone-GUEST.default application any
+set rulebase security rules zone-GUEST.default service any
+set rulebase security rules zone-GUEST.default action deny
+set rulebase security rules zone-GUEST.default log-end no
+set rulebase security rules zone-GUEST.default description "VyOS zone GUEST default-action reject"
+set rulebase security rules "web servers" from WAN
+set rulebase security rules "web servers" to DMZ
+set rulebase security rules "web servers" source any
+set rulebase security rules "web servers" destination [ WEB-SERVERS "https to web1 destination" ]
+set rulebase security rules "web servers" source-user any
+set rulebase security rules "web servers" category any
+set rulebase security rules "web servers" application any
+set rulebase security rules "web servers" service tcp-80_443_8080-8090
+set rulebase security rules "web servers" action allow
+set rulebase security rules "web servers" log-end no
+set rulebase security rules "web servers" description "VyOS ipv4 name WAN-DMZ rule 10 (zone-DMZ.from-WAN.WAN-DMZ-10)"
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _https to web1_" from WAN
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _https to web1_" to DMZ
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _https to web1_" source any
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _https to web1_" destination "https to web1 destination"
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _https to web1_" source-user any
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _https to web1_" category any
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _https to web1_" application any
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _https to web1_" service tcp-443
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _https to web1_" action allow
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _https to web1_" log-end no
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _https to web1_" description "VyOS ipv4 name WAN-DMZ rule 20: what destination NAT rule 'https to web1' translates"
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _ssh on 2222 to the jump host_" from WAN
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _ssh on 2222 to the jump host_" to DMZ
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _ssh on 2222 to the jump host_" source 0.0.0.0/0
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _ssh on 2222 to the jump host_" destination any
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _ssh on 2222 to the jump host_" source-user any
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _ssh on 2222 to the jump host_" category any
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _ssh on 2222 to the jump host_" application any
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _ssh on 2222 to the jump host_" service tcp-2222
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _ssh on 2222 to the jump host_" action allow
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _ssh on 2222 to the jump host_" log-end no
+set rulebase security rules "zone-DMZ.from-WAN.WAN-DMZ-20 _ssh on 2222 to the jump host_" description "VyOS ipv4 name WAN-DMZ rule 20: what destination NAT rule 'ssh on 2222 to the jump host' translates"
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-30 from WAN
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-30 to DMZ
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-30 source 0.0.0.0/0
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-30 destination any
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-30 source-user any
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-30 category any
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-30 application ping
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-30 service application-default
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-30 action allow
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-30 log-end no
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-30 description "VyOS ipv4 name WAN-DMZ rule 30"
+set rulebase security rules "office hours only" from WAN
+set rulebase security rules "office hours only" to DMZ
+set rulebase security rules "office hours only" source any
+set rulebase security rules "office hours only" destination 192.168.30.20
+set rulebase security rules "office hours only" source-user any
+set rulebase security rules "office hours only" category any
+set rulebase security rules "office hours only" application any
+set rulebase security rules "office hours only" service tcp-3389
+set rulebase security rules "office hours only" action allow
+set rulebase security rules "office hours only" log-end no
+set rulebase security rules "office hours only" disabled yes
+set rulebase security rules "office hours only" description "FWSHIFT: disabled by the converter, see the report. VyOS ipv4 name WAN-DMZ rule 40 (zone-DMZ.from-WAN.WAN-DMZ-40)"
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-50 from WAN
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-50 to DMZ
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-50 source 0.0.0.0/0
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-50 destination any
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-50 source-user any
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-50 category any
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-50 application any
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-50 service udp-1194
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-50 action allow
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-50 log-end no
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-50 disabled yes
+set rulebase security rules zone-DMZ.from-WAN.WAN-DMZ-50 description "FWSHIFT: disabled by the converter, see the report. VyOS ipv4 name WAN-DMZ rule 50"
+set rulebase security rules zone-DMZ.from-WAN.default from WAN
+set rulebase security rules zone-DMZ.from-WAN.default to DMZ
+set rulebase security rules zone-DMZ.from-WAN.default source 0.0.0.0/0
+set rulebase security rules zone-DMZ.from-WAN.default destination any
+set rulebase security rules zone-DMZ.from-WAN.default source-user any
+set rulebase security rules zone-DMZ.from-WAN.default category any
+set rulebase security rules zone-DMZ.from-WAN.default application any
+set rulebase security rules zone-DMZ.from-WAN.default service any
+set rulebase security rules zone-DMZ.from-WAN.default action drop
+set rulebase security rules zone-DMZ.from-WAN.default log-end no
+set rulebase security rules zone-DMZ.from-WAN.default description "VyOS ipv4 name WAN-DMZ default-action drop"
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-10 from LAN
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-10 to DMZ
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-10 source any
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-10 destination 192.168.30.53
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-10 source-user any
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-10 category any
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-10 application any
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-10 service tcp-53_udp-53
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-10 action allow
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-10 log-end no
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-10 description "VyOS ipv4 name LAN-DMZ rule 10"
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-20 from LAN
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-20 to DMZ
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-20 source 0.0.0.0/0
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-20 destination any
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-20 source-user any
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-20 category any
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-20 application any
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-20 service tcp-22
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-20 action allow
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-20 log-end no
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-20 description "VyOS ipv4 name LAN-DMZ rule 20"
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20 from LAN
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20 to DMZ
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20 source 192.168.10.0/28
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20 destination 192.168.30.0/24
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20 source-user any
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20 category any
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20 application any
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20 service tcp-443
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20 action allow
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20 log-end no
+set rulebase security rules zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20 description "VyOS ipv4 name ADMINS rule 20"
+set rulebase security rules zone-DMZ.from-LAN.default from LAN
+set rulebase security rules zone-DMZ.from-LAN.default to DMZ
+set rulebase security rules zone-DMZ.from-LAN.default source 0.0.0.0/0
+set rulebase security rules zone-DMZ.from-LAN.default destination any
+set rulebase security rules zone-DMZ.from-LAN.default source-user any
+set rulebase security rules zone-DMZ.from-LAN.default category any
+set rulebase security rules zone-DMZ.from-LAN.default application any
+set rulebase security rules zone-DMZ.from-LAN.default service any
+set rulebase security rules zone-DMZ.from-LAN.default action drop
+set rulebase security rules zone-DMZ.from-LAN.default log-end no
+set rulebase security rules zone-DMZ.from-LAN.default description "VyOS ipv4 name LAN-DMZ default-action drop"
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-10 from VPN
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-10 to DMZ
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-10 source 10.99.0.0/24
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-10 destination any
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-10 source-user any
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-10 category any
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-10 application any
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-10 service any
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-10 action allow
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-10 log-end no
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-10 description "VyOS ipv4 name VPN-DMZ rule 10"
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-20 from VPN
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-20 to DMZ
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-20 source 0.0.0.0/0
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-20 destination any
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-20 source-user any
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-20 category any
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-20 application any
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-20 service any
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-20 action drop
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-20 log-end no
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-20 disabled yes
+set rulebase security rules zone-DMZ.from-VPN.VPN-DMZ-20 description "FWSHIFT: disabled by the converter, see the report. VyOS ipv4 name VPN-DMZ rule 20"
+set rulebase security rules zone-DMZ.from-VPN.default from VPN
+set rulebase security rules zone-DMZ.from-VPN.default to DMZ
+set rulebase security rules zone-DMZ.from-VPN.default source 0.0.0.0/0
+set rulebase security rules zone-DMZ.from-VPN.default destination any
+set rulebase security rules zone-DMZ.from-VPN.default source-user any
+set rulebase security rules zone-DMZ.from-VPN.default category any
+set rulebase security rules zone-DMZ.from-VPN.default application any
+set rulebase security rules zone-DMZ.from-VPN.default service any
+set rulebase security rules zone-DMZ.from-VPN.default action drop
+set rulebase security rules zone-DMZ.from-VPN.default log-end no
+set rulebase security rules zone-DMZ.from-VPN.default description "VyOS ipv4 name VPN-DMZ default-action drop"
+set rulebase security rules zone-DMZ.default from [ GUEST LAN VPN WAN br0 ]
+set rulebase security rules zone-DMZ.default to DMZ
+set rulebase security rules zone-DMZ.default source 0.0.0.0/0
+set rulebase security rules zone-DMZ.default destination any
+set rulebase security rules zone-DMZ.default source-user any
+set rulebase security rules zone-DMZ.default category any
+set rulebase security rules zone-DMZ.default application any
+set rulebase security rules zone-DMZ.default service any
+set rulebase security rules zone-DMZ.default action drop
+set rulebase security rules zone-DMZ.default log-end no
+set rulebase security rules zone-DMZ.default description "VyOS zone DMZ default-action drop"
+set rulebase security rules zone-VPN.default from [ DMZ GUEST LAN WAN br0 ]
+set rulebase security rules zone-VPN.default to VPN
+set rulebase security rules zone-VPN.default source 0.0.0.0/0
+set rulebase security rules zone-VPN.default destination any
+set rulebase security rules zone-VPN.default source-user any
+set rulebase security rules zone-VPN.default category any
+set rulebase security rules zone-VPN.default application any
+set rulebase security rules zone-VPN.default service any
+set rulebase security rules zone-VPN.default action drop
+set rulebase security rules zone-VPN.default log-end no
+set rulebase security rules zone-VPN.default description "VyOS zone VPN default-action drop"
+set rulebase security rules ipv6-zone-WAN.from-LAN.default from LAN
+set rulebase security rules ipv6-zone-WAN.from-LAN.default to WAN
+set rulebase security rules ipv6-zone-WAN.from-LAN.default source ::/0
+set rulebase security rules ipv6-zone-WAN.from-LAN.default destination any
+set rulebase security rules ipv6-zone-WAN.from-LAN.default source-user any
+set rulebase security rules ipv6-zone-WAN.from-LAN.default category any
+set rulebase security rules ipv6-zone-WAN.from-LAN.default application any
+set rulebase security rules ipv6-zone-WAN.from-LAN.default service any
+set rulebase security rules ipv6-zone-WAN.from-LAN.default action allow
+set rulebase security rules ipv6-zone-WAN.from-LAN.default log-end no
+set rulebase security rules ipv6-zone-WAN.from-LAN.default description "VyOS ipv6 name LAN-WAN-6 default-action accept"
+set rulebase security rules ipv6-zone-WAN.default from [ DMZ GUEST LAN VPN br0 ]
+set rulebase security rules ipv6-zone-WAN.default to WAN
+set rulebase security rules ipv6-zone-WAN.default source ::/0
+set rulebase security rules ipv6-zone-WAN.default destination any
+set rulebase security rules ipv6-zone-WAN.default source-user any
+set rulebase security rules ipv6-zone-WAN.default category any
+set rulebase security rules ipv6-zone-WAN.default application any
+set rulebase security rules ipv6-zone-WAN.default service any
+set rulebase security rules ipv6-zone-WAN.default action drop
+set rulebase security rules ipv6-zone-WAN.default log-end no
+set rulebase security rules ipv6-zone-WAN.default description "VyOS zone WAN default-action drop"
+set rulebase security rules ipv6-zone-LAN.intra from LAN
+set rulebase security rules ipv6-zone-LAN.intra to LAN
+set rulebase security rules ipv6-zone-LAN.intra source ::/0
+set rulebase security rules ipv6-zone-LAN.intra destination any
+set rulebase security rules ipv6-zone-LAN.intra source-user any
+set rulebase security rules ipv6-zone-LAN.intra category any
+set rulebase security rules ipv6-zone-LAN.intra application any
+set rulebase security rules ipv6-zone-LAN.intra service any
+set rulebase security rules ipv6-zone-LAN.intra action drop
+set rulebase security rules ipv6-zone-LAN.intra log-end no
+set rulebase security rules ipv6-zone-LAN.intra description "VyOS zone LAN intra-zone-filtering action drop"
+set rulebase security rules ipv6-zone-LAN.default from any
+set rulebase security rules ipv6-zone-LAN.default to LAN
+set rulebase security rules ipv6-zone-LAN.default source ::/0
+set rulebase security rules ipv6-zone-LAN.default destination any
+set rulebase security rules ipv6-zone-LAN.default source-user any
+set rulebase security rules ipv6-zone-LAN.default category any
+set rulebase security rules ipv6-zone-LAN.default application any
+set rulebase security rules ipv6-zone-LAN.default service any
+set rulebase security rules ipv6-zone-LAN.default action drop
+set rulebase security rules ipv6-zone-LAN.default log-end no
+set rulebase security rules ipv6-zone-LAN.default description "VyOS zone LAN default-action drop"
+set rulebase security rules ipv6-zone-GUEST.default from [ DMZ LAN VPN WAN br0 ]
+set rulebase security rules ipv6-zone-GUEST.default to GUEST
+set rulebase security rules ipv6-zone-GUEST.default source ::/0
+set rulebase security rules ipv6-zone-GUEST.default destination any
+set rulebase security rules ipv6-zone-GUEST.default source-user any
+set rulebase security rules ipv6-zone-GUEST.default category any
+set rulebase security rules ipv6-zone-GUEST.default application any
+set rulebase security rules ipv6-zone-GUEST.default service any
+set rulebase security rules ipv6-zone-GUEST.default action deny
+set rulebase security rules ipv6-zone-GUEST.default log-end no
+set rulebase security rules ipv6-zone-GUEST.default description "VyOS zone GUEST default-action reject"
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10 from WAN
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10 to DMZ
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10 source any
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10 destination DMZ6
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10 source-user any
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10 category any
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10 application any
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10 service tcp-80_443_8080-8090
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10 action allow
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10 log-end no
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10 description "VyOS ipv6 name WAN-DMZ-6 rule 10"
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20 from WAN
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20 to DMZ
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20 source ::/0
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20 destination any
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20 source-user any
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20 category any
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20 application ping6
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20 service application-default
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20 action allow
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20 log-end no
+set rulebase security rules ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20 description "VyOS ipv6 name WAN-DMZ-6 rule 20"
+set rulebase security rules ipv6-zone-DMZ.from-WAN.default from WAN
+set rulebase security rules ipv6-zone-DMZ.from-WAN.default to DMZ
+set rulebase security rules ipv6-zone-DMZ.from-WAN.default source ::/0
+set rulebase security rules ipv6-zone-DMZ.from-WAN.default destination any
+set rulebase security rules ipv6-zone-DMZ.from-WAN.default source-user any
+set rulebase security rules ipv6-zone-DMZ.from-WAN.default category any
+set rulebase security rules ipv6-zone-DMZ.from-WAN.default application any
+set rulebase security rules ipv6-zone-DMZ.from-WAN.default service any
+set rulebase security rules ipv6-zone-DMZ.from-WAN.default action drop
+set rulebase security rules ipv6-zone-DMZ.from-WAN.default log-end no
+set rulebase security rules ipv6-zone-DMZ.from-WAN.default description "VyOS ipv6 name WAN-DMZ-6 default-action drop"
+set rulebase security rules ipv6-zone-DMZ.default from [ GUEST LAN VPN WAN br0 ]
+set rulebase security rules ipv6-zone-DMZ.default to DMZ
+set rulebase security rules ipv6-zone-DMZ.default source ::/0
+set rulebase security rules ipv6-zone-DMZ.default destination any
+set rulebase security rules ipv6-zone-DMZ.default source-user any
+set rulebase security rules ipv6-zone-DMZ.default category any
+set rulebase security rules ipv6-zone-DMZ.default application any
+set rulebase security rules ipv6-zone-DMZ.default service any
+set rulebase security rules ipv6-zone-DMZ.default action drop
+set rulebase security rules ipv6-zone-DMZ.default log-end no
+set rulebase security rules ipv6-zone-DMZ.default description "VyOS zone DMZ default-action drop"
+set rulebase security rules ipv6-zone-VPN.default from [ DMZ GUEST LAN WAN br0 ]
+set rulebase security rules ipv6-zone-VPN.default to VPN
+set rulebase security rules ipv6-zone-VPN.default source ::/0
+set rulebase security rules ipv6-zone-VPN.default destination any
+set rulebase security rules ipv6-zone-VPN.default source-user any
+set rulebase security rules ipv6-zone-VPN.default category any
+set rulebase security rules ipv6-zone-VPN.default application any
+set rulebase security rules ipv6-zone-VPN.default service any
+set rulebase security rules ipv6-zone-VPN.default action drop
+set rulebase security rules ipv6-zone-VPN.default log-end no
+set rulebase security rules ipv6-zone-VPN.default description "VyOS zone VPN default-action drop"
+set rulebase nat rules "https to web1" from WAN
+set rulebase nat rules "https to web1" to WAN
+set rulebase nat rules "https to web1" source any
+set rulebase nat rules "https to web1" destination "https to web1 destination"
+set rulebase nat rules "https to web1" service tcp-443
+set rulebase nat rules "https to web1" destination-translation translated-address 192.168.30.10
+set rulebase nat rules "https to web1" description "VyOS nat destination rule 10"
+set rulebase nat rules "ssh on 2222 to the jump host" from WAN
+set rulebase nat rules "ssh on 2222 to the jump host" to WAN
+set rulebase nat rules "ssh on 2222 to the jump host" source any
+set rulebase nat rules "ssh on 2222 to the jump host" destination any
+set rulebase nat rules "ssh on 2222 to the jump host" service tcp-2222
+set rulebase nat rules "ssh on 2222 to the jump host" destination-translation translated-address 192.168.30.22
+set rulebase nat rules "ssh on 2222 to the jump host" destination-translation translated-port 22
+set rulebase nat rules "ssh on 2222 to the jump host" description "VyOS nat destination rule 20"
+set rulebase nat rules destination-30 from WAN
+set rulebase nat rules destination-30 to WAN
+set rulebase nat rules destination-30 source any
+set rulebase nat rules destination-30 destination 203.0.113.11
+set rulebase nat rules destination-30 service any
+set rulebase nat rules destination-30 destination-translation translated-address 192.168.30.11
+set rulebase nat rules destination-30 disabled yes
+set rulebase nat rules "dmz servers leave as one address" from any
+set rulebase nat rules "dmz servers leave as one address" to WAN
+set rulebase nat rules "dmz servers leave as one address" source 192.168.30.0/24
+set rulebase nat rules "dmz servers leave as one address" destination any
+set rulebase nat rules "dmz servers leave as one address" service any
+set rulebase nat rules "dmz servers leave as one address" source-translation dynamic-ip-and-port translated-address 203.0.113.20
+set rulebase nat rules "dmz servers leave as one address" description "VyOS nat source rule 110"
+set rulebase nat rules source-120 from any
+set rulebase nat rules source-120 to VPN
+set rulebase nat rules source-120 source any
+set rulebase nat rules source-120 destination 10.99.0.0/24
+set rulebase nat rules source-120 service any

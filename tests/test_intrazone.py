@@ -111,7 +111,7 @@ def test_intrazone_scope_rules_are_not_confused_with_the_default() -> None:
     assert first < tail
 
 
-@pytest.mark.parametrize("target", ["huawei", "ios", "stormshield", "routeros", "forcepoint"])
+@pytest.mark.parametrize("target", ["huawei", "ios", "stormshield", "routeros", "forcepoint", "vyos"])
 def test_zones_merged_by_the_zone_map_are_not_opened_to_each_other(target: str) -> None:
     """PAN-OS source (inside a zone allowed, between zones denied), --zone-map eth0=m eth1=m: the targets that decide
     what passes inside a zone themselves must not pass traffic inside m, which is traffic between eth0 and eth1."""
@@ -128,6 +128,10 @@ def test_zones_merged_by_the_zone_map_are_not_opened_to_each_other(target: str) 
         assert any("intrazone_m" in line for line in lines)  # (a USG passes inside a zone: a deny is written for m)
     if target == "forcepoint":
         assert "FWShift: inside zone m" not in text or '"discard"' in text
+    if target == "vyos":
+        # (no intra-zone-filtering: VyOS accepts inside a zone; a chain for m ends with drop)
+        assert "set firewall ipv4 name FWS-m-m default-action 'drop'" in lines
+        assert "set firewall zone m intra-zone-filtering firewall name 'FWS-m-m'" in lines
 
 
 def test_sonicwall_leaves_out_a_zone_no_rule_names_whose_name_it_cannot_take() -> None:
@@ -161,5 +165,8 @@ def test_a_renamed_or_merged_zone_keeps_the_interfaces_of_its_source_zones() -> 
     assert "! interface port1" in ios and "! interface port2" in ios and "no interface is known" not in ios
     routeros = cli.convert(p, "routeros", Report(), Options(zone_map={"trust": "m", "dmz": "m"}))
     assert "list=fws-m interface=\"port1\"" in routeros and "list=fws-m interface=\"port2\"" in routeros
+    vyos = cli.convert(p, "vyos", Report(), Options(zone_map={"trust": "m", "dmz": "m"}))
+    assert "set firewall zone m interface 'port1'" in vyos and "set firewall zone m interface 'port2'" in vyos
+    assert "zone trust" not in vyos and "zone dmz" not in vyos
     forcepoint = cli.convert(p, "forcepoint", Report(), Options(zone_map={"trust": "m", "dmz": "m"}))
     assert '"trust"' not in forcepoint and '"dmz"' not in forcepoint

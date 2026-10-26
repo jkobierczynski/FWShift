@@ -10,6 +10,7 @@ Each test is a small synthetic configuration built around one semantic trap.
 from __future__ import annotations
 
 import io
+import json
 import sys
 from typing import List, Tuple
 
@@ -765,3 +766,26 @@ def test_factory_service_group_names_are_reserved() -> None:
     cfg = FortiConfig(convert(pan_xml(pan_rule("r", service="Web Access"), extra=extra), "fortios")[0])
     assert list(cfg.table("firewall service group")) == ["Web Access_2"]
     assert cfg.policies()["r"].list("service") == ["Web Access_2"]
+
+
+def test_azure_firewall_dnat_allows_before_the_network_rules() -> None:
+    """Azure Firewall allows what a DNAT rule translates, and no network rule sees it: a network deny for the same
+    traffic does not block it. The model says so with an allow rule ahead of the network rules; a PAN-OS target then
+    allows the translated traffic, and an Azure Firewall target writes the DNAT rule only where the model allows it."""
+    group = {"type": "Microsoft.Network/FirewallPolicies/RuleCollectionGroups", "name": "p/g", "priority": 100, "ruleCollections": [
+        {"ruleCollectionType": "FirewallPolicyFilterRuleCollection", "name": "deny-all", "priority": 100, "action": {"type": "Deny"},
+         "rules": [{"ruleType": "NetworkRule", "name": "all", "ipProtocols": ["Any"], "sourceAddresses": ["*"], "destinationAddresses": ["*"],
+                    "destinationPorts": ["*"]}]},
+        {"ruleCollectionType": "FirewallPolicyNatRuleCollection", "name": "pub", "priority": 200, "action": {"type": "DNAT"},
+         "rules": [{"ruleType": "NatRule", "name": "web", "ipProtocols": ["TCP"], "sourceAddresses": ["*"], "destinationAddresses": ["203.0.113.5"],
+                    "destinationPorts": ["443"], "translatedAddress": "10.0.0.5", "translatedPort": "443"}]}]}  # fmt: skip
+    report = Report()
+    policy = cli.load(json.dumps([group]).encode(), "azure-firewall", report)
+    assert [(r.name, r.action.value) for r in policy.rules] == [("pub/web (DNAT)", "allow"), ("deny-all/all", "deny")]
+    text = cli.convert(policy, "azure-firewall", Report())
+    assert '"translatedAddress": "10.0.0.5"' in text
+    # Without the DNAT's allow rule the model blocks it, and the DNAT rule, which would allow it, is not written.
+    policy.rules = policy.rules[1:]
+    out = Report()
+    assert "translatedAddress" not in cli.convert(policy, "azure-firewall", out)
+    assert out.item("nat", "pub/web").findings[0].code == "AZFW_DNAT_NOT_ALLOWED"

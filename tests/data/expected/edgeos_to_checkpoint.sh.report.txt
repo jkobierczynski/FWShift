@@ -1,0 +1,54 @@
+FWShift conversion report
+  source: vyos
+  target: checkpoint
+
+Summary
+  Security rules:     13   exact 9, approximated 0, needs review 4 (2 emitted disabled), skipped 0
+  NAT rules:           4   exact 0, approximated 1, needs review 2, skipped 1
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 rule-set WAN_LOCAL on pppoe0 local filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] PARTS_NOT_READ: parts of the configuration this parser does not read: port-forward (EdgeOS)
+  [needs-review] CHECKPOINT_SCRIPT: the output is a shell script of mgmt_cli calls. It changes one session and publishes nothing: log in, run it, review the session in SmartConsole, then publish and install the policy yourself. It stops at the first call the server refuses; discard the session before running it again
+  [needs-review] IMPLIED_RULES: Check Point applies implied rules (Global Properties) next to the rulebase, and every ordered layer of the policy package must accept a connection. Neither is part of the conversion: check that they allow no more and no less than intended
+  [needs-review] ZONES_REQUIRED: the rules use these security zones, which must be assigned to the interfaces of the gateway (or renamed with --zone-map): pppoe0, eth1, eth1.10. Rules that name a zone and addresses on the same side are sorted into 6 inline layers, one per pair of zones. An interface without a zone only reaches the rules that name no zone
+  [needs-review] INTERZONE_DEFAULT: the source allows traffic that no rule matches. That default is not carried over: every layer written here ends in a drop. Add a final accept rule if it was intended
+  [needs-review] NAT_MANUAL_RULES: 3 NAT rules are written as manual rules at the bottom of the NAT rulebase, below the automatic ones. Manual NAT does not answer ARP for translated addresses: add proxy ARP on the gateway for every translated address that is not routed to it
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] VYOS_FORMAT: read as the configuration of EdgeOS (Vyatta), release v2.0.9: rule-sets on interfaces, accept in a rule-set and the zone policy were read as VyOS 1.4 has them after its own migration (a jump from the forward filter for each rule-set on an interface, the in ones first; accept as return, so that the rule-set of the other interface still decides)
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] LAYER_PLACEMENT: the rules are written to the top of access layer 'Network', in order, and end in a cleanup rule; rules the layer held before stay below it and are no longer reached. Choose another layer with --target-layer
+  [info] NAME_COLLISIONS: Check Point predefines several hundred objects (http, https, ssh, ...). If the script stops because a name exists already, convert again with --target-prefix to give every created object a prefix
+  [info] ANY_ONE_IP_VERSION: 'any address of one IP version' is written as a range object covering that version (All-IPv4, All-IPv6)
+
+Security rules
+  no media from the guests  ->  needs-review  (emitted as layer Network_pppoe0_to_eth1)
+      [needs-review] NAT_REDIRECT: NAT rule 'plex from outside' sends traffic for every destination to 192.168.1.30, and the source applied this rule to it after that translation. The converted rule still names the translated address: a platform that looks rules up before NAT will not match the redirected traffic with it
+  plex to the media box  ->  needs-review  (emitted as layer Network_pppoe0_to_pppoe0, layer Network_pppoe0_to_eth1, layer Network_pppoe0_to_any, layer Network)
+      [needs-review] NAT_REDIRECT: NAT rule 'plex from outside' sends traffic for every destination to 192.168.1.30, and the source applied this rule to it after that translation. The converted rule still names the translated address: a platform that looks rules up before NAT will not match the redirected traffic with it
+  no media from the guests-2  ->  needs-review, emitted disabled  (emitted as layer Network_pppoe0_to_eth1)
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sessions of the voip box  ->  needs-review, emitted disabled  (emitted as layer Network_pppoe0_to_pppoe0, layer Network_pppoe0_to_eth1, layer Network_pppoe0_to_any)
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address).
+
+NAT rules
+  plex from outside  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from pppoe0 only; it is written without zones and applies whatever the zone the traffic comes from
+      [needs-review] NAT_ZONES: the rule applied to traffic to pppoe0 only; it is written without zones and now translates traffic towards every other zone as well: put a rule without translation above it for the traffic that must keep its addresses
+  web on 8443 to the nas  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from pppoe0 only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to pppoe0 only; it is written without zones
+  nas leaves as its own address  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic to pppoe0 only; it is written without zones and now translates traffic towards every other zone as well: put a rule without translation above it for the traffic that must keep its addresses
+  masquerade for WAN  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface; name the gateway object to hide behind with --target-gateway
+
+Services
+  tcp-8096-8097,32400+udp-8096-8097,32400  ->  exact  (emitted as tcp-8096-8097_32400_udp-8096-8097_32400)
+      [info] RENAMED: renamed to 'tcp-8096-8097_32400_udp-8096-8097_32400' to fit the target's naming rules

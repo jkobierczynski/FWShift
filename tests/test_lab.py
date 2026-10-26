@@ -1535,6 +1535,17 @@ def test_the_8000v_report_names_the_replies_its_static_nat_translates(tmp_path: 
     assert "IOS_STATIC_NAT_REPLIES" not in rules.get("outside-web-published", [])
 
 
+def test_the_asav_report_names_the_connections_its_nat_reverse_path_check_drops(tmp_path: Path) -> None:
+    """The first ASAv run with NAT (0.40.21) blocked out10 to dmz10 port 80, the real address of the web server published
+    as 10.20.3.100:8080: outside-web's access list entry counted the connection, and `show asp drop` counted it again as
+    "NAT reverse path failed". The report says so on the rule that reaches the real address only."""
+    vendor = tier3.VENDORS["asav"]
+    report = lab_conversion(tmp_path, vendor.target, vendor.options)["report"]
+    rules = {r["name"]: [f["code"] for f in r["findings"]] for r in report["items"] if r["kind"] == "rule"}
+    assert "ASA_STATIC_NAT_RPF" in rules.get("outside-web", []), rules
+    assert [name for name, codes in rules.items() if "ASA_STATIC_NAT_RPF" in codes] == ["outside-web"]
+
+
 def test_the_check_point_hide_nat_hides_behind_the_outside_address_towards_the_outside(tmp_path: Path) -> None:
     """The first Check Point run with probes (0.40.19): every connection from the inside failed. Its hide NAT hid behind
     the gateway object, which is the gateway's main address (eth0), towards every destination, the DMZ too. The lab

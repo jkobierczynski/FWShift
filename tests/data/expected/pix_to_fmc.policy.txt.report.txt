@@ -1,0 +1,76 @@
+FWShift conversion report
+  source: pix (PIX Version 6.3(5))
+  target: fmc
+
+Summary
+  Security rules:     21   exact 9, approximated 3, needs review 9 (1 emitted disabled), skipped 0
+  NAT rules:          11   exact 10, approximated 1, needs review 0, skipped 0
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PIX_OUTBOUND: outbound lists (outbound and apply) limit what interfaces without an access list let out: partner: outbound list 10 (outgoing_src: deny 0.0.0.0 0.0.0.0 0 0; permit 10.30.0.0 255.255.255.0 80 tcp). The PIX decides them by the best match, not in order; they are not converted, and the implicit rules of those interfaces are written disabled. Write their restrictions as rules
+  [needs-review] PIX_ESTABLISHED: the established command lets connections in that belong to connections out (established tcp 6000 0 permitto tcp 6000). It is not converted: the result does not allow those connections; write rules for them if they are needed
+  [needs-review] FMC_LOAD: the output is a Python script that loads the policy into a Management Center through its REST API. It creates the objects, a new access control policy 'FWShift' and, when there are NAT rules, a NAT policy of the same name, and assigns them to no device: nothing is in force until the policies are assigned and deployed. It changes nothing that exists, and stops before it creates anything when a name is taken. Run it with --show and with --dry-run first. The new access control policy uses the default prefilter policy and no intrusion or file policies. The script was written from Cisco's API documentation and has not been run against a Management Center: use it first where a mistake costs nothing
+  [needs-review] ZONES_REQUIRED: the rules name these security zones (rename them with --zone-map): inside, dmz, outside, partner, lab. A zone that exists on the Management Center is used as it is; one that does not is created empty, and matches no traffic until the interfaces of the devices are put in it
+  [approximated] ICMP_STATELESS: a PIX 6.x keeps no state for ICMP: the reply to a permitted ICMP request got through only where an access list or conduit permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: 'sysopt connection permit-ipsec' lets traffic that arrives through VPN tunnels past the access lists and conduits. The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 3 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: inside_nat0, partner_nat, unused
+  [info] PIX_CONDUIT_IGNORED: the PIX ignores conduits for interfaces with an access list: outside, dmz
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; inside=10.10.0.0/16,10.11.0.0/16; lab=10.40.0.0/24; outside=0.0.0.0/0,203.0.113.0/24; partner=10.30.0.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] EGRESS_BY_ROUTE: a PIX access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the statics that publish them and from the interface addresses and static routes in the configuration
+  [info] PIX_NO_TRANSLATION: no translation (nat with a global, static, exemption) covers traffic from inside to lab, lab to outside, lab to dmz, lab to partner: the PIX passes none of it, and no implicit rule was written for it
+  [info] PIX_FIXUP: application inspection (fixup) is not converted; the targets inspect with helpers of their own. On: dns maximum-length, ftp 21, http 80, smtp 25, sqlnet 1521. Off: sip 5060.
+
+Security rules
+  outside_in-1  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.10' with post-NAT '10.20.0.10' because of NAT rule 'static-1'; check that this rule is meant to cover the translated traffic
+  outside_in-2  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.20.0.25' because of NAT rule 'static-2'; check that this rule is meant to cover the translated traffic
+  outside_in-3  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'outside-interface' with post-NAT '10.20.0.30' because of NAT rule 'static-3'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'static-3' also translates the port to 443: the service of this rule (tcp-8443) named the pre-NAT port only, and now names 443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+  outside_in-4  ->  needs-review
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers outside to inside: destinations 0.0.0.0/0; outside to dmz: destinations 0.0.0.0-203.0.113.1, 203.0.113.3-203.0.113.9, 203.0.113.11-203.0.113.24 ...; outside to lab: destinations 0.0.0.0/0; outside to partner: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  outside_in-6  ->  needs-review
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers outside to dmz: destinations 10.20.0.10. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.10', the address NAT rule 'static-1' translates '203.0.113.10' to. The target looks rules up after that translation, so traffic sent to '203.0.113.10' now matches this rule; on the source it did not
+  dmz_in-1  ->  needs-review
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 0.0.0.0-10.10.0.49, 10.10.0.51-255.255.255.255; dmz to lab: destinations 0.0.0.0/0; dmz to partner: sources 10.20.0.10, 10.20.0.25. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  dmz_in-2  ->  needs-review
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 0.0.0.0-10.10.0.49, 10.10.0.51-255.255.255.255; dmz to lab: destinations 0.0.0.0/0; dmz to partner: sources 10.20.0.25. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  dmz_in-4  ->  needs-review
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 10.10.0.0-10.10.0.49, 10.10.0.51-10.10.255.255. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  implicit-inside-outside  ->  exact
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'outside' (security level 0), for every source (NAT is mandatory). This rule says so
+  implicit-inside-dmz  ->  exact
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'dmz' (security level 50), for the sources a translation covers (NAT is mandatory). This rule says so
+  implicit-inside-partner  ->  exact
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'partner' (security level 20), for the sources a translation covers (NAT is mandatory). This rule says so
+  implicit-partner-outside  ->  needs-review, emitted disabled
+      [info] IMPLICIT_PERMIT: interface 'partner' (security level 20) has no access list: the PIX lets its traffic out to 'outside' (security level 0), for the sources a translation covers (NAT is mandatory). This rule says so
+      [needs-review] UNSUPPORTED_MATCH: not converted: outbound list 10 (outgoing_src: deny 0.0.0.0 0.0.0.0 0 0; permit 10.30.0.0 255.255.255.0 80 tcp) applied to partner, which is not converted.
+  conduit-1  ->  needs-review
+      [info] PIX_CONDUIT: from the conduit 'conduit permit tcp host terminal-srv eq 3389 10.30.0.0 255.255.255.0', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers lab to inside: destinations 10.10.0.60. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  conduit-2  ->  needs-review
+      [info] PIX_CONDUIT: from the conduit 'conduit permit icmp any any echo-reply', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers lab to inside: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  conduit-2-2  ->  needs-review
+      [info] PIX_CONDUIT: from the conduit 'conduit permit icmp any any echo-reply', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers partner to inside: destinations 0.0.0.0-10.9.255.255, 10.11.0.0-255.255.255.255; partner to dmz: destinations 0.0.0.0/0; partner to lab: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  conduit-3  ->  exact
+      [info] PIX_CONDUIT: from the conduit 'conduit deny tcp any eq telnet any', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+  conduit-3-2  ->  exact
+      [info] PIX_CONDUIT: from the conduit 'conduit deny tcp any eq telnet any', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+
+NAT rules
+  nat2-inside  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] PIX_PAT_FALLBACK: the PIX hands out the addresses of the pool and, when they run out, translates to the PAT address of global (outside) 2; only the pool is converted
+
+Services
+  web-ports  ->  exact  (emitted as web-ports, tcp-80, tcp-443)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'web-ports' of 'tcp-80', 'tcp-443'
+  ping-replies  ->  exact  (emitted as ping-replies, icmp-0, icmp-11, icmp-3)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'ping-replies' of 'icmp-0', 'icmp-11', 'icmp-3'

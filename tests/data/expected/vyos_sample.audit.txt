@@ -1,0 +1,35 @@
+FWShift audit
+  source: vyos
+  security rules: 42 (1 disabled), NAT rules: 6
+
+Summary
+  high 1, medium 1, low 19, info 2
+
+Findings in the policy as it was read
+  [high] DEFAULT_ALLOW: traffic between zones that no rule matches is allowed
+  [medium] RISKY_SERVICE: rule 'office hours only' allows rdp, from zone WAN to zone DMZ (on the list of the cleartext and remote administration protocols)
+  [low] ANY_SERVICE: rule 'zone-WAN.from-LAN.LAN-WAN-20' allows any service from any source, from zone LAN to zone WAN
+  [low] ANY_SERVICE: rule 'zone-WAN.from-LAN.default' allows any service from any source, from zone LAN to zone WAN
+  [low] ANY_SERVICE: rule 'zone-WAN.from-GUEST.default' allows any service from any source, from zone GUEST to zone WAN
+  [low] ANY_SOURCE: rule 'zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)' allows any source, from zone WAN to zone DMZ
+  [low] ANY_SOURCE: rule 'zone-DMZ.from-WAN.WAN-DMZ-30' allows any source, from zone WAN to zone DMZ
+  [low] ANY_SOURCE: rule 'zone-DMZ.from-WAN.WAN-DMZ-50' allows any source, from zone WAN to zone DMZ
+  [low] ANY_SOURCE: rule 'zone-DMZ.from-LAN.LAN-DMZ-20' allows any source, from zone LAN to zone DMZ
+  [low] ANY_SERVICE: rule 'zone-DMZ.from-VPN.VPN-DMZ-10' allows any service between its addresses, from zone VPN to zone DMZ
+  [low] ANY_SERVICE: rule 'ipv6-zone-WAN.from-LAN.default' allows any service from any source, from zone LAN to zone WAN
+  [low] ANY_SOURCE: rule 'ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20' allows any source, from zone WAN to zone DMZ
+  [low] REDUNDANT_RULE: rule 'zone-WAN.from-LAN.LAN-WAN-20' adds nothing: 'zone-WAN.from-LAN.default' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'zone-LAN.intra' adds nothing: 'zone-LAN.default' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'zone-LAN.from-WAN.default' adds nothing: 'zone-LAN.default' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'zone-DMZ.from-WAN.default' adds nothing: 'zone-DMZ.default' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'zone-DMZ.from-LAN.default' adds nothing: 'zone-DMZ.default' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'zone-DMZ.from-VPN.default' adds nothing: 'zone-DMZ.default' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'ipv6-zone-LAN.intra' adds nothing: 'ipv6-zone-LAN.default' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'ipv6-zone-DMZ.from-WAN.default' adds nothing: 'ipv6-zone-DMZ.default' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] EMPTY_GROUP: address group 'EMPTY' has no members: it matches no address
+  [info] DISABLED_RULE: rule 'forward-30' is disabled: remove it, or note why it is kept
+  [info] UNUSED_OBJECT: 1 address group no rule uses: 'EMPTY'
+
+Left out of the order checks
+  1 rule(s) that the model holds only approximately are neither called dead nor used to call another rule dead:
+    'zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)' (VYOS_DNAT_STATUS_ANY)

@@ -1,0 +1,39 @@
+FWShift conversion report
+  source: junos (root)
+  target: vyos
+
+Summary
+  Security rules:     14   exact 12, approximated 0, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           6   exact 3, approximated 2, needs review 0, skipped 1
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] VYOS_LOAD: load the commands in configuration mode: 'configure', paste them, 'compare', then 'commit-confirm 10' (unless 'confirm' follows within 10 minutes, VyOS goes back to the configuration before; older releases reboot to do so) and 'save'. A commit applies all of them or none. The policy is written as the zone-based firewall: zones untrust, trust, dmz, guest, and a chain FWS-<from>-<to> for each pair of zones that needs one. Interfaces of the router in no zone: VyOS drops their traffic into a zone and leaves traffic from a zone to them to the forward filter; that traffic is decided by chain FWS-NO-ZONE (the rules for any destination and the default of the policy), jumped to from rule 10000 of the forward filter for what leaves by an interface not in interface group FWS-ZONES. Check that the forward filter has no rule 10000 (show firewall ipv4 forward filter), or give another number with --policy-id-start; its rules with lower numbers come first, and those after rule 10000 are no longer reached by what the chain decides, as it ends with the default of the policy. The forward filter of the router still applies before the zones (an accept there goes on to the zones, a drop is final). A zone of the same name that exists gets these interfaces and chains in addition to its own; a chain set for a pair that has one replaces it. NAT rules are numbered from 10000: rules of the router with lower numbers come first. To take a conversion away: delete the groups, chains, zones and NAT rules the commands name (all under FWS-, and the NAT rules from 10000 on). Assumed: names of up to 63 characters
+  [needs-review] INTERFACES_REQUIRED: zones need the interfaces of the router: these were written with their own name as interface, which matches no traffic until it is replaced (--interface-map, or --zone-map with zones of the router's interfaces): dmz, guest, trust, untrust (interfaces of the source that are no names of Linux interfaces: dmz: ge-0/0/2.0, ge-0/0/3.0; guest: ge-0/0/4.0; trust: ge-0/0/1.0; untrust: ge-0/0/0.0)
+  [needs-review] VYOS_NO_ZONE: traffic from a zone to an interface in no zone is decided by chain FWS-NO-ZONE; its replies come in from an interface in no zone, which VyOS drops at the zones unless 'firewall global-options state-policy' accepts established and related packets (the commands do not set it, as it applies to the whole router)
+  [info] JUNOS_FORMAT: read 14 security policies and 6 NAT rules of the root system. Policies are looked up after static and destination NAT; they were brought back to the original destination, as the model has it
+  [info] PREDEFINED_APPLICATIONS: predefined applications are not in the configuration; these were taken from FWShift's table of them: junos-dns-udp, junos-http, junos-https, junos-ping, junos-smtp, junos-ssh
+  [info] HOST_POLICIES: policies for the zone junos-host (traffic to and from the firewall itself) are not read: 'to-box'
+  [info] VYOS_FQDN: host names are written as fqdn or domain-group, which the router resolves while it runs: updates.example.com
+  [info] VYOS_LOG: rules that log the start of a connection have 'log': VyOS logs every packet the rule matches, which, after the replies are accepted at the top of each chain, is the first packet of each connection
+
+Security rules
+  guest-web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'work-hours' is not converted; the rule would apply at all times.
+  guest-ping  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'junos-ping': the predefined application junos-ping: Juniper describes it as ICMP echo, other readers of Junos as every ICMP type.
+  global-block  ->  exact  (emitted as FWS-untrust-untrust rule 10, FWS-untrust-trust rule 10, FWS-untrust-dmz rule 30, FWS-untrust-guest rule 10, FWS-trust-untrust rule 50, FWS-trust-trust rule 20, FWS-trust-dmz rule 30, FWS-trust-guest rule 10, FWS-dmz-untrust rule 20, FWS-dmz-trust rule 10, FWS-dmz-dmz rule 10, FWS-dmz-guest rule 10, FWS-guest-untrust rule 10, FWS-guest-trust rule 10, FWS-guest-dmz rule 10, FWS-guest-guest rule 10, FWS-NO-ZONE rule 10)
+      [info] RULE_SPLIT: written in the chains of 16 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (untrust, trust, dmz, guest); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+      [info] RESET_ACTION: action reset-client becomes reject, which answers with an ICMP unreachable rather than a TCP reset
+
+NAT rules
+  trust-out snat-lan  ->  approximated  (emitted as source rule 10010)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from trust only; nat source cannot match the input interface, so it applies to traffic from every interface
+  dmz-out snat-dmz  ->  approximated  (emitted as source rule 10020)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from dmz only; nat source cannot match the input interface, so it applies to traffic from every interface
+  vr-out snat-vr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule set for routing instance 'VR1', which is not read; a rule set that does not say where its traffic comes from

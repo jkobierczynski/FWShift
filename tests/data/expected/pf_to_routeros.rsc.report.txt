@@ -1,0 +1,69 @@
+FWShift conversion report
+  source: pf
+  target: routeros
+
+Summary
+  Security rules:     31   exact 17, approximated 3, needs review 10 (8 emitted disabled), skipped 1
+  NAT rules:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 7, approximated 0, needs review 2, skipped 0
+  Services:           20   exact 20, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PF_ANCHOR: the rules of these anchors are not converted: 'relayd/*' (line 94). Rules loaded into an anchor decide where the anchor stands, before or after any converted rule; add them to the file to convert them
+  [needs-review] ROUTEROS_LOAD: load the script with '/import file-name=FILE verbose=yes'. It stops at its first lines when objects of an earlier conversion are on the router, and at the first line the router refuses (lines before it stay; on RouterOS 6 the /ipv6 lines need the ipv6 package). Nothing changes traffic until the disabled jump rules at its end are enabled: enable them in Safe Mode, and move each to where it belongs in its chain (in forward, after the rules that accept established connections). Chain fwshift-forward ends with an explicit accept, so the rules of forward after the jump are no longer reached by forwarded traffic. To take a conversion away again: /ip firewall filter remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ipv6 firewall filter remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ip firewall nat remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ip firewall address-list remove [find where list~"^fws-"]; /ipv6 firewall address-list remove [find where list~"^fws-"]; /interface list member remove [find where list~"^fws-"]; /interface list remove [find where name~"^fws-"]
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface lists, whose members must be interfaces of the router, or the import stops. Check the members, and map the zones with --zone-map (or the interfaces with --interface-map): em0, em1, em2
+  [info] PF_LAST_MATCH: 22 rules are not quick: pf decides by the last rule that matches unless a quick rule matches first. The model is first match: the quick rules come first, in their order, then the others, the last one first
+  [info] PF_DEFAULT_PASS: pf passes what no rule matches; the model records that as its default action
+  [info] PF_HOST_NAMES: pfctl resolves host names once, when the rules are loaded: www.example.com. They are host name objects here
+  [info] PF_OVERLOAD: rules that add addresses to a table when they exceed a limit (overload): 'line 57'. The table they fill is empty in pf.conf
+  [info] ROUTEROS_LOG: rules that log the start of a connection have log=yes: the router logs the first packet of each connection they accept (and every packet a deny rule drops)
+
+Security rules
+  line 72  ->  exact  (emitted as 1 fwshift-forward rule)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+  line 75  ->  exact  (emitted as 1 fwshift-forward rule)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+  line 46 out  ->  needs-review  (emitted as 2 fwshift-forward rules)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by every interface: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic, less what the rules before it that decide pass ('line 50', 'line 74')
+      [needs-review] PF_OUT_UNNAMED: the rule blocks what leaves by any interface, less what rules for some interfaces pass; it is written for the interfaces this ruleset names, and traffic that leaves by another interface is not blocked by it
+  line 41  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.20.1.25' because of NAT rule 'line 41 rdr'; check that this rule is meant to cover the translated traffic
+  antispoof em1 network  ->  needs-review, emitted disabled
+      [needs-review] PF_NEGATED_INTERFACE: 'on ! em1' is every interface but em1; it is written for the other interfaces this ruleset names, em0, em2, and not for interfaces it does not name
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 network': the network of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  antispoof em1 address  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 address': the address of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  brute force  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'bruteforce': it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  line 49  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'spamd': its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  admin ssh  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em2 network': the network of em2 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+  line 92  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: the user of the socket (user proxy), which only traffic of the firewall itself has.
+  line 91  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'egress address': the address of egress is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+  line 90  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: a mark set by another rule (tagged INTERNAL).
+  line 87  ->  needs-review  (emitted as 1 fwshift-forward rule)
+      [needs-review] PF_ROUTE_TO: the rule sends what it matches elsewhere (route-to ( em3 10.30.0.1 )); the converted rule decides only whether it passes, and the traffic takes the route the target chooses
+  line 85  ->  exact  (emitted as 1 fwshift-forward rule)
+      [info] ROUTEROS_FQDN: 'www.example.com' is a host name in an address list: the router resolves it and keeps the list up to date
+  line 84  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [approximated] PF_NO_STATE: the rule passes packets without keeping state (no state): the replies need a rule of their own on pf. The converted rule allows the connection, replies included
+  line 69  ->  exact  (emitted as 1 fwshift-forward rule)
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+  line 69.2  ->  exact  (emitted as 1 fwshift-forward rule)
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+  line 57  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.1.10' because of NAT rule 'line 39 rdr'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.10' with post-NAT '10.20.1.10' because of NAT rule 'line 39 rdr'; check that this rule is meant to cover the translated traffic
+  line 73  ->  skipped
+      [info] PF_OUT_SHADOWED: the rule blocks traffic that leaves, but the rules before it that decide ('line 74') pass all of it: it decides nothing for forwarded traffic and is not converted for that direction
+
+Address groups
+  bruteforce  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <bruteforce> cannot be converted: it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload)
+  spamd  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <spamd> cannot be converted: its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf

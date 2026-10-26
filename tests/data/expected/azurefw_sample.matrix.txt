@@ -1,0 +1,45 @@
+FWShift zone matrix
+  source: azure-firewall (fwpol-shop)
+  security rules: 17 (0 disabled, 1 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 (other zones)
+  (other zones)  any~
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+(other zones) -> (other zones)
+  allowed: any ~
+  rule 'dnat-web/web-https (DNAT)': 0.0.0.0/0 -> 203.0.113.10: tcp/443
+  rule 'dnat-web/ssh-admin (DNAT)': 198.51.100.0/24 -> 203.0.113.10: tcp/2222
+  rule 'base-allow-dns/dns-out': 10.10.0.0/16 -> ipg-dns: tcp/53, udp/53
+  rule 'net-partner/every-protocol-to-partner': 10.10.4.0/24 -> 192.0.2.0/24: any except tcp/23
+  rule 'net-partner/dns-any-protocol': 10.10.0.0/16 -> 10.10.8.53: tcp/53, udp/53
+  rule 'net-allow-web/web-to-db': 10.10.1.0/24 -> 10.10.2.0/24: tcp/1433
+  rule 'net-allow-web/icmp-mgmt': 10.10.9.0/24 -> 10.10.0.0/16: icmp
+  rule 'net-allow-web/ntp-out': ipg-servers -> time.example.org: udp/123 ~
+  rule 'net-allow-web/storage': 10.10.0.0/16 -> Storage.WestEurope: tcp/443 ~
+  rule 'net-allow-web/app-ports': 10.10.1.10-10.10.1.20 -> 10.10.3.0/24: tcp/8000-8080, tcp/9000
+  rule 'net-allow-web/partner-sftp': ipg-partners -> 10.10.1.6: tcp/22 ~
+  rule 'app-out/allow-updates': 10.10.1.0/24 -> *.example.com, updates.example.net: any (only with an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: target FQDNs *.example.com, updates.example.net, which is not in the model) ~
+  rule 'app-out/allow-wsus': ipg-servers -> any: any (only with an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: FQDN tags WindowsUpdate, which is not in the model) ~
+  rule 'app-deny/no-gambling': 0.0.0.0/0 -> any: any (only with an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: web categories Gambling, which is not in the model) ~
+
+From reading the configuration
+  AZFW_ORDER: read in the order Azure Firewall takes the rules: firewall policy fwpol-base > fwpol-shop: DNAT rules, then network rules, then application rules, each by the priority of the rule collection group and of the rule collection, the groups of the base policy before those of the child. What no rule allows is denied; rules of one collection have one action and no order among themselves
+  AZFW_IPV4_ONLY: Azure Firewall filters IPv4 only: '*' is read as 0.0.0.0/0, and the converted policy says nothing for IPv6
+  AZFW_UNFILTERED: the firewall decides only what is routed through it (user-defined routes, a secured hub); traffic inside a virtual network that is not routed to it, and network security groups on the way, are not in this export
+  AZFW_DYNAMIC: addresses only Azure knows: IP group ipg-partners, service tag Storage.WestEurope. They are dynamic groups, which only an Azure Firewall target writes again; add the IP groups (az network ip-group list) and the service tags (az network list-service-tags) to the export to convert them for other targets
+  AZFW_ANY_PROTOCOL: protocol Any with every port is every IP protocol, as Microsoft documents it since November 2020 (before, it meant TCP, UDP and ICMP); with ports it is TCP and UDP on them
+  AZFW_ICMP_INTERNET: rules for ICMP do not apply to traffic to the internet, which the firewall cannot translate for it (a known issue Microsoft documents); between networks of Azure they do
+  AZFW_THREAT_INTEL: threat intelligence mode Deny: it is applied before the rules and blocks traffic of known malicious addresses and names, which the converted policy does not. It is not a rule and is not converted
+  AZFW_IDPS: IDPS in mode Alert: it alerts and does not block; not converted
+  AZFW_SNAT: Azure Firewall translates the source of what a network rule allows to its public address unless the destination is in its private ranges (IANAPrivateRanges, 198.51.100.0/24); of what an application rule allows always (to one of its private addresses); and, community sources say, of what a DNAT rule translates. None of that is a rule of the policy: no source NAT rule is in the model
+  AZFW_INFRASTRUCTURE: after the application rules Azure Firewall allows the FQDNs of its built-in infrastructure rule collection (platform image repository, managed disk status, diagnostics), unless an application rule denies all; the model does not hold them
+
+Notes
+  The policy names no zones, so the matrix has one cell. Give zones as networks with --network-zone NAME=NETWORK[,NETWORK...] to see who reaches whom.
+  1 rule(s) never match and are left out; 'fwshift audit' names them.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

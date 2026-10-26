@@ -1,0 +1,560 @@
+[
+ {
+  "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/firewallPolicies/fwpol-base",
+  "name": "fwpol-base",
+  "location": "westeurope",
+  "resourceGroup": "rg-hub",
+  "type": "Microsoft.Network/FirewallPolicies",
+  "provisioningState": "Succeeded",
+  "sku": {
+   "tier": "Standard"
+  },
+  "threatIntelMode": "Alert",
+  "childPolicies": [
+   {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/firewallPolicies/fwpol-shop"
+   }
+  ],
+  "firewalls": [],
+  "ruleCollectionGroups": [
+   {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/firewallPolicies/fwpol-base/ruleCollectionGroups/base-rcg"
+   }
+  ]
+ },
+ {
+  "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/firewallPolicies/fwpol-shop",
+  "name": "fwpol-shop",
+  "location": "westeurope",
+  "resourceGroup": "rg-hub",
+  "type": "Microsoft.Network/FirewallPolicies",
+  "provisioningState": "Succeeded",
+  "sku": {
+   "tier": "Standard"
+  },
+  "threatIntelMode": "Deny",
+  "childPolicies": [],
+  "firewalls": [],
+  "basePolicy": {
+   "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/firewallPolicies/fwpol-base"
+  },
+  "dnsSettings": {
+   "enableProxy": true,
+   "servers": [
+    "10.10.8.8"
+   ]
+  },
+  "snat": {
+   "privateRanges": [
+    "IANAPrivateRanges",
+    "198.51.100.0/24"
+   ]
+  },
+  "intrusionDetection": {
+   "mode": "Alert"
+  },
+  "ruleCollectionGroups": [
+   {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/firewallPolicies/fwpol-shop/ruleCollectionGroups/DefaultDnatRuleCollectionGroup"
+   },
+   {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/firewallPolicies/fwpol-shop/ruleCollectionGroups/rcg-late"
+   },
+   {
+    "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/firewallPolicies/fwpol-shop/ruleCollectionGroups/rcg-shop"
+   }
+  ]
+ },
+ [
+  {
+   "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/firewallPolicies/fwpol-base/ruleCollectionGroups/base-rcg",
+   "name": "base-rcg",
+   "priority": 500,
+   "provisioningState": "Succeeded",
+   "resourceGroup": "rg-hub",
+   "ruleCollections": [
+    {
+     "name": "base-allow-dns",
+     "priority": 200,
+     "action": {
+      "type": "Allow"
+     },
+     "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+     "rules": [
+      {
+       "ruleType": "NetworkRule",
+       "sourceAddresses": [
+        "10.10.0.0/16"
+       ],
+       "sourceIpGroups": [],
+       "destinationAddresses": [],
+       "destinationIpGroups": [
+        "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/ipGroups/ipg-dns"
+       ],
+       "destinationFqdns": [],
+       "name": "dns-out",
+       "ipProtocols": [
+        "UDP",
+        "TCP"
+       ],
+       "destinationPorts": [
+        "53"
+       ]
+      }
+     ]
+    },
+    {
+     "name": "base-deny",
+     "priority": 100,
+     "action": {
+      "type": "Deny"
+     },
+     "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+     "rules": [
+      {
+       "ruleType": "NetworkRule",
+       "sourceAddresses": [
+        "*"
+       ],
+       "sourceIpGroups": [],
+       "destinationAddresses": [
+        "*"
+       ],
+       "destinationIpGroups": [],
+       "destinationFqdns": [],
+       "name": "deny-telnet",
+       "description": "Telnet nowhere",
+       "ipProtocols": [
+        "TCP"
+       ],
+       "destinationPorts": [
+        "23"
+       ]
+      }
+     ]
+    }
+   ],
+   "type": "Microsoft.Network/FirewallPolicies/RuleCollectionGroups"
+  }
+ ],
+ [
+  {
+   "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/firewallPolicies/fwpol-shop/ruleCollectionGroups/DefaultDnatRuleCollectionGroup",
+   "name": "DefaultDnatRuleCollectionGroup",
+   "priority": 100,
+   "provisioningState": "Succeeded",
+   "resourceGroup": "rg-hub",
+   "ruleCollections": [
+    {
+     "name": "dnat-web",
+     "priority": 100,
+     "action": {
+      "type": "DNAT"
+     },
+     "ruleCollectionType": "FirewallPolicyNatRuleCollection",
+     "rules": [
+      {
+       "ruleType": "NatRule",
+       "sourceAddresses": [
+        "*"
+       ],
+       "sourceIpGroups": [],
+       "name": "web-https",
+       "ipProtocols": [
+        "TCP"
+       ],
+       "destinationAddresses": [
+        "203.0.113.10"
+       ],
+       "destinationPorts": [
+        "443"
+       ],
+       "translatedAddress": "10.10.1.4",
+       "translatedPort": "443"
+      },
+      {
+       "ruleType": "NatRule",
+       "sourceAddresses": [
+        "198.51.100.0/24"
+       ],
+       "sourceIpGroups": [],
+       "name": "ssh-admin",
+       "description": "Admin SSH on a high port",
+       "ipProtocols": [
+        "TCP"
+       ],
+       "destinationAddresses": [
+        "203.0.113.10"
+       ],
+       "destinationPorts": [
+        "2222"
+       ],
+       "translatedAddress": "10.10.1.5",
+       "translatedPort": "22"
+      }
+     ]
+    }
+   ],
+   "type": "Microsoft.Network/FirewallPolicies/RuleCollectionGroups"
+  },
+  {
+   "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/firewallPolicies/fwpol-shop/ruleCollectionGroups/rcg-shop",
+   "name": "rcg-shop",
+   "priority": 300,
+   "provisioningState": "Succeeded",
+   "resourceGroup": "rg-hub",
+   "ruleCollections": [
+    {
+     "name": "app-out",
+     "priority": 100,
+     "action": {
+      "type": "Allow"
+     },
+     "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+     "rules": [
+      {
+       "ruleType": "ApplicationRule",
+       "sourceAddresses": [
+        "10.10.1.0/24"
+       ],
+       "sourceIpGroups": [],
+       "targetFqdns": [
+        "*.example.com",
+        "updates.example.net"
+       ],
+       "targetUrls": [],
+       "fqdnTags": [],
+       "webCategories": [],
+       "terminateTLS": false,
+       "name": "allow-updates",
+       "protocols": [
+        {
+         "protocolType": "Https",
+         "port": 443
+        }
+       ]
+      },
+      {
+       "ruleType": "ApplicationRule",
+       "sourceAddresses": [],
+       "sourceIpGroups": [
+        "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/ipGroups/ipg-servers"
+       ],
+       "targetFqdns": [],
+       "targetUrls": [],
+       "fqdnTags": [
+        "WindowsUpdate"
+       ],
+       "webCategories": [],
+       "terminateTLS": false,
+       "name": "allow-wsus",
+       "protocols": [
+        {
+         "protocolType": "Http",
+         "port": 80
+        },
+        {
+         "protocolType": "Https",
+         "port": 443
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "net-allow-web",
+     "priority": 200,
+     "action": {
+      "type": "Allow"
+     },
+     "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+     "rules": [
+      {
+       "ruleType": "NetworkRule",
+       "sourceAddresses": [
+        "10.10.1.0/24"
+       ],
+       "sourceIpGroups": [],
+       "destinationAddresses": [
+        "10.10.2.0/24"
+       ],
+       "destinationIpGroups": [],
+       "destinationFqdns": [],
+       "name": "web-to-db",
+       "ipProtocols": [
+        "TCP"
+       ],
+       "destinationPorts": [
+        "1433"
+       ]
+      },
+      {
+       "ruleType": "NetworkRule",
+       "sourceAddresses": [
+        "10.10.9.0/24"
+       ],
+       "sourceIpGroups": [],
+       "destinationAddresses": [
+        "10.10.0.0/16"
+       ],
+       "destinationIpGroups": [],
+       "destinationFqdns": [],
+       "name": "icmp-mgmt",
+       "ipProtocols": [
+        "ICMP"
+       ],
+       "destinationPorts": [
+        "*"
+       ]
+      },
+      {
+       "ruleType": "NetworkRule",
+       "sourceAddresses": [],
+       "sourceIpGroups": [
+        "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/ipGroups/ipg-servers"
+       ],
+       "destinationAddresses": [],
+       "destinationIpGroups": [],
+       "destinationFqdns": [
+        "time.example.org"
+       ],
+       "name": "ntp-out",
+       "ipProtocols": [
+        "UDP"
+       ],
+       "destinationPorts": [
+        "123"
+       ]
+      },
+      {
+       "ruleType": "NetworkRule",
+       "sourceAddresses": [
+        "10.10.0.0/16"
+       ],
+       "sourceIpGroups": [],
+       "destinationAddresses": [
+        "Storage.WestEurope"
+       ],
+       "destinationIpGroups": [],
+       "destinationFqdns": [],
+       "name": "storage",
+       "ipProtocols": [
+        "TCP"
+       ],
+       "destinationPorts": [
+        "443"
+       ]
+      },
+      {
+       "ruleType": "NetworkRule",
+       "sourceAddresses": [
+        "10.10.1.10-10.10.1.20"
+       ],
+       "sourceIpGroups": [],
+       "destinationAddresses": [
+        "10.10.3.0/24"
+       ],
+       "destinationIpGroups": [],
+       "destinationFqdns": [],
+       "name": "app-ports",
+       "ipProtocols": [
+        "TCP"
+       ],
+       "destinationPorts": [
+        "8000-8080",
+        "9000"
+       ]
+      },
+      {
+       "ruleType": "NetworkRule",
+       "sourceAddresses": [],
+       "sourceIpGroups": [
+        "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/ipGroups/ipg-partners"
+       ],
+       "destinationAddresses": [
+        "10.10.1.6"
+       ],
+       "destinationIpGroups": [],
+       "destinationFqdns": [],
+       "name": "partner-sftp",
+       "ipProtocols": [
+        "TCP"
+       ],
+       "destinationPorts": [
+        "22"
+       ]
+      }
+     ]
+    },
+    {
+     "name": "net-deny-lateral",
+     "priority": 300,
+     "action": {
+      "type": "Deny"
+     },
+     "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+     "rules": [
+      {
+       "ruleType": "NetworkRule",
+       "sourceAddresses": [
+        "10.10.0.0/16"
+       ],
+       "sourceIpGroups": [],
+       "destinationAddresses": [
+        "10.10.0.0/16"
+       ],
+       "destinationIpGroups": [],
+       "destinationFqdns": [],
+       "name": "block-lateral",
+       "ipProtocols": [
+        "Any"
+       ],
+       "destinationPorts": [
+        "*"
+       ]
+      }
+     ]
+    },
+    {
+     "name": "app-deny",
+     "priority": 400,
+     "action": {
+      "type": "Deny"
+     },
+     "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+     "rules": [
+      {
+       "ruleType": "ApplicationRule",
+       "sourceAddresses": [
+        "*"
+       ],
+       "sourceIpGroups": [],
+       "targetFqdns": [],
+       "targetUrls": [],
+       "fqdnTags": [],
+       "webCategories": [
+        "Gambling"
+       ],
+       "terminateTLS": false,
+       "name": "no-gambling",
+       "protocols": [
+        {
+         "protocolType": "Http",
+         "port": 80
+        },
+        {
+         "protocolType": "Https",
+         "port": 443
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "type": "Microsoft.Network/FirewallPolicies/RuleCollectionGroups"
+  },
+  {
+   "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/firewallPolicies/fwpol-shop/ruleCollectionGroups/rcg-late",
+   "name": "rcg-late",
+   "priority": 200,
+   "provisioningState": "Succeeded",
+   "resourceGroup": "rg-hub",
+   "ruleCollections": [
+    {
+     "name": "net-partner",
+     "priority": 100,
+     "action": {
+      "type": "Allow"
+     },
+     "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+     "rules": [
+      {
+       "ruleType": "NetworkRule",
+       "sourceAddresses": [
+        "10.10.4.0/24"
+       ],
+       "sourceIpGroups": [],
+       "destinationAddresses": [
+        "192.0.2.0/24"
+       ],
+       "destinationIpGroups": [],
+       "destinationFqdns": [],
+       "name": "every-protocol-to-partner",
+       "ipProtocols": [
+        "Any"
+       ],
+       "destinationPorts": [
+        "*"
+       ]
+      },
+      {
+       "ruleType": "NetworkRule",
+       "sourceAddresses": [
+        "10.10.0.0/16"
+       ],
+       "sourceIpGroups": [],
+       "destinationAddresses": [
+        "10.10.8.53"
+       ],
+       "destinationIpGroups": [],
+       "destinationFqdns": [],
+       "name": "dns-any-protocol",
+       "ipProtocols": [
+        "Any"
+       ],
+       "destinationPorts": [
+        "53"
+       ]
+      },
+      {
+       "ruleType": "NetworkRule",
+       "sourceAddresses": [
+        "2001:db8:10::/64"
+       ],
+       "sourceIpGroups": [],
+       "destinationAddresses": [
+        "10.10.5.0/24"
+       ],
+       "destinationIpGroups": [],
+       "destinationFqdns": [],
+       "name": "v6-ssh",
+       "ipProtocols": [
+        "TCP"
+       ],
+       "destinationPorts": [
+        "22"
+       ]
+      }
+     ]
+    }
+   ],
+   "type": "Microsoft.Network/FirewallPolicies/RuleCollectionGroups"
+  }
+ ],
+ [
+  {
+   "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/ipGroups/ipg-dns",
+   "name": "ipg-dns",
+   "location": "westeurope",
+   "resourceGroup": "rg-hub",
+   "type": "Microsoft.Network/IpGroups",
+   "provisioningState": "Succeeded",
+   "ipAddresses": [
+    "10.10.8.8",
+    "10.10.8.9"
+   ]
+  },
+  {
+   "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/ipGroups/ipg-servers",
+   "name": "ipg-servers",
+   "location": "westeurope",
+   "resourceGroup": "rg-hub",
+   "type": "Microsoft.Network/IpGroups",
+   "provisioningState": "Succeeded",
+   "ipAddresses": [
+    "10.10.1.0/24",
+    "10.10.2.10-10.10.2.20"
+   ]
+  }
+ ]
+]

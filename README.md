@@ -33,6 +33,12 @@ what was approximated and what a person has to look at.
 | Terraform (hashicorp/aws, hashicorp/azurerm, hashicorp/google) | `terraform show -json` of a state or a plan, or the raw state: the security groups and network ACLs of AWS, the network security groups of Azure, the firewall rules and network firewall policies of Google Cloud, with their members | Terraform configuration (HCL) that creates the security groups, network security groups or network firewall policy |
 | MikroTik RouterOS (6 and 7) | the output of `/export` | a script for `/import`, switched on by one change |
 | Forcepoint NGFW (SMC 6.10 to 7.4) | the answers of the SMC REST API for one policy, as `fwshift script forcepoint-dump` fetches them | a Python script that creates a new policy through the SMC REST API |
+| Azure Firewall | the JSON of the Azure CLI, the REST API or an exported ARM template: a firewall policy with its rule collection groups and base policies, IP groups, service tags; or the classic rules of a firewall | an ARM template that creates a new firewall policy (network rule collections, DNAT rules), associated with no firewall |
+| AWS Network Firewall | the JSON of the AWS CLI for one firewall policy: `describe-firewall-policy`, `describe-rule-group` for its rule groups (stateless rules, 5-tuple and Suricata rules, domain lists), the inspection VPC for `HOME_NET` | a shell script of AWS CLI calls that creates a stateful rule group and a firewall policy, associated with no firewall |
+| pf (OpenBSD, FreeBSD) | `pf.conf` (macros, tables, `match`, `nat-to`/`rdr-to`, FreeBSD's `nat`/`rdr`/`binat`), or `pfctl -sr` | a ruleset for an anchor (`pfctl -a fwshift -f`), decided when traffic leaves, tagged by the zone it came from |
+| VyOS 1.4 and later (read also VyOS 1.3, Vyatta and EdgeOS) | `set` commands (`show configuration commands`) or the configuration in braces (`config.boot`) | `set` commands for a configuration session: groups, named chains, zones and NAT rules |
+| Juniper ScreenOS (NetScreen, SSG, ISG; 5.x and 6.x) | `get config` | — (read only) |
+| Cisco PIX (6.x; 7 and later read as an ASA) | `write terminal` / `show running-config` | — (read only) |
 
 It also **audits** a policy, of any of these formats: rules that allow too
 much, rules that never match because earlier rules cover them, unused and
@@ -46,7 +52,7 @@ names every connection two policies decide differently - before and after a
 change, or a source and its conversion read back (the **equivalence check**).
 Where a FortiOS, PAN-OS or ASA configuration holds its interfaces and static
 routes, FWShift reads the **networks behind each zone** from them, for the
-targets that have no zones (cloud security groups, NSX, Meraki) or keep a rule
+targets that have no zones (cloud security groups and firewalls, NSX, Meraki) or keep a rule
 to its zones by its addresses (ASA, pfSense), and for the equivalence check.
 Findings, the matrix, the conduit check and comparisons can be written as
 **SARIF** (for code scanning in a pipeline), **CSV** (for a spreadsheet or a
@@ -55,7 +61,7 @@ ticketing system) or one **HTML** page to read and sign (`--format`, and
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.40).** The converter is tested against synthetic
+> **Status: alpha (0.41).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -74,9 +80,10 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   26.02.1, the zone-based firewall), the AWS Marketplace images, by the lab,
 >   for the same policy: all 128 connections through each as the source decides. The policy then had security rules
 >   only; since 0.37.0 it has NAT as well (a hide NAT and a published web server), which the lab checks: through the
->   Linux kernel for nftables and iptables, and on the FortiGate-VM, the VM-Series and the Catalyst 8000V, which passed
->   it in 0.40.17 (every check of the addresses seen; the FortiGate with central NAT; the 8000V with one connection
->   blocked as announced, to the real address of the host its static NAT publishes); on the others at their next run. Since 0.38.0 every run of tiers
+>   Linux kernel for nftables and iptables, on the FortiGate-VM, the VM-Series and the Catalyst 8000V, which passed
+>   it in 0.40.17, and on the ASAv in 0.40.21 (every check of the addresses seen; the FortiGate with central NAT; the
+>   8000V and the ASAv with one connection blocked as announced, to the real address of the host their static NAT
+>   publishes); on the vSRX, pfSense and OPNsense at their next run. Since 0.38.0 every run of tiers
 >   2 and 3 also exports the policy from the firewall afterwards, reads it with FWShift and compares it with what was
 >   loaded and with the source (the read-back). Since 0.39.0 tier 3 runs on Azure as well, for the images it offers
 >   (scripted from the vendors' documentation, never run there); on Google Cloud the images are found, and a run waits
@@ -94,8 +101,9 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   the Management API. It took three runs; the last changed the hide NAT (behind the outgoing interface's address,
 >   towards its zone's networks).
 > * **Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
->   Sophos Firewall, WatchGuard, Barracuda, VMware NSX, RouterOS and Forcepoint** output has **not been loaded on a
->   device**, and the **Terraform** output has not been applied with Terraform. The Check Point input format is taken from the API
+>   Sophos Firewall, WatchGuard, Barracuda, VMware NSX, RouterOS, Forcepoint, Azure Firewall, AWS Network Firewall, pf
+>   and VyOS** output has **not been loaded on a device**, the **Terraform** output has not been applied with
+>   Terraform, and no **ScreenOS** or **PIX** configuration (both read only) was read from a device. The Check Point input format is taken from the API
 >   documentation, not from a real export, the FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
 >   XML API and the templates of Sophos's own SDK; a few element names of a
@@ -130,7 +138,15 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   Stormshield from its command reference and, for the configuration files (whose rule syntax is not published), from
 >   its own tools and their test data, and nothing was run on a firewall; Meraki from the OpenAPI specification of the
 >   Dashboard API, Meraki's documentation and the SDK, Terraform provider and Ansible modules Cisco publishes, and no
->   call was made to a Dashboard.
+>   call was made to a Dashboard; Azure Firewall from Microsoft's documentation and the ARM template reference (a few
+>   limits from memory), and nothing was deployed to a subscription; AWS Network Firewall from its developer guide and
+>   API reference and Suricata's documentation, and no call was made to AWS; pf from pf.conf(5) of OpenBSD and
+>   FreeBSD and OpenBSD's PF FAQ, and nothing was loaded with pfctl; VyOS from its documentation and the source of
+>   vyos-1x (the nftables templates, the CLI definitions and the migration scripts that take 1.3 configurations to
+>   1.4), VyOS 1.3, Vyatta and EdgeOS as that migration rewrites them, EdgeOS NAT from Ubiquiti's articles, and
+>   nothing was loaded on a router; ScreenOS from what could be read of Juniper's documentation, published `get config`
+>   excerpts and community pages, much of it assumed; PIX 6.x from Cisco's PIX command reference 6.3 and its NAT
+>   documents. None of these inputs is a real export.
 >   Several conversion rules rest on
 >   vendor behaviour taken from documentation rather than from a lab.
 >
@@ -210,8 +226,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.40.21.pyz --version
-python3 fwshift-0.40.21.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.41.0.pyz --version
+python3 fwshift-0.41.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -408,6 +424,44 @@ fwshift convert router.rsc --to fortios -o fortigate.conf --report report.txt
 fwshift convert running-config.xml --to routeros -o fwshift.rsc --report report.txt \
     --interface-map ethernet1/1=ether1 --interface-map ethernet1/2=bridge
 
+# Azure Firewall: the answers of the Azure CLI for a firewall policy, its base
+# policy and their rule collection groups, in one JSON array (section 3 of the
+# manual). To Azure Firewall, the output is an ARM template that creates a new
+# policy, associated with no firewall
+fwshift convert azurefw.json --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to azure-firewall -o fwpolicy.json --report report.txt \
+    --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0
+az deployment group what-if -g rg-hub --template-file fwpolicy.json
+
+# AWS Network Firewall: the answers of the AWS CLI for one firewall policy and its
+# rule groups, one after the other in one file (section 3 of the manual). To AWS
+# Network Firewall, the output is a script that creates a new policy and its rule
+# group, associated with no firewall
+fwshift convert nfw.json --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to aws-network-firewall -o nfw.sh --report report.txt \
+    --zone-network trust=10.10.0.0/16 --zone-network untrust=0.0.0.0/0,::/0
+DRY_RUN=1 sh nfw.sh
+
+# pf: pf.conf of OpenBSD (FreeBSD's nat, rdr and binat too); addresses of
+# interfaces are not in it: give them. To pf, a ruleset for the anchor
+# "fwshift", for OpenBSD or FreeBSD 15 and later
+fwshift convert pf.conf --to panos -o panos.set --report report.txt \
+    --interface-address em1=10.0.1.1/24
+fwshift convert running-config.xml --to pf -o fwshift.conf --report report.txt \
+    --zone-map trust=em1 --zone-map untrust=em0
+pfctl -vnf fwshift.conf -a fwshift && pfctl -a fwshift -f fwshift.conf
+
+# VyOS 1.4 and later, VyOS 1.3 and EdgeOS: show configuration commands, or config.boot.
+# To VyOS, set commands to paste into a configuration session, then commit-confirm
+fwshift convert config.boot --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to vyos -o fwshift.txt --report report.txt \
+    --interface-map ethernet1/1=eth0 --interface-map ethernet1/2=eth1
+
+# Juniper ScreenOS and Cisco PIX 6.x, read only: get config of a NetScreen or
+# SSG, write terminal of a PIX (PIX 7 and later are read as an ASA)
+fwshift convert ssg.conf --to junos -o srx.set --report report.txt
+fwshift convert pix.cfg --to asa -o asa.cfg --report report.txt
+
 # What did the parser read?
 fwshift inspect fgt-backup.conf
 
@@ -447,7 +501,11 @@ SonicWall *Export Settings*, for a WatchGuard the file Policy Manager saves,
 for a Barracuda a few `curl` calls to its REST API, for an SRX
 `show configuration | display inheritance no-comments | display set`, for a
 Forcepoint the program `fwshift script forcepoint-dump` writes, for Google Cloud
-a few `gcloud ... --format=json` answers, for Terraform `terraform show -json`.
+a few `gcloud ... --format=json` answers, for Terraform `terraform show -json`,
+for Azure Firewall a few `az network firewall policy` answers, for AWS Network
+Firewall the answers of `aws network-firewall describe-firewall-policy` and
+`describe-rule-group`, for pf its `pf.conf`, for VyOS or EdgeOS `show
+configuration commands`, for ScreenOS `get config`, for a PIX `write terminal`.
 
 The report starts with a summary and then lists every rule that is not exact:
 
@@ -575,8 +633,8 @@ connection whose verdict differs, per pair of zones: opened or closed, for
 certain or possibly, with the rule that decides it in each. Applications,
 users, URL categories and schedules are compared as labels of a connection;
 objects and rules both hold alike but that cannot be read decide alike.
-`fwshift convert --compare` reads the output back (for the eleven targets
-FWShift reads) and does the same for the conversion. See
+`fwshift convert --compare` reads the output back (for the seventeen targets
+FWShift reads back) and does the same for the conversion. See
 [section 17](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/MANUAL.md#17-the-equivalence-check).
 
 ## What is converted
@@ -784,6 +842,60 @@ FWShift reads) and does the same for the conversion. See
 | NAT | `dst-nat`, `netmap`, `masquerade`, `src-nat`, `same`, no-NAT; the forward chain looked up after destination NAT, brought back to the original destination. Written: chains `fwshift-dstnat` and `fwshift-srcnat`, IPv4 |
 | Scope | one router. Written: a script for `/import` with disabled jumps from the built-in chains |
 
+| | Azure Firewall |
+|---|---|
+| Address objects | addresses, CIDRs, ranges and `*` of a rule (IPv4); FQDNs of network rules as host names. Written: CIDRs in the rules, IPv4 only |
+| Address groups | IP groups and service tags with their addresses where the input holds them; else dynamic groups, written again only to Azure Firewall |
+| Services | TCP, UDP, ICMP and `Any`, destination ports (`Any` with every port is every IP protocol). Written: a network rule per set of protocols and ports |
+| Security rules | DNAT, network and application rules in Azure's three passes, the base policy's groups first, groups and collections by priority; what a DNAT rule translates allowed ahead of every other rule; application rules kept and not converted; the classic rules of a firewall. Written: a network rule collection per rule of the model, in order, zones as the networks behind them, the default deny or a last collection that allows |
+| NAT | DNAT rules (TCP, UDP). Written: a DNAT rule per address and port, only where the model allows all it translates; source NAT is Azure's own and not written |
+| Scope | one policy with its base policy, or the classic rules of one firewall. Written: an ARM template for a new policy, associated with no firewall |
+
+| | AWS Network Firewall |
+|---|---|
+| Address objects | CIDR blocks and lists with negation, variables of the policy and the rule group, `HOME_NET` from the policy or the inspection VPC, `EXTERNAL_NET` as its negation. Written: in the rules, or IP set variables |
+| Address groups | IP set variables; IP set references to prefix lists, with their entries; resource groups not converted |
+| Services | `ip`, `tcp`, `udp` and `icmp` (ICMP and ICMPv6) with ports, port variables, `ip_proto`, `itype`, `icode`; application protocols as applications. Written: a rule per protocol, applications as their ports |
+| Security rules | stateless rules per packet, with what the replies meet worked out; stateful 5-tuple rules, Suricata rules and domain lists, in action order or strict order, for each moment a flow can be decided, ended where the default action decides. Written: one stateful rule group in strict order, every rule with `flow:to_server`, zones as networks, the default of the source |
+| NAT | none (Network Firewall does no NAT). Not written: the rules are for the private addresses it sees |
+| Scope | one firewall policy and its rule groups. Written: a script that creates a rule group and a policy, associated with no firewall |
+
+| | pf |
+|---|---|
+| Address objects | addresses, networks, ranges and host names of a rule, macros, `self` and the addresses of interfaces (from `--interface-address`). Written: in the rules, or tables `<fws_...>` |
+| Address groups | tables with entries in braces and `!` entries (the most specific entry decides), lists; tables from files or filled at run time are not known. Written: tables |
+| Services | protocols by name and number, ports with every operator of pf and service names, ICMP and ICMPv6 types and codes. Written: the same; a negated service by a tag of its own |
+| Security rules | filter rules, last match with `quick` turned into first match; rules for arriving traffic as rules of the source zone, blocks of leaving traffic as rules of the destination zone; interfaces and interface groups as zones; `antispoof`, `set skip on`, `set block-policy`. Written: arriving traffic tagged by its zone, the rules decided when it leaves, in the order of the model |
+| NAT | `nat-to`, `rdr-to` and `binat-to` on match and pass rules; FreeBSD's `nat`, `rdr`, `binat`, `no nat`, `rdr pass`. Written: `pass in quick ... rdr-to` and `match out ... nat-to` |
+| Scope | one `pf.conf` (or `pfctl -sr`), without its anchors and included files. Written: a ruleset for the anchor `fwshift`, for OpenBSD and FreeBSD 15 and later |
+
+| | VyOS |
+|---|---|
+| Address objects | addresses, networks and ranges of a rule; `fqdn`. Written: in the rule, or groups |
+| Address groups | `address-group`, `network-group` and their `ipv6-` forms with `include`; `domain-group` as host names; `interface-group`. Written: a group for a side of several addresses |
+| Services | `tcp`, `udp`, `tcp_udp` and other protocols, ports and `port-group`, ICMP and ICMPv6 types by name. Written: a rule per protocol (TCP and UDP with the same ports share one); a negated service as a chain of its own |
+| Security rules | the forward filter and the named chains it jumps to (`return`, defaults), the zone-based firewall as a second chain at the forward hook; the rule-sets on interfaces and `zone-policy` of VyOS 1.3, Vyatta and EdgeOS as VyOS's migration to 1.4 rewrites them. Written: zones with a chain per pair of zones and `FWS-NO-ZONE`, or one chain `FWS-FORWARD` jumped to from the forward filter |
+| NAT | `nat destination` and `nat source` (`exclude`, masquerade, addresses, ranges, networks); EdgeOS `service nat`. Written: `nat destination` and `nat source` rules from 10000, IPv4 |
+| Scope | forwarded traffic of one router. Written: set commands for VyOS 1.4 and later that add and delete nothing |
+
+| | Juniper ScreenOS (read only) |
+|---|---|
+| Address objects | address books per zone with the Global book behind them: addresses (IPv4, IPv6), host names; `MIP(A)` and `VIP(A)` as objects |
+| Address groups | address groups of a zone's book |
+| Services | custom services (TCP and UDP ports with source ports, ICMP type and code, IP protocols), service groups, the predefined services of FWShift's table |
+| Security rules | policies per pair of zones, first match, then the global policies, then the default policy; negation; disabled policies; zones that do not block traffic inside them; `move`, `top` and `before` carried out |
+| NAT | policy-based NAT (DIP pools, `nat dst`), MIPs, VIPs and interfaces in NAT mode, in that order (assumed) |
+| Scope | the root system of one device |
+
+| | Cisco PIX 6.x (read only) |
+|---|---|
+| Address objects | the addresses of an entry, `name`, `interface NAME`; a host behind a `static` by its global address, as the access lists name it |
+| Address groups | `object-group network`, nested |
+| Services | protocols and ports of an entry, `object-group service`, ICMP types |
+| Security rules | access lists bound with `access-group`; on interfaces without one, the implicit rules towards lower security levels for what translations cover, and conduits towards higher ones; a rule that permits more than the mandatory NAT lets through is flagged |
+| NAT | exemptions, `static` addresses and ports, policy NAT, `nat` with its `global`s by best match, in Cisco's order |
+| Scope | one PIX 6.x; PIX 7 and later are read as an ASA |
+
 Not converted, and reported where a rule depends on it: security profiles,
 schedules, user and group matches, URL categories, HIP profiles, application
 filters, wildcard-mask and geography addresses, external dynamic lists,
@@ -821,8 +933,16 @@ matches, marks, address lists filled at run time, IPsec policy matches,
 schedules, `redirect` and IPv6 NAT, Forcepoint aliases, element-based and
 default NAT, VPN actions and matches, block lists, rule validity times and
 connection limits, Terraform resources outside the input (other states, made by
-hand), dynamic blocks and values a plan does not know (reported), AWS Network
-Firewall, WAF and Azure Firewall (reported), Meraki group policies, cellular and
+hand), dynamic blocks and values a plan does not know (reported), the AWS Network
+Firewall, WAF and Azure Firewall resources of a state (reported), Azure Firewall
+application rules, threat intelligence, IDPS, TLS inspection and source NAT
+(reported), AWS Network Firewall payload keywords, domain names, TCP flags,
+fragments and managed rule groups whose rules are not shown, pf anchors,
+included files, tables from files or filled at run time, `tagged`, queues and
+scrub (reported), VyOS `input` and `output` and the local zone, `nat66`, static
+NAT and the bridge firewall (reported), ScreenOS virtual systems, policy-based
+VPN, authentication and IPv6 NAT, PIX `outbound` and `apply` lists, outside
+NAT, `fixup` and `established` (reported), Meraki group policies, cellular and
 VPN tables and layer 7 categories (reported), content filtering, Stormshield implicit rules, NAT of a
 slot, time objects, inspection profiles and policy routing (reported), Huawei virtual systems, applications,
 users, domain sets, regions and the local zone (reported), IOS control-plane and self-zone
@@ -844,7 +964,9 @@ and everything else outside the policy.
   RouterOS 0.23, OPNsense 0.24, Forcepoint NGFW 0.25, Terraform (AWS and
   Azure) 0.26, Google Cloud firewall rules (and terraform-google) 0.27, Cisco IOS
   and IOS XE 0.28, Huawei USG 0.29, Stormshield SNS 0.30, Cisco Meraki MX
-  0.31; what is still open for each is in TODO.md.
+  0.31; Azure Firewall, AWS Network Firewall, pf and VyOS, with Juniper
+  ScreenOS and Cisco PIX 6.x read only, 0.41; what is still open for each is in
+  TODO.md.
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),
   connections without a rule uid and iptables logs (0.15), PAN-OS and FortiOS logs (0.16) and

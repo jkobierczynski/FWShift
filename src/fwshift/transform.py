@@ -821,6 +821,49 @@ def bidirectional_pair(p: Policy, nat: NatRule) -> Optional[Tuple[Interval, Inte
     return inside[0], outside[0]
 
 
+def ports_cover(ports: str, port: int) -> bool:
+    """Whether a port list ("80", "8000-8010", "80,443"; empty: every port) holds the port."""
+    if not ports:
+        return True
+    for part in ports.split(","):
+        first, _, last = part.partition("-")
+        if first.isdigit() and int(first) <= port <= int(last or first):
+            return True
+    return False
+
+
+def rules_to_real_address(
+    p: Policy, report: Report, nat: NatRule, host: Interval, port: Optional[Tuple[str, int]], outside: Sequence[str]
+) -> List[Rule]:
+    """The allow rules that let traffic from the outside zones reach the real address (and port) of a host a static NAT
+    rule publishes there, written for that address and not for the translated traffic. On a platform whose static NAT
+    also matches the host's replies (IOS, the ASA), such a connection fails although the rule lets it in."""
+    found: List[Rule] = []
+    if not outside:
+        return found  # (where the outside is, is not known: a source without zones)
+    if p.lookup_after_dnat:
+        return found  # (the source's rules name the real address for the translated traffic: that is how they are written)
+    rewritten = ("NAT_DESTINATION_REWRITTEN", "NAT_DESTINATION_WIDENED", "NAT_PORT_REWRITTEN")
+    for rule in p.rules:
+        if not rule.enabled or rule.action != Action.ALLOW or rule.negate_destination or rule.scope == RuleScope.INTRAZONE:
+            continue
+        item = report.item("rule", rule.origin)
+        if any(f.code in rewritten for f in item.findings) or any(rule.nat_added.values()):
+            continue  # (a rule for translated traffic, of this NAT rule or another: not one for the real address)
+        if ANY not in rule.src_zones and not set(rule.src_zones) & set(outside):
+            continue
+        # (what the rule names, not any address: a rule for every destination is not one for this host)
+        reached = [i for m in rule.destinations if m != ANY for i in known_intervals(p, m)[0] if i != FULL_V4]
+        if not any(i[0] == host[0] and i[1] <= host[1] and host[1] <= i[2] for i in reached):
+            continue
+        if port is not None and ANY not in rule.services:
+            entries = [e for s in rule.services for e in (flatten_services(p, s) or [])]
+            if entries and not any(e.protocol.value == port[0] and ports_cover(e.dst_ports, port[1]) for e in entries):
+                continue
+        found.append(rule)
+    return found
+
+
 @dataclass
 class DestinationTranslation:
     """One destination NAT, as security rules see it."""

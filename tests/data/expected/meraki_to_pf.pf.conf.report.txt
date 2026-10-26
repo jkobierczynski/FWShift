@@ -1,0 +1,53 @@
+FWShift conversion report
+  source: meraki
+  target: pf
+
+Summary
+  Security rules:     20   exact 9, approximated 5, needs review 5 (1 emitted disabled), skipped 1
+  NAT rules:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] PF_LOAD: the output is a ruleset for the anchor 'fwshift': check it with 'pfctl -vnf FILE -a fwshift', load it with 'pfctl -a fwshift -f FILE'. The main ruleset must call it ('anchor "fwshift"'), before rules that pass or block forwarded traffic quick; rules after the anchor that are not quick can still change what it decides. It lets in what arrives on the interfaces of the zones that a rule may allow (never to the firewall's own addresses), decides when the traffic leaves, and needs OpenBSD pf or FreeBSD 15 or later (match rules with tag, nat-to, rdr-to)
+  [needs-review] INTERFACES_REQUIRED: zones are written as interfaces or interface groups, a macro each at the top of the file: set each to the interface (or group) of the zone, or convert with --zone-map: vlan10-office, vlan20-servers, vlan30-ot-cell, internet
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+  [info] PF_ZONES_ONLY: the anchor decides about traffic that arrives on the interfaces of the zones (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); what arrives on another interface is left to the main ruleset
+  [info] LOGGING_AT_END: rules that log the end of a connection on the source are written without log: pf logs the packet a rule matches; the rules that log the start of a connection have 'log'
+
+Security rules
+  layer 7 rule 2  ->  needs-review  (emitted as 3 rules)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  layer 7 rule 3  ->  needs-review  (emitted as 3 rules)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  office to servers web  ->  needs-review  (emitted as 3 rules)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.20.25', the address NAT rule 'NAT mail' translates '203.0.113.25' to. The target looks rules up after that translation, so traffic sent to '203.0.113.25' now matches this rule; on the source it did not
+  block update site  ->  approximated  (emitted as 3 rules)
+      [approximated] FQDN_RESOLVED_ONCE: 'fqdn updates.example.com' is a host name: pfctl resolves it once, when the rules are loaded, and keeps the addresses it got then
+  ping servers  ->  needs-review  (emitted as 3 rules)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.20.25', the address NAT rule 'NAT mail' translates '203.0.113.25' to. The target looks rules up after that translation, so traffic sent to '203.0.113.25' now matches this rule; on the source it did not
+  bad ports  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+  vpn-portal  ->  approximated  (emitted as 1 rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.10.20.30' because of NAT rule 'NAT vpn-portal'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'NAT vpn-portal' also translates the port to 443: the service of this rule (tcp/8443) named the pre-NAT port only, and now names 443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+  mail (1)  ->  approximated  (emitted as 1 rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT mail'; check that this rule is meant to cover the translated traffic
+  mail (2)  ->  approximated  (emitted as 1 rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT mail'; check that this rule is meant to cover the translated traffic
+  scada-view  ->  approximated  (emitted as 1 rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.30' with post-NAT '10.10.20.40' because of NAT rule 'NAT scada-view'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'NAT scada-view' also translates the port to 443: the service of this rule (tcp/9443) named the pre-NAT port only, and now names 443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT mail  ->  exact  (emitted as 1 rdr-to, 4 nat-to)
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as a nat-to for what leaves and an rdr-to for what arrives

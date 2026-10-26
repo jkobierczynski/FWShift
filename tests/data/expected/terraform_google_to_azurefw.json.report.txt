@@ -1,0 +1,46 @@
+FWShift conversion report
+  source: terraform-google (vpc-shop)
+  target: azure-firewall
+
+Summary
+  Security rules:     28   exact 24, approximated 1, needs review 0, skipped 3
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] TERRAFORM_MEMBERS: the instances a rule applies to, and that its source tags and service accounts stand for, are those of this state: instances made elsewhere (another state, by hand, a managed instance group) are not known to the converted policy
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: google_compute_security_policy. The converted policy does not hold what they do
+  [needs-review] AZFW_LOAD: the output is an ARM template (section 10) that creates firewall policy FWShift with its rule collection groups; look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode), then associate the policy with a firewall or a secured hub. Nothing changes before that. Deploying it where a policy of that name exists changes that policy
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Google Cloud command line for the same resources: 11 google_compute_firewall, 5 google_compute_instance, 1 google_compute_network, 1 google_compute_network_firewall_policy, 1 google_compute_network_firewall_policy_association, 6 google_compute_network_firewall_policy_rule, 1 google_compute_region_network_firewall_policy, 1 google_compute_region_network_firewall_policy_association, 1 google_compute_region_network_firewall_policy_rule. Resources outside this state (made by hand, or by another state) are not in it
+  [info] AZFW_TARGET_SNAT: Azure Firewall translates the source of what goes to a public address (outside RFC 1918 and RFC 6598, or the private ranges set on the policy) to its own public address, and, community sources say, the source of DNAT traffic to one of its private addresses: servers may see other source addresses than with the source
+  [info] AZFW_TARGET_DEFAULTS: the policy is written with network rules only; after them Azure Firewall still allows the FQDNs of its built-in infrastructure rule collection, then denies. Threat intelligence is set to Alert, which blocks nothing
+  [info] AZFW_TARGET_IPV6: the policy holds IPv6; Azure Firewall filters IPv4 only, and the IPv6 parts of the rules are not written (blocking rules lose nothing by it: the firewall forwards no IPv6)
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Azure Firewall does not choose: its diagnostic settings send the logs of every rule (AZFWNetworkRule, AZFWNatRule) to a workspace
+
+Security rules
+  implied allow egress+allow-https-web-v6  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  allow-https-web-v6  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  allow-mgmt-v6  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows ICMPv6; Azure Firewall filters IPv4 only, and that part is not written
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  implied allow egress (out)  ->  approximated  (emitted as rule collection implied_allow_egress__out_ of group fwshift-network-1)
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+
+NAT rules
+  external-192.0.2.10  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  external-192.0.2.5  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written

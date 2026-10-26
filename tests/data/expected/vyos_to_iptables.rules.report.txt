@@ -1,0 +1,79 @@
+FWShift conversion report
+  source: vyos
+  target: iptables
+
+Summary
+  Security rules:     42   exact 26, approximated 2, needs review 4 (3 emitted disabled), skipped 10
+  NAT rules:           6   exact 6, approximated 0, needs review 0, skipped 0
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] IPTABLES_LOAD: the output holds the FORWARD chain only. Plain 'iptables-restore' replaces the whole filter table, INPUT and OUTPUT included: check it with 'iptables-restore --test', then load it with 'iptables-restore --noflush' on a host whose FORWARD chain is empty, or merge it by hand
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: GUEST, LAN, WAN, DMZ, VPN, br0
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] OTHER_IP_VERSION: 10 rules match the other IP version only; convert with --to ip6tables as well
+  [info] LOGGING_NOT_CONVERTED: logging settings of the rules are not converted; add LOG or NFLOG rules where needed
+
+Security rules
+  forward-40  ->  exact  (emitted as 5 FORWARD rules)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-WAN.from-LAN.LAN-WAN-20  ->  approximated  (emitted as 2 FORWARD rules)
+      [approximated] FQDN_RESOLVED_ONCE: 'updates.example.com' is a host name: iptables resolves it once, when the rules are loaded, and keeps the addresses it got then
+      [approximated] FQDN_RESOLVED_ONCE: 'mirror.example.org' is a host name: iptables resolves it once, when the rules are loaded, and keeps the addresses it got then
+  zone-WAN.default  ->  exact  (emitted as 5 FORWARD rules)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-GUEST.default  ->  exact  (emitted as 5 FORWARD rules)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  approximated  (emitted as 1 FORWARD rule)
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'https to web1 destination' with post-NAT '192.168.30.10' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review  (emitted as 1 FORWARD rule)
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+  office hours only  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit).
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.default  ->  exact  (emitted as 5 FORWARD rules)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-VPN.default  ->  exact  (emitted as 5 FORWARD rules)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-WAN.from-LAN.default  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  ipv6-zone-WAN.default  ->  skipped
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  ipv6-zone-LAN.intra  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  ipv6-zone-LAN.default  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  ipv6-zone-GUEST.default  ->  skipped
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  ipv6-zone-DMZ.from-WAN.default  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  ipv6-zone-DMZ.default  ->  skipped
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  ipv6-zone-VPN.default  ->  skipped
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+
+NAT rules
+  destination-30  ->  exact
+      [info] NAT_DISABLED: disabled in the source; written as a comment

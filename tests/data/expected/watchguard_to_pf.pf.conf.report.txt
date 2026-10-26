@@ -1,0 +1,31 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: pf
+
+Summary
+  Security rules:     10   exact 5, approximated 3, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] PF_LOAD: the output is a ruleset for the anchor 'fwshift': check it with 'pfctl -vnf FILE -a fwshift', load it with 'pfctl -a fwshift -f FILE'. The main ruleset must call it ('anchor "fwshift"'), before rules that pass or block forwarded traffic quick; rules after the anchor that are not quick can still change what it decides. It lets in what arrives on the interfaces of the zones that a rule may allow (never to the firewall's own addresses), decides when the traffic leaves, and needs OpenBSD pf or FreeBSD 15 or later (match rules with tag, nat-to, rdr-to)
+  [needs-review] INTERFACES_REQUIRED: zones are written as interfaces or interface groups, a macro each at the top of the file: set each to the interface (or group) of the zone, or convert with --zone-map: External, Trusted, DMZ, Guests, Lab
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] PF_ZONES_ONLY: the anchor decides about traffic that arrives on the interfaces of the zones (External, Trusted, DMZ, Guests, Lab); what arrives on another interface is left to the main ruleset
+  [info] LOGGING_AT_END: rules that log the end of a connection on the source are written without log: pf logs the packet a rule matches; the rules that log the start of a connection have 'log'
+
+Security rules
+  Web Out  ->  approximated  (emitted as 3 rules)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+  Web In  ->  approximated  (emitted as 1 rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Web-Public.1.snat' with post-NAT 'Web-Public.2.snat' because of NAT rule 'Web-Public (Web In)'; check that this rule is meant to cover the translated traffic
+  Mail In  ->  approximated  (emitted as 1 rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Mail-Public.1.snat' with post-NAT 'Mail-Public.2.snat' because of NAT rule 'Mail-Public (Mail In)'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'Mail-Public (Mail In)' also translates the port to 2525: the service of this rule (SMTP) named the pre-NAT port only, and now names 2525, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+  DMZ Updates  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+  Staff Only  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Staff is not converted.

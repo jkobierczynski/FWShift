@@ -1,0 +1,281 @@
+FWShift conversion report
+  source: terraform-azure
+  target: aws-network-firewall
+
+Summary
+  Security rules:     86   exact 0, approximated 42, needs review 44 (44 emitted disabled), skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: azurerm_firewall. The converted policy does not hold what they do
+  [needs-review] AWSNFW_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 sends each with --dry-run, without either it creates the stateful rule group fwshift-rules and the firewall policy fwshift, and stops if one of that name exists. The policy is attached to no firewall: nothing changes until you associate it (aws network-firewall associate-firewall-policy)
+  [needs-review] AWSNFW_ORDER: the policy decides every packet the firewall sees, in strict order: no stateless rules (every packet goes to the stateful engine), the rules of the model in their order, each for the first packet of a connection (flow:to_server), then aws:drop_strict for what no rule passed. Check it against what the firewall's route tables send through it
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.40.1.0/24 --zone-network nsg-app=10.40.2.0/24 --zone-network nsg-db=10.40.3.0/24
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 58 rules say what both allow, in the order of the two
+  [info] AZURE_DEFAULT_RULES_ADDED: the export does not list the default rules of these groups (a template never does); the six rules every group has were added: nsg-web, nsg-app, nsg-db
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-app, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Azure command line for the same resources: 2 azurerm_application_security_group, 3 azurerm_network_interface, 3 azurerm_network_interface_application_security_group_association, 3 azurerm_network_security_group, 2 azurerm_network_security_rule, 3 azurerm_subnet, 3 azurerm_subnet_network_security_group_association, 1 azurerm_virtual_network. Resources outside this state (made by hand, or by another state) are not in it
+
+Security rules
+  nsg-web:https-in  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:block-doc  ->  approximated  (emitted as 3 rules of the rule group (sid 1-3))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:ssh-admin  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Network Firewall names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Network Firewall names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:DenyAllInBound  ->  approximated  (emitted as 3 rules of the rule group (sid 4-6))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:to-app  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of Network Firewall names no zone: give the networks behind outside with --zone-network.
+  nsg-web:no-internet  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:DenyAllOutBound  ->  approximated  (emitted as 3 rules of the rule group (sid 7-9))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:from-web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Network Firewall names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:icmp-vnet  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:deny-rest  ->  approximated  (emitted as 3 rules of the rule group (sid 10-12))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Network Firewall names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:DenyAllInBound  ->  approximated  (emitted as 3 rules of the rule group (sid 13-15))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:DenyAllOutBound  ->  approximated  (emitted as 3 rules of the rule group (sid 16-18))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:postgres-from-app  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Network Firewall names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:deny-web  ->  approximated  (emitted as 3 rules of the rule group (sid 19-21))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Network Firewall names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:DenyAllInBound  ->  approximated  (emitted as 3 rules of the rule group (sid 22-24))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:DenyAllOutBound  ->  approximated  (emitted as 3 rules of the rule group (sid 25-27))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:to-app+nsg-web:block-doc  ->  approximated  (emitted as 1 rule of the rule group (sid 28))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:to-app+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:to-app+nsg-web:DenyAllInBound  ->  approximated  (emitted as 1 rule of the rule group (sid 29))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-web:block-doc  ->  approximated  (emitted as 3 rules of the rule group (sid 30-32))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-web:ssh-admin  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as 3 rules of the rule group (sid 33-35))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:DenyAllOutBound to nsg-web  ->  approximated  (emitted as 3 rules of the rule group (sid 36-38))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:to-app+nsg-app:from-web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-web:to-app+nsg-app:deny-rest  ->  approximated  (emitted as 1 rule of the rule group (sid 39))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:to-app+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-web:to-app+nsg-app:DenyAllInBound  ->  approximated  (emitted as 1 rule of the rule group (sid 40))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-app:from-web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-app:icmp-vnet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-app:deny-rest  ->  approximated  (emitted as 3 rules of the rule group (sid 41-43))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as 3 rules of the rule group (sid 44-46))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:DenyAllOutBound to nsg-app  ->  approximated  (emitted as 3 rules of the rule group (sid 47-49))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:to-app+nsg-db:deny-web  ->  approximated  (emitted as 1 rule of the rule group (sid 50))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:to-app+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-web:to-app+nsg-db:DenyAllInBound  ->  approximated  (emitted as 1 rule of the rule group (sid 51))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-db:postgres-from-app  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-db:deny-web  ->  approximated  (emitted as 3 rules of the rule group (sid 52-54))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as 3 rules of the rule group (sid 55-57))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:DenyAllOutBound to nsg-db  ->  approximated  (emitted as 3 rules of the rule group (sid 58-60))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetOutBound+nsg-web:block-doc  ->  approximated  (emitted as 3 rules of the rule group (sid 61-63))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetOutBound+nsg-web:ssh-admin  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as 3 rules of the rule group (sid 64-66))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:DenyAllOutBound to nsg-web  ->  approximated  (emitted as 3 rules of the rule group (sid 67-69))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetOutBound+nsg-app:from-web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-app:icmp-vnet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-app:deny-rest  ->  approximated  (emitted as 3 rules of the rule group (sid 70-72))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as 3 rules of the rule group (sid 73-75))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:DenyAllOutBound to nsg-app  ->  approximated  (emitted as 3 rules of the rule group (sid 76-78))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetOutBound+nsg-db:postgres-from-app  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-db:deny-web  ->  approximated  (emitted as 3 rules of the rule group (sid 79-81))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as 3 rules of the rule group (sid 82-84))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:DenyAllOutBound to nsg-db  ->  approximated  (emitted as 3 rules of the rule group (sid 85-87))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetOutBound+nsg-web:block-doc  ->  approximated  (emitted as 3 rules of the rule group (sid 88-90))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetOutBound+nsg-web:ssh-admin  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Network Firewall names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as 3 rules of the rule group (sid 91-93))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:DenyAllOutBound to nsg-web  ->  approximated  (emitted as 3 rules of the rule group (sid 94-96))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetOutBound+nsg-app:from-web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-app:icmp-vnet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-app:deny-rest  ->  approximated  (emitted as 3 rules of the rule group (sid 97-99))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Network Firewall names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as 3 rules of the rule group (sid 100-102))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:DenyAllOutBound to nsg-app  ->  approximated  (emitted as 3 rules of the rule group (sid 103-105))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetOutBound+nsg-db:postgres-from-app  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-db:deny-web  ->  approximated  (emitted as 3 rules of the rule group (sid 106-108))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Network Firewall names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as 3 rules of the rule group (sid 109-111))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:DenyAllOutBound to nsg-db  ->  approximated  (emitted as 3 rules of the rule group (sid 112-114))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones

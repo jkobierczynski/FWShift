@@ -1,0 +1,87 @@
+FWShift conversion report
+  source: vyos
+  target: vyos
+
+Summary
+  Security rules:     42   exact 37, approximated 1, needs review 4 (3 emitted disabled), skipped 0
+  NAT rules:           6   exact 6, approximated 0, needs review 0, skipped 0
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] VYOS_LOAD: load the commands in configuration mode: 'configure', paste them, 'compare', then 'commit-confirm 10' (unless 'confirm' follows within 10 minutes, VyOS goes back to the configuration before; older releases reboot to do so) and 'save'. A commit applies all of them or none. The policy is written as the zone-based firewall: zones GUEST, LAN, WAN, DMZ, VPN, br0, and a chain FWS-<from>-<to> for each pair of zones that needs one. Interfaces of the router in no zone: VyOS drops their traffic into a zone and leaves traffic from a zone to them to the forward filter; that traffic is decided by chain FWS-NO-ZONE (the rules for any destination and the default of the policy), jumped to from rule 10000 of the forward filter for what leaves by an interface not in interface group FWS-ZONES. Check that the forward filter has no rule 10000 (show firewall ipv4 forward filter), or give another number with --policy-id-start; its rules with lower numbers come first, and those after rule 10000 are no longer reached by what the chain decides, as it ends with the default of the policy. The forward filter of the router still applies before the zones (an accept there goes on to the zones, a drop is final). A zone of the same name that exists gets these interfaces and chains in addition to its own; a chain set for a pair that has one replaces it. NAT rules are numbered from 10000: rules of the router with lower numbers come first. To take a conversion away: delete the groups, chains, zones and NAT rules the commands name (all under FWS-, and the NAT rules from 10000 on). Assumed: names of up to 63 characters
+  [needs-review] VYOS_NO_ZONE: traffic from a zone to an interface in no zone is decided by chain FWS-NO-ZONE; its replies come in from an interface in no zone, which VyOS drops at the zones unless 'firewall global-options state-policy' accepts established and related packets (the commands do not set it, as it applies to the whole router)
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] VYOS_FQDN: host names are written as fqdn or domain-group, which the router resolves while it runs: mirror.example.org, updates.example.com
+  [info] VYOS_LOG: rules that log the start of a connection have 'log': VyOS logs every packet the rule matches, which, after the replies are accepted at the top of each chain, is the first packet of each connection
+
+Security rules
+  drop the blocklist  ->  exact  (emitted as FWS-GUEST-GUEST rule 10, FWS-GUEST-LAN rule 10, FWS-GUEST-WAN rule 10, FWS-GUEST-DMZ rule 10, FWS-GUEST-VPN rule 10, FWS-GUEST-br0 rule 10, FWS-LAN-GUEST rule 10, FWS-LAN-LAN rule 10, FWS-LAN-WAN rule 10, FWS-LAN-DMZ rule 10, FWS-LAN-VPN rule 10, FWS-LAN-br0 rule 10, FWS-WAN-GUEST rule 10, FWS-WAN-LAN rule 10, FWS-WAN-WAN rule 10, FWS-WAN-DMZ rule 10, FWS-WAN-VPN rule 10, FWS-WAN-br0 rule 10, FWS-DMZ-GUEST rule 10, FWS-DMZ-LAN rule 10, FWS-DMZ-WAN rule 10, FWS-DMZ-DMZ rule 10, FWS-DMZ-VPN rule 10, FWS-DMZ-br0 rule 10, FWS-VPN-GUEST rule 10, FWS-VPN-LAN rule 10, FWS-VPN-WAN rule 10, FWS-VPN-DMZ rule 10, FWS-VPN-VPN rule 10, FWS-VPN-br0 rule 10, FWS-br0-GUEST rule 10, FWS-br0-LAN rule 10, FWS-br0-WAN rule 10, FWS-br0-DMZ rule 10, FWS-br0-VPN rule 10, FWS-br0-br0 rule 10, FWS-NO-ZONE rule 10)
+      [info] RULE_SPLIT: written in the chains of 36 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (GUEST, LAN, WAN, DMZ, VPN, br0); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  no outbound mail  ->  exact  (emitted as FWS-GUEST-WAN rule 20, FWS-LAN-WAN rule 20)
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  spoofed inside sources  ->  exact  (emitted as FWS-GUEST-GUEST rule 20, FWS-GUEST-LAN rule 20, FWS-GUEST-WAN rule 30, FWS-GUEST-DMZ rule 20, FWS-GUEST-VPN rule 20, FWS-GUEST-br0 rule 20, FWS-LAN-GUEST rule 20, FWS-LAN-LAN rule 20, FWS-LAN-WAN rule 30, FWS-LAN-DMZ rule 20, FWS-LAN-VPN rule 20, FWS-LAN-br0 rule 20, FWS-NO-ZONE rule 20, FWS-NO-ZONE rule 30)
+      [info] RULE_SPLIT: written in the chains of 12 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (GUEST, LAN, WAN, DMZ, VPN, br0); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  forward-30  ->  exact  (emitted as FWS-GUEST-GUEST rule 30, FWS-GUEST-LAN rule 30, FWS-GUEST-WAN rule 40, FWS-GUEST-DMZ rule 30, FWS-GUEST-VPN rule 30, FWS-GUEST-br0 rule 30, FWS-LAN-GUEST rule 30, FWS-LAN-LAN rule 30, FWS-LAN-WAN rule 40, FWS-LAN-DMZ rule 30, FWS-LAN-VPN rule 30, FWS-LAN-br0 rule 30, FWS-WAN-GUEST rule 20, FWS-WAN-LAN rule 20, FWS-WAN-WAN rule 20, FWS-WAN-DMZ rule 20, FWS-WAN-VPN rule 20, FWS-WAN-br0 rule 20, FWS-DMZ-GUEST rule 20, FWS-DMZ-LAN rule 20, FWS-DMZ-WAN rule 20, FWS-DMZ-DMZ rule 20, FWS-DMZ-VPN rule 20, FWS-DMZ-br0 rule 20, FWS-VPN-GUEST rule 20, FWS-VPN-LAN rule 20, FWS-VPN-WAN rule 20, FWS-VPN-DMZ rule 20, FWS-VPN-VPN rule 20, FWS-VPN-br0 rule 20, FWS-br0-GUEST rule 20, FWS-br0-LAN rule 20, FWS-br0-WAN rule 20, FWS-br0-DMZ rule 20, FWS-br0-VPN rule 20, FWS-br0-br0 rule 20, FWS-NO-ZONE rule 40)
+      [info] RULE_SPLIT: written in the chains of 36 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (GUEST, LAN, WAN, DMZ, VPN, br0); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  forward-40  ->  exact  (emitted as FWS-GUEST-GUEST rule 40, FWS-GUEST-LAN rule 40, FWS-GUEST-WAN rule 50, FWS-GUEST-DMZ rule 40, FWS-GUEST-VPN rule 40, FWS-GUEST-br0 rule 40, FWS-LAN-GUEST rule 40, FWS-LAN-LAN rule 40, FWS-LAN-WAN rule 50, FWS-LAN-DMZ rule 40, FWS-LAN-VPN rule 40, FWS-LAN-br0 rule 40, FWS-DMZ-GUEST rule 30, FWS-DMZ-LAN rule 30, FWS-DMZ-WAN rule 30, FWS-DMZ-DMZ rule 30, FWS-DMZ-VPN rule 30, FWS-DMZ-br0 rule 30, FWS-VPN-GUEST rule 30, FWS-VPN-LAN rule 30, FWS-VPN-WAN rule 30, FWS-VPN-DMZ rule 30, FWS-VPN-VPN rule 30, FWS-VPN-br0 rule 30, FWS-br0-GUEST rule 30, FWS-br0-LAN rule 30, FWS-br0-WAN rule 30, FWS-br0-DMZ rule 30, FWS-br0-VPN rule 30, FWS-br0-br0 rule 30, FWS-NO-ZONE rule 50, FWS-NO-ZONE rule 60, FWS-NO-ZONE rule 70, FWS-NO-ZONE rule 80, FWS-NO-ZONE rule 90)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: written in the chains of 30 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (GUEST, LAN, WAN, DMZ, VPN, br0); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  zone-WAN.default  ->  exact  (emitted as FWS-GUEST-WAN rule 80, FWS-LAN-WAN rule 90, FWS-DMZ-WAN rule 40, FWS-VPN-WAN rule 40, FWS-br0-WAN rule 40)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  zone-LAN.default  ->  exact  (emitted as FWS-GUEST-LAN rule 50, FWS-LAN-LAN rule 60, FWS-WAN-LAN rule 50, FWS-DMZ-LAN rule 40, FWS-VPN-LAN rule 40, FWS-br0-LAN rule 40)
+      [info] RULE_SPLIT: written in the chains of 6 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (GUEST, LAN, WAN, DMZ, VPN, br0); traffic from an interface in no zone into a zone VyOS drops
+  zone-GUEST.default  ->  exact  (emitted as FWS-LAN-GUEST rule 50, FWS-WAN-GUEST rule 30, FWS-DMZ-GUEST rule 40, FWS-VPN-GUEST rule 40, FWS-br0-GUEST rule 40)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  approximated  (emitted as FWS-WAN-DMZ rule 40)
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'https to web1 destination' with post-NAT '192.168.30.10' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review  (emitted as FWS-WAN-DMZ rule 50)
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+  office hours only  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit).
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.default  ->  exact  (emitted as FWS-GUEST-DMZ rule 50, FWS-LAN-DMZ rule 90, FWS-WAN-DMZ rule 80, FWS-VPN-DMZ rule 60, FWS-br0-DMZ rule 40)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  zone-VPN.default  ->  exact  (emitted as FWS-GUEST-VPN rule 50, FWS-LAN-VPN rule 50, FWS-WAN-VPN rule 30, FWS-DMZ-VPN rule 40, FWS-br0-VPN rule 40)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  ipv6-zone-WAN.default  ->  exact  (emitted as FWS-GUEST-WAN rule 10 (IPv6), FWS-LAN-WAN rule 20 (IPv6), FWS-DMZ-WAN rule 10 (IPv6), FWS-VPN-WAN rule 10 (IPv6), FWS-br0-WAN rule 10 (IPv6))
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  ipv6-zone-LAN.default  ->  exact  (emitted as FWS-GUEST-LAN rule 10 (IPv6), FWS-LAN-LAN rule 20 (IPv6), FWS-WAN-LAN rule 10 (IPv6), FWS-DMZ-LAN rule 10 (IPv6), FWS-VPN-LAN rule 10 (IPv6), FWS-br0-LAN rule 10 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 6 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (GUEST, LAN, WAN, DMZ, VPN, br0); traffic from an interface in no zone into a zone VyOS drops
+  ipv6-zone-GUEST.default  ->  exact  (emitted as FWS-LAN-GUEST rule 10 (IPv6), FWS-WAN-GUEST rule 10 (IPv6), FWS-DMZ-GUEST rule 10 (IPv6), FWS-VPN-GUEST rule 10 (IPv6), FWS-br0-GUEST rule 10 (IPv6))
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  ipv6-zone-DMZ.default  ->  exact  (emitted as FWS-GUEST-DMZ rule 10 (IPv6), FWS-LAN-DMZ rule 10 (IPv6), FWS-WAN-DMZ rule 40 (IPv6), FWS-VPN-DMZ rule 10 (IPv6), FWS-br0-DMZ rule 10 (IPv6))
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  ipv6-zone-VPN.default  ->  exact  (emitted as FWS-GUEST-VPN rule 10 (IPv6), FWS-LAN-VPN rule 10 (IPv6), FWS-WAN-VPN rule 10 (IPv6), FWS-DMZ-VPN rule 10 (IPv6), FWS-br0-VPN rule 10 (IPv6))
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+
+NAT rules
+  destination-30  ->  exact
+      [info] NAT_DISABLED: disabled in the source; written disabled

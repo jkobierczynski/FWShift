@@ -1,0 +1,44 @@
+FWShift conversion report
+  source: barracuda (forwarding firewall)
+  target: aws-network-firewall
+
+Summary
+  Security rules:     17   exact 9, approximated 2, needs review 6 (6 emitted disabled), skipped 0
+  Addresses:           8   exact 8, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CONNECTION_NOT_READ: rules whose connection object translates the source address: 'LAN-2-INTERNET'. Source NAT is not read; the rules are, as they match
+  [needs-review] AWSNFW_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 sends each with --dry-run, without either it creates the stateful rule group fwshift-rules and the firewall policy fwshift, and stops if one of that name exists. The policy is attached to no firewall: nothing changes until you associate it (aws network-firewall associate-firewall-policy)
+  [needs-review] AWSNFW_ORDER: the policy decides every packet the firewall sees, in strict order: no stateless rules (every packet goes to the stateful engine), the rules of the model in their order, each for the first packet of a connection (flow:to_server), then aws:drop_strict for what no rule passed. Check it against what the firewall's route tables send through it
+  [info] BARRACUDA_FORMAT: read 15 forwarding rules, 10 network objects and 8 service objects from 19 answers of the REST API. Barracuda documents that API by examples only: the keys read are those its examples and published tools show, and a key of a rule, an object or an entry this parser does not know makes it unusable
+  [info] ICMP_LIMITS: service objects that limit the size or rate of ICMP echo requests: 'Ping'. The limits are not converted: the rules allow ICMP of any size and rate
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a pass rule of Network Firewall does not, a drop or reject rule sends an alert when the firewall has alert logging configured
+
+Security rules
+  ADMIN-SSH (port2)  ->  needs-review, emitted disabled
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone port2, and a rule of Network Firewall names no zone: give the networks behind port2 with --zone-network.
+  ADMIN-SSH (port1)  ->  needs-review, emitted disabled
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone port1, and a rule of Network Firewall names no zone: give the networks behind port1 with --zone-network.
+  WEB-IN  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Dst NAT: how the API spells its target list is not known, so the translation is not read.
+  SERVER-SYNC  ->  exact  (emitted as 1 rule of the rule group (sid 4))
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  SERVER-SYNC (back)  ->  exact  (emitted as 1 rule of the rule group (sid 5))
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  PING-ALL  ->  approximated  (emitted as 1 rule of the rule group (sid 6))
+      [approximated] ICMP_LIMITS: service 'Ping' limits the size or rate of ICMP echo requests; the limits are not converted
+  UPDATES  ->  needs-review, emitted disabled
+      [needs-review] ADDRESS_UNKNOWN: the addresses of the destination 'Updates (IPv4)' are not known; a rule of Network Firewall names addresses.
+  DENY-LAN-DMZ  ->  exact  (emitted as 1 rule of the rule group (sid 8))
+      [info] REJECT_AS_DENY: a reject of Network Firewall is for TCP; for the rule's other protocols it is written as drop, which answers nothing
+  GRE-LAB  ->  approximated  (emitted as 1 rule of the rule group (sid 9))
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application=urlFilter, ips=Default); attach equivalent inspection on the target
+  TO-LAB  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Cascade: the rules of the rule list it hands traffic to are not read, and they decide that traffic. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ODD  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule '{"type": "recurring", "name": "Work-Hours"}' is not converted; the rule would apply at all times.

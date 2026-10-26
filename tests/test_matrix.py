@@ -535,7 +535,7 @@ SAMPLES = ["asa_sample.cfg", "checkpoint_sample.json", "fortios_sample.conf", "i
            "routeros_sample.rsc", "opnsense_sample.xml", "forcepoint_sample.json",
            "terraform_aws_sample.json", "terraform_azure_sample.json", "gcp_sample.json", "ios_sample.cfg",
            "terraform_google_sample.json", "huawei_sample.cfg", "stormshield_sample.tgz",
-           "meraki_sample.json"]  # fmt: skip
+           "meraki_sample.json", "azurefw_sample.json", "pf_sample.conf", "screenos_sample.conf", "pix_sample.cfg", "vyos_sample.conf", "edgeos_sample.conf", "awsnfw_sample.json"]  # fmt: skip
 
 
 @pytest.mark.parametrize("sample", SAMPLES)
@@ -555,6 +555,9 @@ def test_matrix_of_the_samples(sample: str, tmp_path: Path) -> None:
     pairs = [(conduit["from"], conduit["to"], rule["rule"]) for conduit in data["conduits"] for rule in conduit["rules"]]
     assert pairs and [(row["from"], row["to"], row["rule"]) for row in rows] == pairs
     vendor = "-".join(sample.split("_")[:2]) if sample.startswith("terraform_") else sample.split("_")[0]
+    vendor = {"azurefw": "azure-firewall"}.get(vendor, vendor)
+    vendor = {"edgeos": "vyos"}.get(vendor, vendor)  # EdgeOS is read by the VyOS reader
+    vendor = {"awsnfw": "aws-network-firewall"}.get(vendor, vendor)  # (the sample is named by the module)
     assert data["zones_are"] == "the zones of the policy" and data["source"] == vendor
     text = out.read_text(encoding="utf-8")
     assert all(f"{conduit['from']} -> {conduit['to']}" in text for conduit in data["conduits"])

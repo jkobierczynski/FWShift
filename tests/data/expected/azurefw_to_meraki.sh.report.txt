@@ -1,0 +1,69 @@
+FWShift conversion report
+  source: azure-firewall (fwpol-shop)
+  target: meraki
+
+Summary
+  Security rules:     17   exact 2, approximated 0, needs review 10 (1 emitted disabled), skipped 5
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZFW_DYNAMIC: addresses only Azure knows: IP group ipg-partners, service tag Storage.WestEurope. They are dynamic groups, which only an Azure Firewall target writes again; add the IP groups (az network ip-group list) and the service tags (az network list-service-tags) to the export to convert them for other targets
+  [needs-review] AZFW_THREAT_INTEL: threat intelligence mode Deny: it is applied before the rules and blocks traffic of known malicious addresses and names, which the converted policy does not. It is not a rule and is not converted
+  [needs-review] MERAKI_LOAD: the output is a shell script for the Dashboard API (section 10): it backs up and replaces the outbound table; DRY_RUN=1 writes the bodies only. The fixed default rule of the MX (allow) stays at the end
+  [info] AZFW_ORDER: read in the order Azure Firewall takes the rules: firewall policy fwpol-base > fwpol-shop: DNAT rules, then network rules, then application rules, each by the priority of the rule collection group and of the rule collection, the groups of the base policy before those of the child. What no rule allows is denied; rules of one collection have one action and no order among themselves
+  [info] AZFW_IPV4_ONLY: Azure Firewall filters IPv4 only: '*' is read as 0.0.0.0/0, and the converted policy says nothing for IPv6
+  [info] AZFW_UNFILTERED: the firewall decides only what is routed through it (user-defined routes, a secured hub); traffic inside a virtual network that is not routed to it, and network security groups on the way, are not in this export
+  [info] AZFW_ANY_PROTOCOL: protocol Any with every port is every IP protocol, as Microsoft documents it since November 2020 (before, it meant TCP, UDP and ICMP); with ports it is TCP and UDP on them
+  [info] AZFW_ICMP_INTERNET: rules for ICMP do not apply to traffic to the internet, which the firewall cannot translate for it (a known issue Microsoft documents); between networks of Azure they do
+  [info] AZFW_IDPS: IDPS in mode Alert: it alerts and does not block; not converted
+  [info] AZFW_SNAT: Azure Firewall translates the source of what a network rule allows to its public address unless the destination is in its private ranges (IANAPrivateRanges, 198.51.100.0/24); of what an application rule allows always (to one of its private addresses); and, community sources say, of what a DNAT rule translates. None of that is a rule of the policy: no source NAT rule is in the model
+  [info] AZFW_INFRASTRUCTURE: after the application rules Azure Firewall allows the FQDNs of its built-in infrastructure rule collection (platform image repository, managed disk status, diagnostics), unless an application rule denies all; the model does not hold them
+  [info] MERAKI_DEFAULT_DENY: the source blocks what no rule matches: the outbound table ends in a rule that blocks everything, before the fixed default rule of the MX
+
+Security rules
+  dnat-web/web-https (DNAT)  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [info] AZFW_DNAT_ALLOWS: Azure Firewall allows what DNAT rule fwpol-shop/DefaultDnatRuleCollectionGroup/dnat-web/web-https translates, before any network rule sees it: this rule says so, for the addresses before translation
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  dnat-web/ssh-admin (DNAT)  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [info] AZFW_DNAT_ALLOWS: Azure Firewall allows what DNAT rule fwpol-shop/DefaultDnatRuleCollectionGroup/dnat-web/ssh-admin translates, before any network rule sees it: this rule says so, for the addresses before translation
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  base-allow-dns/dns-out  ->  needs-review  (emitted as 2 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  net-partner/every-protocol-to-partner  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  net-partner/dns-any-protocol  ->  needs-review  (emitted as 2 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  net-partner/v6-ssh  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: IPv6 source address '2001:db8:10::/64', which Azure Firewall does not take.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  net-allow-web/web-to-db  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  net-allow-web/icmp-mgmt  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  net-allow-web/ntp-out  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  net-allow-web/storage  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Storage.WestEurope': dynamic address group, members are not known statically.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  net-allow-web/app-ports  ->  needs-review  (emitted as 2 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  net-allow-web/partner-sftp  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ipg-partners': dynamic address group, members are not known statically.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  app-out/allow-updates  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: target FQDNs *.example.com, updates.example.net.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  app-out/allow-wsus  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: FQDN tags WindowsUpdate.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  app-deny/no-gambling  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: web categories Gambling. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+NAT rules
+  dnat-web/web-https  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  dnat-web/ssh-admin  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's

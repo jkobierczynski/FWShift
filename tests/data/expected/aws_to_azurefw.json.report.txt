@@ -1,0 +1,65 @@
+FWShift conversion report
+  source: aws (vpc-0a1b2c3d4e5f60789)
+  target: azure-firewall
+
+Summary
+  Security rules:     32   exact 20, approximated 5, needs review 1 (1 emitted disabled), skipped 6
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Address groups:     13   exact 13, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0db0000000000000a of subnet subnet-0300000000000003a denies some inbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections out of the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0db0000000000000a of subnet subnet-0300000000000003a denies some outbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections into the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_HAIRPIN: connections from inside the VPC to its own public addresses are not converted as AWS decides them: they leave through the internet gateway, the source's outbound rules see the public address and the destination's inbound rules see the source's public address (or that of its NAT gateway). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] AWS_REMOTE_GROUP: rules name groups that are not in the export (another VPC, another account, or left out): sg-0bbbbbbbbbbbbbbb0. Their members are not known; those rules are not converted
+  [needs-review] AZFW_LOAD: the output is an ARM template (section 10) that creates firewall policy FWShift with its rule collection groups; look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode), then associate the policy with a firewall or a secured hub. Nothing changes before that. Deploying it where a policy of that name exists changes that policy
+  [info] AWS_EGRESS_PAIRS: inside the VPC a connection needs an outbound rule of the source's groups and an inbound rule of the destination's. Where the outbound rules do not allow everything, 1 rule allows what both allow, and a rule after them blocks the rest of what those members send inside the VPC
+  [info] AWS_PUBLIC_ADDRESSES: the public and Elastic IP addresses of the network interfaces are static NAT of their private addresses: the internet gateway translates what comes from outside, and the groups see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] AWS_UNFILTERED: security groups never filter traffic to the Amazon DNS server, DHCP, the instance metadata service, the Time Sync Service and Windows license activation; neither does the converted policy say anything about it
+  [info] AWS_GROUP_UNUSED: no network interface of the export carries these groups, so their inbound rules allow nothing and were left out: legacy-sg
+  [info] AZFW_TARGET_SNAT: Azure Firewall translates the source of what goes to a public address (outside RFC 1918 and RFC 6598, or the private ranges set on the policy) to its own public address, and, community sources say, the source of DNAT traffic to one of its private addresses: servers may see other source addresses than with the source
+  [info] AZFW_TARGET_DEFAULTS: the policy is written with network rules only; after them Azure Firewall still allows the FQDNs of its built-in infrastructure rule collection, then denies. Threat intelligence is set to Alert, which blocks nothing
+  [info] AZFW_TARGET_IPV6: the policy holds IPv6; Azure Firewall filters IPv4 only, and the IPv6 parts of the rules are not written (blocking rules lose nothing by it: the firewall forwards no IPv6)
+
+Security rules
+  db-acl-in-db-3  ->  approximated  (emitted as rule collection db-acl-in-db-3 of group fwshift-network-1)
+      [approximated] AZFW_BLOCKS_MORE: the rule blocks certain source ports, ICMP types or protocols; a network rule of Azure Firewall blocks every source port, all of ICMP or every protocol there, which blocks more
+  db-acl-in-db-4  ->  approximated  (emitted as rule collection db-acl-in-db-4 of group fwshift-network-1)
+      [approximated] AZFW_BLOCKS_MORE: the rule blocks certain source ports, ICMP types or protocols; a network rule of Azure Firewall blocks every source port, all of ICMP or every protocol there, which blocks more
+  db-acl-in-db-5  ->  approximated  (emitted as rule collection db-acl-in-db-5 of group fwshift-network-1)
+      [approximated] AZFW_BLOCKS_MORE: the rule blocks certain source ports, ICMP types or protocols; a network rule of Azure Firewall blocks every source port, all of ICMP or every protocol there, which blocks more
+  db-acl-out-db-2  ->  approximated  (emitted as rule collection db-acl-out-db-2 of group fwshift-network-1)
+      [approximated] AZFW_BLOCKS_MORE: the rule blocks certain source ports, ICMP types or protocols; a network rule of Azure Firewall blocks every source port, all of ICMP or every protocol there, which blocks more
+  web-sg-in-2  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  web-sg-in-4  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  web-sg-in-6  ->  skipped
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  app-sg-in-1  ->  approximated  (emitted as rule collection app-sg-in-1 of group fwshift-network-1)
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+  app-sg-in-3  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows ICMPv6; Azure Firewall filters IPv4 only, and that part is not written
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  db-sg-in-2  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'sg-0bbbbbbbbbbbbbbb0': dynamic address group, members are not known statically.
+  web-sg-out-3  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  monitoring-sg-out-2  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+
+NAT rules
+  public-203.0.113.10  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  public-203.0.113.11  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  public-203.0.113.50  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written

@@ -1,0 +1,44 @@
+FWShift conversion report
+  source: vyos
+  target: panos
+
+Summary
+  Security rules:     13   exact 7, approximated 2, needs review 4 (2 emitted disabled), skipped 0
+  NAT rules:           4   exact 3, approximated 0, needs review 0, skipped 1
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 rule-set WAN_LOCAL on pppoe0 local filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] PARTS_NOT_READ: parts of the configuration this parser does not read: port-forward (EdgeOS)
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): pppoe0, eth1, eth1.10
+  [needs-review] INTERZONE_DEFAULT: the source allows traffic between zones that no rule matches; PAN-OS denies it unless interzone-default is overridden. That default is not carried over: add a final allow rule if it was intended
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] VYOS_FORMAT: read as the configuration of EdgeOS (Vyatta), release v2.0.9: rule-sets on interfaces, accept in a rule-set and the zone policy were read as VyOS 1.4 has them after its own migration (a jump from the forward filter for each rule-set on an interface, the in ones first; accept as return, so that the rule-set of the other interface still decides)
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+
+Security rules
+  no media from the guests  ->  needs-review
+      [needs-review] NAT_REDIRECT: NAT rule 'plex from outside' sends traffic for every destination to 192.168.1.30, and the source applied this rule to it after that translation. The converted rule still names the translated address: a platform that looks rules up before NAT will not match the redirected traffic with it
+  plex to the media box  ->  needs-review
+      [needs-review] NAT_REDIRECT: NAT rule 'plex from outside' sends traffic for every destination to 192.168.1.30, and the source applied this rule to it after that translation. The converted rule still names the translated address: a platform that looks rules up before NAT will not match the redirected traffic with it
+  ping the nas  ->  approximated
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+  no media from the guests-2  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sessions of the voip box  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address).
+  Allow IPv6 ping  ->  approximated
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping6. Verify these names against the App-ID release in use
+
+NAT rules
+  masquerade for WAN  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of pppoe0, which is unknown; map it with --interface-map
+
+Services
+  tcp-8096-8097,32400+udp-8096-8097,32400  ->  exact  (emitted as tcp-8096-8097_32400_udp-8096-8097_32400)
+      [info] RENAMED: renamed to 'tcp-8096-8097_32400_udp-8096-8097_32400' to fit the target's naming rules

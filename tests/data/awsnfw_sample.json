@@ -1,0 +1,674 @@
+[
+ {
+  "UpdateToken": "9a8b7c6d-1111-2222-3333-444455556666",
+  "FirewallPolicyResponse": {
+   "FirewallPolicyName": "pol-inspection",
+   "FirewallPolicyArn": "arn:aws:network-firewall:eu-west-1:111122223333:firewall-policy/pol-inspection",
+   "FirewallPolicyId": "1a2b3c4d-5e6f-7081-92a3-b4c5d6e7f809",
+   "Description": "egress and east-west inspection",
+   "FirewallPolicyStatus": "ACTIVE",
+   "NumberOfAssociations": 1
+  },
+  "FirewallPolicy": {
+   "StatelessRuleGroupReferences": [
+    {
+     "ResourceArn": "arn:aws:network-firewall:eu-west-1:111122223333:stateless-rulegroup/sl-edge",
+     "Priority": 10
+    }
+   ],
+   "StatelessDefaultActions": [
+    "aws:forward_to_sfe"
+   ],
+   "StatelessFragmentDefaultActions": [
+    "aws:drop"
+   ],
+   "StatelessCustomActions": [
+    {
+     "ActionName": "CountDefault",
+     "ActionDefinition": {
+      "PublishMetricAction": {
+       "Dimensions": [
+        {
+         "Value": "default"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "StatefulRuleGroupReferences": [
+    {
+     "ResourceArn": "arn:aws:network-firewall:eu-west-1:aws-managed:stateful-rulegroup/ThreatSignaturesMalwareStrictOrder",
+     "Priority": 50
+    },
+    {
+     "ResourceArn": "arn:aws:network-firewall:eu-west-1:111122223333:stateful-rulegroup/sf-baseline",
+     "Priority": 100
+    },
+    {
+     "ResourceArn": "arn:aws:network-firewall:eu-west-1:111122223333:stateful-rulegroup/sf-app",
+     "Priority": 200
+    },
+    {
+     "ResourceArn": "arn:aws:network-firewall:eu-west-1:111122223333:stateful-rulegroup/dl-block",
+     "Priority": 250
+    },
+    {
+     "ResourceArn": "arn:aws:network-firewall:eu-west-1:111122223333:stateful-rulegroup/dl-egress",
+     "Priority": 300
+    }
+   ],
+   "StatefulDefaultActions": [
+    "aws:drop_established",
+    "aws:alert_established"
+   ],
+   "StatefulEngineOptions": {
+    "RuleOrder": "STRICT_ORDER",
+    "StreamExceptionPolicy": "DROP"
+   }
+  }
+ },
+ {
+  "UpdateToken": "0a1b2c3d-1111-2222-3333-444455556666",
+  "RuleGroup": {
+   "RulesSource": {
+    "StatelessRulesAndCustomActions": {
+     "StatelessRules": [
+      {
+       "RuleDefinition": {
+        "MatchAttributes": {
+         "Sources": [
+          {
+           "AddressDefinition": "198.51.100.0/24"
+          }
+         ],
+         "Protocols": [
+          6
+         ],
+         "DestinationPorts": [
+          {
+           "FromPort": 22,
+           "ToPort": 22
+          }
+         ]
+        },
+        "Actions": [
+         "aws:drop"
+        ]
+       },
+       "Priority": 1
+      },
+      {
+       "RuleDefinition": {
+        "MatchAttributes": {
+         "Sources": [
+          {
+           "AddressDefinition": "10.20.8.0/24"
+          }
+         ],
+         "Destinations": [
+          {
+           "AddressDefinition": "10.40.0.0/24"
+          }
+         ],
+         "Protocols": [
+          6
+         ],
+         "DestinationPorts": [
+          {
+           "FromPort": 873,
+           "ToPort": 873
+          }
+         ]
+        },
+        "Actions": [
+         "aws:pass"
+        ]
+       },
+       "Priority": 5
+      },
+      {
+       "RuleDefinition": {
+        "MatchAttributes": {
+         "Sources": [
+          {
+           "AddressDefinition": "10.40.0.0/24"
+          }
+         ],
+         "Destinations": [
+          {
+           "AddressDefinition": "10.20.8.0/24"
+          }
+         ],
+         "Protocols": [
+          6
+         ],
+         "SourcePorts": [
+          {
+           "FromPort": 873,
+           "ToPort": 873
+          }
+         ]
+        },
+        "Actions": [
+         "aws:pass"
+        ]
+       },
+       "Priority": 6
+      },
+      {
+       "RuleDefinition": {
+        "MatchAttributes": {
+         "Sources": [
+          {
+           "AddressDefinition": "10.20.9.0/24"
+          }
+         ],
+         "Destinations": [
+          {
+           "AddressDefinition": "203.0.113.10/32"
+          }
+         ],
+         "Protocols": [
+          17
+         ],
+         "DestinationPorts": [
+          {
+           "FromPort": 514,
+           "ToPort": 514
+          }
+         ]
+        },
+        "Actions": [
+         "aws:pass"
+        ]
+       },
+       "Priority": 8
+      },
+      {
+       "RuleDefinition": {
+        "MatchAttributes": {
+         "Sources": [
+          {
+           "AddressDefinition": "10.20.0.0/16"
+          }
+         ],
+         "Protocols": [
+          1
+         ]
+        },
+        "Actions": [
+         "aws:forward_to_sfe",
+         "CountIcmp"
+        ]
+       },
+       "Priority": 10
+      },
+      {
+       "RuleDefinition": {
+        "MatchAttributes": {
+         "Sources": [
+          {
+           "AddressDefinition": "192.0.2.0/24"
+          }
+         ],
+         "Protocols": [
+          6
+         ],
+         "TCPFlags": [
+          {
+           "Flags": [
+            "SYN"
+           ],
+           "Masks": [
+            "SYN",
+            "ACK"
+           ]
+          }
+         ]
+        },
+        "Actions": [
+         "aws:drop"
+        ]
+       },
+       "Priority": 12
+      },
+      {
+       "RuleDefinition": {
+        "MatchAttributes": {
+         "Sources": [
+          {
+           "AddressDefinition": "2001:db8:bad::/48"
+          }
+         ]
+        },
+        "Actions": [
+         "aws:drop"
+        ]
+       },
+       "Priority": 20
+      }
+     ],
+     "CustomActions": [
+      {
+       "ActionName": "CountIcmp",
+       "ActionDefinition": {
+        "PublishMetricAction": {
+         "Dimensions": [
+          {
+           "Value": "icmp"
+          }
+         ]
+        }
+       }
+      }
+     ]
+    }
+   }
+  },
+  "RuleGroupResponse": {
+   "RuleGroupArn": "arn:aws:network-firewall:eu-west-1:111122223333:stateless-rulegroup/sl-edge",
+   "RuleGroupName": "sl-edge",
+   "RuleGroupId": "0f1e2d3c-4b5a-6978-8091-a2b3c4d5e6f7",
+   "Type": "STATELESS",
+   "Capacity": 200,
+   "RuleGroupStatus": "ACTIVE",
+   "NumberOfAssociations": 1,
+   "ConsumedCapacity": 20
+  }
+ },
+ {
+  "UpdateToken": "0a1b2c3d-1111-2222-3333-444455556666",
+  "RuleGroup": {
+   "RulesSource": {
+    "StatefulRules": [
+     {
+      "Action": "PASS",
+      "Header": {
+       "Protocol": "TCP",
+       "Source": "$HOME_NET",
+       "SourcePort": "ANY",
+       "Direction": "FORWARD",
+       "Destination": "ANY",
+       "DestinationPort": "443"
+      },
+      "RuleOptions": [
+       {
+        "Keyword": "sid",
+        "Settings": [
+         "100"
+        ]
+       }
+      ]
+     },
+     {
+      "Action": "PASS",
+      "Header": {
+       "Protocol": "TCP",
+       "Source": "$HOME_NET",
+       "SourcePort": "ANY",
+       "Direction": "FORWARD",
+       "Destination": "ANY",
+       "DestinationPort": "80"
+      },
+      "RuleOptions": [
+       {
+        "Keyword": "flow",
+        "Settings": [
+         "to_server"
+        ]
+       },
+       {
+        "Keyword": "sid",
+        "Settings": [
+         "101"
+        ]
+       }
+      ]
+     },
+     {
+      "Action": "DROP",
+      "Header": {
+       "Protocol": "TCP",
+       "Source": "ANY",
+       "SourcePort": "ANY",
+       "Direction": "ANY",
+       "Destination": "10.20.5.0/24",
+       "DestinationPort": "22"
+      },
+      "RuleOptions": [
+       {
+        "Keyword": "sid",
+        "Settings": [
+         "102"
+        ]
+       }
+      ]
+     },
+     {
+      "Action": "REJECT",
+      "Header": {
+       "Protocol": "TCP",
+       "Source": "ANY",
+       "SourcePort": "ANY",
+       "Direction": "FORWARD",
+       "Destination": "10.20.6.10/32",
+       "DestinationPort": "3389"
+      },
+      "RuleOptions": [
+       {
+        "Keyword": "sid",
+        "Settings": [
+         "103"
+        ]
+       }
+      ]
+     },
+     {
+      "Action": "ALERT",
+      "Header": {
+       "Protocol": "IP",
+       "Source": "ANY",
+       "SourcePort": "ANY",
+       "Direction": "FORWARD",
+       "Destination": "ANY",
+       "DestinationPort": "ANY"
+      },
+      "RuleOptions": [
+       {
+        "Keyword": "msg",
+        "Settings": [
+         "\"everything\""
+        ]
+       },
+       {
+        "Keyword": "sid",
+        "Settings": [
+         "104"
+        ]
+       }
+      ]
+     },
+     {
+      "Action": "PASS",
+      "Header": {
+       "Protocol": "ICMP",
+       "Source": "$HOME_NET",
+       "SourcePort": "ANY",
+       "Direction": "FORWARD",
+       "Destination": "ANY",
+       "DestinationPort": "ANY"
+      },
+      "RuleOptions": [
+       {
+        "Keyword": "itype",
+        "Settings": [
+         "8"
+        ]
+       },
+       {
+        "Keyword": "sid",
+        "Settings": [
+         "105"
+        ]
+       }
+      ]
+     },
+     {
+      "Action": "PASS",
+      "Header": {
+       "Protocol": "UDP",
+       "Source": "2001:db8:20::/56",
+       "SourcePort": "ANY",
+       "Direction": "FORWARD",
+       "Destination": "2001:db8:ff::53/128",
+       "DestinationPort": "53"
+      },
+      "RuleOptions": [
+       {
+        "Keyword": "flow",
+        "Settings": [
+         "to_server"
+        ]
+       },
+       {
+        "Keyword": "sid",
+        "Settings": [
+         "106"
+        ]
+       }
+      ]
+     },
+     {
+      "Action": "PASS",
+      "Header": {
+       "Protocol": "TCP",
+       "Source": "10.30.0.0/16",
+       "SourcePort": "1024:65535",
+       "Direction": "FORWARD",
+       "Destination": "10.20.4.0/24",
+       "DestinationPort": "[5432,6432]"
+      },
+      "RuleOptions": [
+       {
+        "Keyword": "flow",
+        "Settings": [
+         "to_server"
+        ]
+       },
+       {
+        "Keyword": "sid",
+        "Settings": [
+         "107"
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "StatefulRuleOptions": {
+    "RuleOrder": "STRICT_ORDER"
+   }
+  },
+  "RuleGroupResponse": {
+   "RuleGroupArn": "arn:aws:network-firewall:eu-west-1:111122223333:stateful-rulegroup/sf-baseline",
+   "RuleGroupName": "sf-baseline",
+   "RuleGroupId": "0f1e2d3c-4b5a-6978-8091-a2b3c4d5e6f7",
+   "Type": "STATEFUL",
+   "Capacity": 100,
+   "RuleGroupStatus": "ACTIVE",
+   "NumberOfAssociations": 1,
+   "ConsumedCapacity": 20
+  }
+ },
+ {
+  "UpdateToken": "0a1b2c3d-1111-2222-3333-444455556666",
+  "RuleGroup": {
+   "RuleVariables": {
+    "IPSets": {
+     "WEB_SERVERS": {
+      "Definition": [
+       "10.20.1.0/24",
+       "2001:db8:20:1::/64"
+      ]
+     },
+     "ADMIN_NETS": {
+      "Definition": [
+       "10.30.10.0/24"
+      ]
+     }
+    },
+    "PortSets": {
+     "WEB_PORTS": {
+      "Definition": [
+       "80",
+       "443",
+       "8443"
+      ]
+     },
+     "HIGH": {
+      "Definition": [
+       "1024:65535"
+      ]
+     }
+    }
+   },
+   "ReferenceSets": {
+    "IPSetReferences": {
+     "PARTNERS": {
+      "ReferenceArn": "arn:aws:ec2:eu-west-1:111122223333:prefix-list/pl-0a1b2c3d4e5f60789"
+     },
+     "BRANCHES": {
+      "ReferenceArn": "arn:aws:ec2:eu-west-1:111122223333:prefix-list/pl-0f9e8d7c6b5a40321"
+     }
+    }
+   },
+   "RulesSource": {
+    "RulesString": "# Rules of the application tier. A commented-out rule is a disabled rule.\npass tcp any any -> $WEB_SERVERS $WEB_PORTS (msg:\"web servers from anywhere\"; flow:to_server; sid:1000; rev:2;)\npass tcp $ADMIN_NETS any -> $WEB_SERVERS 22 (msg:\"admin ssh\"; flow:established,to_server; sid:1001;)\npass tls $HOME_NET any -> $EXTERNAL_NET any (msg:\"tls out\"; flow:to_server; sid:1002;)\npass dns $HOME_NET any -> any any (msg:\"dns, no flow keyword\"; sid:1003;)\ndrop tcp @PARTNERS any -> $HOME_NET [1:1023,!22] (msg:\"partners: no low ports but ssh\"; flow:to_server; sid:1004;)\npass ip @BRANCHES any <> [10.20.0.0/16,!10.20.5.0/24] any (msg:\"branches both ways\"; sid:1005;)\ndrop http $HOME_NET any -> any any (msg:\"admin paths\"; flow:to_server,established; http.uri; content:\"/admin\"; sid:1006;)\npass ip 10.20.7.0/24 any -> any any (msg:\"gre tunnels\"; ip_proto:47; flow:to_server; sid:1007;)\n# drop udp any any -> any 69 (msg:\"old tftp rule\"; sid:1008;)\npass tcp $HOME_NET any -> any any (msg:\"replies only\"; flow:to_client; sid:1009;)\npass tcp any any -> $HOME_NET any (msg:\"established to clients\"; flow:established,to_client; sid:1010;)\nreject udp any any -> 10.20.2.0/24 161 (msg:\"no snmp\"; flow:to_server; sid:1011;)\npass tcp [10.30.0.0/16,!10.30.99.0/24] any -> 10.20.3.0/24 $HIGH (msg:\"spokes to high ports\"; flow:to_server; priority:2; sid:1012;)\ndrop ip $EXTERNAL_NET any -> $HOME_NET any (msg:\"the rest inbound\"; flow:to_server; sid:1013;)\n"
+   },
+   "StatefulRuleOptions": {
+    "RuleOrder": "STRICT_ORDER"
+   }
+  },
+  "RuleGroupResponse": {
+   "RuleGroupArn": "arn:aws:network-firewall:eu-west-1:111122223333:stateful-rulegroup/sf-app",
+   "RuleGroupName": "sf-app",
+   "RuleGroupId": "0f1e2d3c-4b5a-6978-8091-a2b3c4d5e6f7",
+   "Type": "STATEFUL",
+   "Capacity": 100,
+   "RuleGroupStatus": "ACTIVE",
+   "NumberOfAssociations": 1,
+   "ConsumedCapacity": 20
+  }
+ },
+ {
+  "UpdateToken": "0a1b2c3d-1111-2222-3333-444455556666",
+  "RuleGroup": {
+   "RulesSource": {
+    "RulesSourceList": {
+     "Targets": [
+      "bad.example.org"
+     ],
+     "TargetTypes": [
+      "TLS_SNI"
+     ],
+     "GeneratedRulesType": "DENYLIST"
+    }
+   },
+   "StatefulRuleOptions": {
+    "RuleOrder": "STRICT_ORDER"
+   }
+  },
+  "RuleGroupResponse": {
+   "RuleGroupArn": "arn:aws:network-firewall:eu-west-1:111122223333:stateful-rulegroup/dl-block",
+   "RuleGroupName": "dl-block",
+   "RuleGroupId": "0f1e2d3c-4b5a-6978-8091-a2b3c4d5e6f7",
+   "Type": "STATEFUL",
+   "Capacity": 100,
+   "RuleGroupStatus": "ACTIVE",
+   "NumberOfAssociations": 1,
+   "ConsumedCapacity": 20
+  }
+ },
+ {
+  "UpdateToken": "0a1b2c3d-1111-2222-3333-444455556666",
+  "RuleGroup": {
+   "RulesSource": {
+    "RulesSourceList": {
+     "Targets": [
+      ".example.com",
+      "updates.example.net"
+     ],
+     "TargetTypes": [
+      "TLS_SNI",
+      "HTTP_HOST"
+     ],
+     "GeneratedRulesType": "ALLOWLIST"
+    }
+   },
+   "StatefulRuleOptions": {
+    "RuleOrder": "STRICT_ORDER"
+   }
+  },
+  "RuleGroupResponse": {
+   "RuleGroupArn": "arn:aws:network-firewall:eu-west-1:111122223333:stateful-rulegroup/dl-egress",
+   "RuleGroupName": "dl-egress",
+   "RuleGroupId": "0f1e2d3c-4b5a-6978-8091-a2b3c4d5e6f7",
+   "Type": "STATEFUL",
+   "Capacity": 100,
+   "RuleGroupStatus": "ACTIVE",
+   "NumberOfAssociations": 1,
+   "ConsumedCapacity": 20
+  }
+ },
+ {
+  "Vpcs": [
+   {
+    "VpcId": "vpc-0a1b2c3d4e5f60789",
+    "OwnerId": "111122223333",
+    "State": "available",
+    "CidrBlock": "10.20.0.0/16",
+    "CidrBlockAssociationSet": [
+     {
+      "AssociationId": "vpc-cidr-assoc-0a1b2c3d",
+      "CidrBlock": "10.20.0.0/16",
+      "CidrBlockState": {
+       "State": "associated"
+      }
+     }
+    ],
+    "Ipv6CidrBlockAssociationSet": [
+     {
+      "AssociationId": "vpc-cidr-assoc-0e1f2a3b",
+      "Ipv6CidrBlock": "2001:db8:20::/56",
+      "Ipv6CidrBlockState": {
+       "State": "associated"
+      },
+      "NetworkBorderGroup": "eu-west-1"
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "inspection"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "PrefixLists": [
+   {
+    "PrefixListId": "pl-0a1b2c3d4e5f60789",
+    "AddressFamily": "IPv4",
+    "State": "create-complete",
+    "PrefixListName": "partners",
+    "MaxEntries": 10,
+    "Version": 3,
+    "OwnerId": "111122223333"
+   },
+   {
+    "PrefixListId": "pl-0f9e8d7c6b5a40321",
+    "AddressFamily": "IPv4",
+    "State": "create-complete",
+    "PrefixListName": "branches",
+    "MaxEntries": 20,
+    "Version": 1,
+    "OwnerId": "111122223333"
+   }
+  ]
+ },
+ {
+  "PrefixListId": "pl-0a1b2c3d4e5f60789",
+  "Entries": [
+   {
+    "Cidr": "203.0.113.0/26",
+    "Description": "partner a"
+   },
+   {
+    "Cidr": "198.51.100.128/25",
+    "Description": "partner b"
+   }
+  ]
+ }
+]

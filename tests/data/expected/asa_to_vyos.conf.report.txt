@@ -1,0 +1,68 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: vyos
+
+Summary
+  Security rules:     18   exact 16, approximated 0, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 1, approximated 3, needs review 1, skipped 0
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] VYOS_LOAD: load the commands in configuration mode: 'configure', paste them, 'compare', then 'commit-confirm 10' (unless 'confirm' follows within 10 minutes, VyOS goes back to the configuration before; older releases reboot to do so) and 'save'. A commit applies all of them or none. The policy is written as the zone-based firewall: zones outside, inside, dmz, guest, and a chain FWS-<from>-<to> for each pair of zones that needs one. Interfaces of the router in no zone: VyOS drops their traffic into a zone and leaves traffic from a zone to them to the forward filter; that traffic is decided by chain FWS-NO-ZONE (the rules for any destination and the default of the policy), jumped to from rule 10000 of the forward filter for what leaves by an interface not in interface group FWS-ZONES. Check that the forward filter has no rule 10000 (show firewall ipv4 forward filter), or give another number with --policy-id-start; its rules with lower numbers come first, and those after rule 10000 are no longer reached by what the chain decides, as it ends with the default of the policy. The forward filter of the router still applies before the zones (an accept there goes on to the zones, a drop is final). A zone of the same name that exists gets these interfaces and chains in addition to its own; a chain set for a pair that has one replaces it. NAT rules are numbered from 10000: rules of the router with lower numbers come first. To take a conversion away: delete the groups, chains, zones and NAT rules the commands name (all under FWS-, and the NAT rules from 10000 on). Assumed: names of up to 63 characters
+  [needs-review] INTERFACES_REQUIRED: zones need the interfaces of the router: these were written with their own name as interface, which matches no traffic until it is replaced (--interface-map, or --zone-map with zones of the router's interfaces): dmz, guest, inside, outside (interfaces of the source that are no names of Linux interfaces: dmz: GigabitEthernet0/2; guest: GigabitEthernet0/3; inside: GigabitEthernet0/1; outside: GigabitEthernet0/0)
+  [needs-review] VYOS_NO_ZONE: traffic from a zone to an interface in no zone is decided by chain FWS-NO-ZONE; its replies come in from an interface in no zone, which VyOS drops at the zones unless 'firewall global-options state-policy' accepts established and related packets (the commands do not set it, as it applies to the whole router)
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them. Behind interfaces that are in no zone of the policy, so behind none of its zones (an allow for the zone of the default route does not reach them): mgmt=192.168.1.0/24
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] VYOS_FQDN: host names are written as fqdn or domain-group, which the router resolves while it runs: updates.example.com
+
+Security rules
+  outside_access_in-3  ->  exact  (emitted as FWS-outside-inside rule 10, FWS-outside-inside rule 20, FWS-outside-dmz rule 30, FWS-outside-dmz rule 40, FWS-outside-guest rule 10, FWS-outside-guest rule 20)
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  outside_access_in-4  ->  exact  (emitted as FWS-outside-outside rule 10, FWS-outside-outside rule 10 (IPv6), FWS-outside-inside rule 30, FWS-outside-inside rule 10 (IPv6), FWS-outside-dmz rule 50, FWS-outside-dmz rule 10 (IPv6), FWS-outside-guest rule 30, FWS-outside-guest rule 10 (IPv6), FWS-NO-ZONE rule 10, FWS-NO-ZONE rule 10 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (outside, inside, dmz, guest); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  inside_access_in-1  ->  exact  (emitted as FWS-inside-outside rule 10, FWS-inside-outside rule 20, FWS-inside-dmz rule 10, FWS-inside-dmz rule 20, FWS-inside-guest rule 10, FWS-inside-guest rule 20)
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  inside_access_in-2  ->  exact  (emitted as FWS-inside-outside rule 30, FWS-inside-dmz rule 30, FWS-inside-guest rule 30)
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  inside_access_in-4  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  inside_access_in-5  ->  exact  (emitted as FWS-inside-outside rule 10 (IPv6), FWS-inside-dmz rule 10 (IPv6), FWS-inside-guest rule 10 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  inside_access_in-7  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  inside_access_in-8  ->  exact  (emitted as FWS-inside-outside rule 40, FWS-inside-outside rule 20 (IPv6), FWS-inside-inside rule 10, FWS-inside-inside rule 10 (IPv6), FWS-inside-dmz rule 60, FWS-inside-dmz rule 20 (IPv6), FWS-inside-guest rule 40, FWS-inside-guest rule 20 (IPv6), FWS-NO-ZONE rule 20, FWS-NO-ZONE rule 20 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (outside, inside, dmz, guest); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  inside_access_in-9  ->  exact  (emitted as FWS-inside-outside rule 50, FWS-inside-dmz rule 70, FWS-inside-guest rule 50)
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  dmz_access_in-1  ->  exact  (emitted as FWS-dmz-outside rule 10, FWS-dmz-inside rule 10, FWS-dmz-guest rule 10)
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  dmz_access_in-2  ->  exact  (emitted as FWS-dmz-outside rule 20, FWS-dmz-inside rule 20, FWS-dmz-guest rule 20)
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  dmz_access_in-3  ->  exact  (emitted as FWS-dmz-outside rule 30, FWS-dmz-inside rule 30, FWS-dmz-dmz rule 10, FWS-dmz-guest rule 30, FWS-NO-ZONE rule 30)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (outside, inside, dmz, guest); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  dmz_access_in-4  ->  exact  (emitted as FWS-dmz-outside rule 40, FWS-dmz-inside rule 40, FWS-dmz-guest rule 40)
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  implicit-guest  ->  exact  (emitted as FWS-guest-outside rule 10, FWS-guest-outside rule 10 (IPv6))
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+
+NAT rules
+  nat-1  ->  approximated  (emitted as source rule 10000)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from inside only; nat source cannot match the input interface, so it applies to traffic from every interface
+  nat-mail-srv  ->  approximated  (emitted as destination rule 10010, source rule 10010)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from dmz only; nat source cannot match the input interface, so it applies to traffic from every interface
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as an SNAT rule plus a DNAT rule for the inbound direction
+  nat-inside-net  ->  approximated  (emitted as source rule 10020)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from inside only; nat source cannot match the input interface, so it applies to traffic from every interface
+  nat-after-auto-1  ->  needs-review  (emitted as source rule 10030)
+      [needs-review] NAT_INPUT_INTERFACE: the rule applied to traffic from guest only; nat source cannot match the input interface, so it applies to traffic from every interface

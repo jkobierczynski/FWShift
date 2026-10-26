@@ -221,6 +221,12 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#gcp">Google Cloud firewall</a></li>
       <li><a href="#routeros">MikroTik RouterOS</a></li>
       <li><a href="#forcepoint">Forcepoint NGFW</a></li>
+      <li><a href="#azurefw">Azure Firewall</a></li>
+      <li><a href="#awsnfw">AWS Network Firewall</a></li>
+      <li><a href="#pf">pf</a></li>
+      <li><a href="#vyos">VyOS</a></li>
+      <li><a href="#screenos">Juniper ScreenOS</a></li>
+      <li><a href="#pix">Cisco PIX</a></li>
       <li><a href="#terraform">Terraform</a></li>
     </ul>
     <h4>Analysis</h4>
@@ -238,11 +244,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.40</div>
+  <div class="eyebrow">Field guide · version 0.41</div>
   <h1>FWShift, feature by feature</h1>
-  <p class="lead">FWShift converts firewall policies between nineteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
+  <p class="lead">FWShift converts firewall policies between thirty-one platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
-    <span><b>19</b> platforms in, <b>20</b> formats out</span>
+    <span><b>35</b> formats in, <b>34</b> formats out</span>
     <span>Python 3.9+, standard library only</span>
     <span>GPL-3.0-or-later</span>
     <span>Examples run on the synthetic samples in <code>tests/data</code></span>
@@ -325,6 +331,12 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>Azure network security groups</td><td><code>azure</code></td><td>Azure CLI, REST, template or Resource Graph JSON</td><td>ARM template</td></tr>
       <tr><td>MikroTik RouterOS (6 and 7)</td><td><code>routeros</code></td><td>the output of <code>/export</code></td><td>script for <code>/import</code></td></tr>
       <tr><td>Forcepoint NGFW (SMC 6.10 to 7.4)</td><td><code>forcepoint</code></td><td>SMC REST API answers (<code>fwshift script forcepoint-dump</code>)</td><td>Python loader script</td></tr>
+      <tr><td>Azure Firewall</td><td><code>azure-firewall</code></td><td>Azure CLI, REST or template JSON: a policy and its rule collection groups, or classic rules</td><td>ARM template for a new firewall policy</td></tr>
+      <tr><td>AWS Network Firewall</td><td><code>aws-network-firewall</code></td><td>AWS CLI JSON of one firewall policy and its rule groups</td><td>script of AWS CLI calls</td></tr>
+      <tr><td>pf (OpenBSD, FreeBSD)</td><td><code>pf</code></td><td><code>pf.conf</code>, or <code>pfctl -sr</code></td><td>ruleset for the anchor <code>fwshift</code></td></tr>
+      <tr><td>VyOS 1.4+ (read also VyOS 1.3, Vyatta, EdgeOS)</td><td><code>vyos</code></td><td><code>show configuration commands</code> or <code>config.boot</code></td><td><code>set</code> commands</td></tr>
+      <tr><td>Juniper ScreenOS 5.x, 6.x</td><td><code>screenos</code> (source only)</td><td><code>get config</code></td><td>—</td></tr>
+      <tr><td>Cisco PIX 6.x</td><td><code>pix</code> (source only)</td><td><code>write terminal</code></td><td>—</td></tr>
       <tr><td>Google Cloud firewall rules and network firewall policies</td><td><code>gcp</code></td><td>gcloud JSON of one VPC network</td><td>script of gcloud commands</td></tr>
       <tr><td>Terraform (hashicorp/aws, hashicorp/azurerm, hashicorp/google)</td><td><code>terraform-aws</code>, <code>terraform-azure</code>, <code>terraform-google</code></td><td><code>terraform show -json</code> of a state or a plan, or the raw state</td><td>HCL that creates the groups or the policy</td></tr>
       <tr><td>Neutral model</td><td><code>json</code> (target only)</td><td>—</td><td>the model, with source IDs, targets, hits</td></tr>
@@ -337,8 +349,8 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>FWShift is on PyPI: <code>pip install fwshift</code>. Each release also has the project as a zip and a single file that runs with any Python 3.9 or newer. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.40.21.pyz --version
-python3 fwshift-0.40.21.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.41.0.pyz --version
+python3 fwshift-0.41.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip, from PyPI</span>
 pip install fwshift
@@ -391,13 +403,13 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>For</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--from FORMAT</code></td><td>all</td><td>Source format, when detection is not enough.</td></tr>
+      <tr><td><code>--from FORMAT</code></td><td>all</td><td>Source format, when detection is not enough: a target format, or <code>screenos</code> or <code>pix</code>, which are read only.</td></tr>
       <tr><td><code>--vsys NAME</code></td><td>PAN-OS</td><td>Virtual system to read.</td></tr>
       <tr><td><code>--device-group NAME</code></td><td>Panorama</td><td>Device group to read, with its parents and <code>shared</code>.</td></tr>
       <tr><td><code>--vdom NAME</code></td><td>FortiOS</td><td>VDOM to read (one per run).</td></tr>
       <tr><td><code>--layer NAME</code></td><td>Check Point</td><td>Ordered access layer to read.</td></tr>
       <tr><td><code>--policy NAME</code>, <code>--nat-policy NAME</code></td><td>FMC</td><td>Access control and NAT policy to read.</td></tr>
-      <tr><td><code>--interface-address IF=ADDR/BITS</code></td><td>pfSense, OPNsense, SonicWall</td><td>The address of an interface the export does not hold (DHCP, PPPoE).</td></tr>
+      <tr><td><code>--interface-address IF=ADDR/BITS</code></td><td>pfSense, OPNsense, SonicWall, pf</td><td>The address of an interface the export does not hold (DHCP, PPPoE; for pf every <code>(em0)</code>, <code>em0:network</code> and <code>self</code>).</td></tr>
     </tbody>
   </table></div>
 
@@ -405,20 +417,20 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa ios huawei stormshield meraki fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure gcp terraform-aws terraform-azure terraform-google routeros forcepoint json</code>.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa ios huawei stormshield meraki fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure gcp terraform-aws terraform-azure terraform-google routeros forcepoint azure-firewall aws-network-firewall pf vyos json</code>.</td></tr>
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
-      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Google Cloud, Terraform, Meraki; SonicWall object zones).</td></tr>
-      <tr><td><code>--compare[=FILE]</code></td><td>Reads the output back (eleven targets) and reports every connection it decides differently from the source (section 13).</td></tr>
+      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Azure Firewall, AWS Network Firewall, Google Cloud, Terraform, Meraki; SonicWall object zones).</td></tr>
+      <tr><td><code>--compare[=FILE]</code></td><td>Reads the output back (seventeen targets) and reports every connection it decides differently from the source (section 13).</td></tr>
       <tr><td><code>--inside-zone ZONE</code></td><td>AWS, Azure and Terraform: a zone inside the VPC or the virtual network; only its addresses get security groups. Meraki: a zone of the LAN of the MX.</td></tr>
       <tr><td><code>--app-map FILE</code></td><td>JSON of extra application-to-port mappings.</td></tr>
       <tr><td><code>--target-vsys</code>, <code>--target-device-group</code>, <code>--target-shared</code></td><td>Where PAN-OS output goes.</td></tr>
       <tr><td><code>--target-version SERIES</code></td><td>OPNsense: the series to write for, <code>24.7</code>, <code>25.1</code>, <code>25.7</code>, <code>26.1</code> or <code>26.7</code> (default).</td></tr>
-      <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick).</td></tr>
+      <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick). VyOS: the forward filter rule that jumps, and the first NAT rule (default 10000).</td></tr>
       <tr><td><code>--target-layer</code>, <code>--target-package</code>, <code>--target-gateway</code></td><td>Check Point layer (default <code>Network</code>), package (default <code>Standard</code>), hide-NAT gateway.</td></tr>
       <tr><td><code>--target-nat-zone ZONE</code></td><td>Destination zone for NAT rules of a source that names none; ASA interface for "NAT to the outgoing interface".</td></tr>
-      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, IOS, Huawei, Stormshield, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, NSX, AWS, Azure, Google Cloud, RouterOS, Forcepoint).</td></tr>
-      <tr><td><code>--target-policy NAME</code></td><td>Name of the FMC access and NAT policy created, of the NSX security policy, of the Forcepoint firewall policy, of the Google Cloud network firewall policy (default <code>FWShift</code>; <code>fwshift</code> for Google Cloud).</td></tr>
+      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, IOS, Huawei, Stormshield, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, NSX, AWS, Azure, Azure Firewall, AWS Network Firewall, Google Cloud, RouterOS, Forcepoint, pf, VyOS).</td></tr>
+      <tr><td><code>--target-policy NAME</code></td><td>Name of the FMC access and NAT policy created, of the NSX security policy, of the Forcepoint firewall policy, of the Google Cloud network firewall policy, of the Azure Firewall policy, of the AWS Network Firewall policy and its rule group (default <code>FWShift</code>; <code>fwshift</code> for Google Cloud and AWS Network Firewall).</td></tr>
       <tr><td><code>--target-template NAME</code></td><td>Forcepoint: the template the new policy is based on (default <code>Firewall Template</code>).</td></tr>
       <tr><td><code>--prune-unused</code></td><td>Leave out objects no rule uses.</td></tr>
       <tr><td><code>-o FILE</code>, <code>--report FILE</code>, <code>--report-json FILE</code></td><td>Output, text report (default: standard error), JSON report.</td></tr>
@@ -596,6 +608,12 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#gcp"><b>Google Cloud</b><span>gcloud JSON → gcloud script</span></a>
     <a href="#routeros"><b>MikroTik RouterOS</b><span>/export → /import</span></a>
     <a href="#forcepoint"><b>Forcepoint NGFW</b><span>SMC REST → Python loader</span></a>
+    <a href="#azurefw"><b>Azure Firewall</b><span>policy JSON → ARM template</span></a>
+    <a href="#awsnfw"><b>AWS Network Firewall</b><span>AWS CLI → script</span></a>
+    <a href="#pf"><b>pf</b><span>pf.conf → anchor ruleset</span></a>
+    <a href="#vyos"><b>VyOS</b><span>set commands, both ways</span></a>
+    <a href="#screenos"><b>Juniper ScreenOS</b><span>get config, read only</span></a>
+    <a href="#pix"><b>Cisco PIX</b><span>write terminal, read only</span></a>
     <a href="#terraform"><b>Terraform</b><span>state or plan → HCL (AWS, Azure, Google)</span></a>
   </div>
 
@@ -1338,6 +1356,168 @@ fwshift convert router.rsc --to fortios -o fortigate.conf --report report.txt</p
  "services": {"service": [{"@ref": "service_group", "name": "app-dns"}]},
  "action": {"action": ["allow"]}, "options": {"log_level": "stored", "log_closing_mode": true}}</pre></div>
   </article>
+  <!-- azurefw -->
+  <article class="brand" id="azurefw">
+    <h3>Azure Firewall</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>Azure CLI, REST or template JSON: a policy and its rule collection groups, or classic rules</span></span><span class="port"><i>OUT</i><span>ARM template for a new firewall policy</span></span><span class="port"><i>ID</i><span>azure-firewall</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>The policy, its base policy, the rule collection groups of both and the IP groups, in one JSON array: <code>az network firewall policy show</code>, <code>az network firewall policy rule-collection-group list</code> (once per policy), <code>az network ip-group list</code>, joined with <code>jq -s .</code>; <code>az network list-service-tags</code> for the addresses of service tags. For the classic rules, <code>az network firewall show</code> alone. The REST API and <code>az group export</code> are read too.</p>
+    <h4 class="sub">Options</h4>
+    <p>Source: <code>--policy</code> when the input holds several policies or firewalls; <code>--from azure-firewall</code> for a file that holds network security groups too. Target: <code>--zone-network</code> for every zone, <code>--target-policy</code> (default <code>FWShift</code>), <code>--target-prefix</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to azure-firewall -o fwpolicy.json --report report.txt \
+    --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0
+az deployment group what-if -g rg-hub --template-file fwpolicy.json
+az deployment group create -g rg-hub --template-file fwpolicy.json --confirm-with-what-if
+az network firewall update -g rg-hub -n fw-hub --firewall-policy FWShift   <span class="c"># replaces the firewall's policy</span></pre></div>
+    <div class="callout"><b>A new policy, associated with nothing.</b> Read in Azure's three passes, base policy first, with what DNAT allows made explicit; written as one network rule collection per rule, in order, and DNAT only where the policy allows what it opens. The policy is tier Standard, threat intelligence in mode Alert, IDPS and TLS inspection off, Azure's default SNAT ranges: set them as the old firewall had them before the association. The rule collection groups deploy one after the other (<code>dependsOn</code>); rules that were not written are in the template's metadata (<code>notWritten</code>).</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Azure goes through DNAT, network and application rules in that order, whatever the priorities, the base policy's groups first (<code>AZFW_ORDER</code>). What a DNAT rule translates is allowed before any network rule: the model gets an allow rule at the top (<code>AZFW_DNAT_ALLOWS</code>).</li>
+      <li>Application rules match names (TLS SNI, Host header, URLs, web categories), not addresses: kept in their place, and written disabled by every target, Azure Firewall included.</li>
+      <li>IPv4 only: a rule with an IPv6 address is not converted (<code>AZFW_IPV4_ONLY</code>). To Azure Firewall, IPv6, source ports and ICMP types are left out of an allow rule and widened in a blocking one (<code>AZFW_PART_NOT_WRITTEN</code>, <code>AZFW_BLOCKS_MORE</code>).</li>
+      <li>To Azure Firewall, a DNAT rule is written only where the policy allows all it translates (<code>AZFW_DNAT_NOT_ALLOWED</code>); source NAT is Azure's own and not written. Without the base policy, its rules are missing, and they come first (<code>AZFW_BASE_POLICY_MISSING</code>).</li>
+      <li>Threat intelligence, IDPS and Azure's source NAT of traffic to public addresses are reported, not converted (<code>AZFW_THREAT_INTEL</code>, <code>AZFW_SNAT</code>).</li>
+    </ul>
+    <div class="codebox"><span class="label">output · azure-firewall (one rule collection)</span><button class="copy" type="button">Copy</button><pre>{"ruleCollectionType": "FirewallPolicyFilterRuleCollection", "name": "Allow-DNS", "priority": 110,
+ "action": {"type": "Allow"},
+ "rules": [{"ruleType": "NetworkRule", "name": "Allow-DNS", "ipProtocols": ["TCP", "UDP"],
+            "sourceAddresses": ["10.10.0.0/16", "10.20.0.0/24"],
+            "destinationAddresses": ["192.0.2.53", "192.0.2.54"], "destinationPorts": ["53"]}]}</pre></div>
+  </article>
+  <!-- awsnfw -->
+  <article class="brand" id="awsnfw">
+    <h3>AWS Network Firewall</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>AWS CLI JSON of one firewall policy and its rule groups</span></span><span class="port"><i>OUT</i><span>script of AWS CLI calls (a stateful rule group and a policy)</span></span><span class="port"><i>ID</i><span>aws-network-firewall</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><code>aws network-firewall describe-firewall-policy</code>, then <code>describe-rule-group</code> for each rule group it names, and <code>aws ec2 describe-vpcs</code> for the firewall's VPC (its CIDR blocks are <code>HOME_NET</code> when the policy sets none), appended to one file as the CLI prints them. The entries of a prefix list an IP set reference names go in as <code>{"PrefixListId": ..., "Entries": [...]}</code>. Only the policy is required.</p>
+    <h4 class="sub">Options</h4>
+    <p>Source: <code>--policy</code> for a file with several policies. Target: <code>--zone-network</code> for every zone, <code>--target-policy</code> (default <code>fwshift</code>; the rule group is <code>NAME-rules</code>), <code>--target-prefix</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to aws-network-firewall -o nfw.sh --report report.txt \
+    --zone-network trust=10.10.0.0/16 --zone-network untrust=0.0.0.0/0,::/0
+DRY_RUN=1 sh nfw.sh                                  <span class="c"># prints the calls; needs no AWS access</span>
+CHECK=1 AWS_OPTS='--region eu-west-1' sh nfw.sh      <span class="c"># every call with --dry-run</span>
+AWS_OPTS='--region eu-west-1' sh nfw.sh</pre></div>
+    <div class="callout"><b>Nothing is associated.</b> The script creates one stateful rule group of Suricata rules in strict order and one policy that forwards every packet to it, and stops before creating anything when a name exists. Every rule is for the first packet of a connection (<code>flow:to_server</code>); the policy ends in the default of the source, <code>aws:drop_strict</code> or none (<code>AWSNFW_ORDER</code>). <code>associate-firewall-policy</code> replaces a firewall's policy at once (<code>AWSNFW_LOAD</code>).</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Stateless rules see packets: a pass rule allows where the replies pass too (<code>AWSNFW_STATELESS_REPLY</code> where they do not); connections whose replies a stateless rule drops are blocked at the top (<code>AWSNFW_REPLY_DROPPED</code>); one direction passed and the other forwarded is said (<code>AWSNFW_ASYMMETRIC</code>).</li>
+      <li>A stateful rule without <code>flow:to_server</code> also matches the first reply of a flow opened the other way. The rules are read for each moment a flow can be decided, and a rule that can then decide nothing is disabled (<code>AWSNFW_NEVER_MATCHES</code>).</li>
+      <li>Without <code>describe-vpcs</code> (or a <code>HOME_NET</code> of the policy), rules that name <code>HOME_NET</code> or <code>EXTERNAL_NET</code> are not converted (<code>AWSNFW_HOME_NET_UNKNOWN</code>); a rule group missing from the file is not converted (<code>AWSNFW_GROUP_MISSING</code>).</li>
+      <li>Payload keywords, domain names, TCP flags, <code>flowbits</code> and <code>geoip</code> make a rule not converted; alert rules decide nothing (<code>AWSNFW_ALERT_RULES</code>).</li>
+      <li>To Network Firewall: applications become their ports (<code>APP_TO_PORTS</code>); no NAT and no logging are written, and the rules are for the private addresses the firewall sees.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · aws-network-firewall (two rules of the group)</span><button class="copy" type="button">Copy</button><pre>pass tcp [10.10.0.0/16,10.20.0.0/24] any -> [192.0.2.53/32,192.0.2.54/32] 53 (msg:"Allow-DNS"; flow:to_server; sid:2; rev:1;)
+pass udp [10.10.0.0/16,10.20.0.0/24] any -> [192.0.2.53/32,192.0.2.54/32] 53 (msg:"Allow-DNS"; flow:to_server; sid:3; rev:1;)</pre></div>
+  </article>
+  <!-- pf -->
+  <article class="brand" id="pf">
+    <h3>pf (OpenBSD, FreeBSD)</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>pf.conf (OpenBSD; FreeBSD nat/rdr/binat), or pfctl -sr</span></span><span class="port"><i>OUT</i><span>ruleset for the anchor fwshift</span></span><span class="port"><i>ID</i><span>pf</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><code>/etc/pf.conf</code> as it is written; <code>pfctl -sr -sn</code> is read too, but expands macros and lists and leaves out the tables' definitions. What pf.conf does not hold is not guessed: tables loaded from a file or at run time, the rules of anchors, included files, and the addresses of interfaces.</p>
+    <h4 class="sub">Options</h4>
+    <p>Source: <code>--interface-address em0=198.51.100.2/24</code> (one per IP version and interface) for rules that name <code>(em0)</code>, <code>em0:network</code> or <code>self</code>; without it they are converted disabled. Target: <code>--zone-map</code> to the interfaces or interface groups of the box (or set the macros at the top), <code>--target-prefix</code> instead of <code>fws_</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to pf -o fwshift.conf --report report.txt --zone-map trust=em1 --zone-map untrust=em0
+pfctl -vnf fwshift.conf -a fwshift              <span class="c"># check it</span>
+echo 'anchor "fwshift"' &gt;&gt; /etc/pf.conf         <span class="c"># once: after normalisation, last among the filter rules</span>
+pfctl -nf /etc/pf.conf &amp;&amp; pfctl -f /etc/pf.conf
+pfctl -a fwshift -f fwshift.conf                <span class="c"># replaces the anchor's rules, nothing else</span></pre></div>
+    <div class="callout"><b>Decided when the traffic leaves.</b> pf knows both interfaces only then. The anchor tags what arrives on a zone's interface with the zone and lets in what a rule may allow (never <code>to self</code>); the rules are written for leaving traffic, with <code>tagged</code> for the source zone. It needs OpenBSD or FreeBSD 15 and later, and the main ruleset must call it; a non-quick rule after the anchor can still change what it did not decide quick (<code>PF_LOAD</code>).</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Last match with <code>quick</code> becomes first match: the quick rules first, the others in reverse order (<code>PF_LAST_MATCH</code>); what no rule matches passes (<code>PF_DEFAULT_PASS</code>).</li>
+      <li>Rules that block leaving traffic become rules of their destination zone, at the top (<code>PF_OUT_BLOCK</code>); <code>block all</code> with <code>pass out</code> on some interfaces is written for the interfaces the ruleset names (<code>PF_OUT_UNNAMED</code>).</li>
+      <li><code>! { a b }</code> is "not a, or not b" (<code>PF_NEGATED_LIST</code>). Tables from files or filled at run time are not known (<code>PF_TABLE_UNKNOWN</code>); anchors are reported, not read (<code>PF_ANCHOR</code>).</li>
+      <li>A translation on a <code>pass</code> rule applies only when that rule decides (<code>PF_NAT_ON_PASS_RULE</code>); a NAT rule with <code>!</code> addresses (the usual <code>from !(egress:network)</code>) is not converted.</li>
+      <li>To pf: traffic that arrives on an interface in no zone is left to the main ruleset (<code>PF_ZONES_ONLY</code>); the anchor's tags replace tags the main ruleset set.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · pf (one rule, from two zones)</span><button class="copy" type="button">Copy</button><pre>pass in quick on { $fws_if_trust $fws_if_dmz } proto { tcp udp } from any to &lt;fws_dns_servers&gt; port 53 label "Allow-DNS"
+match out on $fws_if_untrust proto { tcp udp } from any to &lt;fws_dns_servers&gt; port 53 tagged fws_trust tag fws_ok_trust label "Allow-DNS"
+match out on $fws_if_untrust proto { tcp udp } from any to &lt;fws_dns_servers&gt; port 53 tagged fws_dmz tag fws_ok_dmz label "Allow-DNS"</pre></div>
+  </article>
+  <!-- vyos -->
+  <article class="brand" id="vyos">
+    <h3>VyOS (and VyOS 1.3, Vyatta, EdgeOS)</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>show configuration commands, or config.boot (VyOS 1.4+, also 1.3, Vyatta, EdgeOS)</span></span><span class="port"><i>OUT</i><span>set commands for a configuration session (VyOS 1.4+)</span></span><span class="port"><i>ID</i><span>vyos</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><code>show configuration commands</code> in operational mode, or <code>show configuration</code>, or a copy of <code>/config/config.boot</code> (VyOS and EdgeRouter alike). Give the whole configuration: its <code>interfaces</code> part says what <code>eth*</code> and <code>!eth0</code> stand for. The dialect is told from what the configuration holds.</p>
+    <h4 class="sub">Options</h4>
+    <p>Target: <code>--interface-map</code> or <code>--zone-map</code> so that the zones hold interfaces of the router (<code>INTERFACES_REQUIRED</code>), <code>--target-prefix</code> instead of <code>FWS-</code>, <code>--policy-id-start</code> instead of rule 10000.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to vyos -o fwshift.txt --report report.txt \
+    --interface-map ethernet1/1=eth0 --interface-map ethernet1/2=eth1
+configure                  <span class="c"># on the router; then paste fwshift.txt</span>
+compare
+commit-confirm 10          <span class="c"># goes back unless confirmed</span>
+confirm
+save</pre></div>
+    <div class="callout"><b>Adds; deletes nothing.</b> The forward filter, its named chains and the zone-based firewall are read as the nftables templates of VyOS apply them, one after the other; VyOS 1.3 and EdgeOS rule-sets on interfaces as VyOS's own migration to 1.4 rewrites them. The output adds groups, chains, zones and NAT rules under <code>FWS-</code>: a chain per pair of zones, and <code>FWS-NO-ZONE</code>, jumped to from forward filter rule 10000, for traffic to interfaces in no zone, whose replies need <code>global-options state-policy</code> (<code>VYOS_NO_ZONE</code>). Check that the forward filter has no rule 10000.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>The forward filter and the zones are two chains at the forward hook: a packet passes when both accept it; traffic to an interface in no zone is left to the forward filter (<code>VYOS_ZONES</code>).</li>
+      <li>Without the <code>interfaces</code> part, the interfaces the configuration does not name are one zone, <code>other-interfaces</code> (<code>VYOS_OTHER_INTERFACES</code>): give <code>--zone-map</code> or <code>--interface-map</code> for it.</li>
+      <li>VyOS 1.3, Vyatta and EdgeOS: the report says which was read (<code>VYOS_FORMAT</code>); a <code>!</code> before a port list negates the whole list there, each port in 1.4.</li>
+      <li><code>connection-status nat destination</code> for a port forward without a destination address cannot be written for a target that looks rules up after NAT (<code>VYOS_DNAT_STATUS_ANY</code>).</li>
+      <li>To VyOS: NAT is IPv4 only; a negated service of several protocols is a chain of its own (<code>VYOS_NEGATED_SERVICE</code>).</li>
+    </ul>
+    <div class="codebox"><span class="label">output · vyos (one rule of the pair untrust → dmz)</span><button class="copy" type="button">Copy</button><pre>set firewall ipv4 name FWS-untrust-dmz rule 10 action 'accept'
+set firewall ipv4 name FWS-untrust-dmz rule 10 description 'Inbound-Web'
+set firewall ipv4 name FWS-untrust-dmz rule 10 destination address '10.20.0.10'
+set firewall ipv4 name FWS-untrust-dmz rule 10 protocol 'tcp'
+set firewall ipv4 name FWS-untrust-dmz rule 10 destination port '8443'
+set firewall ipv4 name FWS-untrust-dmz rule 10 log</pre></div>
+  </article>
+  <!-- screenos -->
+  <article class="brand" id="screenos">
+    <h3>Juniper ScreenOS (read only)</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>get config (ScreenOS 5.x, 6.x: NetScreen, SSG, ISG)</span></span><span class="port"><i>ID</i><span>screenos</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><code>set console page 0</code>, then <code>get config</code>; save what it prints. Only the root system is read: for a device with virtual systems, <code>enter vsys NAME</code> and <code>get config</code> for each, converted one by one (<code>SCREENOS_VSYS</code>).</p>
+    <h4 class="sub">Options</h4>
+    <p><code>--from screenos</code> when detection is not enough. There is no <code>--to screenos</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift inspect ssg.conf
+fwshift convert ssg.conf --to junos -o srx.set --report report.txt</pre></div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Policies per pair of zones, then the global policies, then the default; a policy between a zone and the Global zone matches nothing and is written disabled (<code>SCREENOS_GLOBAL_ZONE</code>).</li>
+      <li>A zone that does not block intra-zone traffic passes it without a policy: an allow rule goes first and its intra-zone policies are written disabled (<code>SCREENOS_INTRAZONE_ALLOW</code>, <code>SCREENOS_INTRAZONE_IGNORED</code>).</li>
+      <li>Predefined services come from FWShift's own table (<code>SCREENOS_PREDEFINED</code>); the doubtful ones, <code>FTP-Get</code>, <code>FTP-Put</code> and the RPC services make the policy unusable.</li>
+      <li>The NAT order (policy-based NAT, MIP, VIP, interfaces in NAT mode towards Untrust) is assumed (<code>SCREENOS_NAT_MODE</code>). Where a MIP, VIP or NAT-mode interface exists, a policy above a NAT policy that passes part of its traffic untranslated is reported (<code>NAT_OVERLAP</code>).</li>
+      <li>Policy-based VPN (<code>tunnel</code>), authentication, DIP <code>shift-from</code> and IPv6 NAT are not converted.</li>
+    </ul>
+    <div class="codebox"><span class="label">input · screenos (a MIP and the policy that names it)</span><button class="copy" type="button">Copy</button><pre>set interface ethernet0/0 mip 203.0.113.10 host 10.20.0.10 netmask 255.255.255.255 vr "trust-vr"
+set policy id 4 name "web-in" from "Untrust" to "DMZ"  "Any" "MIP(203.0.113.10)" "HTTP" permit log
+set policy id 4
+set service "HTTPS"
+exit</pre></div>
+  </article>
+  <!-- pix -->
+  <article class="brand" id="pix">
+    <h3>Cisco PIX 6.x (read only)</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>write terminal of a PIX 6.x</span></span><span class="port"><i>ID</i><span>pix</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><code>pager lines 0</code>, then <code>write terminal</code> (or <code>show running-config</code>). Give the whole configuration: <code>nameif</code>, <code>ip address</code>, <code>route</code>, <code>static</code>, <code>nat</code> and <code>global</code> are needed with the access lists and conduits. PIX 7.0 and later print an ASA configuration: the <code>PIX Version 7</code> line selects <code>asa</code>.</p>
+    <h4 class="sub">Options</h4>
+    <p><code>--from pix</code> when detection is not enough. There is no <code>--to pix</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift inspect pix.cfg
+fwshift convert pix.cfg --to asa -o asa.cfg --report report.txt</pre></div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Access lists name the global address of a host behind a <code>static</code>, which is the model's address before NAT: the rules are not rewritten (the opposite of ASA 8.3 and later).</li>
+      <li>On an interface without an access list: implicit rules towards lower security levels for what translations cover (<code>IMPLICIT_PERMIT</code>), conduits towards higher ones, first match, assumed (<code>PIX_CONDUIT</code>); <code>outbound</code> and <code>apply</code> are not converted, and the implicit rules they limit are disabled (<code>PIX_OUTBOUND</code>).</li>
+      <li>NAT is mandatory: an entry or conduit that permits more than a translation covers keeps its match and is flagged (<code>PIX_TRANSLATION_REQUIRED</code>); pairs with no translation get no rule (<code>PIX_NO_TRANSLATION</code>).</li>
+      <li><code>fixup</code>, <code>established</code>, <code>aaa</code>, <code>filter</code>, <code>alias</code> and <code>shun</code> are reported, not converted; without a <code>PIX Version</code> line the file is read as 6.x (<code>PIX_VERSION_ASSUMED</code>).</li>
+    </ul>
+    <div class="codebox"><span class="label">input · pix (a static and the entries that name its global address)</span><button class="copy" type="button">Copy</button><pre>static (dmz,outside) 203.0.113.10 web-srv netmask 255.255.255.255 0 0
+access-list outside_in permit tcp any host 203.0.113.10 object-group web-ports
+access-list outside_in permit tcp any host 203.0.113.25 eq smtp
+access-group outside_in in interface outside</pre></div>
+  </article>
   <!-- terraform -->
   <article class="brand" id="terraform">
     <h3>Terraform (AWS, Azure and Google Cloud)</h3>
@@ -1597,6 +1777,10 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
       <tr><td>Google Cloud</td><td>Nothing: a new policy, associated with nothing; stops if a policy of that name exists</td><td><code>DRY_RUN=1</code>; set the enforcement order, associate by hand</td></tr>
       <tr><td>RouterOS</td><td>Nothing: chains and lists of its own; the jumps that switch it on are disabled</td><td>Import with <code>verbose=yes</code>; enable the jumps in Safe Mode</td></tr>
       <tr><td>Forcepoint</td><td>Nothing: a new policy on a template, installed on no engine; stops on a name that matches anything else</td><td><code>--show</code>, then <code>--dry-run</code>; keep the journal for <code>--undo</code></td></tr>
+      <tr><td>Azure Firewall</td><td>Groups of the same names in a policy of the same name; associates nothing</td><td><code>what-if</code>; a new policy name; associate by hand</td></tr>
+      <tr><td>AWS Network Firewall</td><td>Nothing: a new rule group and policy, associated with nothing; stops if a name exists</td><td><code>DRY_RUN=1</code>, then <code>CHECK=1</code>; associate by hand</td></tr>
+      <tr><td>pf</td><td>The rules of the anchor <code>fwshift</code> only</td><td><code>pfctl -vnf FILE -a fwshift</code>; add <code>anchor "fwshift"</code> to pf.conf</td></tr>
+      <tr><td>VyOS</td><td>Nothing is deleted; a zone of the same name gets the output's interfaces and chains too</td><td><code>compare</code>, <code>commit-confirm 10</code>; no forward filter rule 10000</td></tr>
       <tr><td>Terraform</td><td>Nothing: new groups or a policy, attached to nothing; the apply fails on a name that exists</td><td><code>terraform plan</code>; attach or associate by hand</td></tr>
       <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
       <tr><td>OPNsense</td><td>Each restored area (Aliases; NAT with NPt; the rules of both pages)</td><td>A full backup; <code>--target-version</code> of the firewall</td></tr>

@@ -329,9 +329,11 @@ Terraform state (to destroy by hand if even that failed) and without the run's p
   decides but the published port; a ruleset with a rule taken out is seen (`tests/test_lab.py`). On the devices, at
   their next run.
 * **NAT on the devices**: the runs above were made before the lab policy had NAT (0.37.0). The NAT of tier 3
-  (ASAv, vSRX, pfSense Plus, OPNsense) is what the next run of each will test. The SonicWall NSv's first pass (0.40.16)
+  (vSRX, pfSense Plus, OPNsense) is what the next run of each will test. The SonicWall NSv's first pass (0.40.16)
   included it, the FortiGate (central NAT turned on by the lab), the VM-Series and the Catalyst 8000V passed it in
-  0.40.17, and Check Point in 0.40.21: every check of the addresses seen each time.
+  0.40.17, and Check Point and the ASAv in 0.40.21: every check of the addresses seen each time. On the 8000V and the
+  ASAv one connection differed, announced: the outside reaching the published server's real address, which their
+  static NAT fails (`IOS_STATIC_NAT_REPLIES`, `ASA_STATIC_NAT_RPF`).
 * **Not verified**: no run of tier 3 on Azure or Google Cloud (0.39.0), nor of the VMs of tier 2 has been
   made, nor a run of the workflow in GitHub. Their image names, logins and first boot, and the reload
   commands of OPNsense and pfSense, are taken from documentation. The first real run of each will find what is wrong.

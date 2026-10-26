@@ -1,0 +1,96 @@
+FWShift conversion report
+  source: vyos
+  target: fdm
+
+Summary
+  Security rules:     42   exact 36, approximated 1, needs review 1, skipped 4
+  NAT rules:           6   exact 0, approximated 4, needs review 0, skipped 2
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): GUEST, LAN, WAN, DMZ, VPN, br0. Zones are not written: an import would take the interfaces out of a zone that exists
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside a zone unless a rule denies it; a Cisco Secure Firewall asks its access rules about traffic between the interfaces of a zone as about any other. Check zones with several interfaces
+  [needs-review] INTERZONE_DEFAULT: the source allows traffic between zones that no rule matches; the default action of the device is not changed by an import. Add a final rule that allows it if that was intended
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  spoofed inside sources  ->  exact  (emitted as spoofed_inside_sources)
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not source INSIDE-NETS' is written as the addresses that are left (4 range(s))
+  forward-30  ->  skipped
+      [needs-review] NAT_REDIRECT: NAT rule 'ssh on 2222 to the jump host' sends traffic for every destination to 192.168.30.22:22, and the source applied this rule to it after that translation. The converted rule still names the translated address and port: a platform that looks rules up before NAT will not match the redirected traffic with it
+      [info] DISABLED_RULE: disabled on the source: a Device Manager has no rules that are switched off, so it is left out
+  forward-40  ->  exact
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-WAN.default  ->  exact
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-GUEST.default  ->  exact
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  approximated  (emitted as zone-DMZ.from-WAN.WAN-DMZ-20__https_to_web1_)
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'https_to_web1_destination' with post-NAT '192.168.30.10' because of NAT rule 'https_to_web1'; check that this rule is meant to cover the translated traffic
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review  (emitted as zone-DMZ.from-WAN.WAN-DMZ-20__ssh_on_2222_to_the_jump_host_)
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+  office hours only  ->  skipped
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times. The rule is left out: a Device Manager has no rules that are switched off.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit). The rule is left out: a Device Manager has no rules that are switched off.
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.default  ->  exact
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-VPN.default  ->  exact
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-WAN.default  ->  exact
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-GUEST.default  ->  exact
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-DMZ.default  ->  exact
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-VPN.default  ->  exact
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+
+NAT rules
+  https to web1  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  ssh on 2222 to the jump host  ->  skipped
+      [needs-review] NAT_DESTINATION: destination NAT needs one static address object on each side
+  destination-30  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  source-100  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is for the address of an interface of zone 'WAN', and the interfaces of that zone on the target are not known; name them with --interface-map
+  dmz servers leave as one address  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic to zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  source-120  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic to zone VPN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+
+Addresses
+  https to web1 destination  ->  exact  (emitted as https_to_web1_destination)
+      [info] RENAMED: renamed to 'https_to_web1_destination' to fit the target's naming rules
+
+Address groups
+  UPDATES  ->  exact  (emitted as updates.example.com, mirror.example.org)
+      [info] GROUP_SPLIT: a network group of a Cisco Secure Firewall holds no FQDN objects: the group is not written, and the rules that use it name 'updates.example.com', 'mirror.example.org' themselves
+
+Services
+  tcp-20-21,23  ->  exact  (emitted as tcp-20-21_23, tcp-20-21, tcp-23)
+      [info] RENAMED: renamed to 'tcp-20-21_23' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-20-21_23' of 'tcp-20-21', 'tcp-23'
+  tcp-80,443,8080-8090  ->  exact  (emitted as tcp-80_443_8080-8090, tcp-80, tcp-443, tcp-8080-8090)
+      [info] RENAMED: renamed to 'tcp-80_443_8080-8090' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-80_443_8080-8090' of 'tcp-80', 'tcp-443', 'tcp-8080-8090'
+  tcp-53+udp-53  ->  exact  (emitted as tcp-53_udp-53, tcp-53, udp-53)
+      [info] RENAMED: renamed to 'tcp-53_udp-53' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-53_udp-53' of 'tcp-53', 'udp-53'

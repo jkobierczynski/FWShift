@@ -1,0 +1,157 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: vyos
+
+Summary
+  Security rules:     32   exact 18, approximated 4, needs review 10 (7 emitted disabled), skipped 0
+  NAT rules:           5   exact 3, approximated 1, needs review 1, skipped 0
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] VYOS_LOAD: load the commands in configuration mode: 'configure', paste them, 'compare', then 'commit-confirm 10' (unless 'confirm' follows within 10 minutes, VyOS goes back to the configuration before; older releases reboot to do so) and 'save'. A commit applies all of them or none. The policy is written as the zone-based firewall: zones Internal, External, and a chain FWS-<from>-<to> for each pair of zones that needs one. Interfaces of the router in no zone: VyOS drops their traffic into a zone and leaves traffic from a zone to them to the forward filter; that traffic is decided by chain FWS-NO-ZONE (the rules for any destination and the default of the policy), jumped to from rule 10000 of the forward filter for what leaves by an interface not in interface group FWS-ZONES. Check that the forward filter has no rule 10000 (show firewall ipv4 forward filter), or give another number with --policy-id-start; its rules with lower numbers come first, and those after rule 10000 are no longer reached by what the chain decides, as it ends with the default of the policy. The forward filter of the router still applies before the zones (an accept there goes on to the zones, a drop is final). A zone of the same name that exists gets these interfaces and chains in addition to its own; a chain set for a pair that has one replaces it. NAT rules are numbered from 10000: rules of the router with lower numbers come first. To take a conversion away: delete the groups, chains, zones and NAT rules the commands name (all under FWS-, and the NAT rules from 10000 on). Assumed: names of up to 63 characters
+  [needs-review] INTERFACES_REQUIRED: zones need the interfaces of the router: these were written with their own name as interface, which matches no traffic until it is replaced (--interface-map, or --zone-map with zones of the router's interfaces): External, Internal
+  [needs-review] VYOS_NO_ZONE: traffic from a zone to an interface in no zone is decided by chain FWS-NO-ZONE; its replies come in from an interface in no zone, which VyOS drops at the zones unless 'firewall global-options state-policy' accepts established and related packets (the commands do not set it, as it applies to the whole router)
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] VYOS_FQDN: host names are written as fqdn or domain-group, which the router resolves while it runs: cdn.example.com, updates.example.com
+  [info] VYOS_LOG: rules that log the start of a connection have 'log': VyOS logs every packet the rule matches, which, after the replies are accepted at the top of each chain, is the first packet of each connection
+  [info] VYOS_TEXT: names and descriptions with characters VyOS does not take in them (or longer than it takes) were changed: FWS-updates by name-dst-dns, FWS-lan without admins
+
+Security rules
+  Rule @900.0  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  dns to resolver  ->  exact  (emitted as FWS-Internal-Internal rule 10, FWS-Internal-External rule 10, FWS-External-Internal rule 10, FWS-External-External rule 10, FWS-NO-ZONE rule 10)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  allow web  ->  needs-review  (emitted as FWS-Internal-Internal rule 20, FWS-Internal-External rule 20, FWS-External-Internal rule 20, FWS-External-External rule 20, FWS-NO-ZONE rule 20)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '192.168.10.10', the address NAT rule 'publish web' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  admins in  ->  exact  (emitted as FWS-Internal-Internal rule 30, FWS-Internal-External rule 30, FWS-External-Internal rule 30, FWS-External-External rule 30, FWS-NO-ZONE rule 30)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  others out  ->  exact  (emitted as FWS-Internal-Internal rule 40, FWS-Internal-External rule 40, FWS-External-Internal rule 40, FWS-External-External rule 40, FWS-NO-ZONE rule 40)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  refuse admins 8443  ->  approximated  (emitted as FWS-Internal-Internal rule 50, FWS-Internal-External rule 50, FWS-External-Internal rule 50, FWS-External-External rule 50, FWS-NO-ZONE rule 50)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+      [info] RESET_ACTION: action reset-client becomes reject, which answers with an ICMP unreachable rather than a TCP reset
+  old block  ->  exact  (emitted as FWS-Internal-Internal rule 60, FWS-Internal-External rule 60, FWS-External-Internal rule 60, FWS-External-External rule 60, FWS-NO-ZONE rule 60)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  internal zone out  ->  needs-review  (emitted as FWS-Internal-Internal rule 70, FWS-Internal-External rule 70, FWS-NO-ZONE rule 70)
+      [needs-review] NAT_PORT_EXPOSED: the service covers the post-NAT port of NAT rule 'publish web' (which translates the port to 8443) but not the pre-NAT one. The source looks rules up before the translation and did not apply this rule to that traffic; the target looks them up after it, and there the rule applies
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  not to dmz  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (pub-web, 192.168.10.10).
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  updates by name  ->  exact  (emitted as FWS-Internal-Internal rule 80, FWS-Internal-External rule 80, FWS-External-Internal rule 70, FWS-External-External rule 70, FWS-NO-ZONE rule 80)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  zone or web host out  ->  exact  (emitted as FWS-Internal-External rule 90)
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+  zone or web host out (2)  ->  exact  (emitted as FWS-Internal-External rule 100, FWS-External-External rule 80)
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); traffic from an interface in no zone into a zone VyOS drops
+  vpn only  ->  needs-review, emitted disabled
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '192.168.10.10', the address NAT rule 'publish web' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN).
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  ping out  ->  exact  (emitted as FWS-Internal-Internal rule 90, FWS-Internal-External rule 110, FWS-External-Internal rule 80, FWS-External-External rule 90, FWS-NO-ZONE rule 90)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  no social  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) Facebook; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  helpdesk to dmz  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match helpdesk is not converted.
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  unfinished  ->  exact  (emitted as FWS-Internal-Internal rule 100, FWS-Internal-External rule 120, FWS-External-Internal rule 90, FWS-External-External rule 100, FWS-NO-ZONE rule 100)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  office web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times.
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  limited guests  ->  needs-review  (emitted as FWS-Internal-Internal rule 110, FWS-Internal-External rule 130, FWS-External-Internal rule 100, FWS-External-External rule 110, FWS-NO-ZONE rule 110)
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (deep_inspection=on); attach equivalent inspection on the target
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  block list  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  gre to isp  ->  exact  (emitted as FWS-Internal-Internal rule 120, FWS-Internal-External rule 140, FWS-External-Internal rule 110, FWS-External-External rule 120, FWS-NO-ZONE rule 120)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  lan but admins  ->  exact  (emitted as FWS-Internal-Internal rule 130, FWS-Internal-Internal rule 140, FWS-Internal-External rule 150, FWS-Internal-External rule 160, FWS-External-Internal rule 120, FWS-External-Internal rule 130, FWS-External-External rule 130, FWS-External-External rule 140, FWS-NO-ZONE rule 130, FWS-NO-ZONE rule 140)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Rule @1021.0  ->  exact  (emitted as FWS-Internal-Internal rule 150, FWS-Internal-External rule 170, FWS-External-Internal rule 140, FWS-External-External rule 150, FWS-NO-ZONE rule 150)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  drop netbios  ->  exact  (emitted as FWS-Internal-Internal rule 160, FWS-Internal-Internal rule 170, FWS-Internal-External rule 180, FWS-Internal-External rule 190, FWS-External-Internal rule 150, FWS-External-Internal rule 160, FWS-External-External rule 160, FWS-External-External rule 170, FWS-NO-ZONE rule 160, FWS-NO-ZONE rule 170)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Rule @902.0  ->  approximated  (emitted as FWS-Internal-Internal rule 180, FWS-Internal-External rule 200, FWS-External-Internal rule 170, FWS-External-External rule 180, FWS-NO-ZONE rule 180)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+      [info] RESET_ACTION: action reset-client becomes reject, which answers with an ICMP unreachable rather than a TCP reset
+  Rule @903.0  ->  exact  (emitted as FWS-Internal-Internal rule 190, FWS-Internal-External rule 210, FWS-External-Internal rule 180, FWS-External-External rule 190, FWS-NO-ZONE rule 190)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  v6 web  ->  exact  (emitted as FWS-Internal-Internal rule 10 (IPv6), FWS-Internal-External rule 10 (IPv6), FWS-External-Internal rule 10 (IPv6), FWS-External-External rule 10 (IPv6), FWS-NO-ZONE rule 10 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  v6 ping  ->  exact  (emitted as FWS-Internal-Internal rule 20 (IPv6), FWS-Internal-External rule 20 (IPv6), FWS-External-Internal rule 20 (IPv6), FWS-External-External rule 20 (IPv6), FWS-NO-ZONE rule 20 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  v6 mail  ->  exact  (emitted as FWS-Internal-Internal rule 30 (IPv6), FWS-Internal-External rule 30 (IPv6), FWS-External-Internal rule 30 (IPv6), FWS-External-External rule 30 (IPv6), FWS-NO-ZONE rule 30 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  v6 guests  ->  approximated  (emitted as FWS-Internal-Internal rule 40 (IPv6), FWS-Internal-External rule 40 (IPv6), FWS-External-Internal rule 40 (IPv6), FWS-External-External rule 40 (IPv6), FWS-NO-ZONE rule 40 (IPv6))
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+      [info] RESET_ACTION: action reset-client becomes reject, which answers with an ICMP unreachable rather than a TCP reset
+  Rule @952.0  ->  approximated  (emitted as FWS-Internal-Internal rule 50 (IPv6), FWS-Internal-External rule 50 (IPv6), FWS-External-Internal rule 50 (IPv6), FWS-External-External rule 50 (IPv6), FWS-NO-ZONE rule 50 (IPv6))
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+      [info] RESET_ACTION: action reset-client becomes reject, which answers with an ICMP unreachable rather than a TCP reset
+  Rule @953.0  ->  exact  (emitted as FWS-Internal-Internal rule 60 (IPv6), FWS-Internal-External rule 60 (IPv6), FWS-External-Internal rule 60 (IPv6), FWS-External-External rule 60 (IPv6), FWS-NO-ZONE rule 60 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (Internal, External); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+
+NAT rules
+  publish web  ->  needs-review  (emitted as destination rule 10000)
+      [needs-review] NAT_ORDER: on the source, the traffic this rule forwards to 192.168.10.10 keeps its source address. The target translates sources apart from destinations, after the destination: there NAT rules 'mail static', 'guests hide' translate the source of that traffic as well
+  guests hide  ->  approximated  (emitted as source rule 10030)
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by

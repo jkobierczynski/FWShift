@@ -1,0 +1,75 @@
+FWShift conversion report
+  source: vyos
+  target: junos
+
+Summary
+  Security rules:     42   exact 36, approximated 1, needs review 5 (3 emitted disabled), skipped 0
+  NAT rules:           6   exact 5, approximated 0, needs review 0, skipped 1
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] JUNOS_LOAD: the output is set commands for 'load set' (section 10): 'configure private', 'load set terminal' or 'load set FILE', then 'show | compare', 'commit check' and 'commit confirmed'. New policies go to the end of their pair of zones, after the policies the firewall has there, and the global policies after those: move them with 'insert ... before' where the firewall's own should not come first. Objects go into the global address book, which a firewall with address books in its zones does not accept. Assumed: names of up to 63 characters, 'match from-zone' and 'match to-zone' in global policies, and the definitions of the predefined applications the policies use
+  [needs-review] ZONES_REQUIRED: the policies and NAT rules name these security zones, which must exist on the SRX (or be renamed with --zone-map): DMZ, GUEST, LAN, VPN, WAN, br0
+  [needs-review] DEFAULT_PERMIT: the source allows what no rule matches: written as 'default-policy permit-all', which applies to the whole SRX
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+
+Security rules
+  forward-30  ->  needs-review
+      [needs-review] NAT_REDIRECT: NAT rule 'ssh on 2222 to the jump host' sends traffic for every destination to 192.168.30.22:22, and the source applied this rule to it after that translation. The converted rule still names the translated address and port: a platform that looks rules up before NAT will not match the redirected traffic with it
+  forward-40  ->  exact
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-WAN.default  ->  exact  (emitted as zone-WAN_default)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-GUEST.default  ->  exact  (emitted as zone-GUEST_default)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  approximated  (emitted as zone-DMZ_from-WAN_WAN-DMZ-20__https_to_web1_)
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'https_to_web1_destination' with post-NAT '192.168.30.10' because of NAT rule 'https_to_web1'; check that this rule is meant to cover the translated traffic
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review  (emitted as zone-DMZ_from-WAN_WAN-DMZ-20__ssh_on_2222_to_the_jump_host_)
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+  office hours only  ->  needs-review, emitted disabled  (emitted as office_hours_only)
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  needs-review, emitted disabled  (emitted as zone-DMZ_from-WAN_WAN-DMZ-50)
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit).
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  needs-review, emitted disabled  (emitted as zone-DMZ_from-VPN_VPN-DMZ-20)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.default  ->  exact  (emitted as zone-DMZ_default)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-VPN.default  ->  exact  (emitted as zone-VPN_default)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-WAN.default  ->  exact  (emitted as ipv6-zone-WAN_default)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-GUEST.default  ->  exact  (emitted as ipv6-zone-GUEST_default)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-DMZ.default  ->  exact  (emitted as ipv6-zone-DMZ_default)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-VPN.default  ->  exact  (emitted as ipv6-zone-VPN_default)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+
+NAT rules
+  ssh on 2222 to the jump host  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a destination NAT rule of Junos matches one destination prefix
+  source-120  ->  exact  (emitted as source fwshift-source-GUEST-VPN source-120, source fwshift-source-LAN-VPN source-120, source fwshift-source-WAN-VPN source-120, source fwshift-source-DMZ-VPN source-120, source fwshift-source-VPN-VPN source-120, source fwshift-source-br0-VPN source-120)
+      [info] NAT_EXEMPTION: a rule without translation, written as 'source-nat off'
+
+Addresses
+  https to web1 destination  ->  exact  (emitted as https_to_web1_destination)
+      [info] RENAMED: renamed to 'https_to_web1_destination' to fit the target's naming rules
+
+Services
+  tcp-20-21,23  ->  exact  (emitted as tcp-20-21_23)
+      [info] RENAMED: renamed to 'tcp-20-21_23' to fit the target's naming rules
+  tcp-80,443,8080-8090  ->  exact  (emitted as tcp-80_443_8080-8090)
+      [info] RENAMED: renamed to 'tcp-80_443_8080-8090' to fit the target's naming rules
+  tcp-53+udp-53  ->  exact  (emitted as tcp-53_udp-53)
+      [info] RENAMED: renamed to 'tcp-53_udp-53' to fit the target's naming rules

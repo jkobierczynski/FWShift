@@ -1,0 +1,59 @@
+configure terminal
+address-object fqdn "time.example.org" domain "time.example.org" zone LAN
+address-object fqdn "x*.example.com" domain "*.example.com" zone LAN
+address-object fqdn "updates.example.net" domain "updates.example.net" zone LAN
+address-object ipv4 "h 10.10.8.8" host 10.10.8.8 zone LAN
+address-object ipv4 "h 10.10.8.9" host 10.10.8.9 zone LAN
+address-object ipv4 "n 10.10.1.0_24" network 10.10.1.0 255.255.255.0 zone LAN
+address-object ipv4 "r 10.10.2.10-10.10.2.20" range 10.10.2.10 10.10.2.20 zone LAN
+address-object ipv4 "Storage.WestEurope" host 192.0.0.8 zone LAN
+address-object ipv4 "ipg-partners" host 192.0.0.8 zone LAN
+address-object ipv4 "h 203.0.113.10" host 203.0.113.10 zone LAN
+address-object ipv4 "h 10.10.1.4" host 10.10.1.4 zone LAN
+address-object ipv4 "n 198.51.100.0_24" network 198.51.100.0 255.255.255.0 zone LAN
+address-object ipv4 "h 10.10.1.5" host 10.10.1.5 zone LAN
+address-group ipv4 "ipg-dns"
+    address-object ipv4 "h 10.10.8.8"
+    address-object ipv4 "h 10.10.8.9"
+    exit
+address-group ipv4 "ipg-servers"
+    address-object ipv4 "n 10.10.1.0_24"
+    address-object ipv4 "r 10.10.2.10-10.10.2.20"
+    exit
+service-object "tcp-443" TCP 443 443
+service-object "tcp-2222" TCP 2222 2222
+service-object "tcp-23" TCP 23 23
+service-object "tcp-udp-53 tcp 53" TCP 53 53
+service-object "tcp-udp-53 udp 53" UDP 53 53
+service-group "tcp-udp-53"
+    service-object "tcp-udp-53 tcp 53"
+    service-object "tcp-udp-53 udp 53"
+    exit
+service-object "tcp-22" TCP 22 22
+service-object "tcp-1433" TCP 1433 1433
+service-object "udp-123" UDP 123 123
+service-object "tcp-8000-8080,9000 tcp 8000-8080" TCP 8000 8080
+service-object "tcp-8000-8080,9000 tcp 9000" TCP 9000 9000
+service-group "tcp-8000-8080,9000"
+    service-object "tcp-8000-8080,9000 tcp 8000-8080"
+    service-object "tcp-8000-8080,9000 tcp 9000"
+    exit
+service-object "tcp-80,443 tcp 80" TCP 80 80
+service-object "tcp-80,443 tcp 443" TCP 443 443
+service-group "tcp-80,443"
+    service-object "tcp-80,443 tcp 80"
+    service-object "tcp-80,443 tcp 443"
+    exit
+service-object "tcp 22" TCP 22 22
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 203.0.113.10" translated-destination name "h 10.10.1.4" service name "tcp-443" translated-service original
+    name "dnat-web/web-https"
+    comment "dnat-web/web-https"
+    priority manual 1
+    exit
+nat-policy ipv4 inbound any outbound any source name "n 198.51.100.0_24" translated-source original destination name "h 203.0.113.10" translated-destination name "h 10.10.1.5" service name "tcp-2222" translated-service name "tcp 22"
+    name "dnat-web/ssh-admin"
+    comment "Admin SSH on a high port"
+    priority manual 2
+    exit
+commit
+exit

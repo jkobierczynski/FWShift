@@ -1,0 +1,570 @@
+configure terminal
+address-object ipv4 "MIP(203.0.113.10)" host 203.0.113.10 zone Untrust
+address-object ipv4 "MIP(203.0.113.24)" network 203.0.113.24 255.255.255.248 zone Untrust
+address-object ipv4 "VIP(203.0.113.20)" host 203.0.113.20 zone Untrust
+address-object ipv4 "lan" network 10.10.0.0 255.255.0.0 zone Trust
+address-object ipv4 "admins" network 10.10.5.0 255.255.255.240 zone Trust
+address-object ipv4 "partner-net" network 198.51.100.0 255.255.255.0 zone Untrust
+address-object ipv4 "bad-host" host 192.0.2.66 zone Untrust
+address-object ipv4 "mail1" host 10.20.0.25 zone DMZ
+address-object ipv4 "web1" host 10.20.0.10 zone DMZ
+address-object ipv4 "db-net" network 10.30.0.0 255.255.255.0 zone Servers
+address-object ipv4 "app1" host 10.30.0.24 zone Servers
+address-object ipv4 "printer (Trust)" host 10.10.9.9 zone Trust
+address-object ipv6 "lan-v6" network 2001:db8:10:: /64 zone Trust
+address-object fqdn "updates" domain "updates.example.com" zone Untrust
+address-object ipv4 "ntp-servers" host 192.0.2.123 zone Untrust
+address-object ipv4 "DIP(4)" range 203.0.113.100 203.0.113.120 zone Untrust
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone DMZ
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone DMZ
+address-object ipv6 "n ::_1" network :: /1 zone DMZ
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone DMZ
+address-object ipv4 "r 0.0.0.0-192.0.2.65" range 0.0.0.0 192.0.2.65 zone DMZ
+address-object ipv4 "r 192.0.2.67-198.51.99.255" range 192.0.2.67 198.51.99.255 zone DMZ
+address-object ipv4 "r 198.51.101.0-255.255.255.255" range 198.51.101.0 255.255.255.255 zone DMZ
+address-object ipv4 "n 10.30.0.24_29" network 10.30.0.24 255.255.255.248 zone DMZ
+address-object ipv4 "h 10.20.0.20" host 10.20.0.20 zone DMZ
+address-object ipv4 "h 10.20.0.21" host 10.20.0.21 zone DMZ
+address-group ipv4 "blocked"
+    address-object ipv4 "bad-host"
+    address-object ipv4 "partner-net"
+    exit
+address-group ipv4 "dmz-servers"
+    address-object ipv4 "web1"
+    address-object ipv4 "mail1"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
+address-group ipv4 "src policy-7"
+    address-object ipv4 "r 0.0.0.0-192.0.2.65"
+    address-object ipv4 "r 192.0.2.67-198.51.99.255"
+    address-object ipv4 "r 198.51.101.0-255.255.255.255"
+    exit
+address-group ipv4 "dst policy-8"
+    address-object ipv4 "db-net"
+    address-object ipv4 "app1"
+    exit
+service-object "HTTP 2" TCP 80 80
+service-object "HTTPS 2" TCP 443 443
+service-object "tcp-8080" TCP 8080 8081
+service-object "dns-split udp 53" UDP 53 53
+service-object "dns-split tcp 53" TCP 53 53
+service-group "dns-split"
+    service-object "dns-split udp 53"
+    service-object "dns-split tcp 53"
+    exit
+service-object "SSH 2" TCP 22 22
+service-object "SMTP" TCP 25 25
+service-object "tcp-80" TCP 80 80
+service-object "tcp-8443" TCP 8443 8443
+service-object "tcp 2525" TCP 2525 2525
+service-object "tcp 443" TCP 443 443
+service-group "web"
+    service-object "HTTP 2"
+    service-object "HTTPS 2"
+    service-object "tcp-8080"
+    exit
+service-group "svc lan-out"
+    service-group "web"
+    service-group "dns-split"
+    exit
+service-group "svc web-in"
+    service-object "HTTP 2"
+    service-object "HTTPS 2"
+    exit
+nat-policy ipv4 inbound any outbound any source name "lan" translated-source name "DIP(4)" destination any translated-destination original service group "web" translated-service original
+    name "nat-lan-out"
+    comment "policy-based NAT of lan-out"
+    priority manual 1
+    exit
+nat-policy ipv4 inbound any outbound any source name "lan" translated-source name "DIP(4)" destination any translated-destination original service group "dns-split" translated-service original
+    name "nat-lan-out-2"
+    comment "policy-based NAT of lan-out"
+    priority manual 2
+    exit
+nat-policy ipv4 inbound any outbound any source name "web1" translated-source name "MIP(203.0.113.10)" destination any translated-destination original service any translated-service original
+    name "mip-203.0.113.10"
+    comment "MIP 203.0.113.10 on ethernet0/0"
+    priority manual 3
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "MIP(203.0.113.10)" translated-destination name "web1" service any translated-service original
+    name "mip-203.0.113.10 in"
+    comment "inbound of mip-203.0.113.10"
+    priority manual 4
+    exit
+nat-policy ipv4 inbound any outbound any source name "n 10.30.0.24_29" translated-source name "MIP(203.0.113.24)" destination any translated-destination original service any translated-service original
+    name "mip-203.0.113.24"
+    comment "MIP 203.0.113.24 on ethernet0/0"
+    priority manual 5
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "MIP(203.0.113.24)" translated-destination name "n 10.30.0.24_29" service any translated-service original
+    name "mip-203.0.113.24 in"
+    comment "inbound of mip-203.0.113.24"
+    priority manual 6
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "VIP(203.0.113.20)" translated-destination name "h 10.20.0.20" service name "tcp-80" translated-service original
+    name "vip-203.0.113.20-80"
+    comment "VIP 203.0.113.20 port 80 to HTTP"
+    priority manual 7
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "VIP(203.0.113.20)" translated-destination name "h 10.20.0.21" service name "tcp-8443" translated-service name "tcp 443"
+    name "vip-203.0.113.20-8443"
+    comment "VIP 203.0.113.20 port 8443 to HT"
+    priority manual 8
+    exit
+access-rule ipv4 from DMZ to DMZ action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "intrazone-DMZ"
+    priority manual 1
+    exit
+access-rule ipv4 from Lab to Lab action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "intrazone-Lab"
+    priority manual 2
+    exit
+access-rule ipv4 from Trust to Trust action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "intrazone-Trust"
+    priority manual 3
+    exit
+access-rule ipv4 from Trust to Untrust action allow source address name "lan" service group "svc lan-out" destination address any
+    name "lan-out"
+    priority manual 4
+    exit
+access-rule ipv4 from Trust to Untrust action allow source address name "admins" service name "SSH 2" destination address name "partner-net"
+    name "policy-2"
+    priority manual 5
+    exit
+access-rule ipv4 from Trust to Untrust action allow source address name "lan" service any destination address any
+    name "policy-3"
+    priority manual 6
+    exit
+access-rule ipv4 from Untrust to DMZ action deny source address name "bad-host" service any destination address any
+    name "policy-20"
+    priority manual 7
+    exit
+access-rule ipv4 from Untrust to DMZ action allow source address any service group "svc web-in" destination address name "MIP(203.0.113.10)"
+    name "web-in"
+    priority manual 8
+    exit
+access-rule ipv4 from Untrust to DMZ action allow source address any service name "HTTP 2" destination address name "VIP(203.0.113.20)"
+    name "policy-5"
+    priority manual 9
+    exit
+access-rule ipv4 from Untrust to Servers action allow source address name "partner-net" service name "tcp-8080" destination address name "MIP(203.0.113.24)"
+    name "policy-6"
+    priority manual 10
+    exit
+access-rule ipv4 from Untrust to DMZ action allow source address group "src policy-7" service name "SMTP" destination address name "mail1"
+    name "policy-7"
+    priority manual 11
+    exit
+access-rule ipv4 from DMZ to Servers action allow source address name "web1" service any destination address group "dst policy-8"
+    name "policy-8"
+    priority manual 12
+    no enable
+    exit
+access-rule ipv4 from Trust to Trust action discard source address name "lan" service any destination address name "printer (Trust)"
+    name "policy-9"
+    priority manual 13
+    no enable
+    exit
+access-rule ipv4 from Servers to Servers action allow source address name "db-net" service any destination address name "db-net"
+    name "policy-10"
+    priority manual 14
+    exit
+access-rule ipv4 from Trust to DMZ action allow source address name "admins" service name "SSH 2" destination address group "dmz-servers"
+    name "policy-11"
+    priority manual 15
+    exit
+access-rule ipv4 from Trust to Lab action allow source address any service name "Ping" destination address any
+    name "policy-12"
+    priority manual 16
+    no enable
+    exit
+access-rule ipv4 from Trust to Untrust action allow source address any service any destination address name "updates"
+    name "policy-13"
+    priority manual 17
+    no enable
+    exit
+access-rule ipv4 from Trust to Untrust action allow source address name "lan" service any destination address name "partner-net"
+    name "policy-14"
+    priority manual 18
+    no enable
+    exit
+access-rule ipv4 from Lab to Untrust action allow source address any service name "HTTP 2" destination address any
+    name "policy-15"
+    priority manual 19
+    no enable
+    exit
+access-rule ipv4 from DMZ to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-16"
+    priority manual 20
+    no enable
+    exit
+access-rule ipv4 from DMZ to Lab action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-16 3"
+    priority manual 21
+    no enable
+    exit
+access-rule ipv4 from DMZ to Servers action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-16 5"
+    priority manual 22
+    no enable
+    exit
+access-rule ipv4 from DMZ to Trust action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-16 7"
+    priority manual 23
+    no enable
+    exit
+access-rule ipv4 from DMZ to Untrust action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-16 9"
+    priority manual 24
+    no enable
+    exit
+access-rule ipv4 from Trust to DMZ action allow source address any service name "HTTP 2" destination address name "web1"
+    name "policy-19"
+    priority manual 25
+    exit
+access-rule ipv4 from DMZ to DMZ action allow source address any service any destination address name "ntp-servers"
+    name "policy-17"
+    priority manual 26
+    no enable
+    exit
+access-rule ipv4 from DMZ to Lab action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 2"
+    priority manual 27
+    no enable
+    exit
+access-rule ipv4 from DMZ to Servers action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 3"
+    priority manual 28
+    no enable
+    exit
+access-rule ipv4 from DMZ to Trust action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 4"
+    priority manual 29
+    no enable
+    exit
+access-rule ipv4 from DMZ to Untrust action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 5"
+    priority manual 30
+    no enable
+    exit
+access-rule ipv4 from Lab to DMZ action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 6"
+    priority manual 31
+    no enable
+    exit
+access-rule ipv4 from Lab to Lab action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 7"
+    priority manual 32
+    no enable
+    exit
+access-rule ipv4 from Lab to Servers action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 8"
+    priority manual 33
+    no enable
+    exit
+access-rule ipv4 from Lab to Trust action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 9"
+    priority manual 34
+    no enable
+    exit
+access-rule ipv4 from Lab to Untrust action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 10"
+    priority manual 35
+    no enable
+    exit
+access-rule ipv4 from Servers to DMZ action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 11"
+    priority manual 36
+    no enable
+    exit
+access-rule ipv4 from Servers to Lab action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 12"
+    priority manual 37
+    no enable
+    exit
+access-rule ipv4 from Servers to Servers action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 13"
+    priority manual 38
+    no enable
+    exit
+access-rule ipv4 from Servers to Trust action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 14"
+    priority manual 39
+    no enable
+    exit
+access-rule ipv4 from Servers to Untrust action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 15"
+    priority manual 40
+    no enable
+    exit
+access-rule ipv4 from Trust to DMZ action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 16"
+    priority manual 41
+    no enable
+    exit
+access-rule ipv4 from Trust to Lab action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 17"
+    priority manual 42
+    no enable
+    exit
+access-rule ipv4 from Trust to Servers action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 18"
+    priority manual 43
+    no enable
+    exit
+access-rule ipv4 from Trust to Trust action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 19"
+    priority manual 44
+    no enable
+    exit
+access-rule ipv4 from Trust to Untrust action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 20"
+    priority manual 45
+    no enable
+    exit
+access-rule ipv4 from Untrust to DMZ action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 21"
+    priority manual 46
+    no enable
+    exit
+access-rule ipv4 from Untrust to Lab action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 22"
+    priority manual 47
+    no enable
+    exit
+access-rule ipv4 from Untrust to Servers action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 23"
+    priority manual 48
+    no enable
+    exit
+access-rule ipv4 from Untrust to Trust action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 24"
+    priority manual 49
+    no enable
+    exit
+access-rule ipv4 from Untrust to Untrust action allow source address any service any destination address name "ntp-servers"
+    name "policy-17 25"
+    priority manual 50
+    no enable
+    exit
+access-rule ipv4 from DMZ to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18"
+    priority manual 51
+    exit
+access-rule ipv4 from DMZ to Lab action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 3"
+    priority manual 52
+    exit
+access-rule ipv4 from DMZ to Servers action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 5"
+    priority manual 53
+    exit
+access-rule ipv4 from DMZ to Trust action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 7"
+    priority manual 54
+    exit
+access-rule ipv4 from DMZ to Untrust action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 9"
+    priority manual 55
+    exit
+access-rule ipv4 from Lab to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 11"
+    priority manual 56
+    exit
+access-rule ipv4 from Lab to Lab action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 13"
+    priority manual 57
+    exit
+access-rule ipv4 from Lab to Servers action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 15"
+    priority manual 58
+    exit
+access-rule ipv4 from Lab to Trust action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 17"
+    priority manual 59
+    exit
+access-rule ipv4 from Lab to Untrust action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 19"
+    priority manual 60
+    exit
+access-rule ipv4 from Servers to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 21"
+    priority manual 61
+    exit
+access-rule ipv4 from Servers to Lab action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 23"
+    priority manual 62
+    exit
+access-rule ipv4 from Servers to Servers action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 25"
+    priority manual 63
+    exit
+access-rule ipv4 from Servers to Trust action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 27"
+    priority manual 64
+    exit
+access-rule ipv4 from Servers to Untrust action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 29"
+    priority manual 65
+    exit
+access-rule ipv4 from Trust to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 31"
+    priority manual 66
+    exit
+access-rule ipv4 from Trust to Lab action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 33"
+    priority manual 67
+    exit
+access-rule ipv4 from Trust to Servers action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 35"
+    priority manual 68
+    exit
+access-rule ipv4 from Trust to Trust action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 37"
+    priority manual 69
+    exit
+access-rule ipv4 from Trust to Untrust action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 39"
+    priority manual 70
+    exit
+access-rule ipv4 from Untrust to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 41"
+    priority manual 71
+    exit
+access-rule ipv4 from Untrust to Lab action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 43"
+    priority manual 72
+    exit
+access-rule ipv4 from Untrust to Servers action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 45"
+    priority manual 73
+    exit
+access-rule ipv4 from Untrust to Trust action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 47"
+    priority manual 74
+    exit
+access-rule ipv4 from Untrust to Untrust action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "policy-18 49"
+    priority manual 75
+    exit
+access-rule ipv6 from DMZ to DMZ action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "intrazone-DMZ 2"
+    exit
+access-rule ipv6 from Lab to Lab action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "intrazone-Lab 2"
+    exit
+access-rule ipv6 from Trust to Trust action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "intrazone-Trust 2"
+    exit
+access-rule ipv6 from Trust to Untrust action allow source address any service any destination address name "updates"
+    name "policy-13 2"
+    no enable
+    exit
+access-rule ipv6 from Lab to Untrust action allow source address any service name "HTTP 2" destination address any
+    name "policy-15 2"
+    no enable
+    exit
+access-rule ipv6 from DMZ to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-16 2"
+    no enable
+    exit
+access-rule ipv6 from DMZ to Lab action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-16 4"
+    no enable
+    exit
+access-rule ipv6 from DMZ to Servers action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-16 6"
+    no enable
+    exit
+access-rule ipv6 from DMZ to Trust action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-16 8"
+    no enable
+    exit
+access-rule ipv6 from DMZ to Untrust action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-16 10"
+    no enable
+    exit
+access-rule ipv6 from DMZ to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 2"
+    exit
+access-rule ipv6 from DMZ to Lab action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 4"
+    exit
+access-rule ipv6 from DMZ to Servers action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 6"
+    exit
+access-rule ipv6 from DMZ to Trust action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 8"
+    exit
+access-rule ipv6 from DMZ to Untrust action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 10"
+    exit
+access-rule ipv6 from Lab to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 12"
+    exit
+access-rule ipv6 from Lab to Lab action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 14"
+    exit
+access-rule ipv6 from Lab to Servers action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 16"
+    exit
+access-rule ipv6 from Lab to Trust action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 18"
+    exit
+access-rule ipv6 from Lab to Untrust action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 20"
+    exit
+access-rule ipv6 from Servers to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 22"
+    exit
+access-rule ipv6 from Servers to Lab action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 24"
+    exit
+access-rule ipv6 from Servers to Servers action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 26"
+    exit
+access-rule ipv6 from Servers to Trust action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 28"
+    exit
+access-rule ipv6 from Servers to Untrust action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 30"
+    exit
+access-rule ipv6 from Trust to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 32"
+    exit
+access-rule ipv6 from Trust to Lab action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 34"
+    exit
+access-rule ipv6 from Trust to Servers action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 36"
+    exit
+access-rule ipv6 from Trust to Trust action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 38"
+    exit
+access-rule ipv6 from Trust to Untrust action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 40"
+    exit
+access-rule ipv6 from Untrust to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 42"
+    exit
+access-rule ipv6 from Untrust to Lab action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 44"
+    exit
+access-rule ipv6 from Untrust to Servers action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 46"
+    exit
+access-rule ipv6 from Untrust to Trust action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 48"
+    exit
+access-rule ipv6 from Untrust to Untrust action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "policy-18 50"
+    exit
+commit
+exit

@@ -1,0 +1,200 @@
+FWShift zone matrix
+  source: vyos
+  security rules: 42 (1 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 GUEST             LAN               WAN               DMZ               VPN               br0               (other zones)
+  GUEST          any               any               any               any               any               any               any
+  LAN            any               any               any~              any~              any               any               any
+  WAN            any               any~              any               any~              any               any               any
+  DMZ            any               any               any               any               any               any               any
+  VPN            any               any               any               any~              any               any               any
+  br0            any               any               any               any               any               any               any
+  (other zones)  any               any               any               any               any               any               any
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+In every conduit
+  by default, what no rule decides: any
+
+Conduits
+GUEST -> GUEST (inside the zone)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+GUEST -> LAN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+GUEST -> WAN
+  allowed: any
+  rule 'zone-WAN.from-GUEST.default': 0.0.0.0/0 -> any: any except tcp/25
+  and the 1 listed under 'In every conduit'
+GUEST -> DMZ
+  allowed: any
+  and the 1 listed under 'In every conduit'
+GUEST -> VPN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+GUEST -> br0
+  allowed: any
+  and the 1 listed under 'In every conduit'
+GUEST -> (other zones)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+LAN -> GUEST
+  allowed: any
+  and the 1 listed under 'In every conduit'
+LAN -> LAN (inside the zone)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+LAN -> WAN
+  allowed: any ~
+  rule 'zone-WAN.from-LAN.LAN-WAN-20': 0.0.0.0/0 -> UPDATES: any except tcp/20-21, tcp/23, tcp/25 ~
+  rule 'zone-WAN.from-LAN.default': 0.0.0.0/0 -> any: any except tcp/20-21, tcp/23, tcp/25
+  and the 1 listed under 'In every conduit'
+LAN -> DMZ
+  allowed: any ~
+  rule 'zone-DMZ.from-LAN.LAN-DMZ-10': any -> 192.168.30.53: tcp/53, udp/53 ~
+  rule 'zone-DMZ.from-LAN.LAN-DMZ-20': 0.0.0.0/0 -> any: tcp/22
+  rule 'zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20': 192.168.10.0/28 -> 192.168.30.0/24: tcp/443
+  and the 1 listed under 'In every conduit'
+LAN -> VPN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+LAN -> br0
+  allowed: any
+  and the 1 listed under 'In every conduit'
+LAN -> (other zones)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+WAN -> GUEST
+  allowed: any
+  and the 1 listed under 'In every conduit'
+WAN -> LAN
+  allowed: any ~
+  rule 'zone-LAN.from-WAN.WAN-LAN-10': any -> 192.168.10.50: tcp/8443 ~
+  and the 1 listed under 'In every conduit'
+WAN -> WAN (inside the zone)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+WAN -> DMZ
+  allowed: any ~
+  cleartext or remote administration: rdp (rule 'office hours only')
+  rule 'web servers': any -> WEB-SERVERS: tcp/80, tcp/443, tcp/8080-8090 ~
+  rule 'zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)': any -> https to web1 destination: tcp/443 ~
+  rule 'zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)': 0.0.0.0/0 -> any: tcp/2222 ~
+  rule 'zone-DMZ.from-WAN.WAN-DMZ-30': 0.0.0.0/0 -> any: icmp type 8
+  rule 'office hours only': any -> 192.168.30.20: tcp/3389 (schedule starttime 08:00:00, stoptime 18:00:00) ~
+  rule 'zone-DMZ.from-WAN.WAN-DMZ-50': 0.0.0.0/0 -> any: any (only with limit rate 10/second (a match on a rate limit), which is not in the model) ~
+  rule 'ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10': any -> DMZ6: tcp/80, tcp/443, tcp/8080-8090 ~
+  and the 1 listed under 'In every conduit'
+WAN -> VPN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+WAN -> br0
+  allowed: any
+  and the 1 listed under 'In every conduit'
+WAN -> (other zones)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+DMZ -> GUEST
+  allowed: any
+  and the 1 listed under 'In every conduit'
+DMZ -> LAN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+DMZ -> WAN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+DMZ -> DMZ (inside the zone)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+DMZ -> VPN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+DMZ -> br0
+  allowed: any
+  and the 1 listed under 'In every conduit'
+DMZ -> (other zones)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+VPN -> GUEST
+  allowed: any
+  and the 1 listed under 'In every conduit'
+VPN -> LAN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+VPN -> WAN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+VPN -> DMZ
+  allowed: any ~
+  rule 'zone-DMZ.from-VPN.VPN-DMZ-10': 10.99.0.0/24 -> any: any
+  rule 'zone-DMZ.from-VPN.VPN-DMZ-20': 0.0.0.0/0 -> any: any (only with action queue, which is not in the model) ~
+  and the 1 listed under 'In every conduit'
+VPN -> VPN (inside the zone)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+VPN -> br0
+  allowed: any
+  and the 1 listed under 'In every conduit'
+VPN -> (other zones)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+br0 -> GUEST
+  allowed: any
+  and the 1 listed under 'In every conduit'
+br0 -> LAN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+br0 -> WAN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+br0 -> DMZ
+  allowed: any
+  and the 1 listed under 'In every conduit'
+br0 -> VPN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+br0 -> br0 (inside the zone)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+br0 -> (other zones)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+(other zones) -> GUEST
+  allowed: any
+  and the 1 listed under 'In every conduit'
+(other zones) -> LAN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+(other zones) -> WAN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+(other zones) -> DMZ
+  allowed: any
+  and the 1 listed under 'In every conduit'
+(other zones) -> VPN
+  allowed: any
+  and the 1 listed under 'In every conduit'
+(other zones) -> br0
+  allowed: any
+  and the 1 listed under 'In every conduit'
+(other zones) -> (other zones)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+
+From reading the configuration
+  VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+
+Notes
+  2 rule(s) that allow something are in NO conduit: 'ipv6-zone-WAN.from-LAN.default', 'ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20'. Their zones and their addresses do not go together with the networks given.
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

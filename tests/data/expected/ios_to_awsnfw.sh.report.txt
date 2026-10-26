@@ -1,0 +1,692 @@
+FWShift conversion report
+  source: ios
+  target: aws-network-firewall
+
+Summary
+  Security rules:    204   exact 0, approximated 135, needs review 69 (65 emitted disabled), skipped 0
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] AWSNFW_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 sends each with --dry-run, without either it creates the stateful rule group fwshift-rules and the firewall policy fwshift, and stops if one of that name exists. The policy is attached to no firewall: nothing changes until you associate it (aws network-firewall associate-firewall-policy)
+  [needs-review] AWSNFW_ORDER: the policy decides every packet the firewall sees, in strict order: no stateless rules (every packet goes to the stateful engine), the rules of the model in their order, each for the first packet of a connection (flow:to_server), then aws:drop_strict for what no rule passed. Check it against what the firewall's route tables send through it
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a pass rule of Network Firewall does not, a drop or reject rule sends an alert when the firewall has alert logging configured
+
+Security rules
+  WAN-IN-10 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 1))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-20 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 2))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-40 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-50 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-60 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-70 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-80 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-90 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-100 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-110 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-120 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-140 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN implicit deny (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 3))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-10 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN6-IN-20 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN6-IN-30 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN6-IN-40 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  WAN6-IN-50 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 4))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN implicit deny (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 5))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-10 (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 6))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-20 (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 7))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 8))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 9))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 10))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 11))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as 1 rule of the rule group (sid 12))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 13))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as 1 rule of the rule group (sid 14))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 15))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as 1 rule of the rule group (sid 16))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 17))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 18))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as 1 rule of the rule group (sid 19))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 20))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as 1 rule of the rule group (sid 21))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review  (emitted as 1 rule of the rule group (sid 22))
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review  (emitted as 2 rules of the rule group (sid 23-24))
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177', which translates only some of the services of this rule: for the others the rule now names '10.20.0.25', sent there directly, and no longer '203.0.113.2'
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-177' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [info] AWSNFW_NEGATED_SERVICE: a negated service is written as what it leaves: a rule per protocol, and for the protocols it does not name one with ip_proto:!N for each it does
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-3  ->  approximated  (emitted as 1 rule of the rule group (sid 25))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN implicit deny (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 26))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 27))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 28))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 29))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 30))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-50 (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 31))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN implicit deny (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 32))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-10 (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 33))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-20 (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 34))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-40 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  WAN-IN-50 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  WAN-IN-60 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 35))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as 1 rule of the rule group (sid 36))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 37))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as 1 rule of the rule group (sid 38))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 39))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as 1 rule of the rule group (sid 40))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-100 + DMZ-OUT-30 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 41))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-100 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 42))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 43))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as 1 rule of the rule group (sid 44))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-120 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 45))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-120 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as 1 rule of the rule group (sid 46))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  WAN-IN-140 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  WAN-IN-140 + DMZ-OUT-30 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 47))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 48))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)-2  ->  approximated  (emitted as 1 rule of the rule group (sid 49))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review  (emitted as 1 rule of the rule group (sid 50))
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review  (emitted as 2 rules of the rule group (sid 51-52))
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177', which translates only some of the services of this rule: for the others the rule now names '10.20.0.25', sent there directly, and no longer '203.0.113.2'
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-177' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [info] AWSNFW_NEGATED_SERVICE: a negated service is written as what it leaves: a rule per protocol, and for the protocols it does not name one with ip_proto:!N for each it does
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-3  ->  approximated  (emitted as 1 rule of the rule group (sid 53))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN implicit deny (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 54))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-10 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  WAN6-IN-20 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  WAN6-IN-30 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 55))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-40 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 56))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 57))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN implicit deny (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 58))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-10 (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 59))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-20 (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 60))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 61))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 62))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 63))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 64))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 65))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 66))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 67))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 68))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 69))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-130 (OUTSIDE to LAB)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 70))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN implicit deny (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 71))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 72))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 73))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 74))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 75))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-50 (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 76))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN implicit deny (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 77))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-10 (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 78))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-20 (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 79))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 80))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 81))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 82))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 83))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 84))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 85))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 86))
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 87))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 88))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone MGMT, and a rule of Network Firewall names no zone: give the networks behind MGMT with --zone-network.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 89))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN implicit deny (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 90))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 91))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 92))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 93))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 94))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-50 (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 95))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN implicit deny (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 96))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-DNS (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-MAIL-SUB (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-PING (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT class-default (INSIDE to OUTSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 97))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  INSIDE (in): no access list (INSIDE to INSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-10 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-20 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-30 + ZP-IN-DMZ CM-ADMIN (INSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 98))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  INSIDE (in): no access list + DMZ-OUT-50 (INSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 99))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone INSIDE, and a rule of Network Firewall names no zone: give the networks behind INSIDE with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 100))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to LAB (INSIDE to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 101))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to MGMT (INSIDE to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 102))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-DNS (DMZ to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT class-default (DMZ to OUTSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 103))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to INSIDE (DMZ to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 104))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  DMZ (in): no access list + DMZ-OUT-10 (DMZ to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  DMZ (in): no access list + DMZ-OUT-20 (DMZ to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  DMZ (in): no access list + DMZ-OUT-30 (DMZ to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  DMZ (in): no access list + DMZ-OUT-40 (DMZ to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  DMZ (in): no access list + DMZ-OUT-50 (DMZ to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 105))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  DMZ (in): no access list + no outbound access list (DMZ to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Network Firewall names no zone: give the networks behind DMZ with --zone-network.
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to LAB (DMZ to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 106))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to MGMT (DMZ to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 107))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-10 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  110-20 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  110-30 + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to OUTSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 108))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110 implicit deny (LAB to OUTSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 109))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of Network Firewall names no zone: give the networks behind OUTSIDE with --zone-network.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT class-default (LAB to OUTSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 110))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-10 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 111))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-20 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 112))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-30 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 113))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 114))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110 implicit deny (LAB to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 115))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 116))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-10 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 117))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-10 + DMZ-OUT-50 (LAB to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 118))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-20 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 119))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-20 + DMZ-OUT-50 (LAB to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 120))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-30 + DMZ-OUT-50 (LAB to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 121))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 122))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110 implicit deny (LAB to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 123))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to DMZ (LAB to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 124))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-10 (LAB to LAB)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+  110-20 (LAB to LAB)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+  110-30 (LAB to LAB)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 125))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110 implicit deny (LAB to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 126))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAB (in): no access list (LAB to LAB)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAB, and a rule of Network Firewall names no zone: give the networks behind LAB with --zone-network.
+  110-10 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 127))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-20 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 128))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-30 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 129))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 130))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110 implicit deny (LAB to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 131))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  approximated  (emitted as 1 rule of the rule group (sid 132))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to OUTSIDE (MGMT to OUTSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 133))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone OUTSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to INSIDE (MGMT to INSIDE)  ->  approximated  (emitted as 1 rule of the rule group (sid 134))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone INSIDE; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + DMZ-OUT-10 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 135))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + DMZ-OUT-20 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 136))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + DMZ-OUT-30 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 137))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + DMZ-OUT-40 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 138))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + DMZ-OUT-50 (MGMT to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 139))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as 1 rule of the rule group (sid 140))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to LAB (MGMT to LAB)  ->  approximated  (emitted as 1 rule of the rule group (sid 141))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone MGMT; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAB; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list (MGMT to MGMT)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone MGMT, and a rule of Network Firewall names no zone: give the networks behind MGMT with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone MGMT, and a rule of Network Firewall names no zone: give the networks behind MGMT with --zone-network.
+
+NAT rules
+  nat-176  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  nat-177  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  nat-178  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees

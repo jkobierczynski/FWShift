@@ -1,0 +1,27 @@
+FWShift conversion report
+  source: nftables
+  target: vyos
+
+Summary
+  Security rules:     16   exact 13, approximated 0, needs review 3 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] VYOS_LOAD: load the commands in configuration mode: 'configure', paste them, 'compare', then 'commit-confirm 10' (unless 'confirm' follows within 10 minutes, VyOS goes back to the configuration before; older releases reboot to do so) and 'save'. A commit applies all of them or none. The zones of the policy are interfaces (eth1, eth0, eth2, eth3): it is written as chain FWS-FORWARD for each IP version, its rules matching inbound-interface and outbound-interface, jumped to from rule 10000 of the forward filter, as VyOS migrates rule-sets of interfaces. Check that the forward filter has no rule 10000 (show firewall ipv4 forward filter), or give another number with --policy-id-start; its rules with lower numbers come first, and those after rule 10000 are no longer reached by what the chain decides, as it ends with the default of the policy. NAT rules are numbered from 10000: rules of the router with lower numbers come first. To take a conversion away: delete the groups, chains, zones and NAT rules the commands name (all under FWS-, and the NAT rules from 10000 on). Assumed: names of up to 63 characters
+  [needs-review] ZONES_REQUIRED: the rules match these interfaces of the source: check that they are interfaces of the router (or map them with --interface-map): eth0, eth1, eth2, eth3
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+  [info] VYOS_LOG: rules that log the start of a connection have 'log': VyOS logs every packet the rule matches, which, after the replies are accepted at the top of each chain, is the first packet of each connection
+
+Security rules
+  Banned by fail2ban  ->  needs-review, emitted disabled
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  needs-review  (emitted as FWS-FORWARD rule 10)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Rate limited mail  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.

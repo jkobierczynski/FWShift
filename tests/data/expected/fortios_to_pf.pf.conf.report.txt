@@ -1,0 +1,48 @@
+FWShift conversion report
+  source: fortios
+  target: pf
+
+Summary
+  Security rules:     14   exact 7, approximated 3, needs review 4 (3 emitted disabled), skipped 0
+  NAT rules:           5   exact 2, approximated 1, needs review 2, skipped 0
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PF_LOAD: the output is a ruleset for the anchor 'fwshift': check it with 'pfctl -vnf FILE -a fwshift', load it with 'pfctl -a fwshift -f FILE'. The main ruleset must call it ('anchor "fwshift"'), before rules that pass or block forwarded traffic quick; rules after the anchor that are not quick can still change what it decides. It lets in what arrives on the interfaces of the zones that a rule may allow (never to the firewall's own addresses), decides when the traffic leaves, and needs OpenBSD pf or FreeBSD 15 or later (match rules with tag, nat-to, rdr-to)
+  [needs-review] INTERFACES_REQUIRED: zones are written as interfaces or interface groups, a macro each at the top of the file: set each to the interface (or group) of the zone, or convert with --zone-map: lan, wan1, dmz, ot
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] PF_ZONES_ONLY: the anchor decides about traffic that arrives on the interfaces of the zones (lan, wan1, dmz, ot); what arrives on another interface is left to the main ruleset
+  [info] LOGGING_AT_END: rules that log the end of a connection on the source are written without log: pf logs the packet a rule matches; the rules that log the start of a connection have 'log'
+
+Security rules
+  LAN to Internet  ->  approximated  (emitted as 2 rules)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
+  Inbound web  ->  needs-review  (emitted as 1 rule)
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination 'vip-web' with post-NAT '10.20.0.10' because of NAT rule 'vip-web', which translates only some of the services of this rule: for the others the rule now names '10.20.0.10', sent there directly, and no longer 'vip-web'
+  Inbound mail  ->  approximated  (emitted as 1 rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'vip-mail' with post-NAT '10.20.0.25' because of NAT rule 'vip-mail'; check that this rule is meant to cover the translated traffic
+  Admins to DMZ  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+  Block geo  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ out via pool  ->  approximated  (emitted as 1 rule)
+      [approximated] FQDN_RESOLVED_ONCE: 'updates.example.com' is a host name: pfctl resolves it once, when the rules are loaded, and keeps the addresses it got then
+  policy-12  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  Timestamp probes  ->  exact  (emitted as 1 rule)
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+
+NAT rules
+  vip-mail  ->  approximated  (emitted as 1 rdr-to)
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+  snat-1  ->  needs-review  (emitted as 1 nat-to)
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+  snat-2  ->  needs-review  (emitted as 2 nat-to)
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted

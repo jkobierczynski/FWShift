@@ -1,0 +1,144 @@
+FWShift conversion report
+  source: vyos
+  target: azure
+
+Summary
+  Security rules:     42   exact 2, approximated 22, needs review 18 (18 emitted disabled), skipped 0
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] AZURE_LOAD: the output is an ARM template (section 10): look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode, never complete), then associate each group with the subnets of its zone (its networks are in the template's metadata). Deploying it replaces all rules of groups of the same name
+  [needs-review] AZURE_ONE_GROUP: no zone has networks (--zone-network): one group holds every rule, inbound and outbound; associate it with every subnet the policy is for
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
+
+Security rules
+  no outbound mail  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone GUEST, LAN, WAN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  spoofed inside sources  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone GUEST, LAN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  forward-40  ->  approximated  (emitted as security rules of FWShift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone DMZ, GUEST, LAN, VPN, br0; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  no telnet or ftp out  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAN, WAN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  zone-WAN.from-LAN.LAN-WAN-20  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] FQDN_NOT_SUPPORTED: host name object mirror.example.org, updates.example.com: a security rule names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAN, WAN, and a security rule names no zone: give the networks behind it with --zone-network.
+  zone-WAN.from-LAN.default  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAN, WAN, and a security rule names no zone: give the networks behind it with --zone-network.
+  zone-WAN.from-GUEST.GUEST-WAN-10  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone GUEST, WAN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  zone-WAN.from-GUEST.default  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone GUEST, WAN, and a security rule names no zone: give the networks behind it with --zone-network.
+  zone-WAN.default  ->  approximated  (emitted as security rules of FWShift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone DMZ, GUEST, LAN, VPN, br0, WAN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  zone-LAN.intra  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  zone-LAN.from-WAN.WAN-LAN-10  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone WAN, LAN, and a security rule names no zone: give the networks behind it with --zone-network.
+  zone-LAN.from-WAN.default  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone WAN, LAN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  zone-LAN.default  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  zone-GUEST.default  ->  approximated  (emitted as security rules of FWShift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone DMZ, LAN, VPN, WAN, br0, GUEST; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  web servers  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone WAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  needs-review, emitted disabled
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'https to web1 destination' with post-NAT '192.168.30.10' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone WAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review, emitted disabled
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone WAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-30  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone WAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  office hours only  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone WAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit).
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone WAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  zone-DMZ.from-WAN.default  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone WAN, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  zone-DMZ.from-LAN.LAN-DMZ-10  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  zone-DMZ.from-LAN.LAN-DMZ-20  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  zone-DMZ.from-LAN.default  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAN, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  zone-DMZ.from-VPN.VPN-DMZ-10  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone VPN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone VPN, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.from-VPN.default  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone VPN, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  zone-DMZ.default  ->  approximated  (emitted as security rules of FWShift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone GUEST, LAN, VPN, WAN, br0, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  zone-VPN.default  ->  approximated  (emitted as security rules of FWShift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone DMZ, GUEST, LAN, WAN, br0, VPN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  ipv6-zone-WAN.from-LAN.default  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAN, WAN, and a security rule names no zone: give the networks behind it with --zone-network.
+  ipv6-zone-WAN.default  ->  approximated  (emitted as security rules of FWShift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone DMZ, GUEST, LAN, VPN, br0, WAN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  ipv6-zone-LAN.intra  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  ipv6-zone-LAN.default  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  ipv6-zone-GUEST.default  ->  approximated  (emitted as security rules of FWShift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone DMZ, LAN, VPN, WAN, br0, GUEST; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone WAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone WAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  ipv6-zone-DMZ.from-WAN.default  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone WAN, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  ipv6-zone-DMZ.default  ->  approximated  (emitted as security rules of FWShift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone GUEST, LAN, VPN, WAN, br0, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  ipv6-zone-VPN.default  ->  approximated  (emitted as security rules of FWShift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone DMZ, GUEST, LAN, WAN, br0, VPN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+
+NAT rules
+  https to web1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  ssh on 2222 to the jump host  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  destination-30  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  source-100  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  dmz servers leave as one address  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  source-120  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see

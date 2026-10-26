@@ -1,0 +1,917 @@
+configure terminal
+address-object fqdn "updates.example.com" domain "updates.example.com" zone WAN
+address-object fqdn "mirror.example.org" domain "mirror.example.org" zone WAN
+address-object ipv4 "https to web1 destination" host 203.0.113.10 zone DMZ
+address-object ipv4 "n 198.51.100.0_24" network 198.51.100.0 255.255.255.0 zone LAN
+address-object ipv4 "n 203.0.113.128_25" network 203.0.113.128 255.255.255.128 zone LAN
+address-object ipv4 "n 192.168.10.0_24" network 192.168.10.0 255.255.255.0 zone LAN
+address-object ipv4 "n 192.168.20.0_24" network 192.168.20.0 255.255.255.0 zone LAN
+address-object ipv4 "h 192.168.30.10" host 192.168.30.10 zone LAN
+address-object ipv4 "r 192.168.30.11-192.168.30.12" range 192.168.30.11 192.168.30.12 zone LAN
+address-object ipv4 "EMPTY" host 192.0.0.8 zone LAN
+address-object ipv6 "n 2001:db8:30::_64" network 2001:db8:30:: /64 zone LAN
+address-object ipv4 "r 0.0.0.0-192.168.9.255" range 0.0.0.0 192.168.9.255 zone LAN
+address-object ipv4 "r 192.168.11.0-192.168.19.255" range 192.168.11.0 192.168.19.255 zone LAN
+address-object ipv4 "r 192.168.21.0-255.255.255.255" range 192.168.21.0 255.255.255.255 zone LAN
+address-object ipv4 "n 192.168.30.0_24" network 192.168.30.0 255.255.255.0 zone LAN
+address-object ipv4 "n 203.0.113.0_24" network 203.0.113.0 255.255.255.0 zone LAN
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone LAN
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone LAN
+address-object ipv4 "h 192.168.10.50" host 192.168.10.50 zone LAN
+address-object ipv4 "h 192.168.30.20" host 192.168.30.20 zone LAN
+address-object ipv4 "h 192.168.30.53" host 192.168.30.53 zone LAN
+address-object ipv4 "n 192.168.10.0_28" network 192.168.10.0 255.255.255.240 zone LAN
+address-object ipv4 "n 10.99.0.0_24" network 10.99.0.0 255.255.255.0 zone LAN
+address-object ipv6 "n ::_1" network :: /1 zone LAN
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone LAN
+address-object ipv4 "h 192.168.30.22" host 192.168.30.22 zone LAN
+address-object ipv4 "h 203.0.113.11" host 203.0.113.11 zone LAN
+address-object ipv4 "h 192.168.30.11" host 192.168.30.11 zone LAN
+address-object ipv4 "h 203.0.113.20" host 203.0.113.20 zone LAN
+address-group ipv4 "BLOCKLIST"
+    address-object ipv4 "n 198.51.100.0_24"
+    address-object ipv4 "n 203.0.113.128_25"
+    exit
+address-group ipv4 "INSIDE-NETS"
+    address-object ipv4 "n 192.168.10.0_24"
+    address-object ipv4 "n 192.168.20.0_24"
+    exit
+address-group ipv4 "WEB-SERVERS"
+    address-object ipv4 "h 192.168.30.10"
+    address-object ipv4 "r 192.168.30.11-192.168.30.12"
+    exit
+address-group ipv4 "UPDATES"
+    address-object fqdn "updates.example.com"
+    address-object fqdn "mirror.example.org"
+    exit
+address-group ipv6 "DMZ6"
+    address-object ipv6 "n 2001:db8:30::_64"
+    exit
+address-group ipv4 "src spoofed inside sources"
+    address-object ipv4 "r 0.0.0.0-192.168.9.255"
+    address-object ipv4 "r 192.168.11.0-192.168.19.255"
+    address-object ipv4 "r 192.168.21.0-255.255.255.255"
+    exit
+address-group ipv4 "dst forward-30"
+    address-object ipv4 "n 192.168.30.0_24"
+    address-object ipv4 "https to web1 destination"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv4 "dst web servers"
+    address-group ipv4 "WEB-SERVERS"
+    address-object ipv4 "https to web1 destination"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
+service-object "tcp-443" TCP 443 443
+service-object "tcp-2222" TCP 2222 2222
+service-object "tcp-25" TCP 25 25
+service-object "tcp-any" TCP 1 65535
+service-object "tcp-23" TCP 23 23
+service-object "tcp-20-21,23 tcp 20-21" TCP 20 21
+service-object "tcp-20-21,23 tcp 23" TCP 23 23
+service-group "tcp-20-21,23"
+    service-object "tcp-20-21,23 tcp 20-21"
+    service-object "tcp-20-21,23 tcp 23"
+    exit
+service-object "tcp-8443" TCP 8443 8443
+service-object "tcp-80,443,8080-8090 tcp 80" TCP 80 80
+service-object "tcp-80,443,8080-8090 tcp 443" TCP 443 443
+service-object "tcp-80,443,8080-8090 tcp 8080-80" TCP 8080 8090
+service-group "tcp-80,443,8080-8090"
+    service-object "tcp-80,443,8080-8090 tcp 80"
+    service-object "tcp-80,443,8080-8090 tcp 443"
+    service-object "tcp-80,443,8080-8090 tcp 8080-80"
+    exit
+service-object "tcp-3389" TCP 3389 3389
+service-object "udp-1194" UDP 1194 1194
+service-object "tcp-53+udp-53 tcp 53" TCP 53 53
+service-object "tcp-53+udp-53 udp 53" UDP 53 53
+service-group "tcp-53+udp-53"
+    service-object "tcp-53+udp-53 tcp 53"
+    service-object "tcp-53+udp-53 udp 53"
+    exit
+service-object "tcp-22" TCP 22 22
+service-object "tcp 22" TCP 22 22
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "https to web1 destination" translated-destination name "h 192.168.30.10" service name "tcp-443" translated-service original
+    name "https to web1"
+    comment "VyOS nat destination rule 10"
+    priority manual 1
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination any translated-destination name "h 192.168.30.22" service name "tcp-2222" translated-service name "tcp 22"
+    name "ssh on 2222 to the jump host"
+    comment "VyOS nat destination rule 20"
+    priority manual 2
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 203.0.113.11" translated-destination name "h 192.168.30.11" service any translated-service original
+    name "destination-30"
+    comment "destination-30"
+    priority manual 3
+    no enable
+    exit
+nat-policy ipv4 inbound any outbound any source name "n 192.168.30.0_24" translated-source name "h 203.0.113.20" destination any translated-destination original service any translated-service original
+    name "dmz servers leave as one address"
+    comment "VyOS nat source rule 110"
+    priority manual 4
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "n 10.99.0.0_24" translated-destination original service any translated-service original
+    name "source-120"
+    comment "source-120"
+    priority manual 5
+    exit
+access-rule ipv4 from DMZ to DMZ action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist"
+    priority manual 1
+    exit
+access-rule ipv4 from DMZ to GUEST action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 2"
+    priority manual 2
+    exit
+access-rule ipv4 from DMZ to LAN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 3"
+    priority manual 3
+    exit
+access-rule ipv4 from DMZ to VPN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 4"
+    priority manual 4
+    exit
+access-rule ipv4 from DMZ to WAN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 5"
+    priority manual 5
+    exit
+access-rule ipv4 from DMZ to br0 action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 6"
+    priority manual 6
+    exit
+access-rule ipv4 from GUEST to DMZ action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 7"
+    priority manual 7
+    exit
+access-rule ipv4 from GUEST to GUEST action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 8"
+    priority manual 8
+    exit
+access-rule ipv4 from GUEST to LAN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 9"
+    priority manual 9
+    exit
+access-rule ipv4 from GUEST to VPN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 10"
+    priority manual 10
+    exit
+access-rule ipv4 from GUEST to WAN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 11"
+    priority manual 11
+    exit
+access-rule ipv4 from GUEST to br0 action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 12"
+    priority manual 12
+    exit
+access-rule ipv4 from LAN to DMZ action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 13"
+    priority manual 13
+    exit
+access-rule ipv4 from LAN to GUEST action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 14"
+    priority manual 14
+    exit
+access-rule ipv4 from LAN to LAN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 15"
+    priority manual 15
+    exit
+access-rule ipv4 from LAN to VPN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 16"
+    priority manual 16
+    exit
+access-rule ipv4 from LAN to WAN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 17"
+    priority manual 17
+    exit
+access-rule ipv4 from LAN to br0 action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 18"
+    priority manual 18
+    exit
+access-rule ipv4 from VPN to DMZ action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 19"
+    priority manual 19
+    exit
+access-rule ipv4 from VPN to GUEST action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 20"
+    priority manual 20
+    exit
+access-rule ipv4 from VPN to LAN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 21"
+    priority manual 21
+    exit
+access-rule ipv4 from VPN to VPN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 22"
+    priority manual 22
+    exit
+access-rule ipv4 from VPN to WAN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 23"
+    priority manual 23
+    exit
+access-rule ipv4 from VPN to br0 action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 24"
+    priority manual 24
+    exit
+access-rule ipv4 from WAN to DMZ action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 25"
+    priority manual 25
+    exit
+access-rule ipv4 from WAN to GUEST action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 26"
+    priority manual 26
+    exit
+access-rule ipv4 from WAN to LAN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 27"
+    priority manual 27
+    exit
+access-rule ipv4 from WAN to VPN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 28"
+    priority manual 28
+    exit
+access-rule ipv4 from WAN to WAN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 29"
+    priority manual 29
+    exit
+access-rule ipv4 from WAN to br0 action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 30"
+    priority manual 30
+    exit
+access-rule ipv4 from br0 to DMZ action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 31"
+    priority manual 31
+    exit
+access-rule ipv4 from br0 to GUEST action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 32"
+    priority manual 32
+    exit
+access-rule ipv4 from br0 to LAN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 33"
+    priority manual 33
+    exit
+access-rule ipv4 from br0 to VPN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 34"
+    priority manual 34
+    exit
+access-rule ipv4 from br0 to WAN action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 35"
+    priority manual 35
+    exit
+access-rule ipv4 from br0 to br0 action discard source address group "BLOCKLIST" service any destination address any
+    name "drop the blocklist 36"
+    priority manual 36
+    exit
+access-rule ipv4 from GUEST to WAN action deny source address any service name "tcp-25" destination address any
+    name "no outbound mail"
+    priority manual 37
+    exit
+access-rule ipv4 from LAN to WAN action deny source address any service name "tcp-25" destination address any
+    name "no outbound mail 2"
+    priority manual 38
+    exit
+access-rule ipv4 from GUEST to DMZ action discard source address group "src spoofed inside sources" service any destination address any
+    name "spoofed inside sources"
+    priority manual 39
+    exit
+access-rule ipv4 from GUEST to GUEST action discard source address group "src spoofed inside sources" service any destination address any
+    name "spoofed inside sources 2"
+    priority manual 40
+    exit
+access-rule ipv4 from GUEST to LAN action discard source address group "src spoofed inside sources" service any destination address any
+    name "spoofed inside sources 3"
+    priority manual 41
+    exit
+access-rule ipv4 from GUEST to VPN action discard source address group "src spoofed inside sources" service any destination address any
+    name "spoofed inside sources 4"
+    priority manual 42
+    exit
+access-rule ipv4 from GUEST to WAN action discard source address group "src spoofed inside sources" service any destination address any
+    name "spoofed inside sources 5"
+    priority manual 43
+    exit
+access-rule ipv4 from GUEST to br0 action discard source address group "src spoofed inside sources" service any destination address any
+    name "spoofed inside sources 6"
+    priority manual 44
+    exit
+access-rule ipv4 from LAN to DMZ action discard source address group "src spoofed inside sources" service any destination address any
+    name "spoofed inside sources 7"
+    priority manual 45
+    exit
+access-rule ipv4 from LAN to GUEST action discard source address group "src spoofed inside sources" service any destination address any
+    name "spoofed inside sources 8"
+    priority manual 46
+    exit
+access-rule ipv4 from LAN to LAN action discard source address group "src spoofed inside sources" service any destination address any
+    name "spoofed inside sources 9"
+    priority manual 47
+    exit
+access-rule ipv4 from LAN to VPN action discard source address group "src spoofed inside sources" service any destination address any
+    name "spoofed inside sources 10"
+    priority manual 48
+    exit
+access-rule ipv4 from LAN to WAN action discard source address group "src spoofed inside sources" service any destination address any
+    name "spoofed inside sources 11"
+    priority manual 49
+    exit
+access-rule ipv4 from LAN to br0 action discard source address group "src spoofed inside sources" service any destination address any
+    name "spoofed inside sources 12"
+    priority manual 50
+    exit
+access-rule ipv4 from DMZ to DMZ action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30"
+    priority manual 51
+    no enable
+    exit
+access-rule ipv4 from DMZ to GUEST action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 2"
+    priority manual 52
+    no enable
+    exit
+access-rule ipv4 from DMZ to LAN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 3"
+    priority manual 53
+    no enable
+    exit
+access-rule ipv4 from DMZ to VPN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 4"
+    priority manual 54
+    no enable
+    exit
+access-rule ipv4 from DMZ to WAN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 5"
+    priority manual 55
+    no enable
+    exit
+access-rule ipv4 from DMZ to br0 action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 6"
+    priority manual 56
+    no enable
+    exit
+access-rule ipv4 from GUEST to DMZ action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 7"
+    priority manual 57
+    no enable
+    exit
+access-rule ipv4 from GUEST to GUEST action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 8"
+    priority manual 58
+    no enable
+    exit
+access-rule ipv4 from GUEST to LAN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 9"
+    priority manual 59
+    no enable
+    exit
+access-rule ipv4 from GUEST to VPN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 10"
+    priority manual 60
+    no enable
+    exit
+access-rule ipv4 from GUEST to WAN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 11"
+    priority manual 61
+    no enable
+    exit
+access-rule ipv4 from GUEST to br0 action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 12"
+    priority manual 62
+    no enable
+    exit
+access-rule ipv4 from LAN to DMZ action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 13"
+    priority manual 63
+    no enable
+    exit
+access-rule ipv4 from LAN to GUEST action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 14"
+    priority manual 64
+    no enable
+    exit
+access-rule ipv4 from LAN to LAN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 15"
+    priority manual 65
+    no enable
+    exit
+access-rule ipv4 from LAN to VPN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 16"
+    priority manual 66
+    no enable
+    exit
+access-rule ipv4 from LAN to WAN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 17"
+    priority manual 67
+    no enable
+    exit
+access-rule ipv4 from LAN to br0 action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 18"
+    priority manual 68
+    no enable
+    exit
+access-rule ipv4 from VPN to DMZ action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 19"
+    priority manual 69
+    no enable
+    exit
+access-rule ipv4 from VPN to GUEST action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 20"
+    priority manual 70
+    no enable
+    exit
+access-rule ipv4 from VPN to LAN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 21"
+    priority manual 71
+    no enable
+    exit
+access-rule ipv4 from VPN to VPN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 22"
+    priority manual 72
+    no enable
+    exit
+access-rule ipv4 from VPN to WAN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 23"
+    priority manual 73
+    no enable
+    exit
+access-rule ipv4 from VPN to br0 action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 24"
+    priority manual 74
+    no enable
+    exit
+access-rule ipv4 from WAN to DMZ action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 25"
+    priority manual 75
+    no enable
+    exit
+access-rule ipv4 from WAN to GUEST action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 26"
+    priority manual 76
+    no enable
+    exit
+access-rule ipv4 from WAN to LAN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 27"
+    priority manual 77
+    no enable
+    exit
+access-rule ipv4 from WAN to VPN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 28"
+    priority manual 78
+    no enable
+    exit
+access-rule ipv4 from WAN to WAN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 29"
+    priority manual 79
+    no enable
+    exit
+access-rule ipv4 from WAN to br0 action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 30"
+    priority manual 80
+    no enable
+    exit
+access-rule ipv4 from br0 to DMZ action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 31"
+    priority manual 81
+    no enable
+    exit
+access-rule ipv4 from br0 to GUEST action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 32"
+    priority manual 82
+    no enable
+    exit
+access-rule ipv4 from br0 to LAN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 33"
+    priority manual 83
+    no enable
+    exit
+access-rule ipv4 from br0 to VPN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 34"
+    priority manual 84
+    no enable
+    exit
+access-rule ipv4 from br0 to WAN action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 35"
+    priority manual 85
+    no enable
+    exit
+access-rule ipv4 from br0 to br0 action discard source address any service name "tcp-any" destination address group "dst forward-30"
+    name "forward-30 36"
+    priority manual 86
+    no enable
+    exit
+access-rule ipv4 from DMZ to DMZ action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40"
+    priority manual 87
+    exit
+access-rule ipv4 from DMZ to GUEST action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 2"
+    priority manual 88
+    exit
+access-rule ipv4 from DMZ to LAN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 3"
+    priority manual 89
+    exit
+access-rule ipv4 from DMZ to VPN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 4"
+    priority manual 90
+    exit
+access-rule ipv4 from DMZ to WAN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 5"
+    priority manual 91
+    exit
+access-rule ipv4 from DMZ to br0 action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 6"
+    priority manual 92
+    exit
+access-rule ipv4 from GUEST to DMZ action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 7"
+    priority manual 93
+    exit
+access-rule ipv4 from GUEST to GUEST action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 8"
+    priority manual 94
+    exit
+access-rule ipv4 from GUEST to LAN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 9"
+    priority manual 95
+    exit
+access-rule ipv4 from GUEST to VPN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 10"
+    priority manual 96
+    exit
+access-rule ipv4 from GUEST to WAN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 11"
+    priority manual 97
+    exit
+access-rule ipv4 from GUEST to br0 action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 12"
+    priority manual 98
+    exit
+access-rule ipv4 from LAN to DMZ action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 13"
+    priority manual 99
+    exit
+access-rule ipv4 from LAN to GUEST action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 14"
+    priority manual 100
+    exit
+access-rule ipv4 from LAN to LAN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 15"
+    priority manual 101
+    exit
+access-rule ipv4 from LAN to VPN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 16"
+    priority manual 102
+    exit
+access-rule ipv4 from LAN to WAN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 17"
+    priority manual 103
+    exit
+access-rule ipv4 from LAN to br0 action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 18"
+    priority manual 104
+    exit
+access-rule ipv4 from VPN to DMZ action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 19"
+    priority manual 105
+    exit
+access-rule ipv4 from VPN to GUEST action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 20"
+    priority manual 106
+    exit
+access-rule ipv4 from VPN to LAN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 21"
+    priority manual 107
+    exit
+access-rule ipv4 from VPN to VPN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 22"
+    priority manual 108
+    exit
+access-rule ipv4 from VPN to WAN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 23"
+    priority manual 109
+    exit
+access-rule ipv4 from VPN to br0 action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 24"
+    priority manual 110
+    exit
+access-rule ipv4 from br0 to DMZ action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 25"
+    priority manual 111
+    exit
+access-rule ipv4 from br0 to GUEST action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 26"
+    priority manual 112
+    exit
+access-rule ipv4 from br0 to LAN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 27"
+    priority manual 113
+    exit
+access-rule ipv4 from br0 to VPN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 28"
+    priority manual 114
+    exit
+access-rule ipv4 from br0 to WAN action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 29"
+    priority manual 115
+    exit
+access-rule ipv4 from br0 to br0 action deny source address any service name "tcp-23" destination address name "n 203.0.113.0_24"
+    name "forward-40 30"
+    priority manual 116
+    exit
+access-rule ipv4 from LAN to WAN action discard source address any service group "tcp-20-21,23" destination address any
+    name "no telnet or ftp out"
+    priority manual 117
+    exit
+access-rule ipv4 from LAN to WAN action allow source address any service any destination address group "UPDATES"
+    name "zone-WAN.from-LAN.LAN-WAN-20"
+    priority manual 118
+    exit
+access-rule ipv4 from LAN to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-WAN.from-LAN.default"
+    priority manual 119
+    exit
+access-rule ipv4 from GUEST to WAN action discard source address any service any destination address group "INSIDE-NETS"
+    name "zone-WAN.from-GUEST.GUEST-WAN-10"
+    priority manual 120
+    exit
+access-rule ipv4 from GUEST to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-WAN.from-GUEST.default"
+    priority manual 121
+    exit
+access-rule ipv4 from DMZ to WAN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-WAN.default"
+    priority manual 122
+    exit
+access-rule ipv4 from GUEST to WAN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-WAN.default 2"
+    priority manual 123
+    exit
+access-rule ipv4 from LAN to WAN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-WAN.default 3"
+    priority manual 124
+    exit
+access-rule ipv4 from VPN to WAN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-WAN.default 4"
+    priority manual 125
+    exit
+access-rule ipv4 from br0 to WAN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-WAN.default 5"
+    priority manual 126
+    exit
+access-rule ipv4 from LAN to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-LAN.intra"
+    priority manual 127
+    exit
+access-rule ipv4 from WAN to LAN action allow source address any service name "tcp-8443" destination address name "h 192.168.10.50"
+    name "zone-LAN.from-WAN.WAN-LAN-10"
+    priority manual 128
+    exit
+access-rule ipv4 from WAN to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-LAN.from-WAN.default"
+    priority manual 129
+    exit
+access-rule ipv4 from DMZ to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-LAN.default"
+    priority manual 130
+    exit
+access-rule ipv4 from GUEST to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-LAN.default 2"
+    priority manual 131
+    exit
+access-rule ipv4 from LAN to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-LAN.default 3"
+    priority manual 132
+    exit
+access-rule ipv4 from VPN to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-LAN.default 4"
+    priority manual 133
+    exit
+access-rule ipv4 from WAN to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-LAN.default 5"
+    priority manual 134
+    exit
+access-rule ipv4 from br0 to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-LAN.default 6"
+    priority manual 135
+    exit
+access-rule ipv4 from DMZ to GUEST action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-GUEST.default"
+    priority manual 136
+    exit
+access-rule ipv4 from LAN to GUEST action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-GUEST.default 2"
+    priority manual 137
+    exit
+access-rule ipv4 from VPN to GUEST action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-GUEST.default 3"
+    priority manual 138
+    exit
+access-rule ipv4 from WAN to GUEST action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-GUEST.default 4"
+    priority manual 139
+    exit
+access-rule ipv4 from br0 to GUEST action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-GUEST.default 5"
+    priority manual 140
+    exit
+access-rule ipv4 from WAN to DMZ action allow source address any service group "tcp-80,443,8080-8090" destination address group "dst web servers"
+    name "web servers"
+    priority manual 141
+    exit
+access-rule ipv4 from WAN to DMZ action allow source address any service name "tcp-443" destination address name "https to web1 destination"
+    name "zone-DMZ.from-WAN.WAN-DMZ-20 (ht"
+    priority manual 142
+    exit
+access-rule ipv4 from WAN to DMZ action allow source address any service name "tcp-2222" destination address any
+    name "zone-DMZ.from-WAN.WAN-DMZ-20 (ss"
+    priority manual 143
+    exit
+access-rule ipv4 from WAN to DMZ action allow source address any service name "Ping" destination address any
+    name "zone-DMZ.from-WAN.WAN-DMZ-30"
+    priority manual 144
+    exit
+access-rule ipv4 from WAN to DMZ action allow source address any service name "tcp-3389" destination address name "h 192.168.30.20"
+    name "office hours only"
+    priority manual 145
+    no enable
+    exit
+access-rule ipv4 from WAN to DMZ action allow source address any service name "udp-1194" destination address any
+    name "zone-DMZ.from-WAN.WAN-DMZ-50"
+    priority manual 146
+    no enable
+    exit
+access-rule ipv4 from WAN to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-DMZ.from-WAN.default"
+    priority manual 147
+    exit
+access-rule ipv4 from LAN to DMZ action allow source address any service group "tcp-53+udp-53" destination address name "h 192.168.30.53"
+    name "zone-DMZ.from-LAN.LAN-DMZ-10"
+    priority manual 148
+    exit
+access-rule ipv4 from LAN to DMZ action allow source address any service name "tcp-22" destination address any
+    name "zone-DMZ.from-LAN.LAN-DMZ-20"
+    priority manual 149
+    exit
+access-rule ipv4 from LAN to DMZ action allow source address name "n 192.168.10.0_28" service name "tcp-443" destination address name "n 192.168.30.0_24"
+    name "zone-DMZ.from-LAN.LAN-DMZ-30.ADM"
+    priority manual 150
+    exit
+access-rule ipv4 from LAN to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-DMZ.from-LAN.default"
+    priority manual 151
+    exit
+access-rule ipv4 from VPN to DMZ action allow source address name "n 10.99.0.0_24" service any destination address any
+    name "zone-DMZ.from-VPN.VPN-DMZ-10"
+    priority manual 152
+    exit
+access-rule ipv4 from VPN to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-DMZ.from-VPN.VPN-DMZ-20"
+    priority manual 153
+    no enable
+    exit
+access-rule ipv4 from VPN to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-DMZ.from-VPN.default"
+    priority manual 154
+    exit
+access-rule ipv4 from GUEST to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-DMZ.default"
+    priority manual 155
+    exit
+access-rule ipv4 from LAN to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-DMZ.default 2"
+    priority manual 156
+    exit
+access-rule ipv4 from VPN to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-DMZ.default 3"
+    priority manual 157
+    exit
+access-rule ipv4 from WAN to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-DMZ.default 4"
+    priority manual 158
+    exit
+access-rule ipv4 from br0 to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-DMZ.default 5"
+    priority manual 159
+    exit
+access-rule ipv4 from DMZ to VPN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-VPN.default"
+    priority manual 160
+    exit
+access-rule ipv4 from GUEST to VPN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-VPN.default 2"
+    priority manual 161
+    exit
+access-rule ipv4 from LAN to VPN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-VPN.default 3"
+    priority manual 162
+    exit
+access-rule ipv4 from WAN to VPN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-VPN.default 4"
+    priority manual 163
+    exit
+access-rule ipv4 from br0 to VPN action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "zone-VPN.default 5"
+    priority manual 164
+    exit
+access-rule ipv6 from LAN to WAN action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-WAN.from-LAN.default"
+    exit
+access-rule ipv6 from DMZ to WAN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-WAN.default"
+    exit
+access-rule ipv6 from GUEST to WAN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-WAN.default 2"
+    exit
+access-rule ipv6 from LAN to WAN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-WAN.default 3"
+    exit
+access-rule ipv6 from VPN to WAN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-WAN.default 4"
+    exit
+access-rule ipv6 from br0 to WAN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-WAN.default 5"
+    exit
+access-rule ipv6 from LAN to LAN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-LAN.intra"
+    exit
+access-rule ipv6 from DMZ to LAN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-LAN.default"
+    exit
+access-rule ipv6 from GUEST to LAN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-LAN.default 2"
+    exit
+access-rule ipv6 from LAN to LAN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-LAN.default 3"
+    exit
+access-rule ipv6 from VPN to LAN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-LAN.default 4"
+    exit
+access-rule ipv6 from WAN to LAN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-LAN.default 5"
+    exit
+access-rule ipv6 from br0 to LAN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-LAN.default 6"
+    exit
+access-rule ipv6 from DMZ to GUEST action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-GUEST.default"
+    exit
+access-rule ipv6 from LAN to GUEST action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-GUEST.default 2"
+    exit
+access-rule ipv6 from VPN to GUEST action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-GUEST.default 3"
+    exit
+access-rule ipv6 from WAN to GUEST action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-GUEST.default 4"
+    exit
+access-rule ipv6 from br0 to GUEST action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-GUEST.default 5"
+    exit
+access-rule ipv6 from WAN to DMZ action allow source address any service group "tcp-80,443,8080-8090" destination address group "DMZ6"
+    name "ipv6-zone-DMZ.from-WAN.WAN-DMZ-6"
+    exit
+access-rule ipv6 from WAN to DMZ action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-DMZ.from-WAN.WAN-DMZ 2"
+    no enable
+    exit
+access-rule ipv6 from WAN to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-DMZ.from-WAN.default"
+    exit
+access-rule ipv6 from GUEST to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-DMZ.default"
+    exit
+access-rule ipv6 from LAN to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-DMZ.default 2"
+    exit
+access-rule ipv6 from VPN to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-DMZ.default 3"
+    exit
+access-rule ipv6 from WAN to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-DMZ.default 4"
+    exit
+access-rule ipv6 from br0 to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-DMZ.default 5"
+    exit
+access-rule ipv6 from DMZ to VPN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-VPN.default"
+    exit
+access-rule ipv6 from GUEST to VPN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-VPN.default 2"
+    exit
+access-rule ipv6 from LAN to VPN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-VPN.default 3"
+    exit
+access-rule ipv6 from WAN to VPN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-VPN.default 4"
+    exit
+access-rule ipv6 from br0 to VPN action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "ipv6-zone-VPN.default 5"
+    exit
+commit
+exit

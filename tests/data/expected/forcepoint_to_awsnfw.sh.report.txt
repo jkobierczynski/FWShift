@@ -1,0 +1,88 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: aws-network-firewall
+
+Summary
+  Security rules:     32   exact 15, approximated 4, needs review 13 (11 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] AWSNFW_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 sends each with --dry-run, without either it creates the stateful rule group fwshift-rules and the firewall policy fwshift, and stops if one of that name exists. The policy is attached to no firewall: nothing changes until you associate it (aws network-firewall associate-firewall-policy)
+  [needs-review] AWSNFW_ORDER: the policy decides every packet the firewall sees, in strict order: no stateless rules (every packet goes to the stateful engine), the rules of the model in their order, each for the first packet of a connection (flow:to_server), then aws:drop_strict for what no rule passed. Check it against what the firewall's route tables send through it
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a pass rule of Network Firewall does not, a drop or reject rule sends an alert when the firewall has alert logging configured
+
+Security rules
+  Rule @900.0  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+  allow web  ->  needs-review  (emitted as 1 rule of the rule group (sid 3))
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '192.168.10.10', the address NAT rule 'publish web' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+  admins in  ->  exact  (emitted as 1 rule of the rule group (sid 4))
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  others out  ->  exact  (emitted as 1 rule of the rule group (sid 5))
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  refuse admins 8443  ->  approximated  (emitted as 1 rule of the rule group (sid 6))
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  internal zone out  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_EXPOSED: the service covers the post-NAT port of NAT rule 'publish web' (which translates the port to 8443) but not the pre-NAT one. The source looks rules up before the translation and did not apply this rule to that traffic; the target looks them up after it, and there the rule applies
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Internal, and a rule of Network Firewall names no zone: give the networks behind Internal with --zone-network.
+  not to dmz  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (pub-web, 192.168.10.10).
+  updates by name  ->  needs-review, emitted disabled
+      [needs-review] ADDRESS_UNKNOWN: the addresses of the destination 'updates.example.com (names)' are not known; a rule of Network Firewall names addresses.
+  zone or web host out  ->  needs-review, emitted disabled
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Internal, and a rule of Network Firewall names no zone: give the networks behind Internal with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a rule of Network Firewall names no zone: give the networks behind External with --zone-network.
+  zone or web host out (2)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a rule of Network Firewall names no zone: give the networks behind External with --zone-network.
+  vpn only  ->  needs-review, emitted disabled
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '192.168.10.10', the address NAT rule 'publish web' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN).
+  no social  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) Facebook; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  helpdesk to dmz  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match helpdesk is not converted.
+  office web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times.
+  limited guests  ->  needs-review  (emitted as 1 rule of the rule group (sid 8))
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (deep_inspection=on); attach equivalent inspection on the target
+  block list  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Rule @902.0  ->  approximated  (emitted as 1 rule of the rule group (sid 15))
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  v6 guests  ->  approximated  (emitted as 1 rule of the rule group (sid 20))
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] REJECT_AS_DENY: a reject of Network Firewall is for TCP; for the rule's other protocols it is written as drop, which answers nothing
+  Rule @952.0  ->  approximated  (emitted as 1 rule of the rule group (sid 21))
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+
+NAT rules
+  publish web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  no nat inside  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  lan out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  mail static  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  guests hide  ->  skipped
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees

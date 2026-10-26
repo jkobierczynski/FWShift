@@ -1,0 +1,90 @@
+FWShift zone matrix
+  source: vyos
+  security rules: 13 (1 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 pppoe0            eth1              eth1.10           (other zones)
+  pppoe0         any~              any~              any~              any~
+  eth1           any               any               any               any
+  eth1.10        any               any               any               any
+  (other zones)  any               any               any               any
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+pppoe0 -> pppoe0 (inside the zone)
+  allowed: any ~
+  rule 'plex to the media box': any -> 192.168.1.30: tcp/32400
+  rule 'ping the nas': any -> NAS: icmp type 8
+  rule 'syn to the mail server': any -> 192.168.1.25: tcp/25
+  rule 'sessions of the voip box': 0.0.0.0/0 -> any: any (only with recent count 5 (a match on recent connections of a source), recent time 60 (a match on recent connections of a source) and 1 more, which is not in the model) ~
+  rule 'Allow IPv6 ping': ::/0 -> any: icmp6 type 128
+pppoe0 -> eth1
+  allowed: any ~
+  rule 'plex to the media box': any -> 192.168.1.30: tcp/32400
+  rule 'ping the nas': any -> NAS: icmp type 8
+  rule 'syn to the mail server': any -> 192.168.1.25: tcp/25
+  rule 'no media from the guests-2': 192.168.10.0/24 -> any: any (only with recent count 5 (a match on recent connections of a source), recent time 60 (a match on recent connections of a source) and 1 more, which is not in the model) ~
+  rule 'sessions of the voip box': 0.0.0.0/0 -> any: any (only with recent count 5 (a match on recent connections of a source), recent time 60 (a match on recent connections of a source) and 1 more, which is not in the model) ~
+  rule 'Allow IPv6 ping': ::/0 -> any: icmp6 type 128
+pppoe0 -> eth1.10
+  allowed: any ~
+  rule 'plex to the media box': any -> 192.168.1.30: tcp/32400
+  rule 'ping the nas': any -> NAS: icmp type 8
+  rule 'syn to the mail server': any -> 192.168.1.25: tcp/25
+  rule 'sessions of the voip box': 0.0.0.0/0 -> any: any (only with recent count 5 (a match on recent connections of a source), recent time 60 (a match on recent connections of a source) and 1 more, which is not in the model) ~
+  rule 'Allow IPv6 ping': ::/0 -> any: icmp6 type 128
+pppoe0 -> (other zones)
+  allowed: any ~
+  rule 'plex to the media box': any -> 192.168.1.30: tcp/32400
+  rule 'ping the nas': any -> NAS: icmp type 8
+  rule 'syn to the mail server': any -> 192.168.1.25: tcp/25
+  rule 'sessions of the voip box': 0.0.0.0/0 -> any: any (only with recent count 5 (a match on recent connections of a source), recent time 60 (a match on recent connections of a source) and 1 more, which is not in the model) ~
+  rule 'Allow IPv6 ping': ::/0 -> any: icmp6 type 128
+eth1 -> pppoe0
+  allowed: any
+  by default, what no rule decides: any
+eth1 -> eth1 (inside the zone)
+  allowed: any
+  by default, what no rule decides: any
+eth1 -> eth1.10
+  allowed: any
+  by default, what no rule decides: any
+eth1 -> (other zones)
+  allowed: any
+  by default, what no rule decides: any
+eth1.10 -> pppoe0
+  allowed: any
+  by default, what no rule decides: any
+eth1.10 -> eth1
+  allowed: any
+  by default, what no rule decides: any
+eth1.10 -> eth1.10 (inside the zone)
+  allowed: any
+  by default, what no rule decides: any
+eth1.10 -> (other zones)
+  allowed: any
+  by default, what no rule decides: any
+(other zones) -> pppoe0
+  allowed: any
+  by default, what no rule decides: any
+(other zones) -> eth1
+  allowed: any
+  by default, what no rule decides: any
+(other zones) -> eth1.10
+  allowed: any
+  by default, what no rule decides: any
+(other zones) -> (other zones)
+  allowed: any
+  by default, what no rule decides: any
+
+From reading the configuration
+  VYOS_FORMAT: read as the configuration of EdgeOS (Vyatta), release v2.0.9: rule-sets on interfaces, accept in a rule-set and the zone policy were read as VyOS 1.4 has them after its own migration (a jump from the forward filter for each rule-set on an interface, the in ones first; accept as return, so that the rule-set of the other interface still decides)
+  HOST_CHAIN_NOT_CONVERTED: ipv4 rule-set WAN_LOCAL on pppoe0 local filters traffic of the router itself, not forwarded traffic, and is not converted
+  PARTS_NOT_READ: parts of the configuration this parser does not read: port-forward (EdgeOS)
+  FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

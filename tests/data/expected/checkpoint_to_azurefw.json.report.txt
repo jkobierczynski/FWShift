@@ -1,0 +1,91 @@
+FWShift conversion report
+  source: checkpoint (Network)
+  target: azure-firewall
+
+Summary
+  Security rules:     22   exact 10, approximated 0, needs review 9 (8 emitted disabled), skipped 3
+  NAT rules:           9   exact 0, approximated 0, needs review 0, skipped 9
+  Addresses:          16   exact 13, approximated 1, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')
+  [needs-review] AZFW_LOAD: the output is an ARM template (section 10) that creates firewall policy FWShift with its rule collection groups; look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode), then associate the policy with a firewall or a secured hub. Nothing changes before that. Deploying it where a policy of that name exists changes that policy
+  [info] AZFW_TARGET_SNAT: Azure Firewall translates the source of what goes to a public address (outside RFC 1918 and RFC 6598, or the private ranges set on the policy) to its own public address, and, community sources say, the source of DNAT traffic to one of its private addresses: servers may see other source addresses than with the source
+  [info] AZFW_TARGET_DEFAULTS: the policy is written with network rules only; after them Azure Firewall still allows the FQDNs of its built-in infrastructure rule collection, then denies. Threat intelligence is set to Alert, which blocks nothing
+  [info] AZFW_TARGET_IPV6: the policy holds IPv6; Azure Firewall filters IPv4 only, and the IPv6 parts of the rules are not written (blocking rules lose nothing by it: the firewall forwards no IPv6)
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Azure Firewall does not choose: its diagnostic settings send the logs of every rule (AZFWNetworkRule, AZFWNatRule) to a workspace
+
+Security rules
+  rule-2  ->  needs-review  (emitted as rule collection rule-2 of group fwshift-network-1)
+      [needs-review] DEVICE_TARGET: the rule is installed only on gw-edge; decide whether it belongs on the target firewall
+  Web out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone InternalZone, and a rule of Azure Firewall names no zone: give the networks behind InternalZone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone ExternalZone, and a rule of Azure Firewall names no zone: give the networks behind ExternalZone with --zone-network.
+  Social  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Facebook': object of type 'application-site'.
+  Admins  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netadmins': access role whose networks and users are not in the export (add the output of 'show access-roles details-level full').
+  PLC access (plc-operators)  ->  needs-review, emitted disabled
+      [needs-review] ACCESS_ROLE: access role plc-operators: the rule matches the networks of the role for its users ad_group_PLC-Operators, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [needs-review] USER_MATCH: source user match ad_group_PLC-Operators is not converted.
+  PLC access (vendor-support)  ->  needs-review, emitted disabled
+      [needs-review] ACCESS_ROLE: access role vendor-support: the rule matches the networks of the role for its users ad_group_Vendor-Support, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [needs-review] USER_MATCH: source user match ad_group_Vendor-Support is not converted.
+  DMZ users  ->  needs-review, emitted disabled
+      [needs-review] ACCESS_ROLE: access role all-identified: the rule matches the networks of the role for all identified users, written 'known-user' as PAN-OS calls them
+      [needs-review] USER_MATCH: source user match known-user is not converted.
+  Updates  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work-Hours' is not converted; the rule would apply at all times.
+  Partners  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: VPN community match Partner-VPN.
+  IPv6 out  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  DMZ access / Ping from LAN  ->  skipped
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  DMZ access (cleanup of DMZ-Layer)  ->  exact  (emitted as rule collection DMZ_access__cleanup_of_DMZ-Layer_ of group fwshift-network-1)
+      [info] INLINE_CLEANUP: added for the implicit cleanup of inline layer 'DMZ-Layer', which is drop
+  Tunnels  ->  skipped
+      [approximated] GATEWAY_OBJECT: matches gateway object gw-edge, which stood for every address of the gateway; only its main address is known, so the converted rule no longer applies to its other addresses
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  No ident  ->  exact  (emitted as rule collection No_ident of group fwshift-network-1)
+      [info] REJECT_AS_DENY: action reset-client: a rule of Azure Firewall denies, and whether it answers is not documented
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  nat-2  ->  skipped
+      [needs-review] AZFW_NAT_NOT_WRITTEN: not written: it is for every service; a DNAT rule is for TCP or UDP ports
+  nat-3  ->  skipped
+      [needs-review] AZFW_NAT_NOT_WRITTEN: a NAT rule that translates nothing (an exemption): Azure Firewall leaves the source of traffic to its private ranges as it is, which the policy's SNAT settings choose, not a rule. Not written
+  nat-4  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  nat-5  ->  skipped
+      [needs-review] AZFW_NAT_NOT_WRITTEN: a NAT rule that translates nothing (an exemption): Azure Firewall leaves the source of traffic to its private ranges as it is, which the policy's SNAT settings choose, not a rule. Not written
+  nat-6  ->  skipped
+      [needs-review] AZFW_DNAT_NOT_ALLOWED: Azure Firewall allows what a DNAT rule translates, before any network rule; the policy does not allow all this NAT rule translates (rule Guests stay out blocks part of it), so it is not written. Write the DNAT rule by hand for what the policy allows
+  nat-7  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  nat-8  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  nat-9  ->  skipped
+      [info] AZFW_NAT_NOT_WRITTEN: disabled in the source; Azure Firewall has no rule that is off
+
+Addresses
+  web-1  ->  exact
+      [info] AUTOMATIC_NAT: the object has automatic static NAT to 203.0.113.10: as on Check Point, rules and groups that name it also match that address, written as 'web-1_valid_address'
+  netadmins  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: access role whose networks and users are not in the export (add the output of 'show access-roles details-level full') cannot be converted
+  lan-without-guests  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'group-with-exclusion' cannot be converted
+  gw-edge  ->  approximated
+      [approximated] GATEWAY_OBJECT: a gateway object stands for every address of the gateway; only its main address 198.51.100.1 is in the export
+
+Services
+  Facebook  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: object of type 'application-site': not converted

@@ -1,0 +1,123 @@
+FWShift conversion report
+  source: screenos
+  target: barracuda
+
+Summary
+  Security rules:     23   exact 6, approximated 7, needs review 7 (5 emitted disabled), skipped 3
+  NAT rules:           9   exact 0, approximated 0, needs review 0, skipped 9
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 11, approximated 0, needs review 2, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [info] SCREENOS_ZONE_OBJECT: the address name 'printer' stands for different addresses in the books of zones DMZ, Trust; each is kept as 'printer (zone)'
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: DMZ=10.20.0.0/24; Lab=10.40.0.0/24; Servers=10.30.0.0/24; Trust=10.10.0.0/16,10.11.0.0/16,2001:db8:10::/64; Untrust=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] SCREENOS_PREDEFINED: predefined services are not in the configuration; FWShift took these from its table: FTP-Get, HTTP, HTTPS, PING, SMTP, SSH
+  [info] SCREENOS_POLICY_ORDER: 1 policies were placed by 'set policy move', 'top' or 'before'; the rules are in the order that results
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: DMZ=10.20.0.0/24; Lab=10.40.0.0/24; Servers=10.30.0.0/24; Trust=10.10.0.0/16,10.11.0.0/16,2001:db8:10::/64; Untrust=0.0.0.0/0,203.0.113.0/24. --no-source-networks takes none of them
+
+Security rules
+  intrazone-DMZ  ->  approximated
+      [info] SCREENOS_INTRAZONE_ALLOW: zone 'DMZ' does not block traffic inside it: ScreenOS passes it without a policy. This rule, ahead of the others, says so
+      [approximated] ZONE_BY_NETWORKS: the source in zone DMZ is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [approximated] ZONE_BY_NETWORKS: the destination in zone DMZ is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+  intrazone-Lab  ->  approximated
+      [info] SCREENOS_INTRAZONE_ALLOW: zone 'Lab' does not block traffic inside it: ScreenOS passes it without a policy. This rule, ahead of the others, says so
+      [approximated] ZONE_BY_NETWORKS: the source in zone Lab is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [approximated] ZONE_BY_NETWORKS: the destination in zone Lab is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+  intrazone-Trust  ->  approximated  (emitted as intrazone-Trust, intrazone-Trust-v6)
+      [info] SCREENOS_INTRAZONE_ALLOW: zone 'Trust' does not block traffic inside it: ScreenOS passes it without a policy. This rule, ahead of the others, says so
+      [approximated] ZONE_BY_NETWORKS: the source in zone Trust is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [approximated] ZONE_BY_NETWORKS: the destination in zone Trust is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  lan-out  ->  approximated
+      [approximated] ZONE_BY_NETWORKS: the destination in zone Untrust is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+  policy-3  ->  approximated
+      [approximated] ZONE_BY_NETWORKS: the destination in zone Untrust is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+  policy-20  ->  exact
+      [info] ZONE_BY_NETWORKS: the destination in zone DMZ is written without the networks given for the other zones with --zone-network
+  web-in  ->  skipped
+      [approximated] ZONE_BY_NETWORKS: the source in zone Untrust is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] ZONE_BY_NETWORKS: the destination in zone DMZ is written as the addresses of the networks given for it with --zone-network
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
+  policy-5  ->  skipped
+      [needs-review] SCREENOS_VIP_PORT: VIP(203.0.113.20) maps port 8443 to the port of service 'HTTPS' on 10.20.0.21; whether the services of this policy are matched before or after that translation is not known. The rule keeps its services as they are
+      [approximated] ZONE_BY_NETWORKS: the source in zone Untrust is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] ZONE_BY_NETWORKS: the destination in zone DMZ is written as the addresses of the networks given for it with --zone-network
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
+  policy-6  ->  skipped
+      [info] ZONE_BY_NETWORKS: the destination in zone Servers is written as the addresses of the networks given for it with --zone-network
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
+  policy-7  ->  approximated
+      [info] NEGATION_EXPANDED: the firewall has no negation in a rule: 'not source blocked' is written as the addresses that are left
+      [approximated] ZONE_BY_NETWORKS: the source in zone Untrust is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+  policy-9  ->  needs-review
+      [needs-review] SCREENOS_INTRAZONE_IGNORED: zone 'Trust' does not block traffic inside it ('set zone "Trust" block' is not set): ScreenOS passes that traffic without looking at policies, so this policy decides nothing. It is written disabled
+  policy-12  ->  needs-review, emitted disabled
+      [approximated] ZONE_BY_NETWORKS: the source in zone Trust is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [approximated] ZONE_BY_NETWORKS: the destination in zone Lab is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'PING': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+  policy-13  ->  needs-review, emitted disabled
+      [approximated] ZONE_BY_NETWORKS: the source in zone Trust is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'updates': a host name: how the API spells a hostname object is not known.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'FTP-Get': the predefined service FTP-Get: FTP limited to downloads, a restriction of the FTP helper FWShift cannot write.
+  policy-14  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: a policy-based VPN (tunnel): the traffic is allowed into a VPN tunnel only.
+  policy-15  ->  needs-review, emitted disabled
+      [approximated] ZONE_BY_NETWORKS: the source in zone Lab is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [approximated] ZONE_BY_NETWORKS: the destination in zone Untrust is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [needs-review] UNSUPPORTED_MATCH: not converted: user authentication ('auth'), which is not converted.
+  policy-16  ->  needs-review  (emitted as policy-16, policy-16-v6)
+      [needs-review] SCREENOS_GLOBAL_ZONE: the policy is from zone 'DMZ' to zone 'Global': a policy between a zone and the Global zone matches no traffic (global policies are from Global to Global). It is written disabled
+      [info] ZONE_BY_NETWORKS: the source in zone DMZ is written without the networks given for the other zones with --zone-network
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  policy-19  ->  approximated
+      [info] SCREENOS_APPLICATION: the policy hands its traffic to the application layer gateway 'IGNORE'; that is not converted (the targets choose their helpers by port)
+      [approximated] ZONE_BY_NETWORKS: the source in zone Trust is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+  policy-17  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'echo-only': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+  policy-18  ->  exact  (emitted as policy-18, policy-18-v6)
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+
+NAT rules
+  nat-lan-out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  nat-lan-out-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  nat-policy-3  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'policy-2' above passes part of this traffic without NAT. A no-NAT rule for it would also stop the MIPs and interfaces in NAT mode from translating it: none was added, so this rule translates that traffic too
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  nat-policy-7  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  mip-203.0.113.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  mip-203.0.113.24  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  vip-203.0.113.20-80  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  vip-203.0.113.20-8443  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  nat-mode-Trust  ->  skipped
+      [info] SCREENOS_NAT_MODE: interface 'bgroup0' is in NAT mode: ScreenOS translates the source of what it receives and sends to the Untrust zone to the address of the outgoing interface, unless a policy or a MIP translates it
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+
+Addresses
+  MIP(203.0.113.10)  ->  exact  (emitted as MIP_203.0.113.10_)
+      [info] RENAMED: renamed to 'MIP_203.0.113.10_' to fit the target's naming rules
+  MIP(203.0.113.24)  ->  exact  (emitted as MIP_203.0.113.24_)
+      [info] RENAMED: renamed to 'MIP_203.0.113.24_' to fit the target's naming rules
+  VIP(203.0.113.20)  ->  exact  (emitted as VIP_203.0.113.20_)
+      [info] RENAMED: renamed to 'VIP_203.0.113.20_' to fit the target's naming rules
+  printer (Trust)  ->  exact  (emitted as printer__Trust_)
+      [info] RENAMED: renamed to 'printer__Trust_' to fit the target's naming rules
+  DIP(4)  ->  exact  (emitted as DIP_4_)
+      [info] RENAMED: renamed to 'DIP_4_' to fit the target's naming rules
+
+Services
+  PING  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
+  echo-only  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated

@@ -1,0 +1,115 @@
+FWShift conversion report
+  source: vyos
+  target: sonicwall
+
+Summary
+  Security rules:     42   exact 35, approximated 1, needs review 6 (4 emitted disabled), skipped 0
+  NAT rules:           6   exact 0, approximated 1, needs review 4, skipped 1
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 13, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] NAT_NOTHING_ELSE: SonicOS adds NAT policies of its own (an interface in a WAN zone hides the LAN and DMZ subnets behind its address), and the source translated only what its NAT rules say. The interfaces of the zones are not known (--interface-map), so no policy that translates nothing was written: disable the policies SonicOS added (Network, NAT Policies, Default & Custom), or check that the source's translations are all it does
+  [needs-review] IPV6_PRIORITY_AUTO: IPv6 rules are written without a priority, after every IPv4 rule: SonicOS keeps one list of priorities for the rules of every pair of zones, IPv4 first and with rules of its own among them, so the place of an IPv6 rule is not known beforehand (SonicOS 8.2.2 refused the places FWShift gave). SonicOS places them. Pairs with more than one IPv6 rule, whose order SonicOS decides: LAN to WAN, LAN to LAN, WAN to DMZ: check it
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, address-object ipv6, nat-policy name and comment, nat-policy priority manual, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): GUEST, LAN, WAN, DMZ, VPN, br0
+  [needs-review] INTERZONE_DEFAULT: the source allows traffic between zones that no rule matches. SonicOS decides that by the default rule of each pair of zones, which allows from a zone of a higher trust to one of a lower trust only: add rules that allow it where that was intended
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv4' (all addresses, in two halves) instead of any
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv6' (all addresses, in two halves) instead of any
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  drop the blocklist  ->  exact  (emitted as drop the blocklist, drop the blocklist 2, drop the blocklist 3, drop the blocklist 4, drop the blocklist 5, drop the blocklist 6, drop the blocklist 7, drop the blocklist 8, drop the blocklist 9, drop the blocklist 10, drop the blocklist 11, drop the blocklist 12, drop the blocklist 13, drop the blocklist 14, drop the blocklist 15, drop the blocklist 16, drop the blocklist 17, drop the blocklist 18, drop the blocklist 19, drop the blocklist 20, drop the blocklist 21, drop the blocklist 22, drop the blocklist 23, drop the blocklist 24, drop the blocklist 25, drop the blocklist 26, drop the blocklist 27, drop the blocklist 28, drop the blocklist 29, drop the blocklist 30, drop the blocklist 31, drop the blocklist 32, drop the blocklist 33, drop the blocklist 34, drop the blocklist 35, drop the blocklist 36)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 36 rules
+  no outbound mail  ->  exact  (emitted as no outbound mail, no outbound mail 2)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 2 rules
+  spoofed inside sources  ->  exact  (emitted as spoofed inside sources, spoofed inside sources 2, spoofed inside sources 3, spoofed inside sources 4, spoofed inside sources 5, spoofed inside sources 6, spoofed inside sources 7, spoofed inside sources 8, spoofed inside sources 9, spoofed inside sources 10, spoofed inside sources 11, spoofed inside sources 12)
+      [info] NEGATION_EXPANDED: SonicOS has no negation: 'not source INSIDE-NETS' is written as the IPv4 addresses that are left (3 range(s))
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+  forward-30  ->  needs-review  (emitted as forward-30, forward-30 2, forward-30 3, forward-30 4, forward-30 5, forward-30 6, forward-30 7, forward-30 8, forward-30 9, forward-30 10, forward-30 11, forward-30 12, forward-30 13, forward-30 14, forward-30 15, forward-30 16, forward-30 17, forward-30 18, forward-30 19, forward-30 20, forward-30 21, forward-30 22, forward-30 23, forward-30 24, forward-30 25, forward-30 26, forward-30 27, forward-30 28, forward-30 29, forward-30 30, forward-30 31, forward-30 32, forward-30 33, forward-30 34, forward-30 35, forward-30 36)
+      [needs-review] NAT_REDIRECT: NAT rule 'ssh on 2222 to the jump host' sends traffic for every destination to 192.168.30.22:22, and the source applied this rule to it after that translation. The converted rule still names the translated address and port: a platform that looks rules up before NAT will not match the redirected traffic with it
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'https to web1 destination' next to '192.168.30.0/24' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 36 rules
+  forward-40  ->  exact  (emitted as forward-40, forward-40 2, forward-40 3, forward-40 4, forward-40 5, forward-40 6, forward-40 7, forward-40 8, forward-40 9, forward-40 10, forward-40 11, forward-40 12, forward-40 13, forward-40 14, forward-40 15, forward-40 16, forward-40 17, forward-40 18, forward-40 19, forward-40 20, forward-40 21, forward-40 22, forward-40 23, forward-40 24, forward-40 25, forward-40 26, forward-40 27, forward-40 28, forward-40 29, forward-40 30)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 30 rules
+  zone-WAN.default  ->  exact  (emitted as zone-WAN.default, zone-WAN.default 2, zone-WAN.default 3, zone-WAN.default 4, zone-WAN.default 5)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  zone-LAN.default  ->  exact  (emitted as zone-LAN.default, zone-LAN.default 2, zone-LAN.default 3, zone-LAN.default 4, zone-LAN.default 5, zone-LAN.default 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 6 rules
+  zone-GUEST.default  ->  exact  (emitted as zone-GUEST.default, zone-GUEST.default 2, zone-GUEST.default 3, zone-GUEST.default 4, zone-GUEST.default 5)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  web servers  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'https to web1 destination' next to 'WEB-SERVERS' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  exact  (emitted as zone-DMZ.from-WAN.WAN-DMZ-20 (ht)
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review  (emitted as zone-DMZ.from-WAN.WAN-DMZ-20 (ss)
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+  office hours only  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit).
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.default  ->  exact  (emitted as zone-DMZ.default, zone-DMZ.default 2, zone-DMZ.default 3, zone-DMZ.default 4, zone-DMZ.default 5)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  zone-VPN.default  ->  exact  (emitted as zone-VPN.default, zone-VPN.default 2, zone-VPN.default 3, zone-VPN.default 4, zone-VPN.default 5)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  ipv6-zone-WAN.default  ->  exact  (emitted as ipv6-zone-WAN.default, ipv6-zone-WAN.default 2, ipv6-zone-WAN.default 3, ipv6-zone-WAN.default 4, ipv6-zone-WAN.default 5)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  ipv6-zone-LAN.default  ->  exact  (emitted as ipv6-zone-LAN.default, ipv6-zone-LAN.default 2, ipv6-zone-LAN.default 3, ipv6-zone-LAN.default 4, ipv6-zone-LAN.default 5, ipv6-zone-LAN.default 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 6 rules
+  ipv6-zone-GUEST.default  ->  exact  (emitted as ipv6-zone-GUEST.default, ipv6-zone-GUEST.default 2, ipv6-zone-GUEST.default 3, ipv6-zone-GUEST.default 4, ipv6-zone-GUEST.default 5)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20  ->  needs-review, emitted disabled  (emitted as ipv6-zone-DMZ.from-WAN.WAN-DMZ 2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-128': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  ipv6-zone-DMZ.default  ->  exact  (emitted as ipv6-zone-DMZ.default, ipv6-zone-DMZ.default 2, ipv6-zone-DMZ.default 3, ipv6-zone-DMZ.default 4, ipv6-zone-DMZ.default 5)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  ipv6-zone-VPN.default  ->  exact  (emitted as ipv6-zone-VPN.default, ipv6-zone-VPN.default 2, ipv6-zone-VPN.default 3, ipv6-zone-VPN.default 4, ipv6-zone-VPN.default 5)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+
+NAT rules
+  https to web1  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  ssh on 2222 to the jump host  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_DESTINATION_ZONE: the rule applied to traffic on its way to zone WAN only. A SonicOS NAT policy that translates the destination cannot say where the traffic was going: it now translates traffic to every destination
+  destination-30  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  source-100  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+  dmz servers leave as one address  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  source-120  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic to VPN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+
+Services
+  tcp-20-21,23  ->  exact  (emitted as tcp-20-21,23, tcp-20-21,23 tcp 20-21, tcp-20-21,23 tcp 23)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-20-21,23' of 'tcp-20-21,23 tcp 20-21', 'tcp-20-21,23 tcp 23'
+  tcp-80,443,8080-8090  ->  exact  (emitted as tcp-80,443,8080-8090, tcp-80,443,8080-8090 tcp 80, tcp-80,443,8080-8090 tcp 443, tcp-80,443,8080-8090 tcp 8080-80)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-80,443,8080-8090' of 'tcp-80,443,8080-8090 tcp 80', 'tcp-80,443,8080-8090 tcp 443', 'tcp-80,443,8080-8090 tcp 8080-80'
+  icmp-8  ->  exact
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that
+  tcp-53+udp-53  ->  exact  (emitted as tcp-53+udp-53, tcp-53+udp-53 tcp 53, tcp-53+udp-53 udp 53)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-53+udp-53' of 'tcp-53+udp-53 tcp 53', 'tcp-53+udp-53 udp 53'
+  icmp6-128  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled

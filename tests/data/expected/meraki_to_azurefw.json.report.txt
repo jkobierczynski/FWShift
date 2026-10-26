@@ -1,0 +1,87 @@
+FWShift conversion report
+  source: meraki
+  target: azure-firewall
+
+Summary
+  Security rules:     20   exact 0, approximated 3, needs review 16 (14 emitted disabled), skipped 1
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside these zones that no rule matches, and blocks it between zones; Azure Firewall has no zones, and without their networks (--zone-network) the converted policy blocks it: vlan10-office, vlan20-servers, vlan30-ot-cell, internet
+  [needs-review] AZFW_LOAD: the output is an ARM template (section 10) that creates firewall policy FWShift with its rule collection groups; look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode), then associate the policy with a firewall or a secured hub. Nothing changes before that. Deploying it where a policy of that name exists changes that policy
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+  [info] AZFW_TARGET_SNAT: Azure Firewall translates the source of what goes to a public address (outside RFC 1918 and RFC 6598, or the private ranges set on the policy) to its own public address, and, community sources say, the source of DNAT traffic to one of its private addresses: servers may see other source addresses than with the source
+  [info] AZFW_TARGET_DEFAULTS: the policy is written with network rules only; after them Azure Firewall still allows the FQDNs of its built-in infrastructure rule collection, then denies. Threat intelligence is set to Alert, which blocks nothing
+  [info] AZFW_TARGET_IPV6: the policy holds IPv6; Azure Firewall filters IPv4 only, and the IPv6 parts of the rules are not written (blocking rules lose nothing by it: the firewall forwards no IPv6)
+  [info] AZFW_DNS_PROXY: network rules name FQDNs: the policy enables DNS proxy, which they need. Clients must use the firewall as their DNS server for the names to resolve to the same addresses
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Azure Firewall does not choose: its diagnostic settings send the logs of every rule (AZFWNetworkRule, AZFWNatRule) to a workspace
+
+Security rules
+  inside a VLAN  ->  needs-review, emitted disabled
+      [needs-review] RULE_TYPE: intrazone rule: a rule of Azure Firewall names no zones.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of Azure Firewall names no zone: give the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  layer 7 rule 2  ->  needs-review  (emitted as rule collection layer_7_rule_2 of group fwshift-network-1)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office, vlan20-servers, vlan30-ot-cell; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  layer 7 rule 3  ->  needs-review  (emitted as rule collection layer_7_rule_3 of group fwshift-network-1)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office, vlan20-servers, vlan30-ot-cell; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  office to servers web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of Azure Firewall names no zone: give the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  historian  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of Azure Firewall names no zone: give the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  eng ws to plc  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of Azure Firewall names no zone: give the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  ot cell isolated  ->  approximated  (emitted as rule collection ot_cell_isolated of group fwshift-network-1)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office, vlan20-servers, vlan30-ot-cell; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ot no internet  ->  approximated  (emitted as rule collection ot_no_internet of group fwshift-network-1)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office, vlan20-servers, vlan30-ot-cell; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  block update site  ->  approximated  (emitted as rule collection block_update_site of group fwshift-network-1)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office, vlan20-servers, vlan30-ot-cell; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  dns to servers  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of Azure Firewall names no zone: give the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  ping servers  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of Azure Firewall names no zone: give the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  office ipv6 out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of Azure Firewall names no zone: give the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  passive ftp  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of Azure Firewall names no zone: give the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  bad ports  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of Azure Firewall names no zone: give the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  Default rule  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of Azure Firewall names no zone: give the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  vpn-portal  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internet, and a rule of Azure Firewall names no zone: give the networks behind internet with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of Azure Firewall names no zone: give the networks behind vlan20-servers with --zone-network.
+  mail (1)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internet, and a rule of Azure Firewall names no zone: give the networks behind internet with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of Azure Firewall names no zone: give the networks behind vlan20-servers with --zone-network.
+  mail (2)  ->  needs-review, emitted disabled
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internet, and a rule of Azure Firewall names no zone: give the networks behind internet with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of Azure Firewall names no zone: give the networks behind vlan20-servers with --zone-network.
+  scada-view  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internet, and a rule of Azure Firewall names no zone: give the networks behind internet with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of Azure Firewall names no zone: give the networks behind vlan20-servers with --zone-network.
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT vpn-portal  ->  skipped
+      [needs-review] AZFW_NAT_NOT_WRITTEN: not written: it is for traffic from zone internet, and a DNAT rule names no zone: give the networks behind internet with --zone-network
+  NAT mail  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  NAT scada-view  ->  skipped
+      [needs-review] AZFW_NAT_NOT_WRITTEN: not written: it is for traffic from zone internet, and a DNAT rule names no zone: give the networks behind internet with --zone-network
+  NAT to the uplink  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written

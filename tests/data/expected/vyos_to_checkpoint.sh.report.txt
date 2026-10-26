@@ -1,0 +1,95 @@
+FWShift conversion report
+  source: vyos
+  target: checkpoint
+
+Summary
+  Security rules:     42   exact 36, approximated 1, needs review 5 (3 emitted disabled), skipped 0
+  NAT rules:           6   exact 0, approximated 3, needs review 2, skipped 1
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] CHECKPOINT_SCRIPT: the output is a shell script of mgmt_cli calls. It changes one session and publishes nothing: log in, run it, review the session in SmartConsole, then publish and install the policy yourself. It stops at the first call the server refuses; discard the session before running it again
+  [needs-review] IMPLIED_RULES: Check Point applies implied rules (Global Properties) next to the rulebase, and every ordered layer of the policy package must accept a connection. Neither is part of the conversion: check that they allow no more and no less than intended
+  [needs-review] ZONES_REQUIRED: the rules use these security zones, which must be assigned to the interfaces of the gateway (or renamed with --zone-map): GUEST, WAN, DMZ, VPN, LAN, br0. Rules that name a zone and addresses on the same side are sorted into 29 inline layers, one per pair of zones. An interface without a zone only reaches the rules that name no zone
+  [needs-review] INTERZONE_DEFAULT: the source allows traffic that no rule matches. That default is not carried over: every layer written here ends in a drop. Add a final accept rule if it was intended
+  [needs-review] NAT_MANUAL_RULES: 5 NAT rules are written as manual rules at the bottom of the NAT rulebase, below the automatic ones. Manual NAT does not answer ARP for translated addresses: add proxy ARP on the gateway for every translated address that is not routed to it
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] LAYER_PLACEMENT: the rules are written to the top of access layer 'Network', in order, and end in a cleanup rule; rules the layer held before stay below it and are no longer reached. Choose another layer with --target-layer
+  [info] NAME_COLLISIONS: Check Point predefines several hundred objects (http, https, ssh, ...). If the script stops because a name exists already, convert again with --target-prefix to give every created object a prefix
+  [info] DOMAIN_OBJECTS: host names are written as domain objects, named after the domain with a leading dot; the gateway needs DNS to enforce them: .updates.example.com, .mirror.example.org
+  [info] ANY_ONE_IP_VERSION: 'any address of one IP version' is written as a range object covering that version (All-IPv4, All-IPv6)
+
+Security rules
+  forward-30  ->  needs-review  (emitted as layer Network_GUEST_to_GUEST, layer Network_GUEST_to_WAN, layer Network_GUEST_to_DMZ, layer Network_GUEST_to_VPN, layer Network_LAN_to_GUEST, layer Network_LAN_to_LAN, layer Network_LAN_to_WAN, layer Network_LAN_to_DMZ, layer Network_LAN_to_VPN, layer Network_WAN_to_GUEST, layer Network_WAN_to_LAN, layer Network_WAN_to_WAN, layer Network_WAN_to_DMZ, layer Network_WAN_to_VPN, layer Network_DMZ_to_GUEST, layer Network_DMZ_to_WAN, layer Network_DMZ_to_DMZ, layer Network_DMZ_to_VPN, layer Network_VPN_to_GUEST, layer Network_VPN_to_WAN, layer Network_VPN_to_DMZ, layer Network_VPN_to_VPN, layer Network_br0_to_GUEST, layer Network_br0_to_WAN, layer Network_br0_to_DMZ, layer Network_br0_to_VPN, layer Network_br0_to_br0, layer Network_GUEST_to_any, layer Network_LAN_to_any, layer Network)
+      [needs-review] NAT_REDIRECT: NAT rule 'ssh on 2222 to the jump host' sends traffic for every destination to 192.168.30.22:22, and the source applied this rule to it after that translation. The converted rule still names the translated address and port: a platform that looks rules up before NAT will not match the redirected traffic with it
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'https to web1 destination' next to '192.168.30.0/24' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+  forward-40  ->  exact  (emitted as layer Network_GUEST_to_GUEST, layer Network_GUEST_to_WAN, layer Network_GUEST_to_DMZ, layer Network_GUEST_to_VPN, layer Network_LAN_to_GUEST, layer Network_LAN_to_LAN, layer Network_LAN_to_WAN, layer Network_LAN_to_DMZ, layer Network_LAN_to_VPN, layer Network_DMZ_to_GUEST, layer Network_DMZ_to_WAN, layer Network_DMZ_to_DMZ, layer Network_DMZ_to_VPN, layer Network_VPN_to_GUEST, layer Network_VPN_to_WAN, layer Network_VPN_to_DMZ, layer Network_VPN_to_VPN, layer Network_br0_to_GUEST, layer Network_br0_to_WAN, layer Network_br0_to_DMZ, layer Network_br0_to_VPN, layer Network_br0_to_br0, layer Network_GUEST_to_any, layer Network_LAN_to_any, layer Network)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-WAN.default  ->  exact  (emitted as layer Network_GUEST_to_WAN, layer Network_LAN_to_WAN, layer Network_DMZ_to_WAN, layer Network_VPN_to_WAN, layer Network_br0_to_WAN)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-GUEST.default  ->  exact  (emitted as layer Network_LAN_to_GUEST, layer Network_WAN_to_GUEST, layer Network_DMZ_to_GUEST, layer Network_VPN_to_GUEST, layer Network_br0_to_GUEST)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  web servers  ->  approximated  (emitted as layer Network_WAN_to_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'https to web1 destination' next to 'WEB-SERVERS' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  exact  (emitted as layer Network_WAN_to_DMZ)
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review  (emitted as layer Network_WAN_to_DMZ)
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+  office hours only  ->  needs-review, emitted disabled  (emitted as layer Network_WAN_to_DMZ)
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  needs-review, emitted disabled  (emitted as layer Network_WAN_to_DMZ)
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit).
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  needs-review, emitted disabled  (emitted as layer Network_VPN_to_DMZ)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.default  ->  exact  (emitted as layer Network_GUEST_to_DMZ, layer Network_LAN_to_DMZ, layer Network_WAN_to_DMZ, layer Network_VPN_to_DMZ, layer Network_br0_to_DMZ)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-VPN.default  ->  exact  (emitted as layer Network_GUEST_to_VPN, layer Network_LAN_to_VPN, layer Network_WAN_to_VPN, layer Network_DMZ_to_VPN, layer Network_br0_to_VPN)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-WAN.default  ->  exact  (emitted as layer Network_GUEST_to_WAN, layer Network_LAN_to_WAN, layer Network_DMZ_to_WAN, layer Network_VPN_to_WAN, layer Network_br0_to_WAN)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-GUEST.default  ->  exact  (emitted as layer Network_LAN_to_GUEST, layer Network_WAN_to_GUEST, layer Network_DMZ_to_GUEST, layer Network_VPN_to_GUEST, layer Network_br0_to_GUEST)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-DMZ.default  ->  exact  (emitted as layer Network_GUEST_to_DMZ, layer Network_LAN_to_DMZ, layer Network_WAN_to_DMZ, layer Network_VPN_to_DMZ, layer Network_br0_to_DMZ)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-VPN.default  ->  exact  (emitted as layer Network_GUEST_to_VPN, layer Network_LAN_to_VPN, layer Network_WAN_to_VPN, layer Network_DMZ_to_VPN, layer Network_br0_to_VPN)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+
+NAT rules
+  https to web1  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only; it is written without zones
+  ssh on 2222 to the jump host  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from WAN only; it is written without zones and applies whatever the zone the traffic comes from
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only; it is written without zones and now translates traffic towards every other zone as well: put a rule without translation above it for the traffic that must keep its addresses
+  destination-30  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only; it is written without zones
+  source-100  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface; name the gateway object to hide behind with --target-gateway
+  dmz servers leave as one address  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only; it is written without zones and now translates traffic towards every other zone as well: put a rule without translation above it for the traffic that must keep its addresses
+  source-120  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic to VPN only; it is written without zones
+
+Addresses
+  https to web1 destination  ->  exact  (emitted as https_to_web1_destination)
+      [info] RENAMED: renamed to 'https_to_web1_destination' to fit the target's naming rules
+
+Services
+  tcp-20-21,23  ->  exact  (emitted as tcp-20-21_23)
+      [info] RENAMED: renamed to 'tcp-20-21_23' to fit the target's naming rules
+  tcp-80,443,8080-8090  ->  exact  (emitted as tcp-80_443_8080-8090)
+      [info] RENAMED: renamed to 'tcp-80_443_8080-8090' to fit the target's naming rules
+  tcp-53+udp-53  ->  exact  (emitted as tcp-53_udp-53)
+      [info] RENAMED: renamed to 'tcp-53_udp-53' to fit the target's naming rules

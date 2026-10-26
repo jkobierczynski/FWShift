@@ -1,0 +1,35 @@
+FWShift audit
+  source: pf
+  security rules: 30 (0 disabled), NAT rules: 4
+
+Summary
+  high 1, medium 6, low 12, info 1
+
+Findings in the policy as it was read
+  [high] DEFAULT_ALLOW: traffic between zones that no rule matches is allowed
+  [medium] ANY_SERVICE: rule 'line 86' allows any service between its addresses, from zone em1 to any zone
+  [medium] RISKY_SERVICE: rule 'line 80' allows telnet, ftp, rsh/rlogin/rexec, netbios, smb, rdp, vnc, x11, from zone em1 to any zone (on the list of the cleartext and remote administration protocols)
+  [medium] RISKY_SERVICE: rule 'line 78' allows telnet, ftp, rsh/rlogin/rexec, netbios, smb, rdp, vnc, x11, from zone em1 to any zone (on the list of the cleartext and remote administration protocols)
+  [medium] ANY_TO_ANY: rule 'line 66' allows its services from any source to any destination, from zone em1 to any zone
+  [medium] ANY_TO_ANY: rule 'line 65' allows its services from any source to any destination, from zone em1, em2 to any zone
+  [medium] ANY_SERVICE: rule 'line 53' allows any service to any destination, from zone em1 to any zone
+  [low] ANY_DESTINATION: rule 'line 92' allows its sources to reach any destination, from zone em1 to any zone
+  [low] ANY_DESTINATION: rule 'line 90' allows its sources to reach any destination, from zone em1 to any zone
+  [low] WIDE_PORTS: rule 'line 80' allows the ports tcp/0-1023, tcp/2049-65535, from zone em1 to any zone
+  [low] INDUSTRIAL_SERVICE: rule 'line 80' allows modbus, s7/iso-tsap, dnp3, ethernet-ip, opc-ua, iec-104, profinet, niagara-fox, from zone em1 to any zone (on the list of the industrial control protocols)
+  [low] WIDE_PORTS: rule 'line 78' allows the ports tcp/26-65535, from zone em1 to any zone
+  [low] INDUSTRIAL_SERVICE: rule 'line 78' allows modbus, s7/iso-tsap, dnp3, ethernet-ip, opc-ua, iec-104, profinet, niagara-fox, from zone em1 to any zone (on the list of the industrial control protocols)
+  [low] ANY_SOURCE: rule 'line 69' allows any source, from zone em1 to any zone
+  [low] ANY_SOURCE: rule 'line 69.2' allows any source, from zone em1 to any zone
+  [low] ANY_DESTINATION: rule 'line 64' allows its sources to reach any destination, from zone em2 to any zone
+  [low] ANY_SOURCE: rule 'line 57' allows any source, from zone em0 to any zone
+  [low] REDUNDANT_RULE: rule 'line 69.2' never matches: 'line 78', 'line 69' above it already allow everything it could match
+  [low] REDUNDANT_RULE: rule 'line 79' adds nothing: 'line 53' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [info] UNUSED_OBJECT: 1 service no rule uses: 'tcp-3306'
+
+Left out of the order checks
+  4 rule(s) that the model holds only approximately are neither called dead nor used to call another rule dead:
+    'antispoof em1 network' (PF_NEGATED_INTERFACE)
+    'line 87' (PF_ROUTE_TO)
+    'line 84' (PF_NO_STATE)
+    'line 46 out' (PF_OUT_UNNAMED)

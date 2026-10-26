@@ -1,0 +1,34 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: pf
+
+Summary
+  Security rules:     18   exact 16, approximated 0, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PF_LOAD: the output is a ruleset for the anchor 'fwshift': check it with 'pfctl -vnf FILE -a fwshift', load it with 'pfctl -a fwshift -f FILE'. The main ruleset must call it ('anchor "fwshift"'), before rules that pass or block forwarded traffic quick; rules after the anchor that are not quick can still change what it decides. It lets in what arrives on the interfaces of the zones that a rule may allow (never to the firewall's own addresses), decides when the traffic leaves, and needs OpenBSD pf or FreeBSD 15 or later (match rules with tag, nat-to, rdr-to)
+  [needs-review] INTERFACES_REQUIRED: zones are written as interfaces or interface groups, a macro each at the top of the file: set each to the interface (or group) of the zone, or convert with --zone-map: outside, inside, dmz, guest
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them. Behind interfaces that are in no zone of the policy, so behind none of its zones (an allow for the zone of the default route does not reach them): mgmt=192.168.1.0/24
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] PF_ZONES_ONLY: the anchor decides about traffic that arrives on the interfaces of the zones (outside, inside, dmz, guest); what arrives on another interface is left to the main ruleset
+  [info] LOGGING_AT_END: rules that log the end of a connection on the source are written without log: pf logs the packet a rule matches; the rules that log the start of a connection have 'log'
+
+Security rules
+  inside_access_in-4  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+  inside_access_in-7  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+  implicit-guest  ->  exact  (emitted as 1 rule)
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+
+NAT rules
+  nat-mail-srv  ->  exact  (emitted as 1 rdr-to, 1 nat-to)
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as a nat-to for what leaves and an rdr-to for what arrives

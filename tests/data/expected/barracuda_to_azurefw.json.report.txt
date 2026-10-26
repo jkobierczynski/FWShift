@@ -1,0 +1,53 @@
+FWShift conversion report
+  source: barracuda (forwarding firewall)
+  target: azure-firewall
+
+Summary
+  Security rules:     17   exact 8, approximated 1, needs review 5 (5 emitted disabled), skipped 3
+  Addresses:           8   exact 8, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CONNECTION_NOT_READ: rules whose connection object translates the source address: 'LAN-2-INTERNET'. Source NAT is not read; the rules are, as they match
+  [needs-review] AZFW_LOAD: the output is an ARM template (section 10) that creates firewall policy FWShift with its rule collection groups; look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode), then associate the policy with a firewall or a secured hub. Nothing changes before that. Deploying it where a policy of that name exists changes that policy
+  [info] BARRACUDA_FORMAT: read 15 forwarding rules, 10 network objects and 8 service objects from 19 answers of the REST API. Barracuda documents that API by examples only: the keys read are those its examples and published tools show, and a key of a rule, an object or an entry this parser does not know makes it unusable
+  [info] ICMP_LIMITS: service objects that limit the size or rate of ICMP echo requests: 'Ping'. The limits are not converted: the rules allow ICMP of any size and rate
+  [info] AZFW_TARGET_SNAT: Azure Firewall translates the source of what goes to a public address (outside RFC 1918 and RFC 6598, or the private ranges set on the policy) to its own public address, and, community sources say, the source of DNAT traffic to one of its private addresses: servers may see other source addresses than with the source
+  [info] AZFW_TARGET_DEFAULTS: the policy is written with network rules only; after them Azure Firewall still allows the FQDNs of its built-in infrastructure rule collection, then denies. Threat intelligence is set to Alert, which blocks nothing
+  [info] AZFW_TARGET_IPV6: the policy holds IPv6; Azure Firewall filters IPv4 only, and the IPv6 parts of the rules are not written (blocking rules lose nothing by it: the firewall forwards no IPv6)
+  [info] AZFW_DNS_PROXY: network rules name FQDNs: the policy enables DNS proxy, which they need. Clients must use the firewall as their DNS server for the names to resolve to the same addresses
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Azure Firewall does not choose: its diagnostic settings send the logs of every rule (AZFWNetworkRule, AZFWNatRule) to a workspace
+
+Security rules
+  BLOCK-BAD-V6  ->  skipped
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  ADMIN-SSH (port2)  ->  needs-review, emitted disabled
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone port2, and a rule of Azure Firewall names no zone: give the networks behind port2 with --zone-network.
+  ADMIN-SSH (port1)  ->  needs-review, emitted disabled
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone port1, and a rule of Azure Firewall names no zone: give the networks behind port1 with --zone-network.
+  WEB-IN  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Dst NAT: how the API spells its target list is not known, so the translation is not read.
+  SERVER-SYNC  ->  exact  (emitted as rule collection SERVER-SYNC of group fwshift-network-1)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  SERVER-SYNC (back)  ->  exact  (emitted as rule collection SERVER-SYNC__back_ of group fwshift-network-1)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  PING-ALL  ->  approximated  (emitted as rule collection PING-ALL of group fwshift-network-1)
+      [approximated] ICMP_LIMITS: service 'Ping' limits the size or rate of ICMP echo requests; the limits are not converted
+  V6-WEB  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  DENY-LAN-DMZ  ->  exact  (emitted as rule collection DENY-LAN-DMZ of group fwshift-network-1)
+      [info] REJECT_AS_DENY: action reset-client: a rule of Azure Firewall denies, and whether it answers is not documented
+  GRE-LAB  ->  skipped
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application=urlFilter, ips=Default); attach equivalent inspection on the target
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  TO-LAB  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Cascade: the rules of the rule list it hands traffic to are not read, and they decide that traffic. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ODD  ->  needs-review, emitted disabled
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] SCHEDULE: schedule '{"type": "recurring", "name": "Work-Hours"}' is not converted; the rule would apply at all times.

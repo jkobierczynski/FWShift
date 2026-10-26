@@ -1,0 +1,34 @@
+FWShift conversion report
+  source: junos (root)
+  target: pf
+
+Summary
+  Security rules:     14   exact 11, approximated 1, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           6   exact 5, approximated 0, needs review 0, skipped 1
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PF_LOAD: the output is a ruleset for the anchor 'fwshift': check it with 'pfctl -vnf FILE -a fwshift', load it with 'pfctl -a fwshift -f FILE'. The main ruleset must call it ('anchor "fwshift"'), before rules that pass or block forwarded traffic quick; rules after the anchor that are not quick can still change what it decides. It lets in what arrives on the interfaces of the zones that a rule may allow (never to the firewall's own addresses), decides when the traffic leaves, and needs OpenBSD pf or FreeBSD 15 or later (match rules with tag, nat-to, rdr-to)
+  [needs-review] INTERFACES_REQUIRED: zones are written as interfaces or interface groups, a macro each at the top of the file: set each to the interface (or group) of the zone, or convert with --zone-map: untrust, trust, dmz, guest
+  [info] JUNOS_FORMAT: read 14 security policies and 6 NAT rules of the root system. Policies are looked up after static and destination NAT; they were brought back to the original destination, as the model has it
+  [info] PREDEFINED_APPLICATIONS: predefined applications are not in the configuration; these were taken from FWShift's table of them: junos-dns-udp, junos-http, junos-https, junos-ping, junos-smtp, junos-ssh
+  [info] HOST_POLICIES: policies for the zone junos-host (traffic to and from the firewall itself) are not read: 'to-box'
+  [info] PF_ZONES_ONLY: the anchor decides about traffic that arrives on the interfaces of the zones (untrust, trust, dmz, guest); what arrives on another interface is left to the main ruleset
+  [info] LOGGING_AT_END: rules that log the end of a connection on the source are written without log: pf logs the packet a rule matches; the rules that log the start of a connection have 'log'
+
+Security rules
+  updates  ->  approximated  (emitted as 1 rule)
+      [approximated] FQDN_RESOLVED_ONCE: 'updates' is a host name: pfctl resolves it once, when the rules are loaded, and keeps the addresses it got then
+  guest-web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'work-hours' is not converted; the rule would apply at all times.
+  guest-ping  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'junos-ping': the predefined application junos-ping: Juniper describes it as ICMP echo, other readers of Junos as every ICMP type.
+  global-block  ->  exact  (emitted as 4 rules)
+      [info] RESET_ACTION: action reset-client becomes block return: a TCP reset can only answer TCP, pf answers the rest with ICMP
+
+NAT rules
+  vr-out snat-vr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule set for routing instance 'VR1', which is not read; a rule set that does not say where its traffic comes from

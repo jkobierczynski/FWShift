@@ -1,0 +1,64 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: azure-firewall
+
+Summary
+  Security rules:      8   exact 0, approximated 1, needs review 7 (7 emitted disabled), skipped 0
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZFW_LOAD: the output is an ARM template (section 10) that creates firewall policy FWShift with its rule collection groups; look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode), then associate the policy with a firewall or a secured hub. Nothing changes before that. Deploying it where a policy of that name exists changes that policy
+  [info] AZFW_TARGET_SNAT: Azure Firewall translates the source of what goes to a public address (outside RFC 1918 and RFC 6598, or the private ranges set on the policy) to its own public address, and, community sources say, the source of DNAT traffic to one of its private addresses: servers may see other source addresses than with the source
+  [info] AZFW_TARGET_DEFAULTS: the policy is written with network rules only; after them Azure Firewall still allows the FQDNs of its built-in infrastructure rule collection, then denies. Threat intelligence is set to Alert, which blocks nothing
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Azure Firewall does not choose: its diagnostic settings send the logs of every rule (AZFWNetworkRule, AZFWNatRule) to a workspace
+
+Security rules
+  Block_IoT_to_office  ->  approximated  (emitted as rule collection Block_IoT_to_office of group fwshift-network-1)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-lan' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone inside_zone; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone inside_zone; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Inside_Outside_web  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside_zone, and a rule of Azure Firewall names no zone: give the networks behind inside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside_zone, and a rule of Azure Firewall names no zone: give the networks behind outside_zone with --zone-network.
+  IoT_telemetry  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside_zone, and a rule of Azure Firewall names no zone: give the networks behind inside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside_zone, and a rule of Azure Firewall names no zone: give the networks behind outside_zone with --zone-network.
+  NAS_from_Internet  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'outside-interface' next to 'nas' because of NAT rule 'NAS_published'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAS_published' also translates the port to 5001; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'nas' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside_zone, and a rule of Azure Firewall names no zone: give the networks behind outside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone inside_zone, and a rule of Azure Firewall names no zone: give the networks behind inside_zone with --zone-network.
+  Head_office_v6  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-devices' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside_zone, and a rule of Azure Firewall names no zone: give the networks behind outside_zone with --zone-network.
+  DNS_answers  ->  needs-review, emitted disabled
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside_zone, and a rule of Azure Firewall names no zone: give the networks behind outside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone inside_zone, and a rule of Azure Firewall names no zone: give the networks behind inside_zone with --zone-network.
+  Staff_streaming  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone inside_zone; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside_zone; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests_by_time  ->  needs-review, emitted disabled
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside_zone, and a rule of Azure Firewall names no zone: give the networks behind inside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside_zone, and a rule of Azure Firewall names no zone: give the networks behind outside_zone with --zone-network.
+
+NAT rules
+  NAS_published  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 192.0.2.2
+      [needs-review] AZFW_NAT_NOT_WRITTEN: not written: it is for traffic from zone outside_zone, and a DNAT rule names no zone: give the networks behind outside_zone with --zone-network
+  nas_static  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  InsideOutsideNatRule  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  IoT_out  ->  skipped
+      [info] AZFW_NAT_NOT_WRITTEN: disabled in the source; Azure Firewall has no rule that is off

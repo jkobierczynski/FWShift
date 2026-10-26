@@ -1,0 +1,187 @@
+set address n-192.168.1.0_25 ip-netmask 192.168.1.0/25
+set address n-10.8.0.0_24 ip-netmask 10.8.0.0/24
+set address-group TRUSTED static [ n-192.168.1.0_25 n-10.8.0.0_24 ]
+set address-group TRUSTED description "VyOS firewall group network-group TRUSTED"
+set address h-192.168.1.20 ip-netmask 192.168.1.20
+set address h-192.168.1.21 ip-netmask 192.168.1.21
+set address-group NAS static [ h-192.168.1.20 h-192.168.1.21 ]
+set address-group NAS description "VyOS firewall group address-group NAS"
+set service tcp-32400 protocol tcp port 32400
+set service tcp-8443 protocol tcp port 8443
+set service tcp-any protocol tcp port 1-65535
+set service tcp-25 protocol tcp port 25
+set service tcp-8096-8097_32400_udp-8096-8097_32400-tcp protocol tcp port 8096-8097,32400
+set service tcp-8096-8097_32400_udp-8096-8097_32400-udp protocol udp port 8096-8097,32400
+set service-group tcp-8096-8097_32400_udp-8096-8097_32400 members [ tcp-8096-8097_32400_udp-8096-8097_32400-tcp tcp-8096-8097_32400_udp-8096-8097_32400-udp ]
+set service 2-protocols-tcp protocol tcp port 0-52,54-79,81-442,444-65535
+set service 2-protocols-udp protocol udp port 0-52,54-79,81-442,444-65535
+set service-group 2-protocols members [ 2-protocols-tcp 2-protocols-udp ]
+set rulebase security rules "no media from the guests" from pppoe0
+set rulebase security rules "no media from the guests" to eth1
+set rulebase security rules "no media from the guests" source 192.168.10.0/24
+set rulebase security rules "no media from the guests" destination 192.168.1.30
+set rulebase security rules "no media from the guests" source-user any
+set rulebase security rules "no media from the guests" category any
+set rulebase security rules "no media from the guests" application any
+set rulebase security rules "no media from the guests" service tcp-32400
+set rulebase security rules "no media from the guests" action deny
+set rulebase security rules "no media from the guests" log-end no
+set rulebase security rules "no media from the guests" description "VyOS firewall name LAN_OUT rule 10 (forward-5.WAN_IN-30>forward-15.LAN_OUT-10)"
+set rulebase security rules "plex to the media box" from pppoe0
+set rulebase security rules "plex to the media box" to any
+set rulebase security rules "plex to the media box" source any
+set rulebase security rules "plex to the media box" destination 192.168.1.30
+set rulebase security rules "plex to the media box" source-user any
+set rulebase security rules "plex to the media box" category any
+set rulebase security rules "plex to the media box" application any
+set rulebase security rules "plex to the media box" service tcp-32400
+set rulebase security rules "plex to the media box" action allow
+set rulebase security rules "plex to the media box" log-end no
+set rulebase security rules "plex to the media box" description "VyOS firewall name WAN_IN rule 30, then ipv4 forward filter default-action accept (forward-5.WAN_IN-30)"
+set rulebase security rules "ping the nas" from pppoe0
+set rulebase security rules "ping the nas" to any
+set rulebase security rules "ping the nas" source any
+set rulebase security rules "ping the nas" destination NAS
+set rulebase security rules "ping the nas" source-user any
+set rulebase security rules "ping the nas" category any
+set rulebase security rules "ping the nas" application ping
+set rulebase security rules "ping the nas" service application-default
+set rulebase security rules "ping the nas" action allow
+set rulebase security rules "ping the nas" log-end no
+set rulebase security rules "ping the nas" description "VyOS firewall name WAN_IN rule 40, then ipv4 forward filter default-action accept (forward-5.WAN_IN-40)"
+set rulebase security rules "old rule" from pppoe0
+set rulebase security rules "old rule" to any
+set rulebase security rules "old rule" source any
+set rulebase security rules "old rule" destination 192.168.1.40
+set rulebase security rules "old rule" source-user any
+set rulebase security rules "old rule" category any
+set rulebase security rules "old rule" application any
+set rulebase security rules "old rule" service tcp-any
+set rulebase security rules "old rule" action allow
+set rulebase security rules "old rule" log-end no
+set rulebase security rules "old rule" disabled yes
+set rulebase security rules "old rule" description "VyOS firewall name WAN_IN rule 50 (forward-5.WAN_IN-50)"
+set rulebase security rules "syn to the mail server" from pppoe0
+set rulebase security rules "syn to the mail server" to any
+set rulebase security rules "syn to the mail server" source any
+set rulebase security rules "syn to the mail server" destination 192.168.1.25
+set rulebase security rules "syn to the mail server" source-user any
+set rulebase security rules "syn to the mail server" category any
+set rulebase security rules "syn to the mail server" application any
+set rulebase security rules "syn to the mail server" service tcp-25
+set rulebase security rules "syn to the mail server" action allow
+set rulebase security rules "syn to the mail server" log-end no
+set rulebase security rules "syn to the mail server" description "VyOS firewall name WAN_IN rule 60, then ipv4 forward filter default-action accept (forward-5.WAN_IN-60)"
+set rulebase security rules "no media from the guests-2" from pppoe0
+set rulebase security rules "no media from the guests-2" to eth1
+set rulebase security rules "no media from the guests-2" source 192.168.10.0/24
+set rulebase security rules "no media from the guests-2" destination any
+set rulebase security rules "no media from the guests-2" source-user any
+set rulebase security rules "no media from the guests-2" category any
+set rulebase security rules "no media from the guests-2" application any
+set rulebase security rules "no media from the guests-2" service tcp-8096-8097_32400_udp-8096-8097_32400
+set rulebase security rules "no media from the guests-2" action deny
+set rulebase security rules "no media from the guests-2" log-end no
+set rulebase security rules "no media from the guests-2" disabled yes
+set rulebase security rules "no media from the guests-2" description "FWSHIFT: disabled by the converter, see the report. VyOS firewall name LAN_OUT rule 10 (forward-5.WAN_IN-70>forward-15.LAN_OUT-10)"
+set rulebase security rules "sessions of the voip box" from pppoe0
+set rulebase security rules "sessions of the voip box" to any
+set rulebase security rules "sessions of the voip box" source 0.0.0.0/0
+set rulebase security rules "sessions of the voip box" destination any
+set rulebase security rules "sessions of the voip box" source-user any
+set rulebase security rules "sessions of the voip box" category any
+set rulebase security rules "sessions of the voip box" application any
+set rulebase security rules "sessions of the voip box" service any
+set rulebase security rules "sessions of the voip box" action allow
+set rulebase security rules "sessions of the voip box" log-end no
+set rulebase security rules "sessions of the voip box" disabled yes
+set rulebase security rules "sessions of the voip box" description "FWSHIFT: disabled by the converter, see the report. VyOS firewall name WAN_IN rule 70, then ipv4 forward filter default-action accept (forward-5.WAN_IN-70)"
+set rulebase security rules forward-5.default from pppoe0
+set rulebase security rules forward-5.default to any
+set rulebase security rules forward-5.default source 0.0.0.0/0
+set rulebase security rules forward-5.default destination any
+set rulebase security rules forward-5.default source-user any
+set rulebase security rules forward-5.default category any
+set rulebase security rules forward-5.default application any
+set rulebase security rules forward-5.default service any
+set rulebase security rules forward-5.default action drop
+set rulebase security rules forward-5.default log-end no
+set rulebase security rules forward-5.default description "VyOS firewall name WAN_IN default-action drop"
+set rulebase security rules "no way into the LAN" from eth1.10
+set rulebase security rules "no way into the LAN" to any
+set rulebase security rules "no way into the LAN" source any
+set rulebase security rules "no way into the LAN" destination TRUSTED
+set rulebase security rules "no way into the LAN" source-user any
+set rulebase security rules "no way into the LAN" category any
+set rulebase security rules "no way into the LAN" application any
+set rulebase security rules "no way into the LAN" service any
+set rulebase security rules "no way into the LAN" action drop
+set rulebase security rules "no way into the LAN" log-start yes
+set rulebase security rules "no way into the LAN" log-end no
+set rulebase security rules "no way into the LAN" description "VyOS firewall name GUEST_IN rule 10 (forward-10.GUEST_IN-10)"
+set rulebase security rules "only web and dns out" from eth1.10
+set rulebase security rules "only web and dns out" to any
+set rulebase security rules "only web and dns out" source 0.0.0.0/0
+set rulebase security rules "only web and dns out" destination any
+set rulebase security rules "only web and dns out" source-user any
+set rulebase security rules "only web and dns out" category any
+set rulebase security rules "only web and dns out" application any
+set rulebase security rules "only web and dns out" service 2-protocols
+set rulebase security rules "only web and dns out" action drop
+set rulebase security rules "only web and dns out" log-end no
+set rulebase security rules "only web and dns out" description "VyOS firewall name GUEST_IN rule 20 (forward-10.GUEST_IN-20)"
+set rulebase security rules "no media from the guests-3" from any
+set rulebase security rules "no media from the guests-3" to eth1
+set rulebase security rules "no media from the guests-3" source 192.168.10.0/24
+set rulebase security rules "no media from the guests-3" destination any
+set rulebase security rules "no media from the guests-3" source-user any
+set rulebase security rules "no media from the guests-3" category any
+set rulebase security rules "no media from the guests-3" application any
+set rulebase security rules "no media from the guests-3" service tcp-8096-8097_32400_udp-8096-8097_32400
+set rulebase security rules "no media from the guests-3" action deny
+set rulebase security rules "no media from the guests-3" log-end no
+set rulebase security rules "no media from the guests-3" description "VyOS firewall name LAN_OUT rule 10 (forward-15.LAN_OUT-10)"
+set rulebase security rules "Allow IPv6 ping" from pppoe0
+set rulebase security rules "Allow IPv6 ping" to any
+set rulebase security rules "Allow IPv6 ping" source ::/0
+set rulebase security rules "Allow IPv6 ping" destination any
+set rulebase security rules "Allow IPv6 ping" source-user any
+set rulebase security rules "Allow IPv6 ping" category any
+set rulebase security rules "Allow IPv6 ping" application ping6
+set rulebase security rules "Allow IPv6 ping" service application-default
+set rulebase security rules "Allow IPv6 ping" action allow
+set rulebase security rules "Allow IPv6 ping" log-end no
+set rulebase security rules "Allow IPv6 ping" description "VyOS firewall ipv6-name WANv6_IN rule 30, then ipv6 forward filter default-action accept (ipv6-forward-5.WANv6_IN-30)"
+set rulebase security rules ipv6-forward-5.default from pppoe0
+set rulebase security rules ipv6-forward-5.default to any
+set rulebase security rules ipv6-forward-5.default source ::/0
+set rulebase security rules ipv6-forward-5.default destination any
+set rulebase security rules ipv6-forward-5.default source-user any
+set rulebase security rules ipv6-forward-5.default category any
+set rulebase security rules ipv6-forward-5.default application any
+set rulebase security rules ipv6-forward-5.default service any
+set rulebase security rules ipv6-forward-5.default action drop
+set rulebase security rules ipv6-forward-5.default log-end no
+set rulebase security rules ipv6-forward-5.default description "VyOS firewall ipv6-name WANv6_IN default-action drop"
+set rulebase nat rules "plex from outside" from pppoe0
+set rulebase nat rules "plex from outside" to pppoe0
+set rulebase nat rules "plex from outside" source any
+set rulebase nat rules "plex from outside" destination any
+set rulebase nat rules "plex from outside" service tcp-32400
+set rulebase nat rules "plex from outside" destination-translation translated-address 192.168.1.30
+set rulebase nat rules "plex from outside" description "VyOS nat destination rule 1"
+set rulebase nat rules "web on 8443 to the nas" from pppoe0
+set rulebase nat rules "web on 8443 to the nas" to pppoe0
+set rulebase nat rules "web on 8443 to the nas" source any
+set rulebase nat rules "web on 8443 to the nas" destination 198.51.100.7
+set rulebase nat rules "web on 8443 to the nas" service tcp-8443
+set rulebase nat rules "web on 8443 to the nas" destination-translation translated-address 192.168.1.20
+set rulebase nat rules "web on 8443 to the nas" destination-translation translated-port 443
+set rulebase nat rules "web on 8443 to the nas" description "VyOS nat destination rule 2"
+set rulebase nat rules "nas leaves as its own address" from any
+set rulebase nat rules "nas leaves as its own address" to pppoe0
+set rulebase nat rules "nas leaves as its own address" source 192.168.1.20
+set rulebase nat rules "nas leaves as its own address" destination any
+set rulebase nat rules "nas leaves as its own address" service any
+set rulebase nat rules "nas leaves as its own address" source-translation dynamic-ip-and-port translated-address 198.51.100.7
+set rulebase nat rules "nas leaves as its own address" description "VyOS nat source rule 5000"

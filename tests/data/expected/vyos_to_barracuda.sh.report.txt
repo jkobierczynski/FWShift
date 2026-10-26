@@ -1,0 +1,194 @@
+FWShift conversion report
+  source: vyos
+  target: barracuda
+
+Summary
+  Security rules:     42   exact 1, approximated 22, needs review 19 (18 emitted disabled), skipped 0
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 12, approximated 0, needs review 2, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [needs-review] INTERZONE_DEFAULT: the source allows what no rule matches; the firewall blocks it at the end of its rule list. Add a rule that allows it if that was intended
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+
+Security rules
+  no outbound mail  ->  approximated  (emitted as no_outbound_mail)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST, LAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  spoofed inside sources  ->  approximated  (emitted as spoofed_inside_sources)
+      [info] NEGATION_EXPANDED: the firewall has no negation in a rule: 'not source INSIDE-NETS' is written as the addresses that are left
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST, LAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  forward-30  ->  needs-review
+      [needs-review] NAT_REDIRECT: NAT rule 'ssh on 2222 to the jump host' sends traffic for every destination to 192.168.30.22:22, and the source applied this rule to it after that translation. The converted rule still names the translated address and port: a platform that looks rules up before NAT will not match the redirected traffic with it
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'https to web1 destination' next to '192.168.30.0/24' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+  forward-40  ->  approximated
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, GUEST, LAN, VPN, br0; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  no telnet or ftp out  ->  approximated  (emitted as no_telnet_or_ftp_out)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-WAN.from-LAN.LAN-WAN-20  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'UPDATES': a group that holds a host name: how the API spells a hostname object is not known.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of the firewall names no zone: give the networks behind WAN with --zone-network.
+  zone-WAN.from-LAN.default  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of the firewall names no zone: give the networks behind WAN with --zone-network.
+  zone-WAN.from-GUEST.GUEST-WAN-10  ->  approximated
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-WAN.from-GUEST.default  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind GUEST with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of the firewall names no zone: give the networks behind WAN with --zone-network.
+  zone-WAN.default  ->  approximated
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, GUEST, LAN, VPN, br0; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-LAN.intra  ->  approximated
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-LAN.from-WAN.WAN-LAN-10  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAN, and a rule of the firewall names no zone: give the networks behind LAN with --zone-network.
+  zone-LAN.from-WAN.default  ->  approximated
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-LAN.default  ->  approximated
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-GUEST.default  ->  approximated
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, LAN, VPN, WAN, br0; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone GUEST; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  web servers  ->  needs-review, emitted disabled  (emitted as web_servers)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'https to web1 destination' next to 'WEB-SERVERS' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of the firewall names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  needs-review, emitted disabled  (emitted as zone-DMZ.from-WAN.WAN-DMZ-20__ht)
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of the firewall names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review, emitted disabled  (emitted as zone-DMZ.from-WAN.WAN-DMZ-20__ss)
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of the firewall names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-30  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-8': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of the firewall names no zone: give the networks behind DMZ with --zone-network.
+  office hours only  ->  needs-review, emitted disabled  (emitted as office_hours_only)
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of the firewall names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of the firewall names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-WAN.default  ->  approximated
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-DMZ.from-LAN.LAN-DMZ-10  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of the firewall names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-LAN.LAN-DMZ-20  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of the firewall names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20  ->  needs-review, emitted disabled  (emitted as zone-DMZ.from-LAN.LAN-DMZ-30.ADM)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of the firewall names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-LAN.default  ->  approximated
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-DMZ.from-VPN.VPN-DMZ-10  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone VPN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind VPN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of the firewall names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone VPN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.from-VPN.default  ->  approximated
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone VPN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-DMZ.default  ->  approximated
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST, LAN, VPN, WAN, br0; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-VPN.default  ->  approximated
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, GUEST, LAN, WAN, br0; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone VPN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-WAN.from-LAN.default  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of the firewall names no zone: give the networks behind WAN with --zone-network.
+  ipv6-zone-WAN.default  ->  approximated
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, GUEST, LAN, VPN, br0; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-LAN.intra  ->  approximated
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-LAN.default  ->  approximated
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-GUEST.default  ->  approximated
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, LAN, VPN, WAN, br0; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone GUEST; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10  ->  needs-review, emitted disabled  (emitted as ipv6-zone-DMZ.from-WAN.WAN-DMZ-6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of the firewall names no zone: give the networks behind DMZ with --zone-network.
+  ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20  ->  needs-review, emitted disabled  (emitted as ipv6-zone-DMZ.from-WAN.WAN-DMZ_2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-128': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of the firewall names no zone: give the networks behind DMZ with --zone-network.
+  ipv6-zone-DMZ.from-WAN.default  ->  approximated
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-DMZ.default  ->  approximated
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST, LAN, VPN, WAN, br0; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-VPN.default  ->  approximated
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, GUEST, LAN, WAN, br0; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone VPN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+
+NAT rules
+  https to web1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  ssh on 2222 to the jump host  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  destination-30  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  source-100  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  dmz servers leave as one address  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  source-120  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+
+Addresses
+  https to web1 destination  ->  exact  (emitted as https_to_web1_destination)
+      [info] RENAMED: renamed to 'https_to_web1_destination' to fit the target's naming rules
+
+Services
+  tcp-20-21,23  ->  exact  (emitted as tcp-20-21_23)
+      [info] RENAMED: renamed to 'tcp-20-21_23' to fit the target's naming rules
+  tcp-80,443,8080-8090  ->  exact  (emitted as tcp-80_443_8080-8090)
+      [info] RENAMED: renamed to 'tcp-80_443_8080-8090' to fit the target's naming rules
+  icmp-8  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
+  tcp-53+udp-53  ->  exact  (emitted as tcp-53_udp-53)
+      [info] RENAMED: renamed to 'tcp-53_udp-53' to fit the target's naming rules
+  icmp6-128  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated

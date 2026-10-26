@@ -1,0 +1,141 @@
+FWShift conversion report
+  source: vyos
+  target: asa
+
+Summary
+  Security rules:     42   exact 3, approximated 8, needs review 31 (30 emitted disabled), skipped 0
+  NAT rules:           6   exact 5, approximated 0, needs review 0, skipped 1
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: GUEST, LAN, WAN, DMZ, VPN, br0. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside a zone unless a rule denies it. An ASA does not send traffic back out of the interface it came in on unless 'same-security-traffic permit intra-interface' is set, and then only what the access lists permit
+  [needs-review] INTERZONE_DEFAULT: the source accepts traffic between zones that no rule matches: the global access list ends with 'permit ip any any', which also holds for traffic that leaves by the interface it came in on where the ASA is set to send that
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+  [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
+
+Security rules
+  no outbound mail  ->  needs-review, emitted disabled  (emitted as GUEST_access_in, LAN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, DMZ, VPN, br0, WAN, GUEST with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  spoofed inside sources  ->  exact  (emitted as GUEST_access_in, LAN_access_in)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated source is written as the 4 address ranges it leaves
+  forward-30  ->  needs-review  (emitted as global_access)
+      [needs-review] NAT_REDIRECT: NAT rule 'ssh on 2222 to the jump host' sends traffic for every destination to 192.168.30.22:22, and the source applied this rule to it after that translation. The converted rule still names the translated address and port: a platform that looks rules up before NAT will not match the redirected traffic with it
+  forward-40  ->  exact  (emitted as DMZ_access_in, GUEST_access_in, LAN_access_in, VPN_access_in, br0_access_in)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  no telnet or ftp out  ->  needs-review, emitted disabled  (emitted as LAN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, DMZ, VPN, br0, WAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-WAN.from-LAN.LAN-WAN-20  ->  approximated  (emitted as LAN_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  zone-WAN.from-LAN.default  ->  needs-review, emitted disabled  (emitted as LAN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, DMZ, VPN, br0, WAN with --zone-network.
+  zone-WAN.from-GUEST.GUEST-WAN-10  ->  approximated  (emitted as GUEST_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  zone-WAN.from-GUEST.default  ->  needs-review, emitted disabled  (emitted as GUEST_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, DMZ, VPN, br0, WAN with --zone-network.
+  zone-WAN.default  ->  needs-review, emitted disabled  (emitted as DMZ_access_in, GUEST_access_in, LAN_access_in, VPN_access_in, br0_access_in)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, VPN, br0, WAN, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-LAN.intra  ->  needs-review, emitted disabled  (emitted as LAN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, WAN, DMZ, VPN, br0, LAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-LAN.from-WAN.WAN-LAN-10  ->  approximated  (emitted as WAN_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  zone-LAN.from-WAN.default  ->  needs-review, emitted disabled  (emitted as WAN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, DMZ, VPN, br0, LAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-LAN.default  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, WAN, DMZ, VPN, br0, LAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-GUEST.default  ->  needs-review, emitted disabled  (emitted as DMZ_access_in, LAN_access_in, VPN_access_in, WAN_access_in, br0_access_in)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by GUEST, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, WAN, VPN, br0, GUEST, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  web servers  ->  approximated  (emitted as WAN_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  approximated  (emitted as WAN_access_in)
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'https_to_web1_destination' with post-NAT '192.168.30.10' because of NAT rule 'https_to_web1'; check that this rule is meant to cover the translated traffic
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review, emitted disabled  (emitted as WAN_access_in)
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, VPN, br0, DMZ with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-30  ->  needs-review, emitted disabled  (emitted as WAN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, VPN, br0, DMZ with --zone-network.
+  office hours only  ->  needs-review, emitted disabled  (emitted as WAN_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  needs-review, emitted disabled  (emitted as WAN_access_in)
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit).
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, VPN, br0, DMZ with --zone-network.
+  zone-DMZ.from-WAN.default  ->  needs-review, emitted disabled  (emitted as WAN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, VPN, br0, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.from-LAN.LAN-DMZ-10  ->  approximated  (emitted as LAN_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  zone-DMZ.from-LAN.LAN-DMZ-20  ->  needs-review, emitted disabled  (emitted as LAN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, WAN, VPN, br0, DMZ with --zone-network.
+  zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20  ->  approximated  (emitted as LAN_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  zone-DMZ.from-LAN.default  ->  needs-review, emitted disabled  (emitted as LAN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, WAN, VPN, br0, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.from-VPN.VPN-DMZ-10  ->  needs-review, emitted disabled  (emitted as VPN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, br0, DMZ with --zone-network.
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  needs-review, emitted disabled  (emitted as VPN_access_in)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, br0, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.from-VPN.default  ->  needs-review, emitted disabled  (emitted as VPN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, br0, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.default  ->  needs-review, emitted disabled  (emitted as GUEST_access_in, LAN_access_in, VPN_access_in, WAN_access_in, br0_access_in)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, WAN, VPN, br0, DMZ, GUEST with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-VPN.default  ->  needs-review, emitted disabled  (emitted as DMZ_access_in, GUEST_access_in, LAN_access_in, WAN_access_in, br0_access_in)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by VPN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, br0, VPN, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-WAN.from-LAN.default  ->  needs-review, emitted disabled  (emitted as LAN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, DMZ, VPN, br0, WAN with --zone-network.
+  ipv6-zone-WAN.default  ->  needs-review, emitted disabled  (emitted as DMZ_access_in, GUEST_access_in, LAN_access_in, VPN_access_in, br0_access_in)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, VPN, br0, WAN, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-LAN.intra  ->  needs-review, emitted disabled  (emitted as LAN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, WAN, DMZ, VPN, br0, LAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-LAN.default  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, WAN, DMZ, VPN, br0, LAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-GUEST.default  ->  needs-review, emitted disabled  (emitted as DMZ_access_in, LAN_access_in, VPN_access_in, WAN_access_in, br0_access_in)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by GUEST, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, WAN, VPN, br0, GUEST, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10  ->  approximated  (emitted as WAN_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20  ->  needs-review, emitted disabled  (emitted as WAN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, VPN, br0, DMZ with --zone-network.
+  ipv6-zone-DMZ.from-WAN.default  ->  needs-review, emitted disabled  (emitted as WAN_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, VPN, br0, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-DMZ.default  ->  needs-review, emitted disabled  (emitted as GUEST_access_in, LAN_access_in, VPN_access_in, WAN_access_in, br0_access_in)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, WAN, VPN, br0, DMZ, GUEST with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-VPN.default  ->  needs-review, emitted disabled  (emitted as DMZ_access_in, GUEST_access_in, LAN_access_in, WAN_access_in, br0_access_in)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by VPN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, br0, VPN, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+NAT rules
+  ssh on 2222 to the jump host  ->  skipped
+      [needs-review] NAT_DESTINATION: destination NAT needs one static address object on each side
+
+Addresses
+  https to web1 destination  ->  exact  (emitted as https_to_web1_destination)
+      [info] RENAMED: renamed to 'https_to_web1_destination' to fit the target's naming rules
+
+Services
+  tcp-20-21,23  ->  exact  (emitted as tcp-20-21_23)
+      [info] RENAMED: renamed to 'tcp-20-21_23' to fit the target's naming rules
+  tcp-80,443,8080-8090  ->  exact  (emitted as tcp-80_443_8080-8090)
+      [info] RENAMED: renamed to 'tcp-80_443_8080-8090' to fit the target's naming rules
+  tcp-53+udp-53  ->  exact  (emitted as tcp-53_udp-53)
+      [info] RENAMED: renamed to 'tcp-53_udp-53' to fit the target's naming rules

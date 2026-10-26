@@ -1,0 +1,56 @@
+FWShift zone matrix
+  source: aws-network-firewall (pol-inspection)
+  security rules: 41 (2 disabled, 4 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 (other zones)
+  (other zones)  any~
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+(other zones) -> (other zones)
+  allowed: any ~
+  cleartext or remote administration: telnet (rule 'sl-edge-6', 'sf-baseline-100-reply', 'sf-app-1003-reply' and 6 more); ftp (rule 'sl-edge-6', 'sf-baseline-100-reply', 'sf-app-1003-reply' and 6 more); rsh/rlogin/rexec (rule 'sl-edge-6', 'sf-baseline-100-reply', 'sf-app-1003-reply' and 6 more); netbios (rule 'sl-edge-6', 'sf-baseline-100-reply', 'sf-app-1003-reply' and 6 more); smb (rule 'sl-edge-6', 'sf-baseline-100-reply', 'sf-app-1003-reply' and 6 more); rdp (rule 'sl-edge-6', 'sf-app-1012', 'sf-baseline-100-reply' and 7 more); vnc (rule 'sl-edge-6', 'sf-app-1012', 'sf-baseline-100-reply' and 7 more); x11 (rule 'sl-edge-6', 'sf-app-1012', 'sf-baseline-100-reply' and 7 more)
+  industrial protocols: modbus (rule 'sl-edge-6', 'sf-baseline-100-reply', 'sf-app-1003-reply' and 6 more); s7/iso-tsap (rule 'sl-edge-6', 'sf-baseline-100-reply', 'sf-app-1003-reply' and 6 more); dnp3 (rule 'sl-edge-6', 'sf-app-1012', 'sf-baseline-100-reply' and 7 more); ethernet-ip (rule 'sl-edge-6', 'sf-app-1012', 'sf-baseline-100-reply' and 7 more); opc-ua (rule 'sl-edge-6', 'sf-app-1012', 'sf-baseline-100-reply' and 7 more); iec-104 (rule 'sl-edge-6', 'sf-app-1012', 'sf-baseline-100-reply' and 7 more); profinet (rule 'sl-edge-6', 'sf-app-1012', 'sf-baseline-100-reply' and 7 more); niagara-fox (rule 'sl-edge-6', 'sf-app-1012', 'sf-baseline-100-reply' and 7 more)
+  rule 'sl-edge-5': 10.20.8.0/24 -> 10.40.0.0/24: tcp/873
+  rule 'sl-edge-6': 10.40.0.0/24 -> 10.20.8.0/24: tcp/0-65535 from port 873
+  rule 'sl-edge-12': 192.0.2.0/24 -> any: any (only with TCP flags: the rule matches some packets of a connection and not others, which is not in the model) ~
+  rule 'ThreatSignaturesMalwareStrictOrder-1': any -> any: any (only with rule group ThreatSignaturesMalwareStrictOrder is not in the input; add the answer of describe-rule-group for arn:aws:network-firewall:eu-west-1:aws-managed:stateful-rulegroup/ThreatSignaturesMalwareStrictOrder (an AWS managed rule group, whose rules AWS may not show), which is not in the model) ~
+  rule 'sf-baseline-100': HOME_NET -> any: tcp/443
+  rule 'sf-baseline-101': HOME_NET -> any: tcp/80
+  rule 'sf-baseline-105': HOME_NET -> any: icmp type 8, icmp6 type 8
+  rule 'sf-baseline-106': 2001:db8:20::/56 -> 2001:db8:ff::53: udp/53
+  rule 'sf-baseline-107': 10.30.0.0/16 -> 10.20.4.0/24: tcp/5432 from port 1024-65535, tcp/6432 from port 1024-65535
+  rule 'sf-app-1000': any -> WEB_SERVERS: tcp/80, tcp/443, tcp/8443
+  rule 'sf-app-1003': HOME_NET -> any: applications dns ~
+  rule 'sf-app-1005': branches -> 10.20.0.0-10.20.4.255, 10.20.6.0-10.20.255.255: any ~
+  rule 'sf-app-1005-rev': 10.20.0.0-10.20.4.255, 10.20.6.0-10.20.255.255 -> branches: any ~
+  rule 'sf-app-1007': 10.20.7.0/24 -> any: ip/47 (gre)
+  rule 'sf-app-1012': 10.30.0.0-10.30.98.255, 10.30.100.0-10.30.255.255 -> 10.20.3.0/24: tcp/1024-65535
+  rule 'sf-baseline-100-reply': any -> HOME_NET: tcp/0-65535 from port 443
+  rule 'sf-app-1003-reply': any -> HOME_NET: applications dns on tcp ~
+  rule 'sf-app-1009-reply': any -> HOME_NET: tcp
+  rule 'sf-app-1002': HOME_NET -> not HOME_NET: applications ssl on tcp
+  rule 'sf-app-1006': HOME_NET -> any: applications web-browsing on tcp (only with keyword http.uri, keyword content:"/admin", which is not in the model) ~
+  rule 'dl-block-1': HOME_NET -> not HOME_NET: applications ssl on tcp (only with tls.sni: the rule matches by domain name, which is not an address, which is not in the model) ~
+  rule 'dl-egress-1': HOME_NET -> not HOME_NET: applications ssl on tcp (only with tls.sni: the rule matches by domain name, which is not an address, which is not in the model) ~
+  rule 'dl-egress-3': HOME_NET -> not HOME_NET: applications web-browsing on tcp (only with http.host: the rule matches by domain name, which is not an address, which is not in the model) ~
+
+From reading the configuration
+  AWSNFW_FRAGMENTS: UDP fragments that no stateless rule matches are handled by aws:drop, other packets by the default for full packets; the model has no fragments, and the converted policy follows the default for full packets. Fragments of other protocols are dropped
+  AWSNFW_ASYMMETRIC: one direction of some connections is passed by the stateless rules and the other forwarded to the stateful engine, which then sees half a flow and may drop it (sl-edge-8, the stateless default action aws:forward_to_sfe). The converted policy leaves those connections to the stateful rules
+  AWSNFW_STATELESS_FORWARD: these stateless rules forward what they match to the stateful engine, so the stateless rules below them do not see it: sl-edge-10
+  AWSNFW_STATELESS_NOT_WORKED_OUT: some stateless rules cannot be read (TCP flags, a rule group not in the input, a value that cannot be read): they are not converted, and what the rules after them and the replies meet was worked out as if they matched nothing
+  AWSNFW_ALERT_RULES: 1 alert rule decides nothing (an alert only logs) and was left out
+  AWSNFW_CUSTOM_ACTIONS: custom actions publish metrics to CloudWatch; they decide nothing and are not converted
+  AWSNFW_GROUP_MISSING: the policy names rule groups that are not in the input: ThreatSignaturesMalwareStrictOrder. Their rules are not converted; add the answers of describe-rule-group
+  AWSNFW_HOME_NET: HOME_NET is 10.20.0.0/16, 2001:db8:20::/56 (the CIDR blocks of VPC vpc-0a1b2c3d4e5f60789); EXTERNAL_NET is everything else, unless a rule group sets it
+  AWSNFW_NO_ZONES: the firewall sits in a route path and names no zones or interfaces: the converted policy has none. A target with zones needs the networks behind them (--zone-network)
+
+Notes
+  The policy names no zones, so the matrix has one cell. Give zones as networks with --network-zone NAME=NETWORK[,NETWORK...] to see who reaches whom.
+  4 rule(s) never match and are left out; 'fwshift audit' names them.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  app:NAME: allowed for that application only. Which ports it uses is not looked up here.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

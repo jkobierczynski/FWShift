@@ -8,10 +8,10 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.40.21 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
-| Tests | 6706, all passing (a dozen of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below); with NAT, and read back from the FortiGate, in 0.40.17. **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace); with NAT in 0.40.17. **SonicWall**: the same on a SonicWall NSv (SonicOSX 8.2.2-8015, AWS Marketplace), NAT included (0.40.16, below). **Check Point**: the same on the All-In-One (R82.20, AWS Marketplace), installed on its gateway, NAT included and read back (0.40.21, below). **Cisco IOS XE**: on a Catalyst 8000V, with NAT in 0.40.17. **Cisco ASA, Juniper SRX, pfSense, OPNsense**: on an ASAv, a vSRX, pfSense Plus and OPNsense (0.36.1 to 0.36.4), without NAT so far. Nothing has been loaded on a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a Firebox, a CloudGen Firewall, an NSX Manager, a MikroTik router, a Forcepoint SMC, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
+| Version | 0.41.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy); Azure Firewall (read a firewall policy with its rule collection groups and base policies, or the classic rules of a firewall, as the Azure CLI, the REST API or an exported template give them; write an ARM template that creates a new policy, associated with no firewall); AWS Network Firewall (read the JSON of the AWS CLI for one firewall policy and its rule groups: stateless rules, 5-tuple and Suricata rules, domain lists; write a shell script of AWS CLI calls that creates a stateful rule group and a policy, associated with no firewall); pf of OpenBSD and FreeBSD (read `pf.conf` or `pfctl -sr`, with FreeBSD's `nat`, `rdr` and `binat`; write a ruleset for the anchor `fwshift`); VyOS 1.4 and later (read set commands or the configuration in braces, also of VyOS 1.3, Vyatta and EdgeOS; write set commands for a configuration session); Juniper ScreenOS 5.x and 6.x (read `get config`) and Cisco PIX 6.x (read `write terminal`), read only |
+| Tests | 7637, all passing (a dozen of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below); with NAT, and read back from the FortiGate, in 0.40.17. **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace); with NAT in 0.40.17. **SonicWall**: the same on a SonicWall NSv (SonicOSX 8.2.2-8015, AWS Marketplace), NAT included (0.40.16, below). **Check Point**: the same on the All-In-One (R82.20, AWS Marketplace), installed on its gateway, NAT included and read back (0.40.21, below). **Cisco IOS XE**: on a Catalyst 8000V, with NAT in 0.40.17. **Cisco ASA**: on an ASAv (9.24.10), with NAT in 0.40.21. **Juniper SRX, pfSense, OPNsense**: on a vSRX, pfSense Plus and OPNsense (0.36.1 to 0.36.4), without NAT so far. Nothing has been loaded on a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a Firebox, a CloudGen Firewall, an NSX Manager, a MikroTik router, a Forcepoint SMC, a Cisco Management Center, a Device Manager, an Azure Firewall, an AWS Network Firewall, a pf firewall or a VyOS router, no ScreenOS or PIX configuration was read from a device, and no Terraform output was applied with Terraform |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
 | Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
 | Next | the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
@@ -84,6 +84,25 @@ src/fwshift/
         routeros.py   RouterOS /export -> model (interface lists as zones;
                       chains flattened with the conditions of nftables.py,
                       returns taken away exactly; the !dstnat exception)
+        azurefw.py    Azure Firewall JSON (CLI, REST, template) -> model (DNAT,
+                      network and application rules in Azure's three passes,
+                      the base policy first; what DNAT translates allowed
+                      first; the template reader of azure.py)
+        awsnfw.py     AWS CLI JSON of a Network Firewall policy -> model
+                      (stateless rules per packet with their replies, stateful
+                      rules for each moment a flow can be decided)
+        pf.py         pf.conf or pfctl -sr -> model (last match and quick as
+                      first match, the in and out evaluations of a forwarded
+                      packet, match translations, FreeBSD's NAT rules)
+        vyos.py       VyOS set lines or braces -> model (forward filter, named
+                      chains, zones as a second chain; VyOS 1.3, Vyatta and
+                      EdgeOS as VyOS's migration rewrites them)
+        screenos.py   ScreenOS get config -> model (pairs of zones, then global
+                      policies; intra-zone blocking; MIP, VIP, DIP, NAT mode);
+                      read only
+        pix.py        PIX 6.x write terminal -> model (a subclass of the ASA
+                      reader: conduits, implicit rules, mandatory NAT); read
+                      only
     emitters/
         panos.py      model -> PAN-OS set commands
         fortios.py    model -> FortiOS CLI configuration
@@ -137,6 +156,15 @@ src/fwshift/
                       gcp.py, as resources
         routeros.py   model -> a script for /import (chains of its own, the
                       jumps to them disabled; NAT through the iptables planner)
+        azurefw.py    model -> an ARM template: a new firewall policy (a network
+                      rule collection per rule, DNAT only where the model allows
+                      what it translates, groups chained by dependsOn)
+        awsnfw.py     model -> a script of AWS CLI calls (one stateful rule
+                      group of Suricata rules in strict order, a new policy)
+        pf.py         model -> a ruleset for the anchor fwshift (arriving
+                      traffic tagged by zone, the rules decided when it leaves)
+        vyos.py       model -> VyOS 1.4 set commands (zones with a chain per
+                      pair, or one chain from the forward filter; NAT)
     regions.py        sets of connections as boxes (IP version, sources,
                       destinations, services): subtraction, and services back
                       to entries; for AWS, which cannot block
@@ -190,7 +218,7 @@ tests/
                       FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples, the nftables
-                      sample (written by nft itself), the NSX, AWS, Azure, Google Cloud, Terraform, IOS, Huawei, Stormshield, Meraki, RouterOS and OPNsense samples, the zone model,
+                      sample (written by nft itself), the NSX, AWS, Azure, Google Cloud, Terraform, IOS, Huawei, Stormshield, Meraki, RouterOS, OPNsense, Azure Firewall and AWS Network Firewall samples, the zone model,
                       and the kernel checks for iptables and nftables
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
@@ -262,6 +290,21 @@ tests/
     test_watchguard.py WatchGuard both ways, against the judge in helpers.py
     test_barracuda.py Barracuda both ways, against the judge in helpers.py
     test_junos.py     Juniper SRX both ways, against the judge in helpers.py
+    test_azurefw.py   Azure Firewall both ways: a judge of the CLI form and of
+                      the template, random models and exports packet by
+                      packet, round trips
+    test_awsnfw.py    AWS Network Firewall both ways: a judge that decides
+                      packets as the firewall does, random policies both ways,
+                      the script run against a stub aws
+    test_pf.py        pf both ways: a pf judge (last match, quick, tags, match
+                      translations, tables), random rulesets and models
+    test_vyos.py      VyOS both ways: judges of 1.4 set lines and of 1.3 and
+                      EdgeOS rule-sets, random configurations and models,
+                      round trips
+    test_screenos.py  ScreenOS: random configurations against a made-up device
+                      judged from the generator's own data
+    test_pix.py       PIX 6.x: the same, with statics, nat and global,
+                      conduits, security levels and the mandatory NAT
     test_usage.py     rule identities, install-on targets, Check Point access
                       roles (against the cell as Check Point reads it), hit
                       counters and the audit of use
@@ -668,7 +711,7 @@ there for an old tag whose tests no longer run on today's tools.
 | A model file is checked strictly | A gate that passes because of a typo is worse than none: an unknown key, a key twice, a zone or service that cannot be read are errors. |
 | The equivalence check from above and from below | Two policies are equal where what one surely allows the other cannot not allow. Each policy is a pair of sets of boxes per pair of zones; the differences of the two are exact where both are read exactly, and possible elsewhere, never left out. |
 | Labels for what the sets do not hold | Applications, users, categories, schedules, and objects and rules both policies hold alike but that cannot be read, are labels of a connection. Comparing per combination makes identical policies equal whatever such an object holds, and a change of one rule a difference of that rule. A difference is certain only where it holds whatever the multi-valued labels are, since a connection carries some of them, which is not known. |
-| `convert --compare` reads the output back | The emitter's copy of the model says what it meant to write; FWShift's own parser of the target says what was written. Reading back checks the emitter end to end, for the eleven targets FWShift reads. |
+| `convert --compare` reads the output back | The emitter's copy of the model says what it meant to write; FWShift's own parser of the target says what was written. Reading back checks the emitter end to end, for the seventeen targets FWShift reads back. |
 | iptables: lists become chains | iptables has no objects and a rule matches one address per side. A chain per list keeps a rule with long or negated lists to one jump, instead of a product of lines. |
 | Check Point input is API JSON | There is no configuration file. The API export is documented, versioned and what other tools consume. |
 | Check Point output is a `mgmt_cli` script that stops at the first error and never publishes | The session is the unit of change on a management server: a person reviews it in SmartConsole and publishes or discards. A script that carried on after a refused call would leave a policy with rules missing. |
@@ -856,6 +899,70 @@ policy behaves unexpectedly.
 | Network firewall policies: priorities unique per policy, user rules 0 to 2147483547, Google's `goto_next` rules after; one global policy per network; a rule needs a source (ingress) or destination (egress); `goto_next`; target service accounts, secure tags (ineffective ones ignore the rule); the match kinds that need Google's data (FQDN, geography, threat intelligence, address groups, network context) | Google Cloud parser and emitter |
 | `get-effective-firewalls`: `firewalls` and `firewallPolicys` with `type` (`HIERARCHY`, `NETWORK`, `NETWORK_REGIONAL`, `SYSTEM_*`) and `rules`; hashicorp/google 5 and later for `google_compute_network_firewall_policy_rule` (major version 8 when written) | Google Cloud parser, Terraform emitter |
 | `aws_vpc_security_group_ingress_rule` and `_egress_rule` take ports for TCP, UDP, ICMP and ICMPv6 only; a group of the same name in the VPC fails the apply; azurerm refuses to create a resource that exists and is not in the state; azurerm 4 needs a subscription id | Terraform emitter |
+| Azure Firewall, all rows below: from Microsoft's documentation (rule processing, Firewall Policy rule sets, DNAT rules, SNAT private ranges, FQDN filtering in network rules, features, known issues, best practices) and the ARM template reference of `firewallPolicies` and `ruleCollectionGroups`, read through summaries; the classic property names also from the Pulumi azure-native schema; nothing was read from or deployed to a subscription | Azure Firewall parser and emitter |
+| Three passes: DNAT rules, then network rules, then application rules, whatever the priorities; in each the rule collection groups of the parent policy before the child's, groups by priority (100 to 65000), collections by priority; rules terminating; what no rule allows denied; rules of a collection share its action and have no priority (documented, confirmed by documentation) | parser, emitter, judge |
+| A DNAT match is translated and allowed, and the traffic is not subject to further network rules (documented); a network deny therefore cannot block DNAT traffic (inferred from that sentence, not stated) | parser (`AZFW_DNAT_ALLOWS`), emitter (`AZFW_DNAT_NOT_ALLOWED`) |
+| `Any` with destination ports `*` is every IP protocol; with explicit ports TCP and UDP (documented since November 2020) | parser, emitter |
+| Network rules match destination ports only; ICMP has no types; ICMP rules do not apply to internet-bound traffic (documented, known issues) | parser, emitter |
+| IPv6 is not supported; an IPv6 address in a rule fails the firewall (known issues, Microsoft's China-cloud copy of the page; not found on the global page as read) | parser, emitter |
+| FQDNs in network rules need DNS proxy, take no wildcards, work for TCP and UDP (documented); resolved IPv4 only (inferred from IPv4-only) | parser, emitter |
+| Service tags are taken as destinations of network rules, not as sources (not confirmed in what was read) | emitter (`AZFW_SOURCE_TAG`) |
+| SNAT: network-rule traffic to destinations outside the private ranges (default RFC 1918 and RFC 6598) is translated; application rules always (documented). DNAT traffic is translated to a private address of the firewall too (community answers on Microsoft Q&A, contradictory on whether it can be disabled; not confirmed) | notes `AZFW_SNAT`, `AZFW_TARGET_SNAT` |
+| DNAT: protocols TCP or UDP; destination one address of the firewall; destination ports a single port, a range or a list; translated port one port; NAT rules take ports 1 to 63999 only (documented); how several ports translate to one translated port is not documented (`AZFW_DNAT_PORTS`); the emitter writes one rule per single port | parser, emitter |
+| Rule collection names: letters, digits, `_ . -`, a letter or digit first, a letter, digit or `_` last, 80 characters (documented for classic collections); the same assumed for groups, rules and the policy | `names.AZURE_FIREWALL`, emitter |
+| A policy holds 90 rule collection groups (a Microsoft Tech Community post: 90 for policies created after July 2022, 50 before); a group at most 2 MB (from memory of the limits page, not confirmed) | emitter (`AZFW_TOO_LARGE`) |
+| Groups of one policy are deployed one after another (`dependsOn` chain), since Azure refuses parallel changes to one policy (from memory of deployment errors, not confirmed) | emitter |
+| Classic: `additionalProperties` keys `Network.DNS.EnableProxy` and `Network.SNAT.PrivateRanges`; collection action types `Allow`, `Deny`, `Dnat` (`Snat` not converted) (from memory of the REST specification, not confirmed) | parser |
+| A network rule accepts addresses as CIDRs and single IPv4 addresses (the emitter writes those only, not ranges) | emitter |
+| AWS Network Firewall, all rows below: from the developer guide of Network Firewall (how it filters traffic, rule actions, evaluation order, limitations and caveats, Suricata examples), its API reference, the CloudFormation and SDK references, and Suricata's documentation and source (`detect-itype.c`); nothing was run against an account | AWS Network Firewall parser and emitter |
+| Every packet meets the stateless rules first (groups by policy priority, rules by priority, first match; pass, drop, forward to the stateful engine; custom actions only publish metrics); what none matches gets the default for full packets, UDP fragments their own default, other fragments are dropped. Confirmed by the developer guide (how Network Firewall filters traffic, rule actions) | AWS Network Firewall parser |
+| Stateless rules match single packets, so a connection needs both its first packet and its reply passed; a stateless rule's ports apply to TCP and UDP only (other protocols in its list match whatever the ports). The first from the documentation; the second is how FWShift reads "only used for protocols 6 and 17" (not confirmed). A rule with ports and no protocol is not converted | AWS Network Firewall parser |
+| Stateful: `DEFAULT_ACTION_ORDER` evaluates pass, then drop, then reject, then alert, and passes what nothing matches; `STRICT_ORDER` goes by group priority and rule order; `aws:drop_strict` drops what no rule passed; `aws:drop_established` passes the TCP handshake, drops established packets no rule passed, and drops UDP and ICMP at once. Confirmed by the developer guide (evaluation order). That other IP protocols (GRE) are dropped at once like UDP, and that the application-layer variants decide L3/L4 flows like `aws:drop_established`, is not confirmed | AWS Network Firewall parser |
+| Stateful: a pass on a packet passes the rest of the flow, both directions; a rule matches packets in the direction of its header (so a rule without `flow:to_server` matches the first reply of a flow opened the other way); IP-only rules are evaluated on the first packet of each direction. The three statements are in the developer guide; that a pass or drop on the first reply decides the flow as on a first packet is FWShift's reading, not confirmed on a firewall | AWS Network Firewall parser and emitter |
+| An application protocol (`tls`, `http`, ...) is identified once data flows over TCP, on the first packet over UDP. The guide says a TCP rule can match the handshake before the protocol is known; the UDP part is Suricata's behaviour, not confirmed | AWS Network Firewall parser |
+| `HOME_NET` defaults to the inspection VPC's CIDR; `EXTERNAL_NET` is the negation of the policy's `HOME_NET` unless the rule group sets it, also when the group sets its own `HOME_NET`. Confirmed by the developer guide (limitations and caveats) | AWS Network Firewall parser |
+| A 5-tuple rule is the Suricata rule `action proto src sport ->\|<> dst dport (options)` without added flow keywords (`ANY` direction is `<>`). Confirmed by the developer guide (Suricata examples). Domain lists generate a pass rule per name and a drop for the rest of TLS or HTTP from `$HOME_NET` to `$EXTERNAL_NET` with `flow:to_server, established`: the keywords are in the guide, the variables are not confirmed | AWS Network Firewall parser |
+| Reject sends a TCP reset to the sender of the matching packet and is for TCP only. Confirmed by the guide (rule actions); what a reject rule does to UDP is not (read as drop) | AWS Network Firewall parser |
+| Suricata as Network Firewall runs it: `icmp` is ICMP and ICMPv6; `ip_proto:!N` may be given several times and all must hold; `itype:<N`, `>N` and `N<>M` compare strictly. Syntax from Suricata's header-keyword documentation and source (`detect-itype.c`, `DetectU8Parse`); strictness and the several negations are not confirmed on Network Firewall | AWS Network Firewall parser and emitter |
+| Output: a pass with `flow:to_server` on the first packet passes the flow, its replies too, and `aws:drop_strict` drops a flow no rule passed on its first packet; a rules string takes 2,000,000 characters; a stateful group's capacity is at least its number of rules; `create-rule-group` and `create-firewall-policy` take `--dry-run`, `file://` JSON and `--tags`. The limits and calls from the API reference (CreateRuleGroup); the flow behaviour as above, not confirmed. Comment lines in a rules string are not written (not documented) | AWS Network Firewall emitter |
+| Network Firewall does no NAT; behind an internet gateway (ingress routing) or before a NAT gateway it sees private addresses | AWS Network Firewall emitter (as for the AWS target, not confirmed in a lab) |
+| The override `DROP_TO_ALERT` of a (managed) group turns its drop rules into alerts; reject rules are read as they are (not confirmed) | AWS Network Firewall parser |
+| pf, all rows below: from pf.conf(5) of OpenBSD (current) and of FreeBSD, and the PF FAQ of OpenBSD (NAT); community posts only where they quote the manual (FreeBSD forums on translation before filtering) or where the manual is silent (openbsdhandbook.com on rdr-to); nothing was loaded with pfctl | pf parser and emitter |
+| Filter rules are last match; a matching `quick` rule decides at once; what no rule matches passes; a forwarded packet is filtered in on its arrival interface and out on the one it leaves by, and passes when both pass it; a rule without `in`/`out` is for both (pf.conf(5), confirmed by documentation) | pf parser (`_compose`, `_leaving`), emitter, judge |
+| A list expands into a rule per element; `!` before an element negates that element only; a rule without `inet`/`inet6` takes its IP version from an address of its expansion, combinations of two versions are skipped, and a rule with none left is refused ("rule expands to no valid combination"; pfctl behaviour from memory of `expand_rule`, **not confirmed** on a device) | pf parser (`_pieces`) |
+| A table is a radix tree: the most specific entry decides, `!` entries exclude (pf.conf(5) TABLES; most-specific semantics from the radix implementation, **not confirmed**) | pf parser (`_table_group`) |
+| `match` rules: their options are sticky and their translations apply at once, so later rules see the translated packet; translation options of a `pass` rule apply when it is the deciding rule (confirmed for match rules by pf.conf(5) and the FAQ; for pass rules from the FAQ's "remembered and applied when a pass rule is reached" and pass rules taking priority, **not stated** for a non-deciding pass rule) | pf parser (`_rewrite`, `PF_NAT_ON_PASS_RULE`) |
+| FreeBSD's NAT ruleset (`nat`, `rdr`, `binat`): binat first, then rdr for inbound / nat for outbound, first match, applied before filtering, so every filter rule sees the translated packet; `pass` on a translation rule skips the filter rules; `no` exempts (FreeBSD pf.conf(5), confirmed by documentation); that `rdr pass` still leaves the out rules of the egress interface in force (from pfSense's behaviour, **not confirmed**) | pf parser |
+| Tags are sticky: every matching rule sets its tag, a later one replaces it; a tag set when a packet arrives is still on it when it leaves (pf.conf(5) `tag`, confirmed; the forwarding case is the manual's own example) | pf emitter, judge |
+| A matching `quick` rule inside an anchor ends the evaluation of the main ruleset too (pf.conf(5) ANCHORS, confirmed) | pf emitter, `PF_LOAD` |
+| An interface group name does not end in a digit (ifconfig(8) of OpenBSD); which interfaces a group holds is not in pf.conf | pf parser (`_is_interface`) |
+| `self`, `(if)`, `if:network`, `if:broadcast` are the interface addresses at load time (or at run time with parentheses); not in pf.conf | pf parser (`--interface-address`) |
+| pfctl takes what the emitter writes, not loaded anywhere: `match in on $m tag t` without addresses, `match out ... tagged a tag b label "x"`, `block return-rst out quick`, `pass in quick ... to ! self`, `rdr-to A port P` and `rdr-to N bitmask` on a pass rule, `nat-to ($m)`, `nat-to A static-port`, `nat-to <t> round-robin`, `table <t> const { ... }` with host names, macros used inside parentheses, `inet6 proto icmp6 ... icmp6-type 128`, `icmp-type 3 code 4` | pf emitter |
+| FreeBSD 15 takes `nat-to`/`rdr-to` on filter rules (its pf.conf(5) calls the NAT ruleset "pre-FreeBSD 15"); that FreeBSD 14 has `match` and tags but not translation options on rules (**not confirmed**) | pf emitter, manual |
+| VyOS, all rows below: from the VyOS documentation (1.3, 1.4 and rolling), the source of vyos-1x (the nftables templates, the CLI definitions, `python/vyos/firewall.py` and `nat.py`, the migration scripts; read, never run) and Ubiquiti's UISP articles for EdgeOS NAT; nothing was loaded on a router | VyOS parser and emitter |
+| VyOS 1.4+: the forward filter is a base chain at the forward hook (priority filter, policy accept) whose `default-action` (accept when unset) is its last rule; `return` in it accepts; a named chain without `default-action` drops; `jump` comes back after a `return` or the end of a chain with `default-action return`. Confirmed by documentation (firewall ipv4 page) and the vyos-1x templates (`nftables.j2`, `default-action` definitions); not on a device | VyOS parser and emitter |
+| VyOS zones: a second base chain at the forward hook (priority filter + 1), so a packet passes only when the forward filter and the zones accept it; the zone of the outgoing interface decides: inside a zone accept unless `intra-zone-filtering` (drop, or a chain then accept); from a zone with a rule-set for the IP version that chain, then accept; anything else (a zone without a rule-set, an interface in no zone) the zone's `default-action` (drop); traffic to an interface in no zone is not touched; `global-options state-policy` is jumped to first in both chains. From the vyos-1x template `nftables-zone.j2` (current, sagitta and circinus branches); the documentation describes it only in part. Not confirmed on a device | VyOS parser and emitter (`FWS-NO-ZONE`, `VYOS_NO_ZONE`) |
+| VyOS 1.3, Vyatta and EdgeOS behave as VyOS 1.4 does after its migration scripts (firewall 6-to-7 ... 12-to-13, nat 5-to-6 ... 6-to-7): a rule-set bound `in` and `out` to interfaces is a jump from the forward filter (in before out, default accept), `accept` in a named rule-set acts as `return`, `zone-policy` is `firewall zone` with `+` as `*`, a port list is negated as a whole by a leading `!` (1.4 negates each item), ICMP type names map to type/code. From the migration scripts; not confirmed on a router of those releases, EdgeOS only through UISP articles | VyOS parser |
+| VyOS groups: an `address-group` takes addresses and ranges, not networks; a `network-group` networks; a rule of an IPv6 chain names the `ipv6-` group of the name it gives; one address or one group per side; `port` needs protocol tcp, udp or tcp_udp; `!` before a group or interface-group name negates it. From `firewall.py` and the CLI definitions of vyos-1x; documentation in part. Not confirmed on a device | VyOS parser and emitter |
+| VyOS NAT: destination NAT before the forward hook, source NAT after it, first match by rule number in each; `exclude`; `translation address masquerade`; EdgeOS `service nat` rules of type destination, source and masquerade with `inside-address`/`outside-address`. Confirmed by documentation (VyOS NAT, UISP EdgeRouter articles); not on a device | VyOS parser and emitter |
+| VyOS: `connection-status nat destination` matches connections destination NAT translated (`ct status dnat`). From the vyos-1x template; not confirmed on a device | VyOS parser |
+| VyOS emitter, assumed: names of groups, chains and zones up to 63 characters of letters, digits, `_`, `-`, `.` (no limit is published); `firewall zone Z interface` is taken by 1.4 and 1.5 (later rolling releases write `member interface`); `commit-confirm N` reverts unless `confirm` follows. Not confirmed on a device | VyOS emitter |
+| ScreenOS, all rows below: from Juniper's ScreenOS documentation where it could be read (the NetScreen CLI Reference 5.0 for `set address`; the table of contents and examples of the ScreenOS 6.2 CLI reference), Juniper knowledge base titles (KB31825; the articles themselves refuse robots), the ScreenOS Cookbook, published `get config` excerpts and community pages (corelan.be, fir3net.com, moonpoint.com, a GIAC paper); much from memory. Nothing was read from a device. Not confirmed | ScreenOS parser |
+| ScreenOS: policies per pair of zones, first match, in the order `get config` prints them (that order is the evaluation order; `set policy move` changes it); global policies (`from "Global" to "Global"`) after those of the pair, first match; then the default policy, deny unless `set policy default-permit-all`. Partly confirmed (community: "default deny", "new policies are added to the bottom", `set policy move 5 before 4`) | `_Reader.build`, the judge of `test_screenos.py` |
+| ScreenOS: a zone without intra-zone blocking passes traffic inside it without looking at policies (its intra-zone policies and the global policies decide nothing there); Untrust, MGT and VLAN block by default (from memory: `get config` of a default device prints `set zone "Untrust" block`; an explicit `unset zone "X" block` is honoured). The Cookbook says the setting "dictates whether to allow communication between hosts in the same zone without requiring an explicit rule"; that intra-zone policies are then ignored is not confirmed | `_intrazone`, `_blocks` |
+| ScreenOS: a policy between a zone and the Global zone matches nothing (title of KB31825 only) | `_rule` |
+| ScreenOS: an address name is looked up in the book of the zone of its side, then in the Global book; `Any` is both IP versions, `Any-IPv4`/`Any-IPv6` one (not confirmed); `get config` prints addresses as `set address "Z" "N" A M ["comment"]` (confirmed by a published session), groups as `set group address "Z" "G" add "M"`, services as `set service "S" protocol P src-port A-B dst-port C-D` with `+` for further entries, policies as `set policy id N [name "X"] from "Z1" to "Z2" [!] "S" [!] "D" "SVC" [nat ...] ACTION [log] ...` followed by a `set policy id N` ... `exit` context with `set src-address`/`set dst-address`/`set service` | ScreenOS parser |
+| ScreenOS: a policy names a MIP or VIP destination as `MIP(A)`/`VIP(A)` (or `VIP(interface)`) and its zone is the zone of the host behind it; the MIP/VIP translation happens before the policy lookup. For `nat dst`, the policy's destination zone is the zone of the original destination's route, which Juniper's examples point into the zone of the translated host | `_rule`, `_policy_nat` |
+| ScreenOS: whether the services of a policy to a VIP that maps one port to another match the virtual or the real port is not known (`SCREENOS_VIP_PORT`) | `_rule` |
+| ScreenOS NAT order: policy-based NAT (the policy that matches decides), then MIP (static, both ways), VIP, then interfaces in NAT mode (`set interface X nat`: source of what goes to the Untrust zone becomes the outgoing interface's address). Not confirmed; nor that NAT mode applies only towards the Untrust zone | `_nat`, `_mode_rules` |
+| ScreenOS: `deny` drops silently, `reject` answers (RST / ICMP unreachable), `tunnel` permits into a VPN only; a DIP with `fix-port` does not translate ports | `_ACTIONS`, `_policy_nat` |
+| ScreenOS predefined services: the ports in `PREDEFINED` are from memory and the `get service` output of a published session (IMAP 143, MAIL 25, POP3 110), not from Juniper's table, which could not be read. Doubtful ones (`HTTP-EXT`, `NTP`, `SNMP`, `H.323`, `TRACEROUTE`, `TALK`, `VNC`, `UUCP`, `NS Global`), `FTP-Get`/`FTP-Put` and the RPC services are not converted | `PREDEFINED`, `_DOUBTFUL` |
+| PIX, all rows below: from Cisco's PIX Firewall Command Reference 6.3 (access-group, global; read in a mirror of the PDF and on cisco.com), Cisco's "PIX/ASA 7.x NAT and PAT" document, Cisco's ASA 8.3 migration guide, a Cisco community knowledge base article on the NAT order of the PIX, and community answers where Cisco is silent. Nothing was read from a device | PIX parser |
+| PIX 6.x: `access-group` "overrides the conduit and outbound command statements for the specified interface_name" (command reference 6.3; confirmed). A conduit is global: it applies to every interface without an access list, for traffic to a higher security level (community, confirmed in substance); conduits are first match in the order of the file (assumed) | `_conduits` |
+| PIX 6.x: an interface without an access list lets traffic out to lower security levels, never to the same level or back out of itself; `outbound`/`apply` lists restrict that by best match (not converted) | `_implicit_permits`, `_outbound_lists` |
+| PIX 6.x (and ASA before 8.3): access lists and conduits name the mapped (global) address of a translated host (ASA 8.3 migration guide: before 8.3 "you used to have to specify the mapped addresses and ports in an access list"; confirmed) | PIX parser (no rewrite), `_egress_pix` |
+| PIX 6.x: NAT is mandatory, as `nat-control` on 7.x ("ensures that the translation behavior is the same as PIX Firewall versions earlier than 7.0", Cisco; confirmed); outbound needs a translation of the source, inbound a static or exemption that publishes the destination (the latter from the NAT documents and community, not stated in one sentence by Cisco). The best-matching `nat` statement of an interface decides, and a source whose best statement has no `global` on the outgoing interface is not translated by a less specific one (assumed) | `_nat_coverage`, `_check_translations`, the judge of `test_pix.py` |
+| PIX NAT order: `nat 0 access-list`, existing xlates, `static` (addresses, then ports, first match), `nat N access-list` (first match), `nat N` (best match) (Cisco community knowledge base; confirmed as far as that article goes). Identity `nat 0` lets only the inside open connections; `nat 0 access-list` lets both sides (Cisco NAT document; confirmed). A `nat` statement of a lower interface translates towards a higher one only with `outside` (not converted). A `global` with one address is PAT, with a range a pool used before a PAT address of the same id (Cisco NAT document) | `_read_nat`, `_translation`, `_targets` |
 
 ## Development log
 
@@ -2165,6 +2272,160 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-26: version 0.41.0
+
+**Azure Firewall, AWS Network Firewall, pf and VyOS, both ways; Juniper ScreenOS and Cisco PIX 6.x, read only.** Each
+was built from the vendor's documentation (VyOS also from the source of vyos-1x); none was loaded on a device or read
+from one.
+
+**Azure Firewall** (`azure-firewall`). The parser reads a firewall policy and its rule collection groups, with base
+policies, as the Azure CLI, the REST API or an exported template give them (the template reader of the `azure` parser
+is reused), and the classic rules of a firewall; IP groups and service tags where the input has them. One list in
+Azure's order: DNAT, then network, then application rules, the base policy's groups first, groups and collections by
+priority. A DNAT rule becomes a NAT rule and an allow rule ahead of all others, since Azure allows what it translates
+without asking the network rules (`AZFW_DNAT_ALLOWS`). `Any` with every port is every protocol. Application rules
+match names, not addresses: kept in their place, not converted. Threat intelligence, IDPS, source NAT and the
+infrastructure collection are reported. The emitter writes an ARM template for a new policy (tier Standard, threat
+intelligence Alert), associated with no firewall: a network rule collection per rule of the model, zones as the
+networks of `--zone-network`, groups of at most 2 MB chained by `dependsOn`, the default allow as a last collection; a
+DNAT rule only where the rules, walked in order, allow all it translates (`AZFW_DNAT_NOT_ALLOWED`). The output is read
+back for `--compare`.
+
+**AWS Network Firewall** (`aws-network-firewall`). The parser reads the JSON of the AWS CLI for one firewall policy
+(`describe-firewall-policy`, `describe-rule-group`, `describe-vpcs` for `HOME_NET`, prefix-list entries for IP set
+references), the answers one after the other in one file, in an array or under `RuleGroups`. The stateless rules are
+read as packets: what a connection's first packet and its reply meet is worked out as sets of connections
+(`regions.py`), so a pass without a rule for the replies, a drop that also drops the replies of the other direction and
+a forward that hides its traffic from the stateless rules below it come out exact; half-forwarded flows are said
+(`AWSNFW_ASYMMETRIC`). The stateful rules (5-tuple, Suricata strings, domain lists) are read for each moment a flow can
+be decided (first packet, first reply, first established packet, established reply), in action or strict order, ended
+where the default action decides; rules that can then decide nothing are disabled (`AWSNFW_NEVER_MATCHES`). Payload
+keywords, domain names, TCP flags and resource groups are not converted. The emitter writes a shell script of AWS CLI
+calls: one stateful rule group of Suricata rules in strict order (split when too large), every rule for the first
+packet of a connection (`flow:to_server`), objects as IP set variables, zones as networks, and a new policy that
+forwards everything to the stateful engine and ends in `aws:drop_strict` or no default action. It changes nothing that
+exists and associates the policy with no firewall. It is not read back: the parser reads the describe answers, not the
+script.
+
+**pf** (`pf`, OpenBSD and FreeBSD). The parser reads `pf.conf` with its macros, tables (`!` entries, the most specific
+entry deciding; tables from files or filled at run time reported, `PF_TABLE_UNKNOWN`) and lists expanded as pfctl
+expands them (`PF_NEGATED_LIST`), and the output of `pfctl -sr`. Last match with `quick` becomes first match: the quick
+rules first, the others reversed (`PF_LAST_MATCH`). A forwarded packet is filtered twice: rules for arriving traffic
+become rules of the source zone, rules that block leaving traffic rules of the destination zone at the top, less what
+earlier pass rules for leaving traffic let out (`regions.py`; `PF_OUT_BLOCK`). `match` and `pass` translations
+(`nat-to`, `rdr-to`, `binat-to`), with the rules after a match translation rewritten to the original destination;
+FreeBSD's `nat`, `rdr`, `binat`, `no nat` and `rdr pass`; `antispoof`, `set skip on`, `set block-policy`;
+`--interface-address` for `(em0)`, `em0:network` and `self`. Anchors, `include`, `ether`, scrub and queues are
+reported. The emitter writes a ruleset for the anchor `fwshift`: a macro per zone, tables, arriving traffic tagged by
+its zone and let in where a rule may allow it (never `to self`), the rules decided when the traffic leaves, with tags
+for first match, `rdr-to` and `nat-to`, labels (`PF_LOAD`, `PF_ZONES_ONLY`); for OpenBSD, or FreeBSD 15 and later. It
+is not read back: the parser does not model `tagged`.
+
+**VyOS** (`vyos`; VyOS 1.3, Vyatta and EdgeOS read as well). The parser reads set lines or the configuration in braces
+of VyOS 1.4 and later: the forward filter and the named chains it jumps to (`return`, defaults, `global-options
+state-policy`), the zone-based firewall as a second chain at the forward hook, groups with `include`, negation,
+interfaces resolved against the `interfaces` part (without it, the interfaces the configuration does not name are one
+zone, `other-interfaces`), `connection-status nat destination` as rules for what each destination NAT rule translates,
+destination and source NAT. VyOS 1.3, Vyatta and EdgeOS (rule-sets on interfaces, `zone-policy`, `service nat`) are
+read as the migration scripts of vyos-1x take them to 1.4; the dialect is reported (`VYOS_FORMAT`). The emitter writes
+set commands for VyOS 1.4 and later that add and delete nothing: the zone-based firewall with a chain per pair of zones
+and `FWS-NO-ZONE` for traffic to interfaces in no zone, or one chain `FWS-FORWARD` from forward filter rule 10000 when
+the policy has no zones or its zones are interfaces; negated services as chains of their own; NAT rules from 10000.
+The output is read back for `--compare`.
+
+**Juniper ScreenOS and Cisco PIX 6.x** (`screenos`, `pix`), read only: `--from` takes them, `--to` does not. ScreenOS
+(`get config` of 5.x and 6.x): policies per pair of zones, first match, in the order of the file with `move`, `top` and
+`before` carried out, then the global policies, then the default policy; zones that do not block intra-zone traffic
+pass it without a policy (`SCREENOS_INTRAZONE_ALLOW`, `SCREENOS_INTRAZONE_IGNORED`); address books per zone with the
+Global book behind them; custom and predefined services (`SCREENOS_PREDEFINED`); MIPs, VIPs, DIP pools, policy-based
+NAT and interfaces in NAT mode. PIX (`write terminal` of 6.x), on top of the ASA reader: `nameif` with security
+levels; access lists that name the global address of a host behind a static, which is the model's address before NAT;
+on interfaces without an access list the implicit rules towards lower levels for the sources translations cover, and
+conduits towards higher levels; `outbound` and `apply` disable the implicit rules they limit (`PIX_OUTBOUND`); rules
+that permit more than the mandatory NAT lets through are flagged (`PIX_TRANSLATION_REQUIRED`); NAT in Cisco's order.
+PIX 7 and later stay with the ASA reader.
+
+**Built**
+
+* Azure Firewall, AWS Network Firewall, pf and VyOS as sources and targets (`parsers/` and `emitters/` `azurefw.py`,
+  `awsnfw.py`, `pf.py`, `vyos.py`); Juniper ScreenOS and Cisco PIX 6.x as sources (`parsers/screenos.py`,
+  `parsers/pix.py`; `cli.SOURCES` is the targets and these two). Detection for each, ahead of the detectors that would
+  claim their files (Azure network security groups, AWS security groups, PAN-OS set commands, Junos, ASA); a file with
+  both Azure network security groups and an Azure Firewall policy needs `--from`. `--compare` reads Azure Firewall and
+  VyOS output back.
+* Naming rules in `names.py` (`AZURE_FIREWALL`, `AWSNFW_VARIABLE`, `PF_TABLE`, `VYOS`); `--interface-address` for a pf
+  source. No other shared module changed: `model.py`, `transform.py`, `report.py` and the other parsers and emitters
+  are as they were.
+* Seven samples (`azurefw_sample.json` and `awsnfw_sample.json`, written by scripts in `tests/tools`;
+  `pf_sample.conf`, `vyos_sample.conf`, `edgeos_sample.conf`, `screenos_sample.conf`, `pix_sample.cfg`), their
+  conversions to every target the RouterOS sample has (EdgeOS to eight), the conversions of the existing samples to
+  each new target, and the audit and matrix of each sample.
+* The documents: the manual (sections 1, 3, 5, 7, 8, 10, 11 and 12), README.md, the field guide, TODO.md, and the
+  status, layout and assumptions above.
+
+**Verified**
+
+* The suite (7,637 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* Azure Firewall (`tests/test_azurefw.py`, 121 tests): a judge written from Microsoft's documentation reads the CLI
+  form and the template as Azure decides them, sharing no code with the parser or the emitter; 40 random exports (base
+  policies, IP groups, every protocol form, DNAT) against the parser, 30 random models against the emitter exactly and
+  20 with what a network rule cannot say (never opening more), 15 round trips. A mutation check of 10 ways to break the
+  parser and the emitter caught all 10 (run once, not part of the suite).
+* AWS Network Firewall (`tests/test_awsnfw.py`, 120 tests): a judge that decides connections packet by packet as the
+  firewall does, sharing no code with the parser; random policies (stateless and stateful, both orders, every default)
+  read and judged, random models written and the script's JSON judged, random policies round-tripped; the script run
+  against a stub `aws`. 1,500 more seeds of the three random checks, run once by hand: no difference.
+* pf (`tests/test_pf.py`, 70 tests): a pf judge of its own (in and out, last match and `quick`, sticky tags, match
+  translations, list expansion, tables with `!` entries); random rulesets judged directly and through the parser,
+  random models emitted and judged under a strict main ruleset, pf to pf against the source.
+* VyOS (`tests/test_vyos.py`, 209 tests): two judges written from the documentation and the vyos-1x templates (VyOS 1.4
+  set lines; 1.3 and EdgeOS rule-sets and zone policy) decide random packets for random configurations (100), random
+  models written as commands (55: zone-based, interface-based, without zones) and configurations written and read back
+  (25).
+* ScreenOS (`tests/test_screenos.py`, 48 tests) and PIX (`tests/test_pix.py`, 52 tests): 30 and 40 random
+  configurations, 300 packets each, against a made-up device judged from the generator's own data. For PIX the model
+  never allows less, and allows more only on a rule flagged `PIX_TRANSLATION_REQUIRED`. 1,000 seeds of each, run once
+  by hand: no other difference.
+* Detection over every sample: the existing samples as before, each new one as its format. The existing golden outputs
+  and reports are unchanged: each piece of work compared them with the copy it started from.
+* **Not verified**: nothing was loaded on a device or read from one. Every format and behaviour comes from vendor
+  documentation (ScreenOS largely from published excerpts and memory, where Juniper's documents could not be read),
+  and each judge is written from the same reading as the code it checks: it finds where the code disagrees with that
+  reading, not where the reading is wrong. The assumptions are in the table above; the first lab runs are in TODO.md.
+
+### 2026-10-24: version 0.40.22
+
+**The ASAv with NAT passed, and the connections its NAT reverse-path check drops.** The first ASAv run since the lab
+policy has NAT (0.40.21; ASAv 9.24.10, pay as you go on AWS) passed: differs-announced 1, local 32, ok 95,
+ok-unasserted 33; NAT: ok 15. The inside hidden behind the outside interface (`nat (inside,outside) source dynamic
+inside-net interface`) and the published web server reached on 10.20.3.100:8080 (`nat (outside,any) source static any
+any destination static web-public web-server service tcp-8080 tcp-http_2 unidirectional`), as the source decides. The
+read-back: no difference from what was loaded nor from the source. The one difference, announced (`NAT_ADDRESS_EXPOSED`
+on the rule, for another reason): `out10>dmz10:tcp/80`, the outside reaching the web server's real address
+(`outside-web`), was blocked. The diagnosis shows why: `outside_access_in` line 2, outside-web's entry, counted the
+connections (hitcnt=4), and `show asp drop` counted them again as flow drops, "NAT reverse path failed
+(nat-rpf-failed)". An ASA checks a new connection's replies against the NAT rules: the server answering from
+10.20.2.10:80 matches the static rule in its reverse direction, which would send the reply as 10.20.3.100:8080, and the
+connection is dropped. This is the same thing that happened on the Catalyst 8000V (0.40.18), where the reply leaves
+translated; the ASA drops the connection when it opens.
+
+**Built**
+
+* The ASA target reports a rule that lets the outside reach the real address (and port) of a host a static NAT rule
+  translates: a published server (destination NAT from any source) or a host with static source NAT to any destination
+  (`ASA_STATIC_NAT_RPF`, needs review). Not for a rule written for translated traffic, a rule for any destination, a
+  rule inside one zone, a source without zones, a source that looks its rules up after destination NAT (whose rules
+  name the real address for the translated traffic), nor an ASA, FTD or IOS source, whose static NAT fails the same
+  connection. The rule test is shared with `IOS_STATIC_NAT_REPLIES` (`transform.rules_to_real_address`), which now
+  skips the same sources, and a rule rewritten for another NAT rule's translation too (the Sophos sample's mail
+  server is published by one NAT rule and translated outbound by another; its inbound rule is for the first). No golden output or
+  report changed.
+* The documents: the status above, README.md, lab/README.md, TODO.md, the lab's status of the ASAv and the book.
+
+**Verified**
+
+* The suite (6,709 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
 
 ### 2026-10-24: version 0.40.21
 

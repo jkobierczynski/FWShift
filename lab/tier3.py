@@ -719,7 +719,7 @@ VENDORS: Dict[str, Vendor] = {
                         status="scripted from SonicWall's AWS guide; passed on AWS (0.40.16, SonicOSX 8.2.2, NAT included) after twenty runs"),  # fmt: skip
     "asav": Vendor("asav", "Cisco ASAv (pay as you go)", "asa", "asav*,*ASAv*", "c5.xlarge", "admin", "show version | include up",
                    r"ERROR:|% Invalid input|% Incomplete command", list(_ZONE_NETWORKS), _asav_user_data(), _asav_session,
-                   "run: passed (ASAv 9.24.10, 0.36.1)",
+                   "run: passed (ASAv 9.24.10, 0.36.1; NAT included, 0.40.21)",
                    ready_answer=r" up ", key_bits=2048, ssh_options=("HostKeyAlgorithms=+ssh-rsa", "PubkeyAcceptedAlgorithms=+ssh-rsa"),
                    diagnose=_asav_diagnose, prompt=r"[>#] ?$", ports_command="show interface ip brief"),
 }

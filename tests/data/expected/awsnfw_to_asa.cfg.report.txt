@@ -1,0 +1,97 @@
+FWShift conversion report
+  source: aws-network-firewall (pol-inspection)
+  target: asa
+
+Summary
+  Security rules:     41   exact 26, approximated 3, needs review 12 (10 emitted disabled), skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           21   exact 21, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWSNFW_ASYMMETRIC: one direction of some connections is passed by the stateless rules and the other forwarded to the stateful engine, which then sees half a flow and may drop it (sl-edge-8, the stateless default action aws:forward_to_sfe). The converted policy leaves those connections to the stateful rules
+  [needs-review] AWSNFW_STATELESS_NOT_WORKED_OUT: some stateless rules cannot be read (TCP flags, a rule group not in the input, a value that cannot be read): they are not converted, and what the rules after them and the replies meet was worked out as if they matched nothing
+  [needs-review] AWSNFW_GROUP_MISSING: the policy names rule groups that are not in the input: ThreatSignaturesMalwareStrictOrder. Their rules are not converted; add the answers of describe-rule-group
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [info] AWSNFW_FRAGMENTS: UDP fragments that no stateless rule matches are handled by aws:drop, other packets by the default for full packets; the model has no fragments, and the converted policy follows the default for full packets. Fragments of other protocols are dropped
+  [info] AWSNFW_STATELESS_FORWARD: these stateless rules forward what they match to the stateful engine, so the stateless rules below them do not see it: sl-edge-10
+  [info] AWSNFW_ALERT_RULES: 1 alert rule decides nothing (an alert only logs) and was left out
+  [info] AWSNFW_CUSTOM_ACTIONS: custom actions publish metrics to CloudWatch; they decide nothing and are not converted
+  [info] AWSNFW_HOME_NET: HOME_NET is 10.20.0.0/16, 2001:db8:20::/56 (the CIDR blocks of VPC vpc-0a1b2c3d4e5f60789); EXTERNAL_NET is everything else, unless a rule group sets it
+  [info] AWSNFW_NO_ZONES: the firewall sits in a route path and names no zones or interfaces: the converted policy has none. A target with zones needs the networks behind them (--zone-network)
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+
+Security rules
+  sl-edge-1-replies  ->  exact  (emitted as global_access)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-1, which drops them, so the connections are blocked whatever else would allow them
+  sl-edge-20-replies  ->  needs-review, emitted disabled  (emitted as global_access)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist in an ASA access list. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-20-replies-2  ->  exact  (emitted as global_access)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+  sl-edge-12  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] UNSUPPORTED_MATCH: not converted: TCP flags: the rule matches some packets of a connection and not others. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ThreatSignaturesMalwareStrictOrder-1  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule group ThreatSignaturesMalwareStrictOrder is not in the input; add the answer of describe-rule-group for arn:aws:network-firewall:eu-west-1:aws-managed:stateful-rulegroup/ThreatSignaturesMalwareStrictOrder (an AWS managed rule group, whose rules AWS may not show). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-103  ->  exact  (emitted as global_access)
+      [info] RESET_ACTION: action reset-client becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+  sf-app-1003  ->  approximated  (emitted as global_access)
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+  sf-app-1005  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+  sf-app-1005-rev  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+  sf-app-1011  ->  exact  (emitted as global_access)
+      [info] AWSNFW_REJECT_NOT_TCP: reject sends a TCP reset, and is for TCP only; the rule, which matches other protocols too, is read as drop
+  sf-app-1013  ->  exact  (emitted as global_access)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated source is written as the 4 address ranges it leaves
+  stateful-default-not-tcp  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist in an ASA access list. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-100-reply  ->  exact  (emitted as global_access)
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-100 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+  sf-baseline-103-reply  ->  exact  (emitted as global_access)
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-103 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [info] RESET_ACTION: action reset-server becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+  sf-app-1003-reply  ->  approximated  (emitted as global_access)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1003 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+  sf-app-1009-reply  ->  exact  (emitted as global_access)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1009 matches packets in the direction of its header, so also the first reply of a connection opened the other way; this rule is what it decides then
+  sf-app-1002  ->  approximated  (emitted as global_access)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated destination is written as the 4 address ranges it leaves
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+  sf-app-1006  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword http.uri. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword content:"/admin". This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-block-1  ->  needs-review, emitted disabled  (emitted as global_access)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated destination is written as the 4 address ranges it leaves
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-egress-1  ->  needs-review, emitted disabled  (emitted as global_access)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated destination is written as the 4 address ranges it leaves
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address.
+  dl-egress-2  ->  needs-review  (emitted as global_access)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated destination is written as the 4 address ranges it leaves
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+  dl-egress-3  ->  needs-review, emitted disabled  (emitted as global_access)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated destination is written as the 4 address ranges it leaves
+      [approximated] APP_TO_PORTS: applications web-browsing reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: http.host: the rule matches by domain name, which is not an address.
+  dl-egress-4  ->  needs-review  (emitted as global_access)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated destination is written as the 4 address ranges it leaves
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+  sf-app-1010  ->  exact  (emitted as global_access)
+      [info] AWSNFW_NEVER_MATCHES: with aws:drop_established a flow that no rule passed is dropped before this rule can match; the rule is disabled in the converted policy: pass tcp any any -> $HOME_NET any (msg:"established to clients"; flow:established,to_client; sid:1010;)
+
+Services
+  icmp-8+icmp6-8  ->  exact  (emitted as icmp-8_icmp6-8)
+      [info] RENAMED: renamed to 'icmp-8_icmp6-8' to fit the target's naming rules
+  tcp-5432,6432-from-1024-65535  ->  exact  (emitted as tcp-5432_6432-from-1024-65535)
+      [info] RENAMED: renamed to 'tcp-5432_6432-from-1024-65535' to fit the target's naming rules
+  tcp-80,443,8443  ->  exact  (emitted as tcp-80_443_8443)
+      [info] RENAMED: renamed to 'tcp-80_443_8443' to fit the target's naming rules
+  tcp-1-21,23-1023  ->  exact  (emitted as tcp-1-21_23-1023)
+      [info] RENAMED: renamed to 'tcp-1-21_23-1023' to fit the target's naming rules

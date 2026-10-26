@@ -1,0 +1,119 @@
+FWShift conversion report
+  source: pfsense
+  target: vyos
+
+Summary
+  Security rules:     25   exact 18, approximated 3, needs review 4 (4 emitted disabled), skipped 0
+  NAT rules:           8   exact 7, approximated 0, needs review 0, skipped 1
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] RULE_NOT_LOADED: pfSense does not load 1 rule of the configuration, which it cannot resolve; they are not converted: 'Spare network, not in use' (its interface 'opt3' is not there or not enabled)
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: pfSense drops what arrives there from addresses nobody has been given, by a list it downloads. That list is not in the configuration, and nothing is converted for it
+  [needs-review] VYOS_LOAD: load the commands in configuration mode: 'configure', paste them, 'compare', then 'commit-confirm 10' (unless 'confirm' follows within 10 minutes, VyOS goes back to the configuration before; older releases reboot to do so) and 'save'. A commit applies all of them or none. The policy is written as the zone-based firewall: zones WAN, LAN, DMZ, GUEST, and a chain FWS-<from>-<to> for each pair of zones that needs one. Interfaces of the router in no zone: VyOS drops their traffic into a zone and leaves traffic from a zone to them to the forward filter; that traffic is decided by chain FWS-NO-ZONE (the rules for any destination and the default of the policy), jumped to from rule 10000 of the forward filter for what leaves by an interface not in interface group FWS-ZONES. Check that the forward filter has no rule 10000 (show firewall ipv4 forward filter), or give another number with --policy-id-start; its rules with lower numbers come first, and those after rule 10000 are no longer reached by what the chain decides, as it ends with the default of the policy. The forward filter of the router still applies before the zones (an accept there goes on to the zones, a drop is final). A zone of the same name that exists gets these interfaces and chains in addition to its own; a chain set for a pair that has one replaces it. NAT rules are numbered from 10000: rules of the router with lower numbers come first. To take a conversion away: delete the groups, chains, zones and NAT rules the commands name (all under FWS-, and the NAT rules from 10000 on). Assumed: names of up to 63 characters
+  [needs-review] ZONES_REQUIRED: these zones are written with the interfaces of the source: check that they are interfaces of the router (or map them with --interface-map): WAN=wan, LAN=lan, DMZ=opt1, GUEST=opt2
+  [needs-review] VYOS_NO_ZONE: traffic from a zone to an interface in no zone is decided by chain FWS-NO-ZONE; its replies come in from an interface in no zone, which VyOS drops at the zones unless 'firewall global-options state-policy' accepts established and related packets (the commands do not set it, as it applies to the whole router)
+  [info] FLOATING_LAST_MATCH: 1 floating rule is not 'quick': such a rule decides only where no rule of an interface matched, and of several the last one. In the converted policy it stands behind the rules of the interfaces, the last one first: 'Telnet unless a rule says otherwise'
+  [info] PFSENSE_AUTOMATIC_RULES: pfSense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof), packets from or to 169.254.0.0/16, and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without; and it has rules for itself (anti-lockout, DHCP, IPsec). Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] VYOS_FQDN: host names are written as fqdn or domain-group, which the router resolves while it runs: mirror.example.org, updates.example.com
+  [info] VYOS_LOG: rules that log the start of a connection have 'log': VyOS logs every packet the rule matches, which, after the replies are accepted at the top of each chain, is the first packet of each connection
+  [info] VYOS_TEXT: names and descriptions with characters VyOS does not take in them (or longer than it takes) were changed: FWS-Block private networks from WAN-src, FWS-DNS from the firewall-dst, FWS-No other private network from the LAN-dst, FWS-Servers fetch their updates-dst-dns
+
+Security rules
+  Nothing leaves towards the sinkhole  ->  exact  (emitted as FWS-WAN-WAN rule 10, FWS-LAN-WAN rule 10, FWS-DMZ-WAN rule 10, FWS-GUEST-WAN rule 10)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); traffic from an interface in no zone into a zone VyOS drops
+  SSH for the partner - pass  ->  approximated  (emitted as FWS-WAN-WAN rule 20, FWS-WAN-LAN rule 10, FWS-WAN-DMZ rule 10, FWS-WAN-GUEST rule 10, FWS-NO-ZONE rule 10)
+      [approximated] AUTOMATIC_RULE: port forward 'SSH for the partner' passes what it forwards without a rule ('Pass' as its filter rule association): pfSense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Block private networks from WAN  ->  exact  (emitted as FWS-WAN-WAN rule 30, FWS-WAN-WAN rule 10 (IPv6), FWS-WAN-LAN rule 20, FWS-WAN-LAN rule 10 (IPv6), FWS-WAN-DMZ rule 20, FWS-WAN-DMZ rule 10 (IPv6), FWS-WAN-GUEST rule 20, FWS-WAN-GUEST rule 10 (IPv6), FWS-NO-ZONE rule 20, FWS-NO-ZONE rule 10 (IPv6))
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks and loopback addresses' set: pfSense drops what arrives there from those networks before any rule is looked at. This rule stands for that
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Ping from the inside  ->  exact  (emitted as FWS-LAN-WAN rule 20, FWS-LAN-LAN rule 10, FWS-LAN-DMZ rule 10, FWS-LAN-GUEST rule 10, FWS-DMZ-WAN rule 20, FWS-DMZ-LAN rule 10, FWS-DMZ-DMZ rule 10, FWS-DMZ-GUEST rule 10, FWS-NO-ZONE rule 30, FWS-NO-ZONE rule 40)
+      [info] RULE_SPLIT: written in the chains of 8 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  DNS from the firewall  ->  exact  (emitted as FWS-LAN-WAN rule 30, FWS-LAN-WAN rule 10 (IPv6), FWS-LAN-LAN rule 20, FWS-LAN-LAN rule 10 (IPv6), FWS-LAN-DMZ rule 20, FWS-LAN-DMZ rule 10 (IPv6), FWS-LAN-GUEST rule 20, FWS-LAN-GUEST rule 10 (IPv6), FWS-GUEST-WAN rule 20, FWS-GUEST-WAN rule 10 (IPv6), FWS-GUEST-LAN rule 10, FWS-GUEST-LAN rule 10 (IPv6), FWS-GUEST-DMZ rule 10, FWS-GUEST-DMZ rule 10 (IPv6), FWS-GUEST-GUEST rule 10, FWS-GUEST-GUEST rule 10 (IPv6), FWS-NO-ZONE rule 50, FWS-NO-ZONE rule 60, FWS-NO-ZONE rule 20 (IPv6), FWS-NO-ZONE rule 30 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 8 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  NAT Web server HTTPS  ->  exact  (emitted as FWS-WAN-WAN rule 40, FWS-WAN-LAN rule 30, FWS-WAN-DMZ rule 30, FWS-WAN-GUEST rule 30, FWS-NO-ZONE rule 70)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  NAT Application ports  ->  exact  (emitted as FWS-WAN-WAN rule 50, FWS-WAN-LAN rule 40, FWS-WAN-DMZ rule 40, FWS-WAN-GUEST rule 40, FWS-NO-ZONE rule 80)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Mail in  ->  exact  (emitted as FWS-WAN-WAN rule 60, FWS-WAN-LAN rule 50, FWS-WAN-DMZ rule 50, FWS-WAN-GUEST rule 50, FWS-NO-ZONE rule 90)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Web server over IPv6  ->  exact  (emitted as FWS-WAN-WAN rule 20 (IPv6), FWS-WAN-LAN rule 20 (IPv6), FWS-WAN-DMZ rule 20 (IPv6), FWS-WAN-GUEST rule 20 (IPv6), FWS-NO-ZONE rule 40 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Ping and errors to the firewall  ->  exact  (emitted as FWS-WAN-WAN rule 70, FWS-WAN-WAN rule 80, FWS-WAN-WAN rule 90, FWS-WAN-LAN rule 60, FWS-WAN-LAN rule 70, FWS-WAN-LAN rule 80, FWS-WAN-DMZ rule 60, FWS-WAN-DMZ rule 70, FWS-WAN-DMZ rule 80, FWS-WAN-GUEST rule 60, FWS-WAN-GUEST rule 70, FWS-WAN-GUEST rule 80, FWS-NO-ZONE rule 100, FWS-NO-ZONE rule 110, FWS-NO-ZONE rule 120)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Administrators to the servers  ->  exact  (emitted as FWS-LAN-WAN rule 40, FWS-LAN-LAN rule 30, FWS-LAN-DMZ rule 30, FWS-LAN-GUEST rule 30, FWS-NO-ZONE rule 130)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Users to the web servers  ->  exact  (emitted as FWS-LAN-WAN rule 50, FWS-LAN-LAN rule 40, FWS-LAN-DMZ rule 40, FWS-LAN-GUEST rule 40, FWS-NO-ZONE rule 140)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Users to the web server by its outside address  ->  exact  (emitted as FWS-LAN-WAN rule 60, FWS-LAN-LAN rule 50, FWS-LAN-DMZ rule 50, FWS-LAN-GUEST rule 50, FWS-NO-ZONE rule 150)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  No other private network from the LAN  ->  approximated  (emitted as FWS-LAN-WAN rule 70, FWS-LAN-LAN rule 60, FWS-LAN-DMZ rule 60, FWS-LAN-GUEST rule 60, FWS-NO-ZONE rule 160)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+      [info] RESET_ACTION: action reset-client becomes reject, which answers with an ICMP unreachable rather than a TCP reset
+  Default allow LAN to any rule  ->  exact  (emitted as FWS-LAN-WAN rule 80, FWS-LAN-LAN rule 70, FWS-LAN-DMZ rule 70, FWS-LAN-GUEST rule 70, FWS-NO-ZONE rule 170)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Default allow LAN IPv6 to any rule  ->  exact  (emitted as FWS-LAN-WAN rule 20 (IPv6), FWS-LAN-LAN rule 20 (IPv6), FWS-LAN-DMZ rule 20 (IPv6), FWS-LAN-GUEST rule 20 (IPv6), FWS-NO-ZONE rule 50 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Servers fetch their updates  ->  exact  (emitted as FWS-DMZ-WAN rule 30, FWS-DMZ-WAN rule 40, FWS-DMZ-LAN rule 20, FWS-DMZ-LAN rule 30, FWS-DMZ-DMZ rule 20, FWS-DMZ-DMZ rule 30, FWS-DMZ-GUEST rule 20, FWS-DMZ-GUEST rule 30, FWS-NO-ZONE rule 180, FWS-NO-ZONE rule 190)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Mail out, not to the inside  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10).
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11).
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Syslog to the collector  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'OfficeHours' is not converted; the rule would apply at all times.
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Nothing from the list  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocklist': a URL table: its addresses are in a file on the firewall, not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Tunnel of the old application  ->  exact  (emitted as FWS-DMZ-WAN rule 50, FWS-DMZ-LAN rule 40, FWS-DMZ-DMZ rule 40, FWS-DMZ-GUEST rule 40, FWS-NO-ZONE rule 200)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Guests reach nothing private  ->  approximated  (emitted as FWS-GUEST-WAN rule 30, FWS-GUEST-LAN rule 20, FWS-GUEST-DMZ rule 20, FWS-GUEST-GUEST rule 20, FWS-NO-ZONE rule 210)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Guests browse  ->  exact  (emitted as FWS-GUEST-WAN rule 40, FWS-GUEST-LAN rule 30, FWS-GUEST-DMZ rule 30, FWS-GUEST-GUEST rule 30, FWS-NO-ZONE rule 220)
+      [info] POLICY_ROUTING: the rule also sends what it passes to gateway 'WANGW' (policy routing), which is not converted
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Phones of the guests  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches a mark set by another rule (tagged) 'VOICE'.
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Telnet unless a rule says otherwise  ->  exact  (emitted as FWS-WAN-WAN rule 100, FWS-WAN-LAN rule 90, FWS-WAN-DMZ rule 90, FWS-WAN-GUEST rule 90, FWS-LAN-WAN rule 90, FWS-LAN-LAN rule 80, FWS-LAN-DMZ rule 80, FWS-LAN-GUEST rule 80, FWS-DMZ-WAN rule 60, FWS-DMZ-LAN rule 50, FWS-DMZ-DMZ rule 50, FWS-DMZ-GUEST rule 50, FWS-GUEST-WAN rule 50, FWS-GUEST-LAN rule 40, FWS-GUEST-DMZ rule 40, FWS-GUEST-GUEST rule 40, FWS-NO-ZONE rule 230)
+      [info] RULE_SPLIT: written in the chains of 16 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN, DMZ, GUEST); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+
+NAT rules
+  Web server HTTPS  ->  exact  (emitted as destination rule 10000, destination rule 10010, destination rule 10020, destination rule 10030)
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+  Application ports  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] NAT_NOT_CONVERTED: not converted: a range of ports translated to another range (8000-8010 to 9000-9010), which the model cannot say
+  Automatic outbound NAT on WAN  ->  exact  (emitted as source rule 10030, source rule 10040, source rule 10050, source rule 10060)
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: pfSense translates what leaves by an interface with a gateway and comes from the networks of its other interfaces and of its static routes. This rule stands for that

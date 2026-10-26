@@ -1,0 +1,222 @@
+set address time.example.org fqdn time.example.org
+set address x_.example.com fqdn "*.example.com"
+set address updates.example.net fqdn updates.example.net
+set address h-10.10.8.8 ip-netmask 10.10.8.8
+set address h-10.10.8.9 ip-netmask 10.10.8.9
+set address-group ipg-dns static [ h-10.10.8.8 h-10.10.8.9 ]
+set address-group ipg-dns description "IP group /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/ipGroups/ipg-dns"
+set address n-10.10.1.0_24 ip-netmask 10.10.1.0/24
+set address r-10.10.2.10-10.10.2.20 ip-range 10.10.2.10-10.10.2.20
+set address-group ipg-servers static [ n-10.10.1.0_24 r-10.10.2.10-10.10.2.20 ]
+set address-group ipg-servers description "IP group /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/ipGroups/ipg-servers"
+set address Storage.WestEurope ip-netmask 0.0.0.0/32
+set address Storage.WestEurope description "FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically"
+set address ipg-partners ip-netmask 0.0.0.0/32
+set address ipg-partners description "FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically"
+set service tcp-443 protocol tcp port 443
+set service tcp-2222 protocol tcp port 2222
+set service tcp-23 protocol tcp port 23
+set service tcp-udp-53-tcp protocol tcp port 53
+set service tcp-udp-53-udp protocol udp port 53
+set service-group tcp-udp-53 members [ tcp-udp-53-tcp tcp-udp-53-udp ]
+set service tcp-22 protocol tcp port 22
+set service tcp-1433 protocol tcp port 1433
+set service udp-123 protocol udp port 123
+set service tcp-8000-8080_9000 protocol tcp port 8000-8080,9000
+set service tcp-80_443 protocol tcp port 80,443
+set rulebase security rules "dnat-web_web-https _DNAT_" from any
+set rulebase security rules "dnat-web_web-https _DNAT_" to any
+set rulebase security rules "dnat-web_web-https _DNAT_" source 0.0.0.0/0
+set rulebase security rules "dnat-web_web-https _DNAT_" destination 203.0.113.10
+set rulebase security rules "dnat-web_web-https _DNAT_" source-user any
+set rulebase security rules "dnat-web_web-https _DNAT_" category any
+set rulebase security rules "dnat-web_web-https _DNAT_" application any
+set rulebase security rules "dnat-web_web-https _DNAT_" service tcp-443
+set rulebase security rules "dnat-web_web-https _DNAT_" action allow
+set rulebase security rules "dnat-web_web-https _DNAT_" log-end no
+set rulebase security rules "dnat-web_ssh-admin _DNAT_" from any
+set rulebase security rules "dnat-web_ssh-admin _DNAT_" to any
+set rulebase security rules "dnat-web_ssh-admin _DNAT_" source 198.51.100.0/24
+set rulebase security rules "dnat-web_ssh-admin _DNAT_" destination 203.0.113.10
+set rulebase security rules "dnat-web_ssh-admin _DNAT_" source-user any
+set rulebase security rules "dnat-web_ssh-admin _DNAT_" category any
+set rulebase security rules "dnat-web_ssh-admin _DNAT_" application any
+set rulebase security rules "dnat-web_ssh-admin _DNAT_" service tcp-2222
+set rulebase security rules "dnat-web_ssh-admin _DNAT_" action allow
+set rulebase security rules "dnat-web_ssh-admin _DNAT_" log-end no
+set rulebase security rules "dnat-web_ssh-admin _DNAT_" description "Admin SSH on a high port"
+set rulebase security rules base-deny_deny-telnet from any
+set rulebase security rules base-deny_deny-telnet to any
+set rulebase security rules base-deny_deny-telnet source 0.0.0.0/0
+set rulebase security rules base-deny_deny-telnet destination 0.0.0.0/0
+set rulebase security rules base-deny_deny-telnet source-user any
+set rulebase security rules base-deny_deny-telnet category any
+set rulebase security rules base-deny_deny-telnet application any
+set rulebase security rules base-deny_deny-telnet service tcp-23
+set rulebase security rules base-deny_deny-telnet action deny
+set rulebase security rules base-deny_deny-telnet log-end no
+set rulebase security rules base-deny_deny-telnet description "Telnet nowhere"
+set rulebase security rules base-allow-dns_dns-out from any
+set rulebase security rules base-allow-dns_dns-out to any
+set rulebase security rules base-allow-dns_dns-out source 10.10.0.0/16
+set rulebase security rules base-allow-dns_dns-out destination ipg-dns
+set rulebase security rules base-allow-dns_dns-out source-user any
+set rulebase security rules base-allow-dns_dns-out category any
+set rulebase security rules base-allow-dns_dns-out application any
+set rulebase security rules base-allow-dns_dns-out service tcp-udp-53
+set rulebase security rules base-allow-dns_dns-out action allow
+set rulebase security rules base-allow-dns_dns-out log-end no
+set rulebase security rules net-partner_every-protocol-to-partner from any
+set rulebase security rules net-partner_every-protocol-to-partner to any
+set rulebase security rules net-partner_every-protocol-to-partner source 10.10.4.0/24
+set rulebase security rules net-partner_every-protocol-to-partner destination 192.0.2.0/24
+set rulebase security rules net-partner_every-protocol-to-partner source-user any
+set rulebase security rules net-partner_every-protocol-to-partner category any
+set rulebase security rules net-partner_every-protocol-to-partner application any
+set rulebase security rules net-partner_every-protocol-to-partner service any
+set rulebase security rules net-partner_every-protocol-to-partner action allow
+set rulebase security rules net-partner_every-protocol-to-partner log-end no
+set rulebase security rules net-partner_dns-any-protocol from any
+set rulebase security rules net-partner_dns-any-protocol to any
+set rulebase security rules net-partner_dns-any-protocol source 10.10.0.0/16
+set rulebase security rules net-partner_dns-any-protocol destination 10.10.8.53
+set rulebase security rules net-partner_dns-any-protocol source-user any
+set rulebase security rules net-partner_dns-any-protocol category any
+set rulebase security rules net-partner_dns-any-protocol application any
+set rulebase security rules net-partner_dns-any-protocol service tcp-udp-53
+set rulebase security rules net-partner_dns-any-protocol action allow
+set rulebase security rules net-partner_dns-any-protocol log-end no
+set rulebase security rules net-partner_v6-ssh from any
+set rulebase security rules net-partner_v6-ssh to any
+set rulebase security rules net-partner_v6-ssh source 2001:db8:10::/64
+set rulebase security rules net-partner_v6-ssh destination 10.10.5.0/24
+set rulebase security rules net-partner_v6-ssh source-user any
+set rulebase security rules net-partner_v6-ssh category any
+set rulebase security rules net-partner_v6-ssh application any
+set rulebase security rules net-partner_v6-ssh service tcp-22
+set rulebase security rules net-partner_v6-ssh action allow
+set rulebase security rules net-partner_v6-ssh log-end no
+set rulebase security rules net-partner_v6-ssh disabled yes
+set rulebase security rules net-partner_v6-ssh description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules net-allow-web_web-to-db from any
+set rulebase security rules net-allow-web_web-to-db to any
+set rulebase security rules net-allow-web_web-to-db source 10.10.1.0/24
+set rulebase security rules net-allow-web_web-to-db destination 10.10.2.0/24
+set rulebase security rules net-allow-web_web-to-db source-user any
+set rulebase security rules net-allow-web_web-to-db category any
+set rulebase security rules net-allow-web_web-to-db application any
+set rulebase security rules net-allow-web_web-to-db service tcp-1433
+set rulebase security rules net-allow-web_web-to-db action allow
+set rulebase security rules net-allow-web_web-to-db log-end no
+set rulebase security rules net-allow-web_icmp-mgmt from any
+set rulebase security rules net-allow-web_icmp-mgmt to any
+set rulebase security rules net-allow-web_icmp-mgmt source 10.10.9.0/24
+set rulebase security rules net-allow-web_icmp-mgmt destination 10.10.0.0/16
+set rulebase security rules net-allow-web_icmp-mgmt source-user any
+set rulebase security rules net-allow-web_icmp-mgmt category any
+set rulebase security rules net-allow-web_icmp-mgmt application [ icmp ping ]
+set rulebase security rules net-allow-web_icmp-mgmt service application-default
+set rulebase security rules net-allow-web_icmp-mgmt action allow
+set rulebase security rules net-allow-web_icmp-mgmt log-end no
+set rulebase security rules net-allow-web_ntp-out from any
+set rulebase security rules net-allow-web_ntp-out to any
+set rulebase security rules net-allow-web_ntp-out source ipg-servers
+set rulebase security rules net-allow-web_ntp-out destination time.example.org
+set rulebase security rules net-allow-web_ntp-out source-user any
+set rulebase security rules net-allow-web_ntp-out category any
+set rulebase security rules net-allow-web_ntp-out application any
+set rulebase security rules net-allow-web_ntp-out service udp-123
+set rulebase security rules net-allow-web_ntp-out action allow
+set rulebase security rules net-allow-web_ntp-out log-end no
+set rulebase security rules net-allow-web_storage from any
+set rulebase security rules net-allow-web_storage to any
+set rulebase security rules net-allow-web_storage source 10.10.0.0/16
+set rulebase security rules net-allow-web_storage destination Storage.WestEurope
+set rulebase security rules net-allow-web_storage source-user any
+set rulebase security rules net-allow-web_storage category any
+set rulebase security rules net-allow-web_storage application any
+set rulebase security rules net-allow-web_storage service tcp-443
+set rulebase security rules net-allow-web_storage action allow
+set rulebase security rules net-allow-web_storage log-end no
+set rulebase security rules net-allow-web_storage disabled yes
+set rulebase security rules net-allow-web_storage description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules net-allow-web_app-ports from any
+set rulebase security rules net-allow-web_app-ports to any
+set rulebase security rules net-allow-web_app-ports source 10.10.1.10-10.10.1.20
+set rulebase security rules net-allow-web_app-ports destination 10.10.3.0/24
+set rulebase security rules net-allow-web_app-ports source-user any
+set rulebase security rules net-allow-web_app-ports category any
+set rulebase security rules net-allow-web_app-ports application any
+set rulebase security rules net-allow-web_app-ports service tcp-8000-8080_9000
+set rulebase security rules net-allow-web_app-ports action allow
+set rulebase security rules net-allow-web_app-ports log-end no
+set rulebase security rules net-allow-web_partner-sftp from any
+set rulebase security rules net-allow-web_partner-sftp to any
+set rulebase security rules net-allow-web_partner-sftp source ipg-partners
+set rulebase security rules net-allow-web_partner-sftp destination 10.10.1.6
+set rulebase security rules net-allow-web_partner-sftp source-user any
+set rulebase security rules net-allow-web_partner-sftp category any
+set rulebase security rules net-allow-web_partner-sftp application any
+set rulebase security rules net-allow-web_partner-sftp service tcp-22
+set rulebase security rules net-allow-web_partner-sftp action allow
+set rulebase security rules net-allow-web_partner-sftp log-end no
+set rulebase security rules net-allow-web_partner-sftp disabled yes
+set rulebase security rules net-allow-web_partner-sftp description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules net-deny-lateral_block-lateral from any
+set rulebase security rules net-deny-lateral_block-lateral to any
+set rulebase security rules net-deny-lateral_block-lateral source 10.10.0.0/16
+set rulebase security rules net-deny-lateral_block-lateral destination 10.10.0.0/16
+set rulebase security rules net-deny-lateral_block-lateral source-user any
+set rulebase security rules net-deny-lateral_block-lateral category any
+set rulebase security rules net-deny-lateral_block-lateral application any
+set rulebase security rules net-deny-lateral_block-lateral service any
+set rulebase security rules net-deny-lateral_block-lateral action deny
+set rulebase security rules net-deny-lateral_block-lateral log-end no
+set rulebase security rules app-out_allow-updates from any
+set rulebase security rules app-out_allow-updates to any
+set rulebase security rules app-out_allow-updates source 10.10.1.0/24
+set rulebase security rules app-out_allow-updates destination [ x_.example.com updates.example.net ]
+set rulebase security rules app-out_allow-updates source-user any
+set rulebase security rules app-out_allow-updates category any
+set rulebase security rules app-out_allow-updates application any
+set rulebase security rules app-out_allow-updates service tcp-443
+set rulebase security rules app-out_allow-updates action allow
+set rulebase security rules app-out_allow-updates log-end no
+set rulebase security rules app-out_allow-updates disabled yes
+set rulebase security rules app-out_allow-updates description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules app-out_allow-wsus from any
+set rulebase security rules app-out_allow-wsus to any
+set rulebase security rules app-out_allow-wsus source ipg-servers
+set rulebase security rules app-out_allow-wsus destination any
+set rulebase security rules app-out_allow-wsus source-user any
+set rulebase security rules app-out_allow-wsus category any
+set rulebase security rules app-out_allow-wsus application any
+set rulebase security rules app-out_allow-wsus service tcp-80_443
+set rulebase security rules app-out_allow-wsus action allow
+set rulebase security rules app-out_allow-wsus log-end no
+set rulebase security rules app-out_allow-wsus disabled yes
+set rulebase security rules app-out_allow-wsus description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules app-deny_no-gambling from any
+set rulebase security rules app-deny_no-gambling to any
+set rulebase security rules app-deny_no-gambling source 0.0.0.0/0
+set rulebase security rules app-deny_no-gambling destination any
+set rulebase security rules app-deny_no-gambling source-user any
+set rulebase security rules app-deny_no-gambling category any
+set rulebase security rules app-deny_no-gambling application any
+set rulebase security rules app-deny_no-gambling service tcp-80_443
+set rulebase security rules app-deny_no-gambling action deny
+set rulebase security rules app-deny_no-gambling log-end no
+set rulebase security rules app-deny_no-gambling disabled yes
+set rulebase security rules app-deny_no-gambling description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

@@ -1,0 +1,148 @@
+FWShift conversion report
+  source: pf
+  target: sonicwall
+
+Summary
+  Security rules:     31   exact 16, approximated 1, needs review 13 (11 emitted disabled), skipped 1
+  NAT rules:           4   exact 0, approximated 2, needs review 1, skipped 1
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 7, approximated 0, needs review 2, skipped 0
+  Services:           20   exact 17, approximated 0, needs review 3, skipped 0
+
+Notes for the whole policy
+  [needs-review] PF_ANCHOR: the rules of these anchors are not converted: 'relayd/*' (line 94). Rules loaded into an anchor decide where the anchor stands, before or after any converted rule; add them to the file to convert them
+  [needs-review] NAT_NOTHING_ELSE: SonicOS adds NAT policies of its own (an interface in a WAN zone hides the LAN and DMZ subnets behind its address), and the source translated only what its NAT rules say. The interfaces of the zones are not known (--interface-map), so no policy that translates nothing was written: disable the policies SonicOS added (Network, NAT Policies, Default & Custom), or check that the source's translations are all it does
+  [needs-review] IPV6_PRIORITY_AUTO: IPv6 rules are written without a priority, after every IPv4 rule: SonicOS keeps one list of priorities for the rules of every pair of zones, IPv4 first and with rules of its own among them, so the place of an IPv6 rule is not known beforehand (SonicOS 8.2.2 refused the places FWShift gave). SonicOS places them. Pairs with more than one IPv6 rule, whose order SonicOS decides: em0 to em1, em1 to em1, em2 to em1, em1 to em0, em1 to em2: check it
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, address-object ipv6, nat-policy name and comment, nat-policy priority manual, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): em2, em1, em0
+  [needs-review] INTERZONE_DEFAULT: the source allows traffic between zones that no rule matches. SonicOS decides that by the default rule of each pair of zones, which allows from a zone of a higher trust to one of a lower trust only: add rules that allow it where that was intended
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] PF_LAST_MATCH: 22 rules are not quick: pf decides by the last rule that matches unless a quick rule matches first. The model is first match: the quick rules come first, in their order, then the others, the last one first
+  [info] PF_DEFAULT_PASS: pf passes what no rule matches; the model records that as its default action
+  [info] PF_HOST_NAMES: pfctl resolves host names once, when the rules are loaded: www.example.com. They are host name objects here
+  [info] PF_OVERLOAD: rules that add addresses to a table when they exceed a limit (overload): 'line 57'. The table they fill is empty in pf.conf
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv4' (all addresses, in two halves) instead of any
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv6' (all addresses, in two halves) instead of any
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 4 rule(s) match IPv4 and IPv6 traffic and were written twice: SonicOS has address objects and access rules per IP version
+
+Security rules
+  line 72  ->  exact  (emitted as line 72, line 72 2, line 72 3)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 75  ->  exact  (emitted as line 75, line 75 2, line 75 3)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 46 out  ->  needs-review  (emitted as line 46 out, line 46 out 2, line 46 out 3, line 46 out 4, line 46 out 5, line 46 out 6)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by every interface: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic, less what the rules before it that decide pass ('line 50', 'line 74')
+      [needs-review] PF_OUT_UNNAMED: the rule blocks what leaves by any interface, less what rules for some interfaces pass; it is written for the interfaces this ruleset names, and traffic that leaves by another interface is not blocked by it
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 41  ->  exact  (emitted as line 41, line 41 2, line 41 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  antispoof em1 network  ->  needs-review, emitted disabled  (emitted as antispoof em1 network, antispoof em1 network 2, antispoof em1 network 3, antispoof em1 network 4, antispoof em1 network 5, antispoof em1 network 6)
+      [needs-review] PF_NEGATED_INTERFACE: 'on ! em1' is every interface but em1; it is written for the other interfaces this ruleset names, em0, em2, and not for interfaces it does not name
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 6 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 network': the network of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  antispoof em1 address  ->  needs-review, emitted disabled  (emitted as antispoof em1 address, antispoof em1 address 2, antispoof em1 address 3, antispoof em1 address 4, antispoof em1 address 5, antispoof em1 address 6, antispoof em1 address 7, antispoof em1 address 8, antispoof em1 address 9)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 9 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 address': the address of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  bogons  ->  exact  (emitted as bogons, bogons 2, bogons 3, bogons 4, bogons 5, bogons 6, bogons 7, bogons 8, bogons 9)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 9 rules
+  brute force  ->  needs-review, emitted disabled  (emitted as brute force, brute force 2, brute force 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'bruteforce': it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  line 49  ->  needs-review, emitted disabled  (emitted as line 49, line 49 2, line 49 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'spamd': its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  admin ssh  ->  needs-review, emitted disabled  (emitted as admin ssh, admin ssh 2, admin ssh 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em2 network': the network of em2 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+  line 92  ->  needs-review, emitted disabled  (emitted as line 92, line 92 2, line 92 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] UNSUPPORTED_MATCH: not converted: the user of the socket (user proxy), which only traffic of the firewall itself has.
+  line 91  ->  needs-review, emitted disabled  (emitted as line 91, line 91 2, line 91 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'egress address': the address of egress is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+  line 90  ->  needs-review, emitted disabled  (emitted as line 90, line 90 2, line 90 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] UNSUPPORTED_MATCH: not converted: a mark set by another rule (tagged INTERNAL).
+  line 87  ->  needs-review  (emitted as line 87, line 87 2, line 87 3)
+      [needs-review] PF_ROUTE_TO: the rule sends what it matches elsewhere (route-to ( em3 10.30.0.1 )); the converted rule decides only whether it passes, and the traffic takes the route the target chooses
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 86  ->  exact  (emitted as line 86, line 86 2, line 86 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 85  ->  exact  (emitted as line 85, line 85 2, line 85 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 84  ->  needs-review, emitted disabled  (emitted as line 84, line 84 2, line 84 3)
+      [approximated] PF_NO_STATE: the rule passes packets without keeping state (no state): the replies need a rule of their own on pf. The converted rule allows the connection, replies included
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ip-47': IP protocol 47, for which FWShift does not know the command of SonicOS.
+  line 81  ->  exact  (emitted as line 81, line 81 2, line 81 3, line 81 4, line 81 5, line 81 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [info] RESET_ACTION: action reset-client becomes deny
+  line 80  ->  exact  (emitted as line 80, line 80 2, line 80 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 79  ->  exact  (emitted as line 79, line 79 2, line 79 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 78  ->  exact  (emitted as line 78, line 78 2, line 78 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 69  ->  exact  (emitted as line 69, line 69 2, line 69 3)
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+      [info] NEGATION_EXPANDED: SonicOS has no negation: 'not source 10.10.5.10' is written as the IPv4 addresses that are left (2 range(s))
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 69.2  ->  exact  (emitted as line 69.2, line 69.2 2, line 69.2 3)
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+      [info] NEGATION_EXPANDED: SonicOS has no negation: 'not source 10.10.5.11' is written as the IPv4 addresses that are left (2 range(s))
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 66  ->  needs-review, emitted disabled  (emitted as line 66, line 66 2, line 66 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-128': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  line 65  ->  needs-review, emitted disabled  (emitted as line 65, line 65 2, line 65 3, line 65 4, line 65 5, line 65 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 6 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-8+icmp-3-4': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  line 64  ->  exact  (emitted as line 64, line 64 2, line 64 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 57  ->  approximated  (emitted as line 57, line 57 2, line 57 3)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.1.10' because of NAT rule 'line 39 rdr'; check that this rule is meant to cover the translated traffic
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 54  ->  exact  (emitted as line 54, line 54 2, line 54 3, line 54 4, line 54 5, line 54 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 53  ->  exact  (emitted as line 53, line 53 2, line 53 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  line 46  ->  exact  (emitted as line 46, line 46 2, line 46 3, line 46 4, line 46 5, line 46 6, line 46 7, line 46 8, line 46 9, line 46 10, line 46 11, line 46 12, line 46 13, line 46 14, line 46 15, line 46 16, line 46 17, line 46 18)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 9 rules
+  line 73  ->  skipped
+      [info] PF_OUT_SHADOWED: the rule blocks traffic that leaves, but the rules before it that decide ('line 74') pass all of it: it decides nothing for forwarded traffic and is not converted for that direction
+
+NAT rules
+  line 36 nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+  line 37 nat  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic to em0 only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+      [approximated] NAT_DYNAMIC_IP: translation to a pool without port translation becomes source NAT that shares the addresses
+  line 39 rdr  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from em0 only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  line 41 rdr  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from em0 only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+
+Address groups
+  partners  ->  exact  (emitted as partners, partners v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'partners', 'partners v6'
+  bruteforce  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <bruteforce> cannot be converted: it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload)
+  spamd  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <spamd> cannot be converted: its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf
+
+Services
+  ip-47  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 47, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  tcp-0-1023,2049-65535  ->  exact  (emitted as tcp-0-1023,2049-65535, tcp-0-1023,2049-65535 tcp 1-1023, tcp-0-1023,2049-65535 tcp 2049-6)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-0-1023,2049-65535' of 'tcp-0-1023,2049-65535 tcp 1-1023', 'tcp-0-1023,2049-65535 tcp 2049-6'
+  tcp-0-24,26-65535  ->  exact  (emitted as tcp-0-24,26-65535, tcp-0-24,26-65535 tcp 1-24, tcp-0-24,26-65535 tcp 26-65535)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-0-24,26-65535' of 'tcp-0-24,26-65535 tcp 1-24', 'tcp-0-24,26-65535 tcp 26-65535'
+  icmp6-128  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  icmp-8+icmp-3-4  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  tcp-80,443  ->  exact  (emitted as tcp-80,443, tcp-80,443 tcp 80, tcp-80,443 tcp 443)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-80,443' of 'tcp-80,443 tcp 80', 'tcp-80,443 tcp 443'

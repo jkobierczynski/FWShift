@@ -1,0 +1,409 @@
+set address www.example.com fqdn www.example.com
+set address www.example.com description "host name, resolved by pfctl when the rules are loaded"
+set address n-0.0.0.0_8 ip-netmask 0.0.0.0/8
+set address n-127.0.0.0_8 ip-netmask 127.0.0.0/8
+set address n-169.254.0.0_16 ip-netmask 169.254.0.0/16
+set address n-192.0.2.0_24 ip-netmask 192.0.2.0/24
+set address n-240.0.0.0_4 ip-netmask 240.0.0.0/4
+set address-group bogons static [ n-0.0.0.0_8 n-127.0.0.0_8 n-169.254.0.0_16 n-192.0.2.0_24 n-240.0.0.0_4 ]
+set address-group bogons description "pf table <bogons> (const)"
+set address n-198.51.100.0_25 ip-netmask 198.51.100.0/25
+set address n-2001_db8_100___48 ip-netmask 2001:db8:100::/48
+set address-group partners static [ n-198.51.100.0_25 n-2001_db8_100___48 ]
+set address-group partners description "pf table <partners> (const)"
+set address bruteforce ip-netmask 0.0.0.0/32
+set address bruteforce description "FWSHIFT PLACEHOLDER, matches nothing: it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload)"
+set address spamd ip-netmask 0.0.0.0/32
+set address spamd description "FWSHIFT PLACEHOLDER, matches nothing: its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf"
+set address "em1 network" ip-netmask 0.0.0.0/32
+set address "em1 network" description "FWSHIFT PLACEHOLDER, matches nothing: the network of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS"
+set address "em1 address" ip-netmask 0.0.0.0/32
+set address "em1 address" description "FWSHIFT PLACEHOLDER, matches nothing: the address of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS"
+set address "em2 network" ip-netmask 0.0.0.0/32
+set address "em2 network" description "FWSHIFT PLACEHOLDER, matches nothing: the network of em2 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS"
+set address "egress address" ip-netmask 0.0.0.0/32
+set address "egress address" description "FWSHIFT PLACEHOLDER, matches nothing: the address of egress is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS"
+set address-group "partners _IPv4_" static n-198.51.100.0_25
+set address-group "partners _IPv4_" description "pf: the IPv4 addresses of partners, for a rule of IPv4"
+set service tcp-25 protocol tcp port 25
+set service tcp-25 description "pf: protocols and ports of a rule"
+set service tcp-22 protocol tcp port 22
+set service tcp-22 description "pf: protocols and ports of a rule"
+set service tcp-23 protocol tcp port 23
+set service tcp-23 description "pf: protocols and ports of a rule"
+set service tcp-9000 protocol tcp port 9000
+set service tcp-9000 description "pf: protocols and ports of a rule"
+set service tcp-8443 protocol tcp port 8443
+set service tcp-8443 description "pf: protocols and ports of a rule"
+set service tcp-8080 protocol tcp port 8080
+set service tcp-8080 description "pf: protocols and ports of a rule"
+set service tcp-3128 protocol tcp port 3128
+set service tcp-3128 description "pf: protocols and ports of a rule"
+set service tcp-443 protocol tcp port 443
+set service tcp-443 description "pf: protocols and ports of a rule"
+set service tcp-113 protocol tcp port 113
+set service tcp-113 description "pf: protocols and ports of a rule"
+set service tcp-0-1023_2049-65535 protocol tcp port 0-1023,2049-65535
+set service tcp-0-1023_2049-65535 description "pf: protocols and ports of a rule"
+set service udp-1001-1009 protocol udp port 1001-1009
+set service udp-1001-1009 description "pf: protocols and ports of a rule"
+set service tcp-0-24_26-65535 protocol tcp port 0-24,26-65535
+set service tcp-0-24_26-65535 description "pf: protocols and ports of a rule"
+set service udp-137-139 protocol udp port 137-139
+set service udp-137-139 description "pf: protocols and ports of a rule"
+set service tcp-3306 protocol tcp port 3306
+set service tcp-3306 description "pf: protocols and ports of a rule"
+set service udp-53 protocol udp port 53
+set service udp-53 description "pf: protocols and ports of a rule"
+set service tcp-80_443 protocol tcp port 80,443
+set service tcp-80_443 description "pf: protocols and ports of a rule"
+set service tcp-6000-6010 protocol tcp port 6000-6010
+set service tcp-6000-6010 description "pf: protocols and ports of a rule"
+set rulebase security rules "line 72" from any
+set rulebase security rules "line 72" to em2
+set rulebase security rules "line 72" source any
+set rulebase security rules "line 72" destination 10.20.1.25
+set rulebase security rules "line 72" source-user any
+set rulebase security rules "line 72" category any
+set rulebase security rules "line 72" application any
+set rulebase security rules "line 72" service tcp-23
+set rulebase security rules "line 72" action deny
+set rulebase security rules "line 72" log-end no
+set rulebase security rules "line 72" description "pf line 72: block out quick on $dmz_if proto tcp from any to $mail_srv port telnet"
+set rulebase security rules "line 75" from any
+set rulebase security rules "line 75" to em2
+set rulebase security rules "line 75" source any
+set rulebase security rules "line 75" destination 10.20.1.0/24
+set rulebase security rules "line 75" source-user any
+set rulebase security rules "line 75" category any
+set rulebase security rules "line 75" application any
+set rulebase security rules "line 75" service udp-137-139
+set rulebase security rules "line 75" action deny
+set rulebase security rules "line 75" log-end no
+set rulebase security rules "line 75" description "pf line 75: block out on $dmz_if proto udp to $dmz_net port { 137:139 }"
+set rulebase security rules "line 46 out" from any
+set rulebase security rules "line 46 out" to em1
+set rulebase security rules "line 46 out" source any
+set rulebase security rules "line 46 out" destination any
+set rulebase security rules "line 46 out" source-user any
+set rulebase security rules "line 46 out" category any
+set rulebase security rules "line 46 out" application any
+set rulebase security rules "line 46 out" service any
+set rulebase security rules "line 46 out" action deny
+set rulebase security rules "line 46 out" log-end no
+set rulebase security rules "line 46 out" description "pf line 46: block all"
+set rulebase security rules "line 41" from em0
+set rulebase security rules "line 41" to any
+set rulebase security rules "line 41" source "partners _IPv4_"
+set rulebase security rules "line 41" destination 203.0.113.25
+set rulebase security rules "line 41" source-user any
+set rulebase security rules "line 41" category any
+set rulebase security rules "line 41" application any
+set rulebase security rules "line 41" service tcp-25
+set rulebase security rules "line 41" action allow
+set rulebase security rules "line 41" log-end no
+set rulebase security rules "line 41" description "pf line 41: pass in quick on $ext_if inet proto tcp from <partners> to $public_mail port smtp rdr-to $mail_srv"
+set rulebase security rules "antispoof em1 network" from [ em0 em2 ]
+set rulebase security rules "antispoof em1 network" to any
+set rulebase security rules "antispoof em1 network" source "em1 network"
+set rulebase security rules "antispoof em1 network" destination any
+set rulebase security rules "antispoof em1 network" source-user any
+set rulebase security rules "antispoof em1 network" category any
+set rulebase security rules "antispoof em1 network" application any
+set rulebase security rules "antispoof em1 network" service any
+set rulebase security rules "antispoof em1 network" action deny
+set rulebase security rules "antispoof em1 network" log-end no
+set rulebase security rules "antispoof em1 network" disabled yes
+set rulebase security rules "antispoof em1 network" description "FWSHIFT: disabled by the converter, see the report. pf line 44: antispoof quick for $int_if inet"
+set rulebase security rules "antispoof em1 address" from any
+set rulebase security rules "antispoof em1 address" to any
+set rulebase security rules "antispoof em1 address" source "em1 address"
+set rulebase security rules "antispoof em1 address" destination any
+set rulebase security rules "antispoof em1 address" source-user any
+set rulebase security rules "antispoof em1 address" category any
+set rulebase security rules "antispoof em1 address" application any
+set rulebase security rules "antispoof em1 address" service any
+set rulebase security rules "antispoof em1 address" action deny
+set rulebase security rules "antispoof em1 address" log-end no
+set rulebase security rules "antispoof em1 address" disabled yes
+set rulebase security rules "antispoof em1 address" description "FWSHIFT: disabled by the converter, see the report. pf line 44: antispoof quick for $int_if inet"
+set rulebase security rules bogons from any
+set rulebase security rules bogons to any
+set rulebase security rules bogons source bogons
+set rulebase security rules bogons destination any
+set rulebase security rules bogons source-user any
+set rulebase security rules bogons category any
+set rulebase security rules bogons application any
+set rulebase security rules bogons service any
+set rulebase security rules bogons action deny
+set rulebase security rules bogons log-end no
+set rulebase security rules bogons description "pf line 47: block in quick from <bogons> label 'bogons'"
+set rulebase security rules "brute force" from em0
+set rulebase security rules "brute force" to any
+set rulebase security rules "brute force" source bruteforce
+set rulebase security rules "brute force" destination any
+set rulebase security rules "brute force" source-user any
+set rulebase security rules "brute force" category any
+set rulebase security rules "brute force" application any
+set rulebase security rules "brute force" service any
+set rulebase security rules "brute force" action deny
+set rulebase security rules "brute force" log-end no
+set rulebase security rules "brute force" disabled yes
+set rulebase security rules "brute force" description "FWSHIFT: disabled by the converter, see the report. pf line 48: block in quick on $ext_if from <bruteforce> label 'brute force'"
+set rulebase security rules "line 49" from em0
+set rulebase security rules "line 49" to any
+set rulebase security rules "line 49" source spamd
+set rulebase security rules "line 49" destination any
+set rulebase security rules "line 49" source-user any
+set rulebase security rules "line 49" category any
+set rulebase security rules "line 49" application any
+set rulebase security rules "line 49" service any
+set rulebase security rules "line 49" action deny
+set rulebase security rules "line 49" log-end no
+set rulebase security rules "line 49" disabled yes
+set rulebase security rules "line 49" description "FWSHIFT: disabled by the converter, see the report. pf line 49: block in quick on $ext_if from <spamd>"
+set rulebase security rules "admin ssh" from em1
+set rulebase security rules "admin ssh" to any
+set rulebase security rules "admin ssh" source [ 10.10.5.10 10.10.5.11 ]
+set rulebase security rules "admin ssh" destination "em2 network"
+set rulebase security rules "admin ssh" source-user any
+set rulebase security rules "admin ssh" category any
+set rulebase security rules "admin ssh" application any
+set rulebase security rules "admin ssh" service tcp-22
+set rulebase security rules "admin ssh" action allow
+set rulebase security rules "admin ssh" log-end no
+set rulebase security rules "admin ssh" disabled yes
+set rulebase security rules "admin ssh" description "FWSHIFT: disabled by the converter, see the report. pf line 61: pass in quick on $int_if inet proto tcp from $admin_hosts to $dmz_if:network port ssh label 'admin ssh'"
+set rulebase security rules "line 92" from em1
+set rulebase security rules "line 92" to any
+set rulebase security rules "line 92" source 10.10.0.0/16
+set rulebase security rules "line 92" destination any
+set rulebase security rules "line 92" source-user any
+set rulebase security rules "line 92" category any
+set rulebase security rules "line 92" application any
+set rulebase security rules "line 92" service tcp-9000
+set rulebase security rules "line 92" action allow
+set rulebase security rules "line 92" log-end no
+set rulebase security rules "line 92" disabled yes
+set rulebase security rules "line 92" description "FWSHIFT: disabled by the converter, see the report. pf line 92: pass in on $int_if proto tcp from $lan_net to port 9000 user proxy"
+set rulebase security rules "line 91" from em1
+set rulebase security rules "line 91" to any
+set rulebase security rules "line 91" source 10.10.0.0/16
+set rulebase security rules "line 91" destination "egress address"
+set rulebase security rules "line 91" source-user any
+set rulebase security rules "line 91" category any
+set rulebase security rules "line 91" application any
+set rulebase security rules "line 91" service tcp-8443
+set rulebase security rules "line 91" action allow
+set rulebase security rules "line 91" log-end no
+set rulebase security rules "line 91" disabled yes
+set rulebase security rules "line 91" description "FWSHIFT: disabled by the converter, see the report. pf line 91: pass in on $int_if proto tcp from $lan_net to (egress) port 8443"
+set rulebase security rules "line 90" from em1
+set rulebase security rules "line 90" to any
+set rulebase security rules "line 90" source 10.10.0.0/16
+set rulebase security rules "line 90" destination any
+set rulebase security rules "line 90" source-user any
+set rulebase security rules "line 90" category any
+set rulebase security rules "line 90" application any
+set rulebase security rules "line 90" service tcp-8080
+set rulebase security rules "line 90" action allow
+set rulebase security rules "line 90" log-end no
+set rulebase security rules "line 90" disabled yes
+set rulebase security rules "line 90" description "FWSHIFT: disabled by the converter, see the report. pf line 90: pass in on $int_if proto tcp from $lan_net to port 8080 tagged INTERNAL"
+set rulebase security rules "line 87" from em1
+set rulebase security rules "line 87" to any
+set rulebase security rules "line 87" source 10.10.0.0/16
+set rulebase security rules "line 87" destination 198.51.100.80
+set rulebase security rules "line 87" source-user any
+set rulebase security rules "line 87" category any
+set rulebase security rules "line 87" application any
+set rulebase security rules "line 87" service tcp-3128
+set rulebase security rules "line 87" action allow
+set rulebase security rules "line 87" log-end no
+set rulebase security rules "line 87" description "pf line 87: pass in on $int_if proto tcp from $lan_net to 198.51.100.80 port 3128 route-to (em3 10.30.0.1)"
+set rulebase security rules "line 86" from em1
+set rulebase security rules "line 86" to any
+set rulebase security rules "line 86" source 2001:db8:10::/48
+set rulebase security rules "line 86" destination 2001:db8:20::1-2001:db8:20::ff
+set rulebase security rules "line 86" source-user any
+set rulebase security rules "line 86" category any
+set rulebase security rules "line 86" application any
+set rulebase security rules "line 86" service any
+set rulebase security rules "line 86" action allow
+set rulebase security rules "line 86" log-end no
+set rulebase security rules "line 86" description "pf line 86: pass in on $int_if inet6 from 2001:db8:10::/48 to 2001:db8:20::1 - 2001:db8:20::ff"
+set rulebase security rules "line 85" from em1
+set rulebase security rules "line 85" to any
+set rulebase security rules "line 85" source 10.10.0.0/16
+set rulebase security rules "line 85" destination www.example.com
+set rulebase security rules "line 85" source-user any
+set rulebase security rules "line 85" category any
+set rulebase security rules "line 85" application any
+set rulebase security rules "line 85" service tcp-443
+set rulebase security rules "line 85" action allow
+set rulebase security rules "line 85" log-end no
+set rulebase security rules "line 85" description "pf line 85: pass in on $int_if proto tcp from $lan_net to www.example.com port https"
+set rulebase security rules "line 84" from em1
+set rulebase security rules "line 84" to any
+set rulebase security rules "line 84" source 10.10.0.0/16
+set rulebase security rules "line 84" destination 198.51.100.7
+set rulebase security rules "line 84" source-user any
+set rulebase security rules "line 84" category any
+set rulebase security rules "line 84" application gre
+set rulebase security rules "line 84" service application-default
+set rulebase security rules "line 84" action allow
+set rulebase security rules "line 84" log-start yes
+set rulebase security rules "line 84" log-end no
+set rulebase security rules "line 84" description "pf line 84: pass in log on $int_if proto gre from $lan_net to 198.51.100.7 no state"
+set rulebase security rules "line 81" from em1
+set rulebase security rules "line 81" to any
+set rulebase security rules "line 81" source any
+set rulebase security rules "line 81" destination any
+set rulebase security rules "line 81" source-user any
+set rulebase security rules "line 81" category any
+set rulebase security rules "line 81" application any
+set rulebase security rules "line 81" service tcp-113
+set rulebase security rules "line 81" action reset-client
+set rulebase security rules "line 81" log-end no
+set rulebase security rules "line 81" description "pf line 81: block return-rst in on $int_if proto tcp to port 113"
+set rulebase security rules "line 80" from em1
+set rulebase security rules "line 80" to any
+set rulebase security rules "line 80" source 10.10.0.0/16
+set rulebase security rules "line 80" destination 10.20.3.0/24
+set rulebase security rules "line 80" source-user any
+set rulebase security rules "line 80" category any
+set rulebase security rules "line 80" application any
+set rulebase security rules "line 80" service tcp-0-1023_2049-65535
+set rulebase security rules "line 80" action allow
+set rulebase security rules "line 80" log-end no
+set rulebase security rules "line 80" description "pf line 80: pass in on $int_if proto tcp from $lan_net to 10.20.3.0/24 port 1024 <> 2048"
+set rulebase security rules "line 79" from em1
+set rulebase security rules "line 79" to any
+set rulebase security rules "line 79" source 10.10.0.0/16
+set rulebase security rules "line 79" destination 10.20.2.0/24
+set rulebase security rules "line 79" source-user any
+set rulebase security rules "line 79" category any
+set rulebase security rules "line 79" application any
+set rulebase security rules "line 79" service udp-1001-1009
+set rulebase security rules "line 79" action allow
+set rulebase security rules "line 79" log-end no
+set rulebase security rules "line 79" description "pf line 79: pass in on $int_if proto udp from $lan_net to 10.20.2.0/24 port 1000 >< 1010"
+set rulebase security rules "line 78" from em1
+set rulebase security rules "line 78" to any
+set rulebase security rules "line 78" source 10.10.0.0/16
+set rulebase security rules "line 78" destination 10.20.0.0/16
+set rulebase security rules "line 78" source-user any
+set rulebase security rules "line 78" category any
+set rulebase security rules "line 78" application any
+set rulebase security rules "line 78" service tcp-0-24_26-65535
+set rulebase security rules "line 78" action allow
+set rulebase security rules "line 78" log-end no
+set rulebase security rules "line 78" description "pf line 78: pass in on $int_if proto tcp from $lan_net to 10.20.0.0/16 port != 25"
+set rulebase security rules "line 69" from em1
+set rulebase security rules "line 69" to any
+set rulebase security rules "line 69" source 10.10.5.10
+set rulebase security rules "line 69" destination 10.20.1.25
+set rulebase security rules "line 69" source-user any
+set rulebase security rules "line 69" category any
+set rulebase security rules "line 69" application any
+set rulebase security rules "line 69" service tcp-22
+set rulebase security rules "line 69" action allow
+set rulebase security rules "line 69" negate-source yes
+set rulebase security rules "line 69" log-end no
+set rulebase security rules "line 69" description "pf line 69: pass in on $int_if proto tcp from { ! 10.10.5.10, ! 10.10.5.11 } to $mail_srv port 22"
+set rulebase security rules "line 69.2" from em1
+set rulebase security rules "line 69.2" to any
+set rulebase security rules "line 69.2" source 10.10.5.11
+set rulebase security rules "line 69.2" destination 10.20.1.25
+set rulebase security rules "line 69.2" source-user any
+set rulebase security rules "line 69.2" category any
+set rulebase security rules "line 69.2" application any
+set rulebase security rules "line 69.2" service tcp-22
+set rulebase security rules "line 69.2" action allow
+set rulebase security rules "line 69.2" negate-source yes
+set rulebase security rules "line 69.2" log-end no
+set rulebase security rules "line 69.2" description "pf line 69: pass in on $int_if proto tcp from { ! 10.10.5.10, ! 10.10.5.11 } to $mail_srv port 22"
+set rulebase security rules "line 66" from em1
+set rulebase security rules "line 66" to any
+set rulebase security rules "line 66" source ::/0
+set rulebase security rules "line 66" destination any
+set rulebase security rules "line 66" source-user any
+set rulebase security rules "line 66" category any
+set rulebase security rules "line 66" application ping6
+set rulebase security rules "line 66" service application-default
+set rulebase security rules "line 66" action allow
+set rulebase security rules "line 66" log-end no
+set rulebase security rules "line 66" description "pf line 66: pass in on $int_if inet6 proto icmp6 icmp6-type echoreq"
+set rulebase security rules "line 65" from [ em1 em2 ]
+set rulebase security rules "line 65" to any
+set rulebase security rules "line 65" source 0.0.0.0/0
+set rulebase security rules "line 65" destination any
+set rulebase security rules "line 65" source-user any
+set rulebase security rules "line 65" category any
+set rulebase security rules "line 65" application [ ping icmp ]
+set rulebase security rules "line 65" service application-default
+set rulebase security rules "line 65" action allow
+set rulebase security rules "line 65" log-end no
+set rulebase security rules "line 65" description "pf line 65: pass in on $all_inside inet proto icmp icmp-type { echoreq, unreach code needfrag }"
+set rulebase security rules "line 64" from em2
+set rulebase security rules "line 64" to any
+set rulebase security rules "line 64" source 10.20.1.10
+set rulebase security rules "line 64" destination any
+set rulebase security rules "line 64" source-user any
+set rulebase security rules "line 64" category any
+set rulebase security rules "line 64" application any
+set rulebase security rules "line 64" service udp-53
+set rulebase security rules "line 64" action allow
+set rulebase security rules "line 64" log-end no
+set rulebase security rules "line 64" description "pf line 64: pass in on $dmz_if proto udp from $web_srv to any port domain"
+set rulebase security rules "line 57" from em0
+set rulebase security rules "line 57" to any
+set rulebase security rules "line 57" source any
+set rulebase security rules "line 57" destination [ 10.20.1.10 203.0.113.10 ]
+set rulebase security rules "line 57" source-user any
+set rulebase security rules "line 57" category any
+set rulebase security rules "line 57" application any
+set rulebase security rules "line 57" service tcp-80_443
+set rulebase security rules "line 57" action allow
+set rulebase security rules "line 57" log-end no
+set rulebase security rules "line 57" description "pf line 57: pass in on $ext_if inet proto tcp from any to $web_srv port $web_ports flags S/SA keep state (max-src-conn 100, max-src-conn-rate 15/5, overload <bruteforce> fl"
+set rulebase security rules "line 54" from em1
+set rulebase security rules "line 54" to any
+set rulebase security rules "line 54" source any
+set rulebase security rules "line 54" destination any
+set rulebase security rules "line 54" source-user any
+set rulebase security rules "line 54" category any
+set rulebase security rules "line 54" application any
+set rulebase security rules "line 54" service tcp-6000-6010
+set rulebase security rules "line 54" action deny
+set rulebase security rules "line 54" log-end no
+set rulebase security rules "line 54" description "pf line 54: block in on $int_if proto tcp from any to any port 6000:6010"
+set rulebase security rules "line 53" from em1
+set rulebase security rules "line 53" to any
+set rulebase security rules "line 53" source 10.10.0.0/16
+set rulebase security rules "line 53" destination any
+set rulebase security rules "line 53" source-user any
+set rulebase security rules "line 53" category any
+set rulebase security rules "line 53" application any
+set rulebase security rules "line 53" service any
+set rulebase security rules "line 53" action allow
+set rulebase security rules "line 53" log-end no
+set rulebase security rules "line 53" description "pf line 53: pass in on $int_if from $lan_net to any"
+set rulebase security rules "line 46" from any
+set rulebase security rules "line 46" to any
+set rulebase security rules "line 46" source any
+set rulebase security rules "line 46" destination any
+set rulebase security rules "line 46" source-user any
+set rulebase security rules "line 46" category any
+set rulebase security rules "line 46" application any
+set rulebase security rules "line 46" service any
+set rulebase security rules "line 46" action deny
+set rulebase security rules "line 46" log-end no
+set rulebase security rules "line 46" description "pf line 46: block all"
+set rulebase nat rules "line 37 nat" from any
+set rulebase nat rules "line 37 nat" to em0
+set rulebase nat rules "line 37 nat" source 10.20.1.0/24
+set rulebase nat rules "line 37 nat" destination any
+set rulebase nat rules "line 37 nat" service any
+set rulebase nat rules "line 37 nat" source-translation dynamic-ip translated-address 203.0.113.5
+set rulebase nat rules "line 37 nat" description "pf line 37: match out on $ext_if inet from $dmz_net to any nat-to 203.0.113.5 static-port (match: applied whenever it matches)"

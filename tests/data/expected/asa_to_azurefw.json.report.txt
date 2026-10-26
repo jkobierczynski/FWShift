@@ -1,0 +1,64 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: azure-firewall
+
+Summary
+  Security rules:     18   exact 9, approximated 2, needs review 3 (2 emitted disabled), skipped 4
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZFW_LOAD: the output is an ARM template (section 10) that creates firewall policy FWShift with its rule collection groups; look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode), then associate the policy with a firewall or a secured hub. Nothing changes before that. Deploying it where a policy of that name exists changes that policy
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them. Behind interfaces that are in no zone of the policy, so behind none of its zones (an allow for the zone of the default route does not reach them): mgmt=192.168.1.0/24
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Behind no zone, as the configuration routes them (no zone's networks hold them): 192.168.1.0/24. --no-source-networks takes none of them
+  [info] ZONE_NETWORKS_ANY_ZONE: 8 allow rules for any zone and any address are written for FWSHIFT-ROUTED, every address but the networks behind no zone (192.168.1.0/24), which the source does not let them reach
+  [info] AZFW_TARGET_SNAT: Azure Firewall translates the source of what goes to a public address (outside RFC 1918 and RFC 6598, or the private ranges set on the policy) to its own public address, and, community sources say, the source of DNAT traffic to one of its private addresses: servers may see other source addresses than with the source
+  [info] AZFW_TARGET_DEFAULTS: the policy is written with network rules only; after them Azure Firewall still allows the FQDNs of its built-in infrastructure rule collection, then denies. Threat intelligence is set to Alert, which blocks nothing
+  [info] AZFW_TARGET_IPV6: the policy holds IPv6; Azure Firewall filters IPv4 only, and the IPv6 parts of the rules are not written (blocking rules lose nothing by it: the firewall forwards no IPv6)
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Azure Firewall does not choose: its diagnostic settings send the logs of every rule (AZFWNetworkRule, AZFWNatRule) to a workspace
+
+Security rules
+  outside_access_in-1  ->  needs-review  (emitted as rule collection outside_access_in-1 of group fwshift-network-1)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-public' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-2' also translates the port to 8080; the service of this rule still names the post-NAT port and must be adjusted
+  outside_access_in-2  ->  approximated  (emitted as rule collection outside_access_in-2 of group fwshift-network-1)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  outside_access_in-3  ->  skipped
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  inside_access_in-3  ->  approximated  (emitted as rule collection inside_access_in-3 of group fwshift-network-1)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to 'dmz-servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  inside_access_in-4  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+  inside_access_in-5  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  inside_access_in-7  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+  inside_access_in-9  ->  skipped
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  dmz_access_in-2  ->  skipped
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  implicit-guest  ->  exact  (emitted as rule collection implicit-guest of group fwshift-network-1)
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] AZFW_NAT_NOT_WRITTEN: a NAT rule that translates nothing (an exemption): Azure Firewall leaves the source of traffic to its private ranges as it is, which the policy's SNAT settings choose, not a rule. Not written
+  nat-2  ->  skipped
+      [needs-review] AZFW_DNAT_NOT_ALLOWED: Azure Firewall allows what a DNAT rule translates, before any network rule; the policy does not allow all this NAT rule translates (rule outside_access_in-4 blocks part of it), so it is not written. Write the DNAT rule by hand for what the policy allows
+  nat-mail-srv  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  nat-inside-net  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  nat-after-auto-1  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written

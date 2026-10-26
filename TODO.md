@@ -159,6 +159,64 @@ to a reference in one expression of a plan; module outputs as references;
 `aws_security_group` with `name_prefix` in a plan; applying the output with
 Terraform against a provider in a lab.
 
+Done in **0.41.0**, all from documentation and none loaded on a device: **Azure
+Firewall** (a policy with its rule collection groups and base policies, or the
+classic rules, read; an ARM template for a new policy, written), **AWS Network
+Firewall** (the answers of the AWS CLI for one firewall policy and its rule
+groups, read; a script that creates a stateful rule group and a policy,
+written), **pf** (`pf.conf` of OpenBSD with FreeBSD's NAT rules, or `pfctl
+-sr`, read; a ruleset for an anchor, written), **VyOS** (VyOS 1.4 and later,
+and VyOS 1.3, Vyatta and EdgeOS, read; set commands for VyOS 1.4 and later,
+written), and **Juniper ScreenOS** and **Cisco PIX 6.x**, read only.
+
+Still open for all six: golden conversions between them (each was built on
+its own, so no sample of one is converted to another's target yet, e.g. pf to
+VyOS or ScreenOS to Azure Firewall).
+
+Still open for Azure Firewall: application rules (they match names, which
+the model cannot hold: a field for a name match would let at least an Azure
+Firewall target write them back); IP groups as a target (addresses go inline,
+and a large source may reach the limit of 20,000 unique sources and
+destinations without a finding); DNAT port ranges as ranges (one rule per
+port today) and a coverage check that counts a rule with an application;
+threat intelligence, IDPS, TLS inspection, SNAT private ranges and DNS
+settings carried to the target policy; policy drafts, Firewall Manager
+hierarchies beyond `basePolicy` and templates with `languageVersion 2.0`;
+moving the template helpers it borrows from `parsers/azure.py` to a shared
+module; `--compare` saying "not decided here" for IPv6 instead of "closed".
+
+Still open for AWS Network Firewall: the TCP flags of stateless rules,
+`tls.sni` and `http.host` as names, domain lists' names, IP set references to
+resource groups, managed rule groups whose rules are not shown; fragments,
+midstream flows and UDP `flow:established`; Suricata application protocols as
+a target; reading the script back for `convert --compare`.
+
+Still open for pf: loading the output with pfctl (the judge and the emitter
+are written from the same reading of pf.conf(5)); an output for FreeBSD 14 and
+earlier (the NAT ruleset, without `nat-to` and `rdr-to` on rules); reading the
+output back for `convert --compare` (the parser does not model `tagged`); NAT
+rules with negated addresses (`from !(egress:network)`); the rules of anchors
+and included files; interface groups with their members.
+
+Still open for VyOS: `nat66`, `nat static`, policy routing, the bridge
+firewall and EdgeOS `port-forward`; `member interface` in the output for the
+rolling releases after 1.5; `global-options state-policy` written where
+`FWS-NO-ZONE` needs it; the `out` rule-sets of VyOS 1.3 and EdgeOS applied to
+replies (an approximation today); a source NAT rule that matches the incoming
+interface or the destination before DNAT.
+
+Still open for ScreenOS: a no-NAT rule for "skip policy NAT only" where a MIP,
+VIP or NAT-mode interface exists (`NAT_OVERLAP` today); virtual systems as
+policies of their own; DIP `shift-from`, `nat dst ip A to B`; checking on a
+device the intra-zone semantics, the NAT order, NAT mode towards Untrust only,
+the services of a policy to a VIP that maps ports, and the table of predefined
+services.
+
+Still open for PIX: `outbound` and `apply` lists, outside NAT, exemption lists
+with deny entries, policy statics of more than one entry; ICMP replies of a
+PAT translation flagged though the PIX passes them; checking that conduits are
+first match and that no less specific `nat` statement is a fallback.
+
 
 ## Rule usage
 
@@ -347,7 +405,7 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
 
 * the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
   the reload commands of OPNsense and pfSense);
-* the NAT of tier 3 on the ASAv, the vSRX, pfSense Plus and OPNsense (each passed before the lab policy had NAT):
+* the NAT of tier 3 on the vSRX, pfSense Plus and OPNsense (each passed before the lab policy had NAT):
   one run each;
 * Sophos Firewall in tier 3: its XML API is switched on in the web console only, so a run would wait for that step;
 * tier 3 on Google Cloud: each firewall's zone interfaces written Google Cloud's way (a `/32` address or DHCP, and the
@@ -375,7 +433,7 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
    `panos_to_fortios.conf` on a FortiGate VM and `panos_to_asa.cfg` on an
    ASAv; record what each CLI rejects and correct the emitters (0.36.1: the
    lab policy passed on an ASAv 9.24.10, and found the names of its own service
-   objects; `panos_to_asa.cfg`, with NAT, not loaded yet). Work through
+   objects; 0.40.21: the lab policy with its NAT passed too; `panos_to_asa.cfg` not loaded yet). Work through
    the assumptions table of DEVELOPMENT.md. Compare `asa_sample.cfg` and the
    FTD text in `test_asa.py` with what real devices print.
 2. Import `tests/data/expected/panos_to_sophos.xml` (as a `.tar`) on a Sophos
@@ -497,6 +555,60 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
    before and after a change made by hand, compared, and the differences
    checked against what was changed; a conversion loaded on a target, its
    running configuration exported again and compared with the source.
+19. Azure Firewall, in a lab subscription (a PaaS resource, no image): a VNet
+   with an `AzureFirewallSubnet` (/26) and a public IP, an Azure Firewall
+   Standard (`az network firewall create --sku AZFW_VNet --tier Standard`),
+   two spoke subnets with VMs and routes (0.0.0.0/0 and the other spoke) to
+   the firewall's private address; `az login` with Network Contributor on the
+   resource group. Deploy `panos_to_azurefw.json` and `azurefw_to_azurefw.json`
+   (`az deployment group create`), associate the policy (`az network firewall
+   update --firewall-policy`), read it back (`az network firewall policy show`
+   and `rule-collection-group list` into `--from azure-firewall`) and send
+   connections between the VMs and from the internet to the DNAT address.
+   Check the limits taken from memory (2 MB per group, 90 groups, the parallel
+   deployment error), the name rules, SNAT of DNAT traffic and a network deny
+   against DNAT traffic. The firewall is billed by the hour.
+20. AWS Network Firewall, in a lab account (a managed service, no image): a VPC
+   with a firewall subnet per zone and the firewall's endpoints in the route
+   path (ingress routing on the internet gateway, the workload subnets routed
+   through the endpoint), `aws network-firewall create-firewall`, instances on
+   both sides as in the lab's AWS run. Run `panos_to_awsnfw.sh` with `CHECK=1`
+   and then for real, `associate-firewall-policy`; read back with
+   `describe-firewall-policy`, `describe-rule-group` and `describe-vpcs` into
+   one file for `fwshift compare` with the source; alert and flow logs to
+   CloudWatch show which rule dropped a connection. Check what a pass or drop
+   on the first reply decides, `aws:drop_established` for UDP and GRE, and
+   reject on UDP. Endpoints are billed by the hour.
+21. pf: FreeBSD 15 on AWS (the FreeBSD Foundation's AMI, user `ec2-user`) or
+   OpenBSD under KVM (no official cloud image), with three interfaces as the
+   lab gives nftables. Enable pf (`sysrc pf_enable=YES; service pf start`, or
+   `pfctl -e`), add `anchor "fwshift"` to `/etc/pf.conf`, then `pfctl -vnf
+   fwshift.conf -a fwshift` and `pfctl -a fwshift -f fwshift.conf` with
+   `panos_to_pf.pf.conf` and `pf_to_pf.pf.conf`; inspect with `pfctl -a
+   fwshift -sr -sn -sT` (the parser does not read the tagged output back) and
+   probe with real connections. For the source side, compare `pfctl -sr` of a
+   box whose pf.conf the lab wrote with the file. Check pfctl's expansion of
+   lists of two IP versions and the most-specific semantics of tables.
+22. VyOS: the rolling ISO (free; stable 1.4 and 1.5 images need a
+   subscription) under KVM, login `vyos`/`vyos`, `install image`; or the AWS
+   Marketplace listing (to confirm), user `vyos` with the key pair. Paste
+   `panos_to_vyos.conf` and `vyos_to_vyos.conf` in `configure`, `compare`,
+   `commit-confirm 10`, `confirm`, `save`; read back with `show configuration
+   commands` for `--compare`, and `sudo nft list ruleset` for the order of the
+   forward filter and the zone chain assumed. EdgeOS needs an EdgeRouter (no
+   virtual image), for the source side only.
+23. ScreenOS: no image exists (end of life; a vSRX runs Junos). An SSG with
+   ScreenOS 6.3: console or SSH as the admin account, `set console page 0`,
+   `get config`; paste a test configuration as `set` lines, read back with
+   `get config` and `get policy`, send traffic between two zones and watch
+   `get session`. Check the intra-zone semantics, the NAT order and the
+   predefined services first.
+24. PIX: no image exists. A PIX 501, 506E or 515E with 6.3(5) (or an emulator
+   with a PIX image one owns): console, `enable`, `configure terminal`, paste
+   a test configuration, read it with `write terminal`; send traffic between
+   interfaces and watch `show xlate`, `show conn` and syslog messages 106023
+   (denied by an access list) and 305005 (no translation group found) for the
+   mandatory NAT.
 
 ## Project
 

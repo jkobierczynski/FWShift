@@ -1,0 +1,49 @@
+FWShift conversion report
+  source: azure-firewall (fwpol-shop)
+  target: routeros
+
+Summary
+  Security rules:     17   exact 8, approximated 2, needs review 7 (6 emitted disabled), skipped 0
+  NAT rules:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZFW_DYNAMIC: addresses only Azure knows: IP group ipg-partners, service tag Storage.WestEurope. They are dynamic groups, which only an Azure Firewall target writes again; add the IP groups (az network ip-group list) and the service tags (az network list-service-tags) to the export to convert them for other targets
+  [needs-review] AZFW_THREAT_INTEL: threat intelligence mode Deny: it is applied before the rules and blocks traffic of known malicious addresses and names, which the converted policy does not. It is not a rule and is not converted
+  [needs-review] ROUTEROS_LOAD: load the script with '/import file-name=FILE verbose=yes'. It stops at its first lines when objects of an earlier conversion are on the router, and at the first line the router refuses (lines before it stay; on RouterOS 6 the /ipv6 lines need the ipv6 package). Nothing changes traffic until the disabled jump rules at its end are enabled: enable them in Safe Mode, and move each to where it belongs in its chain (in forward, after the rules that accept established connections). Chain fwshift-forward ends with an explicit drop, so the rules of forward after the jump are no longer reached by forwarded traffic. To take a conversion away again: /ip firewall filter remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ipv6 firewall filter remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ip firewall nat remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ip firewall address-list remove [find where list~"^fws-"]; /ipv6 firewall address-list remove [find where list~"^fws-"]; /interface list member remove [find where list~"^fws-"]; /interface list remove [find where name~"^fws-"]
+  [info] AZFW_ORDER: read in the order Azure Firewall takes the rules: firewall policy fwpol-base > fwpol-shop: DNAT rules, then network rules, then application rules, each by the priority of the rule collection group and of the rule collection, the groups of the base policy before those of the child. What no rule allows is denied; rules of one collection have one action and no order among themselves
+  [info] AZFW_IPV4_ONLY: Azure Firewall filters IPv4 only: '*' is read as 0.0.0.0/0, and the converted policy says nothing for IPv6
+  [info] AZFW_UNFILTERED: the firewall decides only what is routed through it (user-defined routes, a secured hub); traffic inside a virtual network that is not routed to it, and network security groups on the way, are not in this export
+  [info] AZFW_ANY_PROTOCOL: protocol Any with every port is every IP protocol, as Microsoft documents it since November 2020 (before, it meant TCP, UDP and ICMP); with ports it is TCP and UDP on them
+  [info] AZFW_ICMP_INTERNET: rules for ICMP do not apply to traffic to the internet, which the firewall cannot translate for it (a known issue Microsoft documents); between networks of Azure they do
+  [info] AZFW_IDPS: IDPS in mode Alert: it alerts and does not block; not converted
+  [info] AZFW_SNAT: Azure Firewall translates the source of what a network rule allows to its public address unless the destination is in its private ranges (IANAPrivateRanges, 198.51.100.0/24); of what an application rule allows always (to one of its private addresses); and, community sources say, of what a DNAT rule translates. None of that is a rule of the policy: no source NAT rule is in the model
+  [info] AZFW_INFRASTRUCTURE: after the application rules Azure Firewall allows the FQDNs of its built-in infrastructure rule collection (platform image repository, managed disk status, diagnostics), unless an application rule denies all; the model does not hold them
+
+Security rules
+  dnat-web/web-https (DNAT)  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [info] AZFW_DNAT_ALLOWS: Azure Firewall allows what DNAT rule fwpol-shop/DefaultDnatRuleCollectionGroup/dnat-web/web-https translates, before any network rule sees it: this rule says so, for the addresses before translation
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.10' with post-NAT '10.10.1.4' because of NAT rule 'dnat-web/web-https'; check that this rule is meant to cover the translated traffic
+  dnat-web/ssh-admin (DNAT)  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [info] AZFW_DNAT_ALLOWS: Azure Firewall allows what DNAT rule fwpol-shop/DefaultDnatRuleCollectionGroup/dnat-web/ssh-admin translates, before any network rule sees it: this rule says so, for the addresses before translation
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.10' with post-NAT '10.10.1.5' because of NAT rule 'dnat-web/ssh-admin'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'dnat-web/ssh-admin' also translates the port to 22: the service of this rule (tcp-2222) named the pre-NAT port only, and now names 22, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+  net-partner/v6-ssh  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: IPv6 source address '2001:db8:10::/64', which Azure Firewall does not take.
+  net-allow-web/ntp-out  ->  exact  (emitted as 1 fwshift-forward rule)
+      [info] ROUTEROS_FQDN: 'time.example.org' is a host name in an address list: the router resolves it and keeps the list up to date
+  net-allow-web/storage  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Storage.WestEurope': dynamic address group, members are not known statically.
+  net-allow-web/partner-sftp  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ipg-partners': dynamic address group, members are not known statically.
+  net-deny-lateral/block-lateral  ->  needs-review  (emitted as 1 fwshift-forward rule)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.1.4', the address NAT rule 'dnat-web/web-https' translates '203.0.113.10' to. The target looks rules up after that translation, so traffic sent to '203.0.113.10' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.1.5', the address NAT rule 'dnat-web/ssh-admin' translates '203.0.113.10' to. The target looks rules up after that translation, so traffic sent to '203.0.113.10' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+  app-out/allow-updates  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: target FQDNs *.example.com, updates.example.net.
+  app-out/allow-wsus  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: FQDN tags WindowsUpdate.
+  app-deny/no-gambling  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: web categories Gambling. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.

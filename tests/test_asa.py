@@ -2316,3 +2316,47 @@ def test_objects_keep_clear_of_the_asas_own_service_objects() -> None:
     assert "object service udp-dns" in lines
     assert "RENAMED" in codes(report, "service", "tcp-ssh")
     assert any(line.startswith("access-list inside_access_in extended permit object tcp-ssh_2 object lan") for line in lines)
+
+
+def _rpf(p: Policy) -> List[str]:
+    _, report, _ = _convert(p)
+    return [rule.name for rule in p.rules if "ASA_STATIC_NAT_RPF" in codes_of(report, rule.origin)]
+
+
+def codes_of(report: Report, origin: str) -> List[str]:
+    return [f.code for f in report.item("rule", origin).findings]
+
+
+def test_a_rule_to_the_real_address_of_a_published_server_is_dropped_by_the_nat_reverse_path_check() -> None:
+    """The ASAv of the FWShift lab (0.40.21): out10 reaching the web server's real address and port, allowed by the access
+    list, was dropped as "NAT reverse path failed": the server's replies match the static rule that publishes it."""
+    def policy(vendor: str = "panos", after: bool = False) -> Policy:
+        p = _nat_policy(NatRule("publish", ["outside"], ["outside"], destinations=["pub"], service="alt",
+                                destination_translation=DestNat("web", "443")))  # fmt: skip
+        p.vendor, p.lookup_after_dnat = vendor, after
+        p.services["alt"] = Service("alt", [ServiceEntry(Protocol.TCP, "8443")])
+        p.services["ssh"] = Service("ssh", [ServiceEntry(Protocol.TCP, "22")])
+        for rule in (
+            Rule("direct", src_zones=["outside"], dst_zones=["dmz"], destinations=["web"], services=["https"]),
+            Rule("other-port", src_zones=["outside"], dst_zones=["dmz"], destinations=["web"], services=["ssh"]),
+            Rule("published", src_zones=["outside"], dst_zones=["dmz"], destinations=["pub"], services=["alt"]),
+            Rule("anywhere", src_zones=["outside"], dst_zones=["dmz"], services=["https"]),
+            Rule("from-inside", src_zones=["inside"], dst_zones=["dmz"], destinations=["web"], services=["https"]),
+        ):
+            rule.origin = rule.name
+            p.rules.append(rule)
+        return p
+
+    assert _rpf(policy()) == ["direct"]
+    # The source's own NAT fails it as well, or its rules name the real address for the translated traffic.
+    assert _rpf(policy("ios")) == [] and _rpf(policy("asa")) == []
+    assert _rpf(policy("pfsense", after=True)) == []
+
+
+def test_a_rule_to_the_real_address_of_a_host_with_static_source_nat_is_reported() -> None:
+    p = _nat_policy(NatRule("static", ["dmz"], ["outside"], ["web"], source_translation=SourceNat(SnatKind.STATIC, ["pub"], bidirectional=True)))
+    p.rules.append(Rule("direct", src_zones=["outside"], dst_zones=["dmz"], destinations=["web"], origin="direct"))
+    assert _rpf(p) == ["direct"]
+    # Limited to some destinations, the static rule matches only some replies: nothing is said.
+    p.nat_rules[0].destinations = ["remote"]
+    assert _rpf(p) == []

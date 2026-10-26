@@ -1,0 +1,30 @@
+FWShift conversion report
+  source: terraform-google (vpc-shop)
+  target: aws-network-firewall
+
+Summary
+  Security rules:     28   exact 28, approximated 0, needs review 0, skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] TERRAFORM_MEMBERS: the instances a rule applies to, and that its source tags and service accounts stand for, are those of this state: instances made elsewhere (another state, by hand, a managed instance group) are not known to the converted policy
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: google_compute_security_policy. The converted policy does not hold what they do
+  [needs-review] AWSNFW_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 sends each with --dry-run, without either it creates the stateful rule group fwshift-rules and the firewall policy fwshift, and stops if one of that name exists. The policy is attached to no firewall: nothing changes until you associate it (aws network-firewall associate-firewall-policy)
+  [needs-review] AWSNFW_ORDER: the policy decides every packet the firewall sees, in strict order: no stateless rules (every packet goes to the stateful engine), the rules of the model in their order, each for the first packet of a connection (flow:to_server), then aws:drop_strict for what no rule passed. Check it against what the firewall's route tables send through it
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Google Cloud command line for the same resources: 11 google_compute_firewall, 5 google_compute_instance, 1 google_compute_network, 1 google_compute_network_firewall_policy, 1 google_compute_network_firewall_policy_association, 6 google_compute_network_firewall_policy_rule, 1 google_compute_region_network_firewall_policy, 1 google_compute_region_network_firewall_policy_association, 1 google_compute_region_network_firewall_policy_rule. Resources outside this state (made by hand, or by another state) are not in it
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a pass rule of Network Firewall does not, a drop or reject rule sends an alert when the firewall has alert logging configured
+
+NAT rules
+  external-192.0.2.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  external-192.0.2.5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees

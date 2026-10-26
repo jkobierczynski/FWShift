@@ -1,0 +1,138 @@
+FWShift zone matrix
+  source: pf
+  security rules: 30 (0 disabled, 1 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 em0               em1               em2               (other zones)
+  em0            tcp/25 tcp/80 +1  tcp/25 tcp/80 +1  tcp/25 tcp/80 +1  tcp/25 tcp/80 +1
+  em1            any~              any~              any~              any~
+  em2            icmp type 8 +2    icmp type 8 +2    icmp type 8 +2    icmp type 8 +2
+  (other zones)  -                 -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+em0 -> em0 (inside the zone)
+  allowed: tcp/25, tcp/80, tcp/443
+  rule 'line 41': partners (IPv4) -> 203.0.113.25: tcp/25
+  rule 'line 57': any -> 10.20.1.10, 203.0.113.10: tcp/80, tcp/443
+em0 -> em1
+  allowed: tcp/25, tcp/80, tcp/443
+  rule 'line 41': partners (IPv4) -> 203.0.113.25: tcp/25
+  rule 'line 57': any -> 10.20.1.10, 203.0.113.10: tcp/80, tcp/443
+em0 -> em2
+  allowed: tcp/25, tcp/80, tcp/443
+  rule 'line 41': partners (IPv4) -> 203.0.113.25: tcp/25
+  rule 'line 57': any -> 10.20.1.10, 203.0.113.10: tcp/80, tcp/443
+em0 -> (other zones)
+  allowed: tcp/25, tcp/80, tcp/443
+  rule 'line 41': partners (IPv4) -> 203.0.113.25: tcp/25
+  rule 'line 57': any -> 10.20.1.10, 203.0.113.10: tcp/80, tcp/443
+em1 -> em0
+  allowed: any ~
+  cleartext or remote administration: telnet (rule 'line 80', 'line 78'); ftp (rule 'line 80', 'line 78'); rsh/rlogin/rexec (rule 'line 80', 'line 78'); netbios (rule 'line 80', 'line 78'); smb (rule 'line 80', 'line 78'); rdp (rule 'line 80', 'line 78'); vnc (rule 'line 80', 'line 78'); x11 (rule 'line 80', 'line 78')
+  industrial protocols: modbus (rule 'line 80', 'line 78'); s7/iso-tsap (rule 'line 80', 'line 78'); dnp3 (rule 'line 80', 'line 78'); ethernet-ip (rule 'line 80', 'line 78'); opc-ua (rule 'line 80', 'line 78'); iec-104 (rule 'line 80', 'line 78'); profinet (rule 'line 80', 'line 78'); niagara-fox (rule 'line 80', 'line 78')
+  rule 'admin ssh': 10.10.5.10, 10.10.5.11 -> em2 network: tcp/22 ~
+  rule 'line 92': 10.10.0.0/16 -> any: any (only with the user of the socket (user proxy), which only traffic of the firewall itself has, which is not in the model) ~
+  rule 'line 91': 10.10.0.0/16 -> egress address: tcp/8443 ~
+  rule 'line 90': 10.10.0.0/16 -> any: any (only with a mark set by another rule (tagged INTERNAL), which is not in the model) ~
+  rule 'line 87': 10.10.0.0/16 -> 198.51.100.80: tcp/3128 ~
+  rule 'line 86': 2001:db8:10::/48 -> 2001:db8:20::1-2001:db8:20::ff: any
+  rule 'line 85': 10.10.0.0/16 -> www.example.com: tcp/443 ~
+  rule 'line 84': 10.10.0.0/16 -> 198.51.100.7: ip/47 (gre) ~
+  rule 'line 80': 10.10.0.0/16 -> 10.20.3.0/24: tcp/0-112, tcp/114-1023, tcp/2049-65535
+  rule 'line 79': 10.10.0.0/16 -> 10.20.2.0/24: udp/1001-1009
+  rule 'line 78': 10.10.0.0/16 -> 10.20.0.0/16: tcp/0-24, tcp/26-112, tcp/114-65535
+  rule 'line 69': not 10.10.5.10 -> 10.20.1.25: tcp/22
+  rule 'line 66': ::/0 -> any: icmp6 type 128
+  rule 'line 65': 0.0.0.0/0 -> any: icmp type 8, icmp type 3 code 4
+  rule 'line 53': 10.10.0.0/16 -> any: any except tcp/113, tcp/6000-6010
+em1 -> em1 (inside the zone)
+  allowed: any ~
+  cleartext or remote administration: telnet (rule 'line 80', 'line 78'); ftp (rule 'line 80', 'line 78'); rsh/rlogin/rexec (rule 'line 80', 'line 78'); netbios (rule 'line 80', 'line 78'); smb (rule 'line 80', 'line 78'); rdp (rule 'line 80', 'line 78'); vnc (rule 'line 80', 'line 78'); x11 (rule 'line 80', 'line 78')
+  industrial protocols: modbus (rule 'line 80', 'line 78'); s7/iso-tsap (rule 'line 80', 'line 78'); dnp3 (rule 'line 80', 'line 78'); ethernet-ip (rule 'line 80', 'line 78'); opc-ua (rule 'line 80', 'line 78'); iec-104 (rule 'line 80', 'line 78'); profinet (rule 'line 80', 'line 78'); niagara-fox (rule 'line 80', 'line 78')
+  rule 'admin ssh': 10.10.5.10, 10.10.5.11 -> em2 network: tcp/22 ~
+  rule 'line 92': 10.10.0.0/16 -> any: any (only with the user of the socket (user proxy), which only traffic of the firewall itself has, which is not in the model) ~
+  rule 'line 91': 10.10.0.0/16 -> egress address: tcp/8443 ~
+  rule 'line 90': 10.10.0.0/16 -> any: any (only with a mark set by another rule (tagged INTERNAL), which is not in the model) ~
+  rule 'line 87': 10.10.0.0/16 -> 198.51.100.80: tcp/3128 ~
+  rule 'line 86': 2001:db8:10::/48 -> 2001:db8:20::1-2001:db8:20::ff: any
+  rule 'line 85': 10.10.0.0/16 -> www.example.com: tcp/443 ~
+  rule 'line 84': 10.10.0.0/16 -> 198.51.100.7: ip/47 (gre) ~
+  rule 'line 80': 10.10.0.0/16 -> 10.20.3.0/24: tcp/0-112, tcp/114-1023, tcp/2049-65535
+  rule 'line 79': 10.10.0.0/16 -> 10.20.2.0/24: udp/1001-1009
+  rule 'line 78': 10.10.0.0/16 -> 10.20.0.0/16: tcp/0-24, tcp/26-112, tcp/114-65535
+  rule 'line 69': not 10.10.5.10 -> 10.20.1.25: tcp/22
+  rule 'line 66': ::/0 -> any: icmp6 type 128
+  rule 'line 65': 0.0.0.0/0 -> any: icmp type 8, icmp type 3 code 4
+  rule 'line 53': 10.10.0.0/16 -> any: any except tcp/113, tcp/6000-6010
+em1 -> em2
+  allowed: any ~
+  cleartext or remote administration: telnet (rule 'line 80', 'line 78'); ftp (rule 'line 80', 'line 78'); rsh/rlogin/rexec (rule 'line 80', 'line 78'); netbios (rule 'line 80', 'line 78'); smb (rule 'line 80', 'line 78'); rdp (rule 'line 80', 'line 78'); vnc (rule 'line 80', 'line 78'); x11 (rule 'line 80', 'line 78')
+  industrial protocols: modbus (rule 'line 80', 'line 78'); s7/iso-tsap (rule 'line 80', 'line 78'); dnp3 (rule 'line 80', 'line 78'); ethernet-ip (rule 'line 80', 'line 78'); opc-ua (rule 'line 80', 'line 78'); iec-104 (rule 'line 80', 'line 78'); profinet (rule 'line 80', 'line 78'); niagara-fox (rule 'line 80', 'line 78')
+  rule 'admin ssh': 10.10.5.10, 10.10.5.11 -> em2 network: tcp/22 ~
+  rule 'line 92': 10.10.0.0/16 -> any: any (only with the user of the socket (user proxy), which only traffic of the firewall itself has, which is not in the model) ~
+  rule 'line 91': 10.10.0.0/16 -> egress address: tcp/8443 ~
+  rule 'line 90': 10.10.0.0/16 -> any: any (only with a mark set by another rule (tagged INTERNAL), which is not in the model) ~
+  rule 'line 87': 10.10.0.0/16 -> 198.51.100.80: tcp/3128 ~
+  rule 'line 86': 2001:db8:10::/48 -> 2001:db8:20::1-2001:db8:20::ff: any
+  rule 'line 85': 10.10.0.0/16 -> www.example.com: tcp/443 ~
+  rule 'line 84': 10.10.0.0/16 -> 198.51.100.7: ip/47 (gre) ~
+  rule 'line 80': 10.10.0.0/16 -> 10.20.3.0/24: tcp/0-112, tcp/114-1023, tcp/2049-65535
+  rule 'line 79': 10.10.0.0/16 -> 10.20.2.0/24: udp/1001-1009
+  rule 'line 78': 10.10.0.0/16 -> 10.20.0.0/16: tcp/0-24, tcp/26-112, tcp/114-65535
+  rule 'line 69': not 10.10.5.10 -> 10.20.1.25: tcp/22
+  rule 'line 66': ::/0 -> any: icmp6 type 128
+  rule 'line 65': 0.0.0.0/0 -> any: icmp type 8, icmp type 3 code 4
+  rule 'line 53': 10.10.0.0/16 -> any: any except tcp/113, tcp/6000-6010
+em1 -> (other zones)
+  allowed: any ~
+  cleartext or remote administration: telnet (rule 'line 80', 'line 78'); ftp (rule 'line 80', 'line 78'); rsh/rlogin/rexec (rule 'line 80', 'line 78'); netbios (rule 'line 80', 'line 78'); smb (rule 'line 80', 'line 78'); rdp (rule 'line 80', 'line 78'); vnc (rule 'line 80', 'line 78'); x11 (rule 'line 80', 'line 78')
+  industrial protocols: modbus (rule 'line 80', 'line 78'); s7/iso-tsap (rule 'line 80', 'line 78'); dnp3 (rule 'line 80', 'line 78'); ethernet-ip (rule 'line 80', 'line 78'); opc-ua (rule 'line 80', 'line 78'); iec-104 (rule 'line 80', 'line 78'); profinet (rule 'line 80', 'line 78'); niagara-fox (rule 'line 80', 'line 78')
+  rule 'admin ssh': 10.10.5.10, 10.10.5.11 -> em2 network: tcp/22 ~
+  rule 'line 92': 10.10.0.0/16 -> any: any (only with the user of the socket (user proxy), which only traffic of the firewall itself has, which is not in the model) ~
+  rule 'line 91': 10.10.0.0/16 -> egress address: tcp/8443 ~
+  rule 'line 90': 10.10.0.0/16 -> any: any (only with a mark set by another rule (tagged INTERNAL), which is not in the model) ~
+  rule 'line 87': 10.10.0.0/16 -> 198.51.100.80: tcp/3128 ~
+  rule 'line 86': 2001:db8:10::/48 -> 2001:db8:20::1-2001:db8:20::ff: any
+  rule 'line 85': 10.10.0.0/16 -> www.example.com: tcp/443 ~
+  rule 'line 84': 10.10.0.0/16 -> 198.51.100.7: ip/47 (gre) ~
+  rule 'line 80': 10.10.0.0/16 -> 10.20.3.0/24: tcp/0-112, tcp/114-1023, tcp/2049-65535
+  rule 'line 79': 10.10.0.0/16 -> 10.20.2.0/24: udp/1001-1009
+  rule 'line 78': 10.10.0.0/16 -> 10.20.0.0/16: tcp/0-24, tcp/26-112, tcp/114-65535
+  rule 'line 69': not 10.10.5.10 -> 10.20.1.25: tcp/22
+  rule 'line 66': ::/0 -> any: icmp6 type 128
+  rule 'line 65': 0.0.0.0/0 -> any: icmp type 8, icmp type 3 code 4
+  rule 'line 53': 10.10.0.0/16 -> any: any except tcp/113, tcp/6000-6010
+em2 -> em0
+  allowed: icmp type 8, icmp type 3 code 4, udp/53
+  rule 'line 65': 0.0.0.0/0 -> any: icmp type 8, icmp type 3 code 4
+  rule 'line 64': 10.20.1.10 -> any: udp/53
+em2 -> em1
+  allowed: icmp type 8, icmp type 3 code 4, udp/53
+  rule 'line 65': 0.0.0.0/0 -> any: icmp type 8, icmp type 3 code 4
+  rule 'line 64': 10.20.1.10 -> any: udp/53
+em2 -> em2 (inside the zone)
+  allowed: icmp type 8, icmp type 3 code 4, udp/53
+  rule 'line 65': 0.0.0.0/0 -> any: icmp type 8, icmp type 3 code 4
+  rule 'line 64': 10.20.1.10 -> any: udp/53
+em2 -> (other zones)
+  allowed: icmp type 8, icmp type 3 code 4, udp/53
+  rule 'line 65': 0.0.0.0/0 -> any: icmp type 8, icmp type 3 code 4
+  rule 'line 64': 10.20.1.10 -> any: udp/53
+
+Not in the matrix
+  1 rule(s) of the source could not be read; what they allow is not shown: 'line 73'
+
+From reading the configuration
+  PF_LAST_MATCH: 22 rules are not quick: pf decides by the last rule that matches unless a quick rule matches first. The model is first match: the quick rules come first, in their order, then the others, the last one first
+  PF_DEFAULT_PASS: pf passes what no rule matches; the model records that as its default action
+  PF_ANCHOR: the rules of these anchors are not converted: 'relayd/*' (line 94). Rules loaded into an anchor decide where the anchor stands, before or after any converted rule; add them to the file to convert them
+  PF_HOST_NAMES: pfctl resolves host names once, when the rules are loaded: www.example.com. They are host name objects here
+  PF_OVERLOAD: rules that add addresses to a table when they exceed a limit (overload): 'line 57'. The table they fill is empty in pf.conf
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  1 rule(s) never match and are left out; 'fwshift audit' names them.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

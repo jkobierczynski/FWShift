@@ -85,6 +85,23 @@ FORCEPOINT_NATIVE = NameRules(254, re.compile(r"[\x00-\x1f\x7f]|^\$"), False)
 # Rule names and comments are free text.
 FORCEPOINT_TEXT = NameRules(254, re.compile(r"[\x00-\x1f\x7f]"), False)
 
+# Azure Firewall: the name of a rule collection has letters, digits, "_", "." and "-", starts with a letter or digit, ends
+# with a letter, digit or "_", and has at most 80 characters (Microsoft's documentation of rule processing). Rule collection
+# groups and rules are kept to the same; the emitter takes the "." and "-" off the end.
+AZURE_FIREWALL = NameRules(80, re.compile(r"[^A-Za-z0-9_.-]"), True)
+# pf: names of tables, tags and macros written are kept to letters, digits and underscores, and to the 31 characters of
+# a table name (PF_TABLE_NAME_SIZE is 32 with the terminating zero).
+PF_TABLE = NameRules(31, re.compile(r"[^A-Za-z0-9_]"), False, True)
+
+# VyOS: names of groups, chains and zones of letters, digits, "_", "-" and ".", alphanumeric first (the constraints of
+# its CLI); no limit of the length is published, and names are kept to 63 characters.
+VYOS = NameRules(63, re.compile(r"[^A-Za-z0-9_.-]"), True)
+
+# AWS Network Firewall: a rule variable is a letter, then letters, digits and underscores, up to 32 characters
+# (^[A-Za-z][A-Za-z0-9_]*$, the API reference). Rule groups and policies take letters, digits and hyphens, up to 128
+# (the emitter makes those itself).
+AWSNFW_VARIABLE = NameRules(32, re.compile(r"[^A-Za-z0-9_]"), True, True)
+
 
 def clean(name: str, rules: NameRules) -> str:
     out = rules.invalid.sub("_", name).strip()

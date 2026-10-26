@@ -1,0 +1,62 @@
+configure terminal
+address-object ipv4 "n 10.20.0.0_16" network 10.20.0.0 255.255.0.0 zone LAN
+address-object ipv6 "n 2001:db8:20::_56" network 2001:db8:20:: /56 zone LAN
+address-object ipv4 "n 10.20.1.0_24" network 10.20.1.0 255.255.255.0 zone LAN
+address-object ipv6 "n 2001:db8:20:1::_64" network 2001:db8:20:1:: /64 zone LAN
+address-object ipv4 "n 10.30.10.0_24" network 10.30.10.0 255.255.255.0 zone LAN
+address-object ipv4 "n 198.51.100.128_25" network 198.51.100.128 255.255.255.128 zone LAN
+address-object ipv4 "n 203.0.113.0_26" network 203.0.113.0 255.255.255.192 zone LAN
+address-object ipv4 "branches" host 192.0.0.8 zone LAN
+address-group ipv4 "HOME_NET"
+    address-object ipv4 "n 10.20.0.0_16"
+    exit
+address-group ipv6 "HOME_NET v6"
+    address-object ipv6 "n 2001:db8:20::_56"
+    exit
+address-group ipv4 "WEB_SERVERS"
+    address-object ipv4 "n 10.20.1.0_24"
+    exit
+address-group ipv6 "WEB_SERVERS v6"
+    address-object ipv6 "n 2001:db8:20:1::_64"
+    exit
+address-group ipv4 "ADMIN_NETS"
+    address-object ipv4 "n 10.30.10.0_24"
+    exit
+address-group ipv4 "partners"
+    address-object ipv4 "n 198.51.100.128_25"
+    address-object ipv4 "n 203.0.113.0_26"
+    exit
+service-object "tcp-22" TCP 22 22
+service-object "tcp-873" TCP 873 873
+service-object "tcp-all" TCP 1 65535
+service-object "tcp-443" TCP 443 443
+service-object "tcp-80" TCP 80 80
+service-object "tcp-3389" TCP 3389 3389
+service-object "udp-53" UDP 53 53
+service-object "tcp-80,443,8443 tcp 80" TCP 80 80
+service-object "tcp-80,443,8443 tcp 443" TCP 443 443
+service-object "tcp-80,443,8443 tcp 8443" TCP 8443 8443
+service-group "tcp-80,443,8443"
+    service-object "tcp-80,443,8443 tcp 80"
+    service-object "tcp-80,443,8443 tcp 443"
+    service-object "tcp-80,443,8443 tcp 8443"
+    exit
+service-object "tcp-1-21,23-1023 tcp 1-21" TCP 1 21
+service-object "tcp-1-21,23-1023 tcp 23-1023" TCP 23 1023
+service-group "tcp-1-21,23-1023"
+    service-object "tcp-1-21,23-1023 tcp 1-21"
+    service-object "tcp-1-21,23-1023 tcp 23-1023"
+    exit
+service-object "udp-69" UDP 69 69
+service-object "udp-161" UDP 161 161
+service-object "tcp-1024-65535" TCP 1024 65535
+service-object "app dns tcp 53" TCP 53 53
+service-object "app dns udp 53" UDP 53 53
+service-group "app dns"
+    service-object "app dns tcp 53"
+    service-object "app dns udp 53"
+    exit
+service-object "app ssl" TCP 443 443
+service-object "app web-browsing" TCP 80 80
+commit
+exit

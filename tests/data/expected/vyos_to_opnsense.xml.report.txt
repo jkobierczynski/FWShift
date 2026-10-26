@@ -1,0 +1,145 @@
+FWShift conversion report
+  source: vyos
+  target: opnsense
+
+Summary
+  Security rules:     42   exact 5, approximated 8, needs review 29 (29 emitted disabled), skipped 0
+  NAT rules:           6   exact 6, approximated 0, needs review 0, skipped 0
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] INTERFACES_REQUIRED: OPNsense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: VPN, GUEST, DMZ
+  [needs-review] INTERFACE_NAME: rules for every zone were written for the interfaces OPNsense can name, and not for br0: map those zones to wan, lan or an optN with --zone-map. No rule at all is written for them
+  [needs-review] INTERZONE_DEFAULT: the source accepts what no rule matches; a rule that passes everything was added at the end of every interface
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. The NAT area holds 3 port forwards and 0 1:1 rules, and sets outbound NAT to manual mode with the 3 rules of the source; it removes every rule of NPt. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] SELF_EXCLUDED: on OPNsense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  forward-40  ->  needs-review, emitted disabled  (emitted as DMZ, GUEST, lan, VPN)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] INTERFACE_NAME: 'br0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-WAN.from-LAN.LAN-WAN-20  ->  approximated  (emitted as lan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  zone-WAN.from-LAN.default  ->  needs-review, emitted disabled  (emitted as lan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, DMZ, VPN, br0, WAN with --zone-network.
+  zone-WAN.from-GUEST.GUEST-WAN-10  ->  approximated  (emitted as GUEST)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  zone-WAN.from-GUEST.default  ->  needs-review, emitted disabled  (emitted as GUEST)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, DMZ, VPN, br0, WAN with --zone-network.
+  zone-WAN.default  ->  needs-review, emitted disabled  (emitted as DMZ, GUEST, lan, VPN)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, DMZ, VPN, br0, WAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'br0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-LAN.intra  ->  needs-review, emitted disabled  (emitted as lan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, WAN, DMZ, VPN, br0, LAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-LAN.from-WAN.WAN-LAN-10  ->  approximated  (emitted as wan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  zone-LAN.from-WAN.default  ->  needs-review, emitted disabled  (emitted as wan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, WAN, DMZ, VPN, br0, LAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-LAN.default  ->  needs-review, emitted disabled  (emitted as GUEST, lan, wan, DMZ, VPN)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, WAN, DMZ, VPN, br0, LAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'br0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-GUEST.default  ->  needs-review, emitted disabled  (emitted as DMZ, lan, VPN, wan)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by GUEST, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, WAN, DMZ, VPN, br0, GUEST with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'br0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  web servers  ->  approximated  (emitted as wan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  approximated  (emitted as wan)
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'https_to_web1_destination' with post-NAT '192.168.30.10' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review, emitted disabled  (emitted as wan)
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, VPN, br0, DMZ with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-30  ->  needs-review, emitted disabled  (emitted as wan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, VPN, br0, DMZ with --zone-network.
+  office hours only  ->  needs-review, emitted disabled  (emitted as wan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  needs-review, emitted disabled  (emitted as wan)
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit).
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, VPN, br0, DMZ with --zone-network.
+  zone-DMZ.from-WAN.default  ->  needs-review, emitted disabled  (emitted as wan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, VPN, br0, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.from-LAN.LAN-DMZ-10  ->  approximated  (emitted as lan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  zone-DMZ.from-LAN.LAN-DMZ-20  ->  needs-review, emitted disabled  (emitted as lan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, VPN, br0, DMZ with --zone-network.
+  zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20  ->  approximated  (emitted as lan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  zone-DMZ.from-LAN.default  ->  needs-review, emitted disabled  (emitted as lan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, VPN, br0, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.from-VPN.VPN-DMZ-10  ->  needs-review, emitted disabled  (emitted as VPN)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, VPN, br0, DMZ with --zone-network.
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  needs-review, emitted disabled  (emitted as VPN)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, VPN, br0, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.from-VPN.default  ->  needs-review, emitted disabled  (emitted as VPN)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, VPN, br0, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.default  ->  needs-review, emitted disabled  (emitted as GUEST, lan, VPN, wan)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, VPN, br0, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'br0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-VPN.default  ->  needs-review, emitted disabled  (emitted as DMZ, GUEST, lan, wan)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by VPN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, DMZ, br0, VPN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'br0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-WAN.from-LAN.default  ->  needs-review, emitted disabled  (emitted as lan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, DMZ, VPN, br0, WAN with --zone-network.
+  ipv6-zone-WAN.default  ->  needs-review, emitted disabled  (emitted as DMZ, GUEST, lan, VPN)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, DMZ, VPN, br0, WAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'br0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-LAN.intra  ->  needs-review, emitted disabled  (emitted as lan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, WAN, DMZ, VPN, br0, LAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-LAN.default  ->  needs-review, emitted disabled  (emitted as GUEST, lan, wan, DMZ, VPN)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, WAN, DMZ, VPN, br0, LAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'br0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-GUEST.default  ->  needs-review, emitted disabled  (emitted as DMZ, lan, VPN, wan)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by GUEST, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, WAN, DMZ, VPN, br0, GUEST with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'br0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10  ->  approximated  (emitted as wan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20  ->  needs-review, emitted disabled  (emitted as wan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, VPN, br0, DMZ with --zone-network.
+  ipv6-zone-DMZ.from-WAN.default  ->  needs-review, emitted disabled  (emitted as wan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, VPN, br0, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-DMZ.default  ->  needs-review, emitted disabled  (emitted as GUEST, lan, VPN, wan)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, VPN, br0, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'br0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv6-zone-VPN.default  ->  needs-review, emitted disabled  (emitted as DMZ, GUEST, lan, wan)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by VPN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind GUEST, LAN, WAN, DMZ, br0, VPN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'br0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+NAT rules
+  destination-30  ->  exact  (emitted as 1 port forward)
+      [info] NAT_DISABLED: disabled in the source; written disabled
+
+Addresses
+  updates.example.com  ->  exact  (emitted as updates_example_com)
+      [info] RENAMED: renamed to 'updates_example_com' to fit the target's naming rules
+  mirror.example.org  ->  exact  (emitted as mirror_example_org)
+      [info] RENAMED: renamed to 'mirror_example_org' to fit the target's naming rules
+  https to web1 destination  ->  exact  (emitted as https_to_web1_destination)
+      [info] RENAMED: renamed to 'https_to_web1_destination' to fit the target's naming rules
+
+Address groups
+  INSIDE-NETS  ->  exact  (emitted as INSIDE_NETS)
+      [info] RENAMED: renamed to 'INSIDE_NETS' to fit the target's naming rules
+  WEB-SERVERS  ->  exact  (emitted as WEB_SERVERS)
+      [info] RENAMED: renamed to 'WEB_SERVERS' to fit the target's naming rules

@@ -1,0 +1,147 @@
+FWShift conversion report
+  source: pf
+  target: barracuda
+
+Summary
+  Security rules:     31   exact 2, approximated 4, needs review 24 (23 emitted disabled), skipped 1
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 7, approximated 0, needs review 2, skipped 0
+  Services:           21   exact 19, approximated 0, needs review 2, skipped 0
+
+Notes for the whole policy
+  [needs-review] PF_ANCHOR: the rules of these anchors are not converted: 'relayd/*' (line 94). Rules loaded into an anchor decide where the anchor stands, before or after any converted rule; add them to the file to convert them
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [needs-review] INTERZONE_DEFAULT: the source allows what no rule matches; the firewall blocks it at the end of its rule list. Add a rule that allows it if that was intended
+  [info] PF_LAST_MATCH: 22 rules are not quick: pf decides by the last rule that matches unless a quick rule matches first. The model is first match: the quick rules come first, in their order, then the others, the last one first
+  [info] PF_DEFAULT_PASS: pf passes what no rule matches; the model records that as its default action
+  [info] PF_HOST_NAMES: pfctl resolves host names once, when the rules are loaded: www.example.com. They are host name objects here
+  [info] PF_OVERLOAD: rules that add addresses to a table when they exceed a limit (overload): 'line 57'. The table they fill is empty in pf.conf
+
+Security rules
+  line 72  ->  approximated  (emitted as line_72)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone em2; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  line 75  ->  approximated  (emitted as line_75)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone em2; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  line 46 out  ->  needs-review  (emitted as line_46_out, line_46_out-v6)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by every interface: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic, less what the rules before it that decide pass ('line 50', 'line 74')
+      [needs-review] PF_OUT_UNNAMED: the rule blocks what leaves by any interface, less what rules for some interfaces pass; it is written for the interfaces this ruleset names, and traffic that leaves by another interface is not blocked by it
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone em1; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  line 41  ->  needs-review, emitted disabled  (emitted as line_41)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em0, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em0 with --zone-network.
+  antispoof em1 network  ->  needs-review, emitted disabled  (emitted as antispoof_em1_network)
+      [needs-review] PF_NEGATED_INTERFACE: 'on ! em1' is every interface but em1; it is written for the other interfaces this ruleset names, em0, em2, and not for interfaces it does not name
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone em0, em2; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1_network': the network of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  antispoof em1 address  ->  needs-review, emitted disabled  (emitted as antispoof_em1_address)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1_address': the address of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  brute force  ->  needs-review, emitted disabled  (emitted as brute_force)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone em0; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'bruteforce': it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  line 49  ->  needs-review, emitted disabled  (emitted as line_49)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone em0; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'spamd': its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  admin ssh  ->  needs-review, emitted disabled  (emitted as admin_ssh)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em2_network': the network of em2 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 92  ->  needs-review, emitted disabled  (emitted as line_92)
+      [needs-review] UNSUPPORTED_MATCH: not converted: the user of the socket (user proxy), which only traffic of the firewall itself has.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 91  ->  needs-review, emitted disabled  (emitted as line_91)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'egress_address': the address of egress is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 90  ->  needs-review, emitted disabled  (emitted as line_90)
+      [needs-review] UNSUPPORTED_MATCH: not converted: a mark set by another rule (tagged INTERNAL).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 87  ->  needs-review, emitted disabled  (emitted as line_87)
+      [needs-review] PF_ROUTE_TO: the rule sends what it matches elsewhere (route-to ( em3 10.30.0.1 )); the converted rule decides only whether it passes, and the traffic takes the route the target chooses
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 86  ->  needs-review, emitted disabled  (emitted as line_86)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 85  ->  needs-review, emitted disabled  (emitted as line_85)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'www.example.com': a host name: how the API spells a hostname object is not known.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 84  ->  needs-review, emitted disabled  (emitted as line_84)
+      [approximated] PF_NO_STATE: the rule passes packets without keeping state (no state): the replies need a rule of their own on pf. The converted rule allows the connection, replies included
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 81  ->  approximated  (emitted as line_81, line_81-v6)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone em1; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  line 80  ->  needs-review, emitted disabled  (emitted as line_80)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 79  ->  needs-review, emitted disabled  (emitted as line_79)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 78  ->  needs-review, emitted disabled  (emitted as line_78)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 69  ->  needs-review, emitted disabled  (emitted as line_69)
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+      [info] NEGATION_EXPANDED: the firewall has no negation in a rule: 'not source 10.10.5.10' is written as the addresses that are left
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 69.2  ->  needs-review, emitted disabled  (emitted as line_69.2)
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+      [info] NEGATION_EXPANDED: the firewall has no negation in a rule: 'not source 10.10.5.11' is written as the addresses that are left
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 66  ->  needs-review, emitted disabled  (emitted as line_66)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-128': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 65  ->  needs-review, emitted disabled  (emitted as line_65)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-8_icmp-3-4': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, em2, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1, em2 with --zone-network.
+  line 64  ->  needs-review, emitted disabled  (emitted as line_64)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em2, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em2 with --zone-network.
+  line 57  ->  needs-review, emitted disabled  (emitted as line_57)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.1.10' because of NAT rule 'line 39 rdr'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em0, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em0 with --zone-network.
+  line 54  ->  approximated  (emitted as line_54, line_54-v6)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone em1; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  line 53  ->  needs-review, emitted disabled  (emitted as line_53)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone em1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind em1 with --zone-network.
+  line 46  ->  exact  (emitted as line_46, line_46-v6)
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  line 73  ->  skipped
+      [info] PF_OUT_SHADOWED: the rule blocks traffic that leaves, but the rules before it that decide ('line 74') pass all of it: it decides nothing for forwarded traffic and is not converted for that direction
+
+NAT rules
+  line 36 nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  line 37 nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  line 39 rdr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  line 41 rdr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+
+Address groups
+  bruteforce  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <bruteforce> cannot be converted: it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload)
+  spamd  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <spamd> cannot be converted: its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf
+  em1 network  ->  exact  (emitted as em1_network)
+      [info] RENAMED: renamed to 'em1_network' to fit the target's naming rules
+  em1 address  ->  exact  (emitted as em1_address)
+      [info] RENAMED: renamed to 'em1_address' to fit the target's naming rules
+  em2 network  ->  exact  (emitted as em2_network)
+      [info] RENAMED: renamed to 'em2_network' to fit the target's naming rules
+  egress address  ->  exact  (emitted as egress_address)
+      [info] RENAMED: renamed to 'egress_address' to fit the target's naming rules
+  partners (IPv4)  ->  exact  (emitted as partners__IPv4_)
+      [info] RENAMED: renamed to 'partners__IPv4_' to fit the target's naming rules
+
+Services
+  tcp-0-1023,2049-65535  ->  exact  (emitted as tcp-0-1023_2049-65535)
+      [info] RENAMED: renamed to 'tcp-0-1023_2049-65535' to fit the target's naming rules
+  tcp-0-24,26-65535  ->  exact  (emitted as tcp-0-24_26-65535)
+      [info] RENAMED: renamed to 'tcp-0-24_26-65535' to fit the target's naming rules
+  icmp6-128  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
+  icmp-8+icmp-3-4  ->  exact  (emitted as icmp-8_icmp-3-4)
+      [info] RENAMED: renamed to 'icmp-8_icmp-3-4' to fit the target's naming rules
+  tcp-80,443  ->  exact  (emitted as tcp-80_443)
+      [info] RENAMED: renamed to 'tcp-80_443' to fit the target's naming rules
+  icmp-8_icmp-3-4  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated

@@ -20,7 +20,9 @@ from . import __version__, audit, compare, conduits, export, hits, matrix, narro
 from .appmap import load_app_map
 from .emitters import asa as emit_asa
 from .emitters import aws as emit_aws
+from .emitters import awsnfw as emit_awsnfw
 from .emitters import azure as emit_azure
+from .emitters import azurefw as emit_azurefw
 from .emitters import terraform as emit_terraform
 from .emitters import checkpoint as emit_checkpoint
 from .emitters import cisco as emit_cisco
@@ -32,6 +34,7 @@ from .emitters import gcp as emit_gcp
 from .emitters import opnsense as emit_opnsense
 from .emitters import pfsense as emit_pfsense
 from .emitters import routeros as emit_routeros
+from .emitters import pf as emit_pf
 from .emitters import barracuda as emit_barracuda
 from .emitters import huawei as emit_huawei
 from .emitters import ios as emit_ios
@@ -43,13 +46,16 @@ from .emitters import sonicwall as emit_sonicwall
 from .emitters import stormshield as emit_stormshield
 from .emitters import sophos as emit_sophos
 from .emitters import watchguard as emit_watchguard
+from .emitters import vyos as emit_vyos
 from .errors import FwshiftError
 from .model import ANY, AddressKind, Policy
 from .netutil import parse_literal
 from .options import Options
 from .parsers import asa as parse_asa
 from .parsers import aws as parse_aws
+from .parsers import awsnfw as parse_awsnfw
 from .parsers import azure as parse_azure
+from .parsers import azurefw as parse_azurefw
 from .parsers import checkpoint as parse_checkpoint
 from .parsers import cisco as parse_cisco
 from .parsers import fortios as parse_fortios
@@ -61,6 +67,7 @@ from .parsers import gcp as parse_gcp
 from .parsers import opnsense as parse_opnsense
 from .parsers import pfsense as parse_pfsense
 from .parsers import routeros as parse_routeros
+from .parsers import pf as parse_pf
 from .parsers import barracuda as parse_barracuda
 from .parsers import huawei as parse_huawei
 from .parsers import ios as parse_ios
@@ -73,6 +80,9 @@ from .parsers import stormshield as parse_stormshield
 from .parsers import sophos as parse_sophos
 from .parsers import terraform as parse_terraform
 from .parsers import watchguard as parse_watchguard
+from .parsers import pix as parse_pix
+from .parsers import screenos as parse_screenos
+from .parsers import vyos as parse_vyos
 from .report import Report, Severity
 
 EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
@@ -84,11 +94,13 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "nsx": emit_nsx.emit,
     "aws": emit_aws.emit,
     "azure": emit_azure.emit,
+    "azure-firewall": emit_azurefw.emit,
     "terraform-aws": emit_terraform.emit_terraform_aws,
     "terraform-azure": emit_terraform.emit_terraform_azure,
     "gcp": emit_gcp.emit,
     "terraform-google": emit_terraform.emit_terraform_google,
     "routeros": emit_routeros.emit,
+    "pf": emit_pf.emit,
     "checkpoint": emit_checkpoint.emit,
     "asa": emit_asa.emit,
     "ios": emit_ios.emit,
@@ -105,9 +117,13 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "watchguard": emit_watchguard.emit,
     "fmc": emit_cisco.emit_fmc,
     "fdm": emit_cisco.emit_fdm,
+    "vyos": emit_vyos.emit,
+    "aws-network-firewall": emit_awsnfw.emit,
 }
 VENDORS = ("panos", "fortios", "checkpoint", "asa", "ios", "huawei", "stormshield", "meraki", "fmc", "fdm", "sophos", "pfsense", "opnsense", "sonicwall", "watchguard", "barracuda", "junos",
-           "iptables", "ip6tables", "nftables", "nsx", "aws", "azure", "terraform-aws", "terraform-azure", "terraform-google", "gcp", "routeros", "forcepoint")  # fmt: skip
+           "iptables", "ip6tables", "nftables", "nsx", "aws", "azure", "terraform-aws", "terraform-azure", "terraform-google", "gcp", "routeros", "forcepoint",
+           "azure-firewall", "pf", "vyos", "aws-network-firewall")  # fmt: skip
+SOURCES = VENDORS + ("screenos", "pix")  # what can be read; the last ones are read only
 
 
 def detect_format(data: bytes) -> str:
@@ -166,12 +182,21 @@ def detect_format(data: bytes) -> str:
         return "nsx"
     if parse_meraki.looks_like_meraki(data):
         return "meraki"
+    if parse_awsnfw.looks_like_awsnfw(data):
+        return "aws-network-firewall"
     if parse_aws.looks_like_aws(data):
         return "aws"
+    if parse_azurefw.looks_like_azurefw(data):
+        if parse_azurefw.has_nsg(data):
+            raise FwshiftError("the JSON holds network security groups and Azure Firewall rules: say which to read with --from azure or "
+                               "--from azure-firewall")  # fmt: skip
+        return "azure-firewall"
     if parse_azure.looks_like_azure(data):
         return "azure"
     if parse_routeros.looks_like_routeros(data):
         return "routeros"
+    if parse_vyos.looks_like_vyos(data):
+        return "vyos"  # (before Junos: VyOS set lines and braces have words Junos uses too)
     head = data.lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(b"<"):
         return "panos"
@@ -183,10 +208,16 @@ def detect_format(data: bytes) -> str:
             return "iptables"  # the parser tells IPv4 from IPv6
         if line and not line.startswith(b"#"):
             break
+    if parse_pf.looks_like_pf(head):
+        return "pf"
+    if parse_screenos.looks_like_screenos(head):
+        return "screenos"  # (before the set commands of PAN-OS and Junos, whose words it shares)
     if panos_set.looks_like_set(head):
         return "panos"  # (its set commands, as ``show config running`` prints them in set format)
     if parse_junos.looks_like_junos(head):
         return "junos"
+    if parse_pix.looks_like_pix(head[:1_000_000].decode("utf-8", errors="replace")):
+        return "pix"  # (before the ASA, which also reads a "PIX Version" line: PIX 7 and later)
     if parse_huawei.looks_like_huawei(head[:1_000_000].decode("utf-8", errors="replace")):
         return "huawei"
     if parse_ios.looks_like_ios(head[:1_000_000].decode("utf-8", errors="replace")):
@@ -200,8 +231,8 @@ def load(
     data: bytes, source: str, report: Report, vsys: str = "", device_group: str = "", vdom: str = "", layer: str = "",
     policy: str = "", nat_policy: str = "", interface_addresses: Sequence[str] = (),
 ) -> Policy:  # fmt: skip
-    if interface_addresses and source not in ("pfsense", "opnsense", "sonicwall"):
-        raise FwshiftError("--interface-address is for a pfSense, OPNsense or SonicWall source")
+    if interface_addresses and source not in ("pfsense", "opnsense", "sonicwall", "pf"):
+        raise FwshiftError("--interface-address is for a pfSense, OPNsense or SonicWall source, or pf")
     if source == "panos":
         return parse_panos.parse(data, report, vsys=vsys, device_group=device_group)
     if source == "fortios":
@@ -246,7 +277,7 @@ def load(
         return parse_azure.parse(data, report)
     if source in ("terraform-aws", "terraform-azure", "terraform-google"):
         if policy and source == "terraform-azure":
-            raise FwshiftError("--policy is for a Management Center, Forcepoint, gcp, terraform-aws or terraform-google source")
+            raise FwshiftError("--policy is for a Management Center, Forcepoint, gcp, azure-firewall, terraform-aws or terraform-google source")
         return parse_terraform.parse(data, report, provider=source.split("-", 1)[1], vpc=policy)
     if source == "gcp":
         return parse_gcp.parse(data, report, network=policy)
@@ -254,6 +285,18 @@ def load(
         return parse_routeros.parse(data, report)
     if source == "forcepoint":
         return parse_forcepoint.parse(data, report, policy=policy)
+    if source == "azure-firewall":
+        return parse_azurefw.parse(data, report, policy=policy)
+    if source == "pf":
+        return parse_pf.parse(data, report, interface_addresses=interface_addresses)
+    if source == "screenos":
+        return parse_screenos.parse(data, report)
+    if source == "pix":
+        return parse_pix.parse(data, report)
+    if source == "vyos":
+        return parse_vyos.parse(data, report)
+    if source == "aws-network-firewall":
+        return parse_awsnfw.parse(data, report, policy=policy)
     raise FwshiftError(f"unknown source format '{source}'")
 
 
@@ -546,18 +589,19 @@ def _source_options(parser: argparse.ArgumentParser, optional: bool = False) -> 
         parser.add_argument("input", nargs="?", help="configuration file to read, or - for standard input")
     else:
         parser.add_argument("input", help="configuration file to read, or - for standard input")
-    parser.add_argument("--from", dest="source", choices=VENDORS, help="source format (default: detected)")
+    parser.add_argument("--from", dest="source", choices=SOURCES, help="source format (default: detected)")
     parser.add_argument("--vsys", default="", help="PAN-OS source: virtual system to read")
     parser.add_argument("--device-group", default="", help="Panorama source: device group to read")
     parser.add_argument("--vdom", default="", help="FortiOS source: VDOM to read")
     parser.add_argument("--layer", default="", help="Check Point source: access layer to read")
     parser.add_argument("--policy", default="", help="Management Center source (fmc): access control policy to read; Forcepoint: "
                         "firewall policy to read; terraform-aws: the VPC to read (its id or the address of its aws_vpc); gcp and terraform-google: "
-                        "the network to read; Stormshield: the filter slot to read (its number or name)")
+                        "the network to read; Stormshield: the filter slot to read (its number or name); azure-firewall: the firewall policy or "
+                        "the firewall to read")
     parser.add_argument("--nat-policy", default="", help="Management Center source (fmc): NAT policy to read")
     parser.add_argument(
         "--interface-address", action="append", default=[], metavar="INTERFACE=ADDRESS/BITS",
-        help="pfSense, OPNsense and SonicWall sources: address and network of an interface that gets them from somewhere else (DHCP, "
+        help="pfSense, OPNsense, SonicWall and pf sources: address and network of an interface that gets them from somewhere else (DHCP, "
         "PPPoE, a delegated prefix), for the rules that name them; repeatable, IPv4 and IPv6 (SonicWall: IPv4)",
     )  # fmt: skip
 
@@ -568,7 +612,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco IOS and IOS XE routers, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall "
         "(Management Center and Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, iptables, "
         "nftables, VMware NSX, AWS security groups, Azure network security groups, Google Cloud firewall rules (these three also as Terraform), "
-        "MikroTik RouterOS and Forcepoint NGFW, "
+        "MikroTik RouterOS, Forcepoint NGFW and VyOS (read also VyOS 1.3 and EdgeOS), "
         "with a lossiness report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
@@ -626,7 +670,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="OPNsense target: the series to write for: 24.7, 25.1, 25.7, 26.1 or 26.7 (default: 26.7)",
     )  # fmt: skip
     conv.add_argument(
-        "--policy-id-start", type=int, default=0, metavar="N", help="FortiOS target: first policy id (default: automatic)"
+        "--policy-id-start", type=int, default=0, metavar="N", help="FortiOS target: first policy id (default: automatic); VyOS target: number of the forward filter rule that jumps to the policy and of the first NAT rule (default 10000)"
     )
     conv.add_argument(
         "--target-layer", default="Network", metavar="NAME", help="Check Point target: access layer (default: Network)"
@@ -646,7 +690,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--target-policy", default="FWShift", metavar="NAME",
         help="Management Center target (fmc): name of the access control policy and the NAT policy the script creates; NSX: of "
              "the security policy; Forcepoint: of the firewall policy; Azure and terraform-azure: of the one group when no zone has networks; "
-             "gcp and terraform-google: of the network firewall policy; Stormshield: the filter slot to write, as N or N:NAME "
+             "gcp and terraform-google: of the network firewall policy; azure-firewall: of the firewall policy; Stormshield: the filter slot to write, as N or N:NAME "
              "(default: FWShift, in slot 9)",
     )  # fmt: skip
     conv.add_argument(
@@ -703,11 +747,11 @@ def build_parser() -> argparse.ArgumentParser:
     cmp = commands.add_parser("compare", help="every connection whose verdict differs between two configurations (the equivalence check)")
     cmp.add_argument("first", help="the first configuration (before)")
     cmp.add_argument("second", help="the second configuration (after)")
-    cmp.add_argument("--from", dest="source", choices=VENDORS, help="format of the first (default: detected)")
-    cmp.add_argument("--from-second", choices=VENDORS, help="format of the second (default: detected)")
+    cmp.add_argument("--from", dest="source", choices=SOURCES, help="format of the first (default: detected)")
+    cmp.add_argument("--from-second", choices=SOURCES, help="format of the second (default: detected)")
     for option, text in (("--vsys", "PAN-OS: virtual system to read"), ("--device-group", "Panorama: device group to read"),
                          ("--vdom", "FortiOS: VDOM to read"), ("--layer", "Check Point: access layer to read"),
-                         ("--policy", "Management Center (fmc), Forcepoint: access control or firewall policy to read; terraform-aws: the VPC; gcp and terraform-google: the network; Stormshield: the filter slot"),
+                         ("--policy", "Management Center (fmc), Forcepoint: access control or firewall policy to read; terraform-aws: the VPC; gcp and terraform-google: the network; Stormshield: the filter slot; azure-firewall: the policy or firewall"),
                          ("--nat-policy", "Management Center (fmc): NAT policy to read")):  # fmt: skip
         cmp.add_argument(option, default="", help=text + " (of both)")
     cmp.add_argument("--zone-map", action="append", default=[], metavar="FIRST=SECOND",
@@ -1012,8 +1056,9 @@ def _run_compare(args: argparse.Namespace) -> int:
 
 # The targets that use the networks behind the zones (--zone-network), and take them from the source where it says.
 NETWORK_TARGETS = ("asa", "pfsense", "opnsense", "barracuda", "nsx", "aws", "azure", "gcp", "terraform-aws", "terraform-azure",
-                   "terraform-google", "meraki", "sonicwall")  # fmt: skip
-READ_BACK = ("asa", "azure", "fdm", "fortios", "huawei", "ios", "iptables", "ip6tables", "junos", "nftables", "nsx", "panos", "routeros", "sophos", "watchguard")
+                   "terraform-google", "meraki", "sonicwall", "azure-firewall", "aws-network-firewall")  # fmt: skip
+READ_BACK = ("asa", "azure", "fdm", "fortios", "huawei", "ios", "iptables", "ip6tables", "junos", "nftables", "nsx", "panos", "routeros", "sophos", "watchguard",
+             "azure-firewall", "vyos")
 
 
 def _alignment(source: Policy, back: Policy, options: Options) -> Tuple[Dict[str, str], List[str]]:

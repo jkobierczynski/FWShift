@@ -1,0 +1,91 @@
+FWShift conversion report
+  source: panos (vsys1)
+  target: azure-firewall
+
+Summary
+  Security rules:     14   exact 1, approximated 2, needs review 11 (11 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:            5   exact 5, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside these zones that no rule matches, and blocks it between zones; Azure Firewall has no zones, and without their networks (--zone-network) the converted policy blocks it: trust, untrust, dmz, ot
+  [needs-review] AZFW_LOAD: the output is an ARM template (section 10) that creates firewall policy FWShift with its rule collection groups; look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode), then associate the policy with a firewall or a secured hub. Nothing changes before that. Deploying it where a policy of that name exists changes that policy
+  [info] AZFW_TARGET_SNAT: Azure Firewall translates the source of what goes to a public address (outside RFC 1918 and RFC 6598, or the private ranges set on the policy) to its own public address, and, community sources say, the source of DNAT traffic to one of its private addresses: servers may see other source addresses than with the source
+  [info] AZFW_TARGET_DEFAULTS: the policy is written with network rules only; after them Azure Firewall still allows the FQDNs of its built-in infrastructure rule collection, then denies. Threat intelligence is set to Alert, which blocks nothing
+  [info] AZFW_TARGET_IPV6: the policy holds IPv6; Azure Firewall filters IPv4 only, and the IPv6 parts of the rules are not written (blocking rules lose nothing by it: the firewall forwards no IPv6)
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Azure Firewall does not choose: its diagnostic settings send the logs of every rule (AZFWNetworkRule, AZFWNatRule) to a workspace
+
+Security rules
+  Allow-Web-Out  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (group=default-profiles); attach equivalent inspection on the target
+      [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Azure Firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of Azure Firewall names no zone: give the networks behind untrust with --zone-network.
+  Allow-DNS  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, dmz, and a rule of Azure Firewall names no zone: give the networks behind trust, dmz with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of Azure Firewall names no zone: give the networks behind untrust with --zone-network.
+  Inbound-Web  ->  needs-review, emitted disabled
+      [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a rule of Azure Firewall names no zone: give the networks behind untrust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Azure Firewall names no zone: give the networks behind dmz with --zone-network.
+  Inbound-Mail  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications smtp reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a rule of Azure Firewall names no zone: give the networks behind untrust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Azure Firewall names no zone: give the networks behind dmz with --zone-network.
+  Admin-SSH  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] USER_MATCH: source user match example\netadmins is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Azure Firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Azure Firewall names no zone: give the networks behind dmz with --zone-network.
+  Engineering to PLCs  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications modbus, siemens-s7 reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Azure Firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone ot, and a rule of Azure Firewall names no zone: give the networks behind ot with --zone-network.
+  Block-OT-Outbound  ->  approximated  (emitted as rule collection Block-OT-Outbound of group fwshift-network-1)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone ot; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone untrust; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Block-Torrents  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone trust; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone untrust; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_UNKNOWN: a service of the rule cannot be read. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Region  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'KP': not defined in the input. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  App-Server-Ports  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Azure Firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Azure Firewall names no zone: give the networks behind dmz with --zone-network.
+  Tagged-Servers-Updates  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tagged-servers': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of Azure Firewall names no zone: give the networks behind untrust with --zone-network.
+  Not-From-Guests  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications ping reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Azure Firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Azure Firewall names no zone: give the networks behind dmz with --zone-network.
+  DMZ-Intrazone  ->  approximated  (emitted as rule collection DMZ-Intrazone of group fwshift-network-1)
+      [approximated] RULE_TYPE: intrazone rule: written as a rule for every pair of its zones, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone dmz; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+
+NAT rules
+  No-NAT-Partner  ->  skipped
+      [needs-review] AZFW_NAT_NOT_WRITTEN: a NAT rule that translates nothing (an exemption): Azure Firewall leaves the source of traffic to its private ranges as it is, which the policy's SNAT settings choose, not a rule. Not written
+  Inbound-Web-DNAT  ->  skipped
+      [needs-review] AZFW_NAT_NOT_WRITTEN: not written: it is for traffic from zone untrust, and a DNAT rule names no zone: give the networks behind untrust with --zone-network
+  Mail-Static  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  DMZ-Out-Pool  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  Outbound-PAT  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+
+Addresses
+  odd-hosts  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
+  KP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'Block-Region' but not an address object in the input (a region, an external list or a missing object); emitted as a placeholder that matches nothing

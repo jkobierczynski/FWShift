@@ -1,0 +1,102 @@
+FWShift conversion report
+  source: screenos
+  target: sophos
+
+Summary
+  Security rules:     23   exact 17, approximated 0, needs review 6 (3 emitted disabled), skipped 0
+  NAT rules:           9   exact 0, approximated 2, needs review 6, skipped 1
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SOPHOS_LOAD: the output is an Entities.xml. Put it in a tar archive under that name (or let FWShift do it: give -o a name that ends in .tar) and import it under Backup & firmware > Import export. Rules are added below the rules the firewall has: a firewall rule or NAT rule that is there already, such as the default source NAT rule of a new firewall, comes first. An import can stop at the first object the firewall does not take: compare the number of rules and objects with this report, on a firewall that is not in production
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): DMZ, Lab, Trust, Untrust, Servers. Zones are not created: an import would overwrite the device access of a zone that exists
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] SCREENOS_ZONE_OBJECT: the address name 'printer' stands for different addresses in the books of zones DMZ, Trust; each is kept as 'printer (zone)'
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: DMZ=10.20.0.0/24; Lab=10.40.0.0/24; Servers=10.30.0.0/24; Trust=10.10.0.0/16,10.11.0.0/16,2001:db8:10::/64; Untrust=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] SCREENOS_PREDEFINED: predefined services are not in the configuration; FWShift took these from its table: FTP-Get, HTTP, HTTPS, PING, SMTP, SSH
+  [info] SCREENOS_POLICY_ORDER: 1 policies were placed by 'set policy move', 'top' or 'before'; the rules are in the order that results
+  [info] INTRAZONE_ALLOW_ADDED: appended 'fwshift-intrazone-DMZ', 'fwshift-intrazone-DMZ_v6', 'fwshift-intrazone-Lab', 'fwshift-intrazone-Lab_v6', 'fwshift-intrazone-Trust', 'fwshift-intrazone-Trust_v6': these zones allow traffic between their own interfaces on the source, and Sophos Firewall needs a rule for it
+  [info] EXISTING_OBJECTS: an import overwrites what the firewall has under the same name: a host, a service or a rule that is in this output replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 7 rule(s) match IPv4 and IPv6 traffic and were written twice: Sophos Firewall keeps a rulebase per IP version. The name of the IPv6 rule ends in _v6
+
+Security rules
+  intrazone-DMZ  ->  exact  (emitted as intrazone-DMZ, intrazone-DMZ_v6)
+      [info] SCREENOS_INTRAZONE_ALLOW: zone 'DMZ' does not block traffic inside it: ScreenOS passes it without a policy. This rule, ahead of the others, says so
+  intrazone-Lab  ->  exact  (emitted as intrazone-Lab, intrazone-Lab_v6)
+      [info] SCREENOS_INTRAZONE_ALLOW: zone 'Lab' does not block traffic inside it: ScreenOS passes it without a policy. This rule, ahead of the others, says so
+  intrazone-Trust  ->  exact  (emitted as intrazone-Trust, intrazone-Trust_v6)
+      [info] SCREENOS_INTRAZONE_ALLOW: zone 'Trust' does not block traffic inside it: ScreenOS passes it without a policy. This rule, ahead of the others, says so
+  policy-5  ->  needs-review
+      [needs-review] SCREENOS_VIP_PORT: VIP(203.0.113.20) maps port 8443 to the port of service 'HTTPS' on 10.20.0.21; whether the services of this policy are matched before or after that translation is not known. The rule keeps its services as they are
+  policy-9  ->  needs-review
+      [needs-review] SCREENOS_INTRAZONE_IGNORED: zone 'Trust' does not block traffic inside it ('set zone "Trust" block' is not set): ScreenOS passes that traffic without looking at policies, so this policy decides nothing. It is written disabled
+  policy-13  ->  needs-review, emitted disabled  (emitted as policy-13, policy-13_v6)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'FTP-Get': the predefined service FTP-Get: FTP limited to downloads, a restriction of the FTP helper FWShift cannot write.
+  policy-14  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: a policy-based VPN (tunnel): the traffic is allowed into a VPN tunnel only.
+  policy-15  ->  needs-review, emitted disabled  (emitted as policy-15, policy-15_v6)
+      [needs-review] UNSUPPORTED_MATCH: not converted: user authentication ('auth'), which is not converted.
+  policy-16  ->  needs-review  (emitted as policy-16, policy-16_v6)
+      [needs-review] SCREENOS_GLOBAL_ZONE: the policy is from zone 'DMZ' to zone 'Global': a policy between a zone and the Global zone matches no traffic (global policies are from Global to Global). It is written disabled
+  policy-19  ->  exact
+      [info] SCREENOS_APPLICATION: the policy hands its traffic to the application layer gateway 'IGNORE'; that is not converted (the targets choose their helpers by port)
+
+NAT rules
+  nat-lan-out  ->  needs-review
+      [approximated] NAT_ZONES: the rule applied to traffic from Trust only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to Untrust only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+  nat-lan-out-2  ->  needs-review
+      [approximated] NAT_ZONES: the rule applied to traffic from Trust only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to Untrust only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+  nat-policy-3  ->  needs-review
+      [needs-review] NAT_OVERLAP: policy 'policy-2' above passes part of this traffic without NAT. A no-NAT rule for it would also stop the MIPs and interfaces in NAT mode from translating it: none was added, so this rule translates that traffic too
+      [approximated] NAT_ZONES: the rule applied to traffic from Trust only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to Untrust only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+  nat-policy-7  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of a policy with a negated address
+  mip-203.0.113.10  ->  needs-review  (emitted as mip-203.0.113.10, mip-203.0.113.10-in)
+      [approximated] NAT_ZONES: the rule applied to traffic from DMZ only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to Untrust only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT rule plus rule 'mip-203.0.113.10-in' for the inbound direction
+  mip-203.0.113.24  ->  needs-review  (emitted as mip-203.0.113.24, mip-203.0.113.24-in)
+      [approximated] NAT_ZONES: the rule applied to traffic from Servers only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to Untrust only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+      [approximated] NAT_STATIC_RANGE: static NAT of a range becomes source NAT to a range, which does not promise that each host keeps the same translated address
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT rule plus rule 'mip-203.0.113.24-in' for the inbound direction
+  vip-203.0.113.20-80  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from Untrust only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  vip-203.0.113.20-8443  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from Untrust only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  nat-mode-Trust  ->  needs-review
+      [info] SCREENOS_NAT_MODE: interface 'bgroup0' is in NAT mode: ScreenOS translates the source of what it receives and sends to the Untrust zone to the address of the outgoing interface, unless a policy or a MIP translates it
+      [needs-review] NAT_ZONES: the rule applied to traffic from Trust only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to Untrust only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+
+Addresses
+  MIP(203.0.113.10)  ->  exact  (emitted as MIP_203.0.113.10_)
+      [info] RENAMED: renamed to 'MIP_203.0.113.10_' to fit the target's naming rules
+  MIP(203.0.113.24)  ->  exact  (emitted as MIP_203.0.113.24_)
+      [info] RENAMED: renamed to 'MIP_203.0.113.24_' to fit the target's naming rules
+  VIP(203.0.113.20)  ->  exact  (emitted as VIP_203.0.113.20_)
+      [info] RENAMED: renamed to 'VIP_203.0.113.20_' to fit the target's naming rules
+  printer (Trust)  ->  exact  (emitted as printer _Trust_)
+      [info] RENAMED: renamed to 'printer _Trust_' to fit the target's naming rules
+  DIP(4)  ->  exact  (emitted as DIP_4_)
+      [info] RENAMED: renamed to 'DIP_4_' to fit the target's naming rules
+
+Services
+  HTTP  ->  exact  (emitted as HTTP_2)
+      [info] RENAMED: renamed to 'HTTP_2' to fit the target's naming rules
+  HTTPS  ->  exact  (emitted as HTTPS_2)
+      [info] RENAMED: renamed to 'HTTPS_2' to fit the target's naming rules
+  SSH  ->  exact  (emitted as SSH_2)
+      [info] RENAMED: renamed to 'SSH_2' to fit the target's naming rules
+  SMTP  ->  exact  (emitted as SMTP_2)
+      [info] RENAMED: renamed to 'SMTP_2' to fit the target's naming rules
+  PING  ->  exact  (emitted as PING_2)
+      [info] RENAMED: renamed to 'PING_2' to fit the target's naming rules
+  esp  ->  exact  (emitted as esp_2)
+      [info] RENAMED: renamed to 'esp_2' to fit the target's naming rules

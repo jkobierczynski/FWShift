@@ -1,0 +1,27 @@
+FWShift conversion report
+  source: nftables
+  target: pf
+
+Summary
+  Security rules:     16   exact 13, approximated 0, needs review 3 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] PF_LOAD: the output is a ruleset for the anchor 'fwshift': check it with 'pfctl -vnf FILE -a fwshift', load it with 'pfctl -a fwshift -f FILE'. The main ruleset must call it ('anchor "fwshift"'), before rules that pass or block forwarded traffic quick; rules after the anchor that are not quick can still change what it decides. It lets in what arrives on the interfaces of the zones that a rule may allow (never to the firewall's own addresses), decides when the traffic leaves, and needs OpenBSD pf or FreeBSD 15 or later (match rules with tag, nat-to, rdr-to)
+  [needs-review] INTERFACES_REQUIRED: zones are written as interfaces or interface groups, a macro each at the top of the file: set each to the interface (or group) of the zone, or convert with --zone-map: eth1, eth0, eth2, eth3
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+  [info] PF_ZONES_ONLY: the anchor decides about traffic that arrives on the interfaces of the zones (eth1, eth0, eth2, eth3); what arrives on another interface is left to the main ruleset
+
+Security rules
+  Banned by fail2ban  ->  needs-review, emitted disabled
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  needs-review  (emitted as 4 rules)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Rate limited mail  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.

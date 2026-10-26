@@ -1,0 +1,366 @@
+set address MIP_203.0.113.10_ ip-netmask 203.0.113.10/32
+set address MIP_203.0.113.10_ description "MIP on ethernet0/0: 10.20.0.10"
+set address MIP_203.0.113.24_ ip-netmask 203.0.113.24/29
+set address MIP_203.0.113.24_ description "MIP on ethernet0/0: 10.30.0.24"
+set address VIP_203.0.113.20_ ip-netmask 203.0.113.20/32
+set address VIP_203.0.113.20_ description "VIP on ethernet0/0"
+set address lan ip-netmask 10.10.0.0/16
+set address lan description "office LAN"
+set address admins ip-netmask 10.10.5.0/28
+set address partner-net ip-netmask 198.51.100.0/24
+set address bad-host ip-netmask 192.0.2.66/32
+set address mail1 ip-netmask 10.20.0.25/32
+set address web1 ip-netmask 10.20.0.10/32
+set address db-net ip-netmask 10.30.0.0/24
+set address app1 ip-netmask 10.30.0.24/32
+set address "printer _Trust_" ip-netmask 10.10.9.9/32
+set address lan-v6 ip-netmask 2001:db8:10::/64
+set address updates fqdn updates.example.com
+set address ntp-servers ip-netmask 192.0.2.123/32
+set address DIP_4_ ip-range 203.0.113.100-203.0.113.120
+set address DIP_4_ description "DIP pool 4 on ethernet0/0"
+set address-group blocked static [ bad-host partner-net ]
+set address-group dmz-servers static [ web1 mail1 ]
+set service HTTP protocol tcp port 80
+set service HTTPS protocol tcp port 443
+set service tcp-8080 protocol tcp port 8080-8081
+set service dns-split-udp protocol udp port 53
+set service dns-split-tcp protocol tcp port 53
+set service-group dns-split members [ dns-split-udp dns-split-tcp ]
+set service SSH protocol tcp port 22
+set service SMTP protocol tcp port 25
+set service hi-src protocol tcp port 9000
+set service hi-src protocol tcp source-port 1024-2000
+set service FTP-Get protocol tcp port 1
+set service FTP-Get description "FWSHIFT PLACEHOLDER, matches nothing: the predefined service FTP-Get: FTP limited to downloads, a restriction of the FTP helper FWShift cannot write"
+set service tcp-80 protocol tcp port 80
+set service tcp-80 description "virtual port of a VIP"
+set service tcp-8443 protocol tcp port 8443
+set service tcp-8443 description "virtual port of a VIP"
+set service-group web members [ HTTP HTTPS tcp-8080 ]
+set rulebase security rules intrazone-DMZ from DMZ
+set rulebase security rules intrazone-DMZ to DMZ
+set rulebase security rules intrazone-DMZ source any
+set rulebase security rules intrazone-DMZ destination any
+set rulebase security rules intrazone-DMZ source-user any
+set rulebase security rules intrazone-DMZ category any
+set rulebase security rules intrazone-DMZ application any
+set rulebase security rules intrazone-DMZ service any
+set rulebase security rules intrazone-DMZ action allow
+set rulebase security rules intrazone-DMZ log-end no
+set rulebase security rules intrazone-DMZ description "ScreenOS: traffic inside zone DMZ, which does not block it, passes without a policy"
+set rulebase security rules intrazone-Lab from Lab
+set rulebase security rules intrazone-Lab to Lab
+set rulebase security rules intrazone-Lab source any
+set rulebase security rules intrazone-Lab destination any
+set rulebase security rules intrazone-Lab source-user any
+set rulebase security rules intrazone-Lab category any
+set rulebase security rules intrazone-Lab application any
+set rulebase security rules intrazone-Lab service any
+set rulebase security rules intrazone-Lab action allow
+set rulebase security rules intrazone-Lab log-end no
+set rulebase security rules intrazone-Lab description "ScreenOS: traffic inside zone Lab, which does not block it, passes without a policy"
+set rulebase security rules intrazone-Trust from Trust
+set rulebase security rules intrazone-Trust to Trust
+set rulebase security rules intrazone-Trust source any
+set rulebase security rules intrazone-Trust destination any
+set rulebase security rules intrazone-Trust source-user any
+set rulebase security rules intrazone-Trust category any
+set rulebase security rules intrazone-Trust application any
+set rulebase security rules intrazone-Trust service any
+set rulebase security rules intrazone-Trust action allow
+set rulebase security rules intrazone-Trust log-end no
+set rulebase security rules intrazone-Trust description "ScreenOS: traffic inside zone Trust, which does not block it, passes without a policy"
+set rulebase security rules lan-out from Trust
+set rulebase security rules lan-out to Untrust
+set rulebase security rules lan-out source lan
+set rulebase security rules lan-out destination any
+set rulebase security rules lan-out source-user any
+set rulebase security rules lan-out category any
+set rulebase security rules lan-out application any
+set rulebase security rules lan-out service [ web dns-split ]
+set rulebase security rules lan-out action allow
+set rulebase security rules lan-out log-end yes
+set rulebase security rules policy-2 from Trust
+set rulebase security rules policy-2 to Untrust
+set rulebase security rules policy-2 source admins
+set rulebase security rules policy-2 destination partner-net
+set rulebase security rules policy-2 source-user any
+set rulebase security rules policy-2 category any
+set rulebase security rules policy-2 application any
+set rulebase security rules policy-2 service SSH
+set rulebase security rules policy-2 action allow
+set rulebase security rules policy-2 log-end yes
+set rulebase security rules policy-3 from Trust
+set rulebase security rules policy-3 to Untrust
+set rulebase security rules policy-3 source lan
+set rulebase security rules policy-3 destination any
+set rulebase security rules policy-3 source-user any
+set rulebase security rules policy-3 category any
+set rulebase security rules policy-3 application any
+set rulebase security rules policy-3 service any
+set rulebase security rules policy-3 action allow
+set rulebase security rules policy-3 log-end no
+set rulebase security rules policy-20 from Untrust
+set rulebase security rules policy-20 to DMZ
+set rulebase security rules policy-20 source bad-host
+set rulebase security rules policy-20 destination any
+set rulebase security rules policy-20 source-user any
+set rulebase security rules policy-20 category any
+set rulebase security rules policy-20 application any
+set rulebase security rules policy-20 service any
+set rulebase security rules policy-20 action reset-client
+set rulebase security rules policy-20 log-end no
+set rulebase security rules web-in from Untrust
+set rulebase security rules web-in to DMZ
+set rulebase security rules web-in source any
+set rulebase security rules web-in destination MIP_203.0.113.10_
+set rulebase security rules web-in source-user any
+set rulebase security rules web-in category any
+set rulebase security rules web-in application any
+set rulebase security rules web-in service [ HTTP HTTPS ]
+set rulebase security rules web-in action allow
+set rulebase security rules web-in log-end yes
+set rulebase security rules policy-5 from Untrust
+set rulebase security rules policy-5 to DMZ
+set rulebase security rules policy-5 source any
+set rulebase security rules policy-5 destination VIP_203.0.113.20_
+set rulebase security rules policy-5 source-user any
+set rulebase security rules policy-5 category any
+set rulebase security rules policy-5 application any
+set rulebase security rules policy-5 service HTTP
+set rulebase security rules policy-5 action allow
+set rulebase security rules policy-5 log-end no
+set rulebase security rules policy-6 from Untrust
+set rulebase security rules policy-6 to Servers
+set rulebase security rules policy-6 source partner-net
+set rulebase security rules policy-6 destination MIP_203.0.113.24_
+set rulebase security rules policy-6 source-user any
+set rulebase security rules policy-6 category any
+set rulebase security rules policy-6 application any
+set rulebase security rules policy-6 service tcp-8080
+set rulebase security rules policy-6 action allow
+set rulebase security rules policy-6 log-end no
+set rulebase security rules policy-7 from Untrust
+set rulebase security rules policy-7 to DMZ
+set rulebase security rules policy-7 source blocked
+set rulebase security rules policy-7 destination mail1
+set rulebase security rules policy-7 source-user any
+set rulebase security rules policy-7 category any
+set rulebase security rules policy-7 application any
+set rulebase security rules policy-7 service SMTP
+set rulebase security rules policy-7 action allow
+set rulebase security rules policy-7 negate-source yes
+set rulebase security rules policy-7 log-end yes
+set rulebase security rules policy-8 from DMZ
+set rulebase security rules policy-8 to Servers
+set rulebase security rules policy-8 source web1
+set rulebase security rules policy-8 destination [ db-net app1 ]
+set rulebase security rules policy-8 source-user any
+set rulebase security rules policy-8 category any
+set rulebase security rules policy-8 application any
+set rulebase security rules policy-8 service hi-src
+set rulebase security rules policy-8 action allow
+set rulebase security rules policy-8 log-end no
+set rulebase security rules policy-9 from Trust
+set rulebase security rules policy-9 to Trust
+set rulebase security rules policy-9 source lan
+set rulebase security rules policy-9 destination "printer _Trust_"
+set rulebase security rules policy-9 source-user any
+set rulebase security rules policy-9 category any
+set rulebase security rules policy-9 application any
+set rulebase security rules policy-9 service any
+set rulebase security rules policy-9 action drop
+set rulebase security rules policy-9 log-end no
+set rulebase security rules policy-9 disabled yes
+set rulebase security rules policy-10 from Servers
+set rulebase security rules policy-10 to Servers
+set rulebase security rules policy-10 source db-net
+set rulebase security rules policy-10 destination db-net
+set rulebase security rules policy-10 source-user any
+set rulebase security rules policy-10 category any
+set rulebase security rules policy-10 application any
+set rulebase security rules policy-10 service any
+set rulebase security rules policy-10 action allow
+set rulebase security rules policy-10 log-end no
+set rulebase security rules policy-11 from Trust
+set rulebase security rules policy-11 to DMZ
+set rulebase security rules policy-11 source [ admins lan-v6 ]
+set rulebase security rules policy-11 destination dmz-servers
+set rulebase security rules policy-11 source-user any
+set rulebase security rules policy-11 category any
+set rulebase security rules policy-11 application any
+set rulebase security rules policy-11 service SSH
+set rulebase security rules policy-11 action allow
+set rulebase security rules policy-11 log-end no
+set rulebase security rules policy-12 from Trust
+set rulebase security rules policy-12 to Lab
+set rulebase security rules policy-12 source any
+set rulebase security rules policy-12 destination any
+set rulebase security rules policy-12 source-user any
+set rulebase security rules policy-12 category any
+set rulebase security rules policy-12 application ping
+set rulebase security rules policy-12 service application-default
+set rulebase security rules policy-12 action allow
+set rulebase security rules policy-12 log-end no
+set rulebase security rules policy-12 disabled yes
+set rulebase security rules policy-13 from Trust
+set rulebase security rules policy-13 to Untrust
+set rulebase security rules policy-13 source any
+set rulebase security rules policy-13 destination updates
+set rulebase security rules policy-13 source-user any
+set rulebase security rules policy-13 category any
+set rulebase security rules policy-13 application any
+set rulebase security rules policy-13 service FTP-Get
+set rulebase security rules policy-13 action allow
+set rulebase security rules policy-13 log-end no
+set rulebase security rules policy-13 disabled yes
+set rulebase security rules policy-13 description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules policy-14 from Trust
+set rulebase security rules policy-14 to Untrust
+set rulebase security rules policy-14 source lan
+set rulebase security rules policy-14 destination partner-net
+set rulebase security rules policy-14 source-user any
+set rulebase security rules policy-14 category any
+set rulebase security rules policy-14 application ipsec-esp
+set rulebase security rules policy-14 service application-default
+set rulebase security rules policy-14 action allow
+set rulebase security rules policy-14 log-end no
+set rulebase security rules policy-14 disabled yes
+set rulebase security rules policy-14 description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules policy-15 from Lab
+set rulebase security rules policy-15 to Untrust
+set rulebase security rules policy-15 source any
+set rulebase security rules policy-15 destination any
+set rulebase security rules policy-15 source-user any
+set rulebase security rules policy-15 category any
+set rulebase security rules policy-15 application any
+set rulebase security rules policy-15 service HTTP
+set rulebase security rules policy-15 action allow
+set rulebase security rules policy-15 log-end no
+set rulebase security rules policy-15 disabled yes
+set rulebase security rules policy-15 description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules policy-16 from DMZ
+set rulebase security rules policy-16 to any
+set rulebase security rules policy-16 source any
+set rulebase security rules policy-16 destination any
+set rulebase security rules policy-16 source-user any
+set rulebase security rules policy-16 category any
+set rulebase security rules policy-16 application any
+set rulebase security rules policy-16 service any
+set rulebase security rules policy-16 action drop
+set rulebase security rules policy-16 log-end no
+set rulebase security rules policy-16 disabled yes
+set rulebase security rules policy-19 from Trust
+set rulebase security rules policy-19 to DMZ
+set rulebase security rules policy-19 source any
+set rulebase security rules policy-19 destination web1
+set rulebase security rules policy-19 source-user any
+set rulebase security rules policy-19 category any
+set rulebase security rules policy-19 application any
+set rulebase security rules policy-19 service HTTP
+set rulebase security rules policy-19 action allow
+set rulebase security rules policy-19 log-end no
+set rulebase security rules policy-17 from any
+set rulebase security rules policy-17 to any
+set rulebase security rules policy-17 source any
+set rulebase security rules policy-17 destination ntp-servers
+set rulebase security rules policy-17 source-user any
+set rulebase security rules policy-17 category any
+set rulebase security rules policy-17 application ping
+set rulebase security rules policy-17 service application-default
+set rulebase security rules policy-17 action allow
+set rulebase security rules policy-17 log-end no
+set rulebase security rules policy-18 from any
+set rulebase security rules policy-18 to any
+set rulebase security rules policy-18 source any
+set rulebase security rules policy-18 destination any
+set rulebase security rules policy-18 source-user any
+set rulebase security rules policy-18 category any
+set rulebase security rules policy-18 application any
+set rulebase security rules policy-18 service any
+set rulebase security rules policy-18 action drop
+set rulebase security rules policy-18 log-end yes
+set rulebase security rules fwshift-intrazone-allow rule-type intrazone
+set rulebase security rules fwshift-intrazone-allow from [ DMZ Lab Trust ]
+set rulebase security rules fwshift-intrazone-allow to [ DMZ Lab Trust ]
+set rulebase security rules fwshift-intrazone-allow source any
+set rulebase security rules fwshift-intrazone-allow destination any
+set rulebase security rules fwshift-intrazone-allow source-user any
+set rulebase security rules fwshift-intrazone-allow category any
+set rulebase security rules fwshift-intrazone-allow application any
+set rulebase security rules fwshift-intrazone-allow service any
+set rulebase security rules fwshift-intrazone-allow action allow
+set rulebase security rules fwshift-intrazone-allow log-end no
+set rulebase security rules fwshift-intrazone-allow description "Added by FWShift: these zones allow traffic between their own interfaces on the source."
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules nat-lan-out from Trust
+set rulebase nat rules nat-lan-out to Untrust
+set rulebase nat rules nat-lan-out source lan
+set rulebase nat rules nat-lan-out destination any
+set rulebase nat rules nat-lan-out service web
+set rulebase nat rules nat-lan-out source-translation dynamic-ip-and-port translated-address DIP_4_
+set rulebase nat rules nat-lan-out description "policy-based NAT of lan-out"
+set rulebase nat rules nat-lan-out-2 from Trust
+set rulebase nat rules nat-lan-out-2 to Untrust
+set rulebase nat rules nat-lan-out-2 source lan
+set rulebase nat rules nat-lan-out-2 destination any
+set rulebase nat rules nat-lan-out-2 service dns-split
+set rulebase nat rules nat-lan-out-2 source-translation dynamic-ip-and-port translated-address DIP_4_
+set rulebase nat rules nat-lan-out-2 description "policy-based NAT of lan-out"
+set rulebase nat rules nat-policy-3 from Trust
+set rulebase nat rules nat-policy-3 to Untrust
+set rulebase nat rules nat-policy-3 source lan
+set rulebase nat rules nat-policy-3 destination any
+set rulebase nat rules nat-policy-3 service any
+set rulebase nat rules nat-policy-3 source-translation dynamic-ip-and-port translated-address 203.0.113.2
+set rulebase nat rules nat-policy-3 description "policy-based NAT of policy-3"
+set rulebase nat rules mip-203.0.113.10 from DMZ
+set rulebase nat rules mip-203.0.113.10 to Untrust
+set rulebase nat rules mip-203.0.113.10 source 10.20.0.10
+set rulebase nat rules mip-203.0.113.10 destination any
+set rulebase nat rules mip-203.0.113.10 service any
+set rulebase nat rules mip-203.0.113.10 source-translation static-ip translated-address MIP_203.0.113.10_
+set rulebase nat rules mip-203.0.113.10 source-translation static-ip bi-directional yes
+set rulebase nat rules mip-203.0.113.10 description "MIP 203.0.113.10 on ethernet0/0"
+set rulebase nat rules mip-203.0.113.24 from Servers
+set rulebase nat rules mip-203.0.113.24 to Untrust
+set rulebase nat rules mip-203.0.113.24 source 10.30.0.24/29
+set rulebase nat rules mip-203.0.113.24 destination any
+set rulebase nat rules mip-203.0.113.24 service any
+set rulebase nat rules mip-203.0.113.24 source-translation static-ip translated-address MIP_203.0.113.24_
+set rulebase nat rules mip-203.0.113.24 source-translation static-ip bi-directional yes
+set rulebase nat rules mip-203.0.113.24 description "MIP 203.0.113.24 on ethernet0/0"
+set rulebase nat rules vip-203.0.113.20-80 from Untrust
+set rulebase nat rules vip-203.0.113.20-80 to Untrust
+set rulebase nat rules vip-203.0.113.20-80 source any
+set rulebase nat rules vip-203.0.113.20-80 destination VIP_203.0.113.20_
+set rulebase nat rules vip-203.0.113.20-80 service tcp-80
+set rulebase nat rules vip-203.0.113.20-80 destination-translation translated-address 10.20.0.20
+set rulebase nat rules vip-203.0.113.20-80 description "VIP 203.0.113.20 port 80 to HTTP on 10.20.0.20"
+set rulebase nat rules vip-203.0.113.20-8443 from Untrust
+set rulebase nat rules vip-203.0.113.20-8443 to Untrust
+set rulebase nat rules vip-203.0.113.20-8443 source any
+set rulebase nat rules vip-203.0.113.20-8443 destination VIP_203.0.113.20_
+set rulebase nat rules vip-203.0.113.20-8443 service tcp-8443
+set rulebase nat rules vip-203.0.113.20-8443 destination-translation translated-address 10.20.0.21
+set rulebase nat rules vip-203.0.113.20-8443 destination-translation translated-port 443
+set rulebase nat rules vip-203.0.113.20-8443 description "VIP 203.0.113.20 port 8443 to HTTPS on 10.20.0.21"
+set rulebase nat rules nat-mode-Trust from Trust
+set rulebase nat rules nat-mode-Trust to Untrust
+set rulebase nat rules nat-mode-Trust source any
+set rulebase nat rules nat-mode-Trust destination any
+set rulebase nat rules nat-mode-Trust service any
+set rulebase nat rules nat-mode-Trust source-translation dynamic-ip-and-port translated-address 203.0.113.2
+set rulebase nat rules nat-mode-Trust description "interfaces of zone Trust in NAT mode"

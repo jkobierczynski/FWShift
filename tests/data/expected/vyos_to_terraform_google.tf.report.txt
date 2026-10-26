@@ -1,0 +1,171 @@
+FWShift conversion report
+  source: vyos
+  target: terraform-google
+
+Summary
+  Security rules:     42   exact 2, approximated 22, needs review 18 (18 emitted disabled), skipped 0
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var project=... shows what it creates, terraform apply creates a new global network firewall policy (fwshift) with its rules; a policy of the same name makes it fail. It is associated with no network: nothing changes until it is (google_compute_network_firewall_policy_association)
+  [needs-review] GCP_ORDER: the policy decides every connection of the network it is associated with: it ends in the default of the source. With the network's enforcement order AFTER_CLASSIC_FIREWALL (the default) the VPC firewall rules of the network decide first; set network_firewall_policy_enforcement_order = "BEFORE_CLASSIC_FIREWALL" on the network, or remove its VPC firewall rules
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have logging enabled
+
+Security rules
+  no outbound mail  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST, LAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  spoofed inside sources  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST, LAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  forward-40  ->  approximated  (emitted as 2 rules of the policy)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, GUEST, LAN, VPN, br0; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  no telnet or ftp out  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-WAN.from-LAN.LAN-WAN-20  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Google Cloud names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_DYNAMIC: the destination 'UPDATES' holds members only its platform knows; a rule of Google Cloud names addresses.
+  zone-WAN.from-LAN.default  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Google Cloud names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  zone-WAN.from-GUEST.GUEST-WAN-10  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-WAN.from-GUEST.default  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and a rule of Google Cloud names no zone: give the networks behind GUEST with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  zone-WAN.default  ->  approximated  (emitted as 2 rules of the policy)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, GUEST, LAN, VPN, br0; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-LAN.intra  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-LAN.from-WAN.WAN-LAN-10  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAN, and a rule of Google Cloud names no zone: give the networks behind LAN with --zone-network.
+  zone-LAN.from-WAN.default  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-LAN.default  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-GUEST.default  ->  approximated  (emitted as 2 rules of the policy)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, LAN, VPN, WAN, br0; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone GUEST; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  web servers  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  needs-review, emitted disabled
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'https to web1 destination' with post-NAT '192.168.30.10' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review, emitted disabled
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-30  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  office hours only  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-WAN.default  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-DMZ.from-LAN.LAN-DMZ-10  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Google Cloud names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-LAN.LAN-DMZ-20  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Google Cloud names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Google Cloud names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-LAN.default  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-DMZ.from-VPN.VPN-DMZ-10  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone VPN, and a rule of Google Cloud names no zone: give the networks behind VPN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone VPN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.from-VPN.default  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone VPN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-DMZ.default  ->  approximated  (emitted as 2 rules of the policy)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST, LAN, VPN, WAN, br0; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  zone-VPN.default  ->  approximated  (emitted as 2 rules of the policy)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, GUEST, LAN, WAN, br0; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone VPN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-WAN.from-LAN.default  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Google Cloud names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  ipv6-zone-WAN.default  ->  approximated  (emitted as 2 rules of the policy)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, GUEST, LAN, VPN, br0; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-LAN.intra  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-LAN.default  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-GUEST.default  ->  approximated  (emitted as 2 rules of the policy)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, LAN, VPN, WAN, br0; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone GUEST; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  ipv6-zone-DMZ.from-WAN.default  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-DMZ.default  ->  approximated  (emitted as 2 rules of the policy)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST, LAN, VPN, WAN, br0; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv6-zone-VPN.default  ->  approximated  (emitted as 2 rules of the policy)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, GUEST, LAN, WAN, br0; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone VPN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+
+NAT rules
+  https to web1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  ssh on 2222 to the jump host  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  destination-30  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  source-100  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  dmz servers leave as one address  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  source-120  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees

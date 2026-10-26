@@ -1,0 +1,52 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: azure-firewall
+
+Summary
+  Security rules:     10   exact 1, approximated 1, needs review 8 (8 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] AZFW_LOAD: the output is an ARM template (section 10) that creates firewall policy FWShift with its rule collection groups; look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode), then associate the policy with a firewall or a secured hub. Nothing changes before that. Deploying it where a policy of that name exists changes that policy
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] AZFW_TARGET_SNAT: Azure Firewall translates the source of what goes to a public address (outside RFC 1918 and RFC 6598, or the private ranges set on the policy) to its own public address, and, community sources say, the source of DNAT traffic to one of its private addresses: servers may see other source addresses than with the source
+  [info] AZFW_TARGET_DEFAULTS: the policy is written with network rules only; after them Azure Firewall still allows the FQDNs of its built-in infrastructure rule collection, then denies. Threat intelligence is set to Alert, which blocks nothing
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Azure Firewall does not choose: its diagnostic settings send the logs of every rule (AZFWNetworkRule, AZFWNatRule) to a workspace
+
+Security rules
+  Block Bad  ->  approximated  (emitted as rule collection Block_Bad of group fwshift-network-1)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Trusted, Guests; a rule of Azure Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Admin SSH  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Trusted, and a rule of Azure Firewall names no zone: give the networks behind Trusted with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a rule of Azure Firewall names no zone: give the networks behind External with --zone-network.
+  Web Out  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Trusted, Guests, DMZ, and a rule of Azure Firewall names no zone: give the networks behind Trusted, Guests, DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a rule of Azure Firewall names no zone: give the networks behind External with --zone-network.
+  Web In  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone External, and a rule of Azure Firewall names no zone: give the networks behind External with --zone-network.
+  Mail In  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone External, and a rule of Azure Firewall names no zone: give the networks behind External with --zone-network.
+  DMZ Updates  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Azure Firewall names no zone: give the networks behind DMZ with --zone-network.
+  Staff Only  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Trusted, and a rule of Azure Firewall names no zone: give the networks behind Trusted with --zone-network.
+  Ping  ->  needs-review, emitted disabled
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Trusted, Guests, and a rule of Azure Firewall names no zone: give the networks behind Trusted, Guests with --zone-network.
+  Lab Tunnel  ->  needs-review, emitted disabled
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Lab, and a rule of Azure Firewall names no zone: give the networks behind Lab with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a rule of Azure Firewall names no zone: give the networks behind External with --zone-network.
+
+NAT rules
+  Web-Public (Web In)  ->  skipped
+      [needs-review] AZFW_NAT_NOT_WRITTEN: not written: it is for traffic from zone External, and a DNAT rule names no zone: give the networks behind External with --zone-network
+  Mail-Public (Mail In)  ->  skipped
+      [needs-review] AZFW_NAT_NOT_WRITTEN: not written: it is for traffic from zone External, and a DNAT rule names no zone: give the networks behind External with --zone-network

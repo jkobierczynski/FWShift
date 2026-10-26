@@ -1,0 +1,43 @@
+FWShift conversion report
+  source: nsx
+  target: azure-firewall
+
+Summary
+  Security rules:     15   exact 9, approximated 0, needs review 5 (4 emitted disabled), skipped 1
+  Address groups:      9   exact 8, approximated 0, needs review 1, skipped 0
+  Services:           10   exact 9, approximated 1, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] DYNAMIC_MEMBERSHIP: groups whose members NSX finds itself (tags, names, virtual machines, segment ports) are kept as dynamic groups: only an NSX target writes them again; other targets write their rules disabled. Export the members (GET .../groups/ID/members/ip-addresses) and make them address groups to convert those rules
+  [needs-review] AZFW_LOAD: the output is an ARM template (section 10) that creates firewall policy FWShift with its rule collection groups; look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode), then associate the policy with a firewall or a secured hub. Nothing changes before that. Deploying it where a policy of that name exists changes that policy
+  [info] LAYER2_NOT_CONVERTED: 1 rules of the Ethernet category (layer 2, before every layer-3 rule) are not converted
+  [info] AZFW_TARGET_SNAT: Azure Firewall translates the source of what goes to a public address (outside RFC 1918 and RFC 6598, or the private ranges set on the policy) to its own public address, and, community sources say, the source of DNAT traffic to one of its private addresses: servers may see other source addresses than with the source
+  [info] AZFW_TARGET_DEFAULTS: the policy is written with network rules only; after them Azure Firewall still allows the FQDNs of its built-in infrastructure rule collection, then denies. Threat intelligence is set to Alert, which blocks nothing
+  [info] AZFW_TARGET_IPV6: the policy holds IPv6; Azure Firewall filters IPv4 only, and the IPv6 parts of the rules are not written (blocking rules lose nothing by it: the firewall forwards no IPv6)
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Azure Firewall does not choose: its diagnostic settings send the logs of every rule (AZFWNetworkRule, AZFWNatRule) to a workspace
+
+Security rules
+  Block quarantined  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Quarantine': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN block the rest  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: follows a conditional jump to the application rules (rule 'LAN to the application rules'), which cannot be expressed. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Inbound web  ->  needs-review  (emitted as rule collection Inbound_web of group fwshift-network-1)
+      [needs-review] APPLIED_TO_ONE_END: applied to DMZ, which holds its destinations and not its sources: where its sources are workloads of NSX, NSX checks that end against the rules below this one, and may drop what this rule allows. The converted rule allows it at both ends
+  App to DB  ->  needs-review, emitted disabled
+      [needs-review] APPLIED_TO_ONE_END: applied to DMZ, which holds its sources and not its destinations: where its destinations are workloads of NSX, NSX checks that end against the rules below this one, and may drop what this rule allows. The converted rule allows it at both ends
+      [needs-review] UNSUPPORTED_MATCH: not converted: direction IN only: NSX checks the other end of the connection against the rules below it, which one rule cannot say.
+  TLS out  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: context profile SSL (layer 7: applications, domain names), which the model has no place for.
+  Ping over IPv6  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows ICMPv6; Azure Firewall filters IPv4 only, and that part is not written
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+
+Address groups
+  OT cell  ->  needs-review
+      [needs-review] SEGMENT_AS_SUBNET: a segment in the group stands for its subnet here. NSX means the workloads attached to it: the subnet also holds the gateway and other addresses that are not members
+
+Services
+  FTP  ->  approximated
+      [approximated] ALG_SERVICE: application level gateway FTP: converted as its port. NSX also lets through the connections the protocol opens (an FTP data connection, RPC ports); a target without such a helper does not

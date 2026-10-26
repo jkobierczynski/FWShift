@@ -1,0 +1,28 @@
+FWShift conversion report
+  source: vyos
+  target: routeros
+
+Summary
+  Security rules:     13   exact 11, approximated 0, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 rule-set WAN_LOCAL on pppoe0 local filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] PARTS_NOT_READ: parts of the configuration this parser does not read: port-forward (EdgeOS)
+  [needs-review] ROUTEROS_LOAD: load the script with '/import file-name=FILE verbose=yes'. It stops at its first lines when objects of an earlier conversion are on the router, and at the first line the router refuses (lines before it stay; on RouterOS 6 the /ipv6 lines need the ipv6 package). Nothing changes traffic until the disabled jump rules at its end are enabled: enable them in Safe Mode, and move each to where it belongs in its chain (in forward, after the rules that accept established connections). Chain fwshift-forward ends with an explicit accept, so the rules of forward after the jump are no longer reached by forwarded traffic. To take a conversion away again: /ip firewall filter remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ipv6 firewall filter remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ip firewall nat remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ip firewall address-list remove [find where list~"^fws-"]; /ipv6 firewall address-list remove [find where list~"^fws-"]; /interface list member remove [find where list~"^fws-"]; /interface list remove [find where name~"^fws-"]
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface lists, whose members must be interfaces of the router, or the import stops. Check the members, and map the zones with --zone-map (or the interfaces with --interface-map): eth1, eth1.10, pppoe0
+  [info] VYOS_FORMAT: read as the configuration of EdgeOS (Vyatta), release v2.0.9: rule-sets on interfaces, accept in a rule-set and the zone policy were read as VyOS 1.4 has them after its own migration (a jump from the forward filter for each rule-set on an interface, the in ones first; accept as return, so that the rule-set of the other interface still decides)
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] ROUTEROS_LOG: rules that log the start of a connection have log=yes: the router logs the first packet of each connection they accept (and every packet a deny rule drops)
+
+Security rules
+  no media from the guests-2  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sessions of the voip box  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address).

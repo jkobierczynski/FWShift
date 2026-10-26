@@ -1,0 +1,77 @@
+FWShift conversion report
+  source: huawei
+  target: aws-network-firewall
+
+Summary
+  Security rules:     16   exact 1, approximated 2, needs review 12 (12 emitted disabled), skipped 1
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with display predefined-service: http, https, smtp, dns, ntp, ssh, icmp, ftp
+  [needs-review] AWSNFW_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 sends each with --dry-run, without either it creates the stateful rule group fwshift-rules and the firewall policy fwshift, and stops if one of that name exists. The policy is attached to no firewall: nothing changes until you associate it (aws network-firewall associate-firewall-policy)
+  [needs-review] AWSNFW_ORDER: the policy decides every packet the firewall sees, in strict order: no stateless rules (every packet goes to the stateful engine), the rules of the model in their order, each for the first packet of a connection (flow:to_server), then aws:drop_strict for what no rule passed. Check it against what the firewall's route tables send through it
+  [info] HUAWEI_SOURCE: 4 zones (trust, untrust, dmz, lab); 15 rules of the security policy, first match. The local zone (the firewall itself) is not converted
+  [info] HUAWEI_NAT_ORDER: destination NAT (nat server) is done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT (nat-policy) is done after it
+  [info] HUAWEI_DEFAULTS: what no rule matches: between zones deny, inside a zone permit
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a pass rule of Network Firewall does not, a drop or reject rule sends an alert when the firewall has alert logging configured
+
+Security rules
+  block-bad-nets  ->  approximated  (emitted as 1 rule of the rule group (sid 1))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone untrust; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  web-in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a rule of Network Firewall names no zone: give the networks behind untrust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Network Firewall names no zone: give the networks behind dmz with --zone-network.
+  mail-in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a rule of Network Firewall names no zone: give the networks behind untrust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Network Firewall names no zone: give the networks behind dmz with --zone-network.
+  office-out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Network Firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of Network Firewall names no zone: give the networks behind untrust with --zone-network.
+  office-dmz  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Network Firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Network Firewall names no zone: give the networks behind dmz with --zone-network.
+  admin-ssh  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Network Firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, lab, and a rule of Network Firewall names no zone: give the networks behind dmz, lab with --zone-network.
+  dmz-syslog  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and a rule of Network Firewall names no zone: give the networks behind dmz with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone trust, and a rule of Network Firewall names no zone: give the networks behind trust with --zone-network.
+  lab-tools  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Network Firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone lab, and a rule of Network Firewall names no zone: give the networks behind lab with --zone-network.
+  lab-out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lab, and a rule of Network Firewall names no zone: give the networks behind lab with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of Network Firewall names no zone: give the networks behind untrust with --zone-network.
+  ping-dmz  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Network Firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Network Firewall names no zone: give the networks behind dmz with --zone-network.
+  ipv6-out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Network Firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of Network Firewall names no zone: give the networks behind untrust with --zone-network.
+  video  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone trust; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone untrust; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) YouTube; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  lab-deny  ->  approximated  (emitted as 1 rule of the rule group (sid 2))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone lab; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  intrazone default  ->  needs-review, emitted disabled
+      [needs-review] RULE_TYPE: intrazone rule: a rule of Network Firewall names no zones.
+  manage-fw  ->  skipped
+      [info] HUAWEI_LOCAL_RULE: a rule for traffic to or from the firewall itself (the local zone): not converted
+
+NAT rules
+  nat-server-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  nat-server-web-tls  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  nat-server-mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  no-nat-vpn  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  office-pat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  lab-easy-ip  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees

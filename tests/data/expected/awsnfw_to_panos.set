@@ -1,0 +1,511 @@
+set address n-10.20.0.0_16 ip-netmask 10.20.0.0/16
+set address n-2001_db8_20___56 ip-netmask 2001:db8:20::/56
+set address-group HOME_NET static [ n-10.20.0.0_16 n-2001_db8_20___56 ]
+set address-group HOME_NET description "Suricata HOME_NET: the CIDR blocks of VPC vpc-0a1b2c3d4e5f60789"
+set address n-10.20.1.0_24 ip-netmask 10.20.1.0/24
+set address n-2001_db8_20_1___64 ip-netmask 2001:db8:20:1::/64
+set address-group WEB_SERVERS static [ n-10.20.1.0_24 n-2001_db8_20_1___64 ]
+set address-group WEB_SERVERS description "IP set variable WEB_SERVERS of rule group sf-app"
+set address n-10.30.10.0_24 ip-netmask 10.30.10.0/24
+set address-group ADMIN_NETS static n-10.30.10.0_24
+set address-group ADMIN_NETS description "IP set variable ADMIN_NETS of rule group sf-app"
+set address n-198.51.100.128_25 ip-netmask 198.51.100.128/25
+set address n-203.0.113.0_26 ip-netmask 203.0.113.0/26
+set address-group partners static [ n-198.51.100.128_25 n-203.0.113.0_26 ]
+set address-group partners description "IP set reference @PARTNERS: arn:aws:ec2:eu-west-1:111122223333:prefix-list/pl-0a1b2c3d4e5f60789"
+set address branches ip-netmask 0.0.0.0/32
+set address branches description "FWSHIFT PLACEHOLDER, matches nothing: the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId)"
+set service tcp-all-from-22 protocol tcp port 1-65535
+set service tcp-all-from-22 protocol tcp source-port 22
+set service tcp-22 protocol tcp port 22
+set service tcp-873 protocol tcp port 873
+set service tcp-all-from-873 protocol tcp port 1-65535
+set service tcp-all-from-873 protocol tcp source-port 873
+set service tcp-all protocol tcp port 1-65535
+set service tcp-443 protocol tcp port 443
+set service tcp-all-from-443 protocol tcp port 1-65535
+set service tcp-all-from-443 protocol tcp source-port 443
+set service tcp-80 protocol tcp port 80
+set service tcp-3389 protocol tcp port 3389
+set service tcp-all-from-3389 protocol tcp port 1-65535
+set service tcp-all-from-3389 protocol tcp source-port 3389
+set service udp-53 protocol udp port 53
+set service tcp-5432_6432-from-1024-65535 protocol tcp port 5432,6432
+set service tcp-5432_6432-from-1024-65535 protocol tcp source-port 1024-65535
+set service tcp-80_443_8443 protocol tcp port 80,443,8443
+set service tcp-1-21_23-1023 protocol tcp port 1-21,23-1023
+set service udp-69 protocol udp port 69
+set service udp-161 protocol udp port 161
+set service tcp-1024-65535 protocol tcp port 1024-65535
+set rulebase security rules sl-edge-1-replies from any
+set rulebase security rules sl-edge-1-replies to any
+set rulebase security rules sl-edge-1-replies source 0.0.0.0/0
+set rulebase security rules sl-edge-1-replies destination 198.51.100.0/24
+set rulebase security rules sl-edge-1-replies source-user any
+set rulebase security rules sl-edge-1-replies category any
+set rulebase security rules sl-edge-1-replies application any
+set rulebase security rules sl-edge-1-replies service tcp-all-from-22
+set rulebase security rules sl-edge-1-replies action drop
+set rulebase security rules sl-edge-1-replies log-end yes
+set rulebase security rules sl-edge-1-replies description "connections whose replies sl-edge-1 drops"
+set rulebase security rules sl-edge-20-replies from any
+set rulebase security rules sl-edge-20-replies to any
+set rulebase security rules sl-edge-20-replies source ::/0
+set rulebase security rules sl-edge-20-replies destination 2001:db8:bad::/48
+set rulebase security rules sl-edge-20-replies source-user any
+set rulebase security rules sl-edge-20-replies category any
+set rulebase security rules sl-edge-20-replies application [ ipv6-icmp ping6 ]
+set rulebase security rules sl-edge-20-replies service application-default
+set rulebase security rules sl-edge-20-replies action drop
+set rulebase security rules sl-edge-20-replies log-end yes
+set rulebase security rules sl-edge-20-replies disabled yes
+set rulebase security rules sl-edge-20-replies description "FWSHIFT: disabled by the converter, see the report. connections whose replies sl-edge-20 drops"
+set rulebase security rules sl-edge-20-replies-2 from any
+set rulebase security rules sl-edge-20-replies-2 to any
+set rulebase security rules sl-edge-20-replies-2 source ::/0
+set rulebase security rules sl-edge-20-replies-2 destination 2001:db8:bad::/48
+set rulebase security rules sl-edge-20-replies-2 source-user any
+set rulebase security rules sl-edge-20-replies-2 category any
+set rulebase security rules sl-edge-20-replies-2 application ping6
+set rulebase security rules sl-edge-20-replies-2 service application-default
+set rulebase security rules sl-edge-20-replies-2 action drop
+set rulebase security rules sl-edge-20-replies-2 log-end yes
+set rulebase security rules sl-edge-20-replies-2 description "connections whose replies sl-edge-20 drops"
+set rulebase security rules sl-edge-1 from any
+set rulebase security rules sl-edge-1 to any
+set rulebase security rules sl-edge-1 source 198.51.100.0/24
+set rulebase security rules sl-edge-1 destination 0.0.0.0/0
+set rulebase security rules sl-edge-1 source-user any
+set rulebase security rules sl-edge-1 category any
+set rulebase security rules sl-edge-1 application any
+set rulebase security rules sl-edge-1 service tcp-22
+set rulebase security rules sl-edge-1 action drop
+set rulebase security rules sl-edge-1 log-end yes
+set rulebase security rules sl-edge-1 description "stateless rule, aws:drop"
+set rulebase security rules sl-edge-5 from any
+set rulebase security rules sl-edge-5 to any
+set rulebase security rules sl-edge-5 source 10.20.8.0/24
+set rulebase security rules sl-edge-5 destination 10.40.0.0/24
+set rulebase security rules sl-edge-5 source-user any
+set rulebase security rules sl-edge-5 category any
+set rulebase security rules sl-edge-5 application any
+set rulebase security rules sl-edge-5 service tcp-873
+set rulebase security rules sl-edge-5 action allow
+set rulebase security rules sl-edge-5 log-end no
+set rulebase security rules sl-edge-5 description "stateless rule, aws:pass"
+set rulebase security rules sl-edge-6 from any
+set rulebase security rules sl-edge-6 to any
+set rulebase security rules sl-edge-6 source 10.40.0.0/24
+set rulebase security rules sl-edge-6 destination 10.20.8.0/24
+set rulebase security rules sl-edge-6 source-user any
+set rulebase security rules sl-edge-6 category any
+set rulebase security rules sl-edge-6 application any
+set rulebase security rules sl-edge-6 service tcp-all-from-873
+set rulebase security rules sl-edge-6 action allow
+set rulebase security rules sl-edge-6 log-end no
+set rulebase security rules sl-edge-6 description "stateless rule, aws:pass"
+set rulebase security rules sl-edge-12 from any
+set rulebase security rules sl-edge-12 to any
+set rulebase security rules sl-edge-12 source 192.0.2.0/24
+set rulebase security rules sl-edge-12 destination any
+set rulebase security rules sl-edge-12 source-user any
+set rulebase security rules sl-edge-12 category any
+set rulebase security rules sl-edge-12 application any
+set rulebase security rules sl-edge-12 service tcp-all
+set rulebase security rules sl-edge-12 action drop
+set rulebase security rules sl-edge-12 log-end no
+set rulebase security rules sl-edge-12 disabled yes
+set rulebase security rules sl-edge-12 description "FWSHIFT: disabled by the converter, see the report. stateless rule, aws:drop"
+set rulebase security rules sl-edge-20 from any
+set rulebase security rules sl-edge-20 to any
+set rulebase security rules sl-edge-20 source 2001:db8:bad::/48
+set rulebase security rules sl-edge-20 destination ::/0
+set rulebase security rules sl-edge-20 source-user any
+set rulebase security rules sl-edge-20 category any
+set rulebase security rules sl-edge-20 application any
+set rulebase security rules sl-edge-20 service any
+set rulebase security rules sl-edge-20 action drop
+set rulebase security rules sl-edge-20 log-end yes
+set rulebase security rules sl-edge-20 description "stateless rule, aws:drop"
+set rulebase security rules ThreatSignaturesMalwareStrictOrder-1 from any
+set rulebase security rules ThreatSignaturesMalwareStrictOrder-1 to any
+set rulebase security rules ThreatSignaturesMalwareStrictOrder-1 source any
+set rulebase security rules ThreatSignaturesMalwareStrictOrder-1 destination any
+set rulebase security rules ThreatSignaturesMalwareStrictOrder-1 source-user any
+set rulebase security rules ThreatSignaturesMalwareStrictOrder-1 category any
+set rulebase security rules ThreatSignaturesMalwareStrictOrder-1 application any
+set rulebase security rules ThreatSignaturesMalwareStrictOrder-1 service any
+set rulebase security rules ThreatSignaturesMalwareStrictOrder-1 action drop
+set rulebase security rules ThreatSignaturesMalwareStrictOrder-1 log-end yes
+set rulebase security rules ThreatSignaturesMalwareStrictOrder-1 disabled yes
+set rulebase security rules ThreatSignaturesMalwareStrictOrder-1 description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules sf-baseline-100 from any
+set rulebase security rules sf-baseline-100 to any
+set rulebase security rules sf-baseline-100 source HOME_NET
+set rulebase security rules sf-baseline-100 destination any
+set rulebase security rules sf-baseline-100 source-user any
+set rulebase security rules sf-baseline-100 category any
+set rulebase security rules sf-baseline-100 application any
+set rulebase security rules sf-baseline-100 service tcp-443
+set rulebase security rules sf-baseline-100 action allow
+set rulebase security rules sf-baseline-100 log-end no
+set rulebase security rules sf-baseline-101 from any
+set rulebase security rules sf-baseline-101 to any
+set rulebase security rules sf-baseline-101 source HOME_NET
+set rulebase security rules sf-baseline-101 destination any
+set rulebase security rules sf-baseline-101 source-user any
+set rulebase security rules sf-baseline-101 category any
+set rulebase security rules sf-baseline-101 application any
+set rulebase security rules sf-baseline-101 service tcp-80
+set rulebase security rules sf-baseline-101 action allow
+set rulebase security rules sf-baseline-101 log-end no
+set rulebase security rules sf-baseline-102 from any
+set rulebase security rules sf-baseline-102 to any
+set rulebase security rules sf-baseline-102 source any
+set rulebase security rules sf-baseline-102 destination 10.20.5.0/24
+set rulebase security rules sf-baseline-102 source-user any
+set rulebase security rules sf-baseline-102 category any
+set rulebase security rules sf-baseline-102 application any
+set rulebase security rules sf-baseline-102 service tcp-22
+set rulebase security rules sf-baseline-102 action drop
+set rulebase security rules sf-baseline-102 log-end yes
+set rulebase security rules sf-baseline-102-rev from any
+set rulebase security rules sf-baseline-102-rev to any
+set rulebase security rules sf-baseline-102-rev source 10.20.5.0/24
+set rulebase security rules sf-baseline-102-rev destination any
+set rulebase security rules sf-baseline-102-rev source-user any
+set rulebase security rules sf-baseline-102-rev category any
+set rulebase security rules sf-baseline-102-rev application any
+set rulebase security rules sf-baseline-102-rev service tcp-all-from-22
+set rulebase security rules sf-baseline-102-rev action drop
+set rulebase security rules sf-baseline-102-rev log-end yes
+set rulebase security rules sf-baseline-103 from any
+set rulebase security rules sf-baseline-103 to any
+set rulebase security rules sf-baseline-103 source any
+set rulebase security rules sf-baseline-103 destination 10.20.6.10
+set rulebase security rules sf-baseline-103 source-user any
+set rulebase security rules sf-baseline-103 category any
+set rulebase security rules sf-baseline-103 application any
+set rulebase security rules sf-baseline-103 service tcp-3389
+set rulebase security rules sf-baseline-103 action reset-client
+set rulebase security rules sf-baseline-103 log-end yes
+set rulebase security rules sf-baseline-105 from any
+set rulebase security rules sf-baseline-105 to any
+set rulebase security rules sf-baseline-105 source HOME_NET
+set rulebase security rules sf-baseline-105 destination any
+set rulebase security rules sf-baseline-105 source-user any
+set rulebase security rules sf-baseline-105 category any
+set rulebase security rules sf-baseline-105 application [ ping ipv6-icmp ]
+set rulebase security rules sf-baseline-105 service application-default
+set rulebase security rules sf-baseline-105 action allow
+set rulebase security rules sf-baseline-105 log-end no
+set rulebase security rules sf-baseline-106 from any
+set rulebase security rules sf-baseline-106 to any
+set rulebase security rules sf-baseline-106 source 2001:db8:20::/56
+set rulebase security rules sf-baseline-106 destination 2001:db8:ff::53
+set rulebase security rules sf-baseline-106 source-user any
+set rulebase security rules sf-baseline-106 category any
+set rulebase security rules sf-baseline-106 application any
+set rulebase security rules sf-baseline-106 service udp-53
+set rulebase security rules sf-baseline-106 action allow
+set rulebase security rules sf-baseline-106 log-end no
+set rulebase security rules sf-baseline-107 from any
+set rulebase security rules sf-baseline-107 to any
+set rulebase security rules sf-baseline-107 source 10.30.0.0/16
+set rulebase security rules sf-baseline-107 destination 10.20.4.0/24
+set rulebase security rules sf-baseline-107 source-user any
+set rulebase security rules sf-baseline-107 category any
+set rulebase security rules sf-baseline-107 application any
+set rulebase security rules sf-baseline-107 service tcp-5432_6432-from-1024-65535
+set rulebase security rules sf-baseline-107 action allow
+set rulebase security rules sf-baseline-107 log-end no
+set rulebase security rules sf-app-1000 from any
+set rulebase security rules sf-app-1000 to any
+set rulebase security rules sf-app-1000 source any
+set rulebase security rules sf-app-1000 destination WEB_SERVERS
+set rulebase security rules sf-app-1000 source-user any
+set rulebase security rules sf-app-1000 category any
+set rulebase security rules sf-app-1000 application any
+set rulebase security rules sf-app-1000 service tcp-80_443_8443
+set rulebase security rules sf-app-1000 action allow
+set rulebase security rules sf-app-1000 log-end no
+set rulebase security rules sf-app-1000 description "web servers from anywhere"
+set rulebase security rules sf-app-1003 from any
+set rulebase security rules sf-app-1003 to any
+set rulebase security rules sf-app-1003 source HOME_NET
+set rulebase security rules sf-app-1003 destination any
+set rulebase security rules sf-app-1003 source-user any
+set rulebase security rules sf-app-1003 category any
+set rulebase security rules sf-app-1003 application dns
+set rulebase security rules sf-app-1003 service any
+set rulebase security rules sf-app-1003 action allow
+set rulebase security rules sf-app-1003 log-end no
+set rulebase security rules sf-app-1003 description "dns, no flow keyword"
+set rulebase security rules sf-app-1004 from any
+set rulebase security rules sf-app-1004 to any
+set rulebase security rules sf-app-1004 source partners
+set rulebase security rules sf-app-1004 destination HOME_NET
+set rulebase security rules sf-app-1004 source-user any
+set rulebase security rules sf-app-1004 category any
+set rulebase security rules sf-app-1004 application any
+set rulebase security rules sf-app-1004 service tcp-1-21_23-1023
+set rulebase security rules sf-app-1004 action drop
+set rulebase security rules sf-app-1004 log-end yes
+set rulebase security rules sf-app-1004 description "partners: no low ports but ssh"
+set rulebase security rules sf-app-1005 from any
+set rulebase security rules sf-app-1005 to any
+set rulebase security rules sf-app-1005 source branches
+set rulebase security rules sf-app-1005 destination [ 10.20.0.0-10.20.4.255 10.20.6.0-10.20.255.255 ]
+set rulebase security rules sf-app-1005 source-user any
+set rulebase security rules sf-app-1005 category any
+set rulebase security rules sf-app-1005 application any
+set rulebase security rules sf-app-1005 service any
+set rulebase security rules sf-app-1005 action allow
+set rulebase security rules sf-app-1005 log-end no
+set rulebase security rules sf-app-1005 disabled yes
+set rulebase security rules sf-app-1005 description "FWSHIFT: disabled by the converter, see the report. branches both ways"
+set rulebase security rules sf-app-1005-rev from any
+set rulebase security rules sf-app-1005-rev to any
+set rulebase security rules sf-app-1005-rev source [ 10.20.0.0-10.20.4.255 10.20.6.0-10.20.255.255 ]
+set rulebase security rules sf-app-1005-rev destination branches
+set rulebase security rules sf-app-1005-rev source-user any
+set rulebase security rules sf-app-1005-rev category any
+set rulebase security rules sf-app-1005-rev application any
+set rulebase security rules sf-app-1005-rev service any
+set rulebase security rules sf-app-1005-rev action allow
+set rulebase security rules sf-app-1005-rev log-end no
+set rulebase security rules sf-app-1005-rev disabled yes
+set rulebase security rules sf-app-1005-rev description "FWSHIFT: disabled by the converter, see the report. branches both ways"
+set rulebase security rules sf-app-1007 from any
+set rulebase security rules sf-app-1007 to any
+set rulebase security rules sf-app-1007 source 10.20.7.0/24
+set rulebase security rules sf-app-1007 destination any
+set rulebase security rules sf-app-1007 source-user any
+set rulebase security rules sf-app-1007 category any
+set rulebase security rules sf-app-1007 application gre
+set rulebase security rules sf-app-1007 service application-default
+set rulebase security rules sf-app-1007 action allow
+set rulebase security rules sf-app-1007 log-end no
+set rulebase security rules sf-app-1007 description "gre tunnels"
+set rulebase security rules sf-app-1008 from any
+set rulebase security rules sf-app-1008 to any
+set rulebase security rules sf-app-1008 source any
+set rulebase security rules sf-app-1008 destination any
+set rulebase security rules sf-app-1008 source-user any
+set rulebase security rules sf-app-1008 category any
+set rulebase security rules sf-app-1008 application any
+set rulebase security rules sf-app-1008 service udp-69
+set rulebase security rules sf-app-1008 action drop
+set rulebase security rules sf-app-1008 log-end yes
+set rulebase security rules sf-app-1008 disabled yes
+set rulebase security rules sf-app-1008 description "old tftp rule"
+set rulebase security rules sf-app-1011 from any
+set rulebase security rules sf-app-1011 to any
+set rulebase security rules sf-app-1011 source any
+set rulebase security rules sf-app-1011 destination 10.20.2.0/24
+set rulebase security rules sf-app-1011 source-user any
+set rulebase security rules sf-app-1011 category any
+set rulebase security rules sf-app-1011 application any
+set rulebase security rules sf-app-1011 service udp-161
+set rulebase security rules sf-app-1011 action drop
+set rulebase security rules sf-app-1011 log-end yes
+set rulebase security rules sf-app-1011 description "no snmp"
+set rulebase security rules sf-app-1012 from any
+set rulebase security rules sf-app-1012 to any
+set rulebase security rules sf-app-1012 source [ 10.30.0.0-10.30.98.255 10.30.100.0-10.30.255.255 ]
+set rulebase security rules sf-app-1012 destination 10.20.3.0/24
+set rulebase security rules sf-app-1012 source-user any
+set rulebase security rules sf-app-1012 category any
+set rulebase security rules sf-app-1012 application any
+set rulebase security rules sf-app-1012 service tcp-1024-65535
+set rulebase security rules sf-app-1012 action allow
+set rulebase security rules sf-app-1012 log-end no
+set rulebase security rules sf-app-1012 description "spokes to high ports"
+set rulebase security rules sf-app-1013 from any
+set rulebase security rules sf-app-1013 to any
+set rulebase security rules sf-app-1013 source HOME_NET
+set rulebase security rules sf-app-1013 destination HOME_NET
+set rulebase security rules sf-app-1013 source-user any
+set rulebase security rules sf-app-1013 category any
+set rulebase security rules sf-app-1013 application any
+set rulebase security rules sf-app-1013 service any
+set rulebase security rules sf-app-1013 action drop
+set rulebase security rules sf-app-1013 negate-source yes
+set rulebase security rules sf-app-1013 log-end yes
+set rulebase security rules sf-app-1013 description "the rest inbound"
+set rulebase security rules stateful-default-not-tcp from any
+set rulebase security rules stateful-default-not-tcp to any
+set rulebase security rules stateful-default-not-tcp source any
+set rulebase security rules stateful-default-not-tcp destination any
+set rulebase security rules stateful-default-not-tcp source-user any
+set rulebase security rules stateful-default-not-tcp category any
+set rulebase security rules stateful-default-not-tcp application any
+set rulebase security rules stateful-default-not-tcp service tcp-all
+set rulebase security rules stateful-default-not-tcp action drop
+set rulebase security rules stateful-default-not-tcp log-end yes
+set rulebase security rules stateful-default-not-tcp disabled yes
+set rulebase security rules stateful-default-not-tcp description "FWSHIFT: disabled by the converter, see the report. aws:drop_established: a connection of a protocol other than TCP that no rule passed on its first packet is dropped"
+set rulebase security rules sf-baseline-100-reply from any
+set rulebase security rules sf-baseline-100-reply to any
+set rulebase security rules sf-baseline-100-reply source any
+set rulebase security rules sf-baseline-100-reply destination HOME_NET
+set rulebase security rules sf-baseline-100-reply source-user any
+set rulebase security rules sf-baseline-100-reply category any
+set rulebase security rules sf-baseline-100-reply application any
+set rulebase security rules sf-baseline-100-reply service tcp-all-from-443
+set rulebase security rules sf-baseline-100-reply action allow
+set rulebase security rules sf-baseline-100-reply log-end no
+set rulebase security rules sf-baseline-103-reply from any
+set rulebase security rules sf-baseline-103-reply to any
+set rulebase security rules sf-baseline-103-reply source 10.20.6.10
+set rulebase security rules sf-baseline-103-reply destination any
+set rulebase security rules sf-baseline-103-reply source-user any
+set rulebase security rules sf-baseline-103-reply category any
+set rulebase security rules sf-baseline-103-reply application any
+set rulebase security rules sf-baseline-103-reply service tcp-all-from-3389
+set rulebase security rules sf-baseline-103-reply action reset-server
+set rulebase security rules sf-baseline-103-reply log-end yes
+set rulebase security rules sf-app-1003-reply from any
+set rulebase security rules sf-app-1003-reply to any
+set rulebase security rules sf-app-1003-reply source any
+set rulebase security rules sf-app-1003-reply destination HOME_NET
+set rulebase security rules sf-app-1003-reply source-user any
+set rulebase security rules sf-app-1003-reply category any
+set rulebase security rules sf-app-1003-reply application dns
+set rulebase security rules sf-app-1003-reply service any
+set rulebase security rules sf-app-1003-reply action allow
+set rulebase security rules sf-app-1003-reply log-end no
+set rulebase security rules sf-app-1003-reply description "dns, no flow keyword"
+set rulebase security rules sf-app-1009-reply from any
+set rulebase security rules sf-app-1009-reply to any
+set rulebase security rules sf-app-1009-reply source any
+set rulebase security rules sf-app-1009-reply destination HOME_NET
+set rulebase security rules sf-app-1009-reply source-user any
+set rulebase security rules sf-app-1009-reply category any
+set rulebase security rules sf-app-1009-reply application any
+set rulebase security rules sf-app-1009-reply service tcp-all
+set rulebase security rules sf-app-1009-reply action allow
+set rulebase security rules sf-app-1009-reply log-end no
+set rulebase security rules sf-app-1009-reply description "replies only"
+set rulebase security rules sf-app-1001 from any
+set rulebase security rules sf-app-1001 to any
+set rulebase security rules sf-app-1001 source ADMIN_NETS
+set rulebase security rules sf-app-1001 destination WEB_SERVERS
+set rulebase security rules sf-app-1001 source-user any
+set rulebase security rules sf-app-1001 category any
+set rulebase security rules sf-app-1001 application any
+set rulebase security rules sf-app-1001 service tcp-22
+set rulebase security rules sf-app-1001 action allow
+set rulebase security rules sf-app-1001 log-end no
+set rulebase security rules sf-app-1001 description "admin ssh"
+set rulebase security rules sf-app-1002 from any
+set rulebase security rules sf-app-1002 to any
+set rulebase security rules sf-app-1002 source HOME_NET
+set rulebase security rules sf-app-1002 destination HOME_NET
+set rulebase security rules sf-app-1002 source-user any
+set rulebase security rules sf-app-1002 category any
+set rulebase security rules sf-app-1002 application ssl
+set rulebase security rules sf-app-1002 service any
+set rulebase security rules sf-app-1002 action allow
+set rulebase security rules sf-app-1002 negate-destination yes
+set rulebase security rules sf-app-1002 log-end no
+set rulebase security rules sf-app-1002 description "tls out"
+set rulebase security rules sf-app-1006 from any
+set rulebase security rules sf-app-1006 to any
+set rulebase security rules sf-app-1006 source HOME_NET
+set rulebase security rules sf-app-1006 destination any
+set rulebase security rules sf-app-1006 source-user any
+set rulebase security rules sf-app-1006 category any
+set rulebase security rules sf-app-1006 application web-browsing
+set rulebase security rules sf-app-1006 service any
+set rulebase security rules sf-app-1006 action drop
+set rulebase security rules sf-app-1006 log-end yes
+set rulebase security rules sf-app-1006 disabled yes
+set rulebase security rules sf-app-1006 description "FWSHIFT: disabled by the converter, see the report. admin paths"
+set rulebase security rules dl-block-1 from any
+set rulebase security rules dl-block-1 to any
+set rulebase security rules dl-block-1 source HOME_NET
+set rulebase security rules dl-block-1 destination HOME_NET
+set rulebase security rules dl-block-1 source-user any
+set rulebase security rules dl-block-1 category any
+set rulebase security rules dl-block-1 application ssl
+set rulebase security rules dl-block-1 service any
+set rulebase security rules dl-block-1 action drop
+set rulebase security rules dl-block-1 negate-destination yes
+set rulebase security rules dl-block-1 log-end yes
+set rulebase security rules dl-block-1 disabled yes
+set rulebase security rules dl-block-1 description "FWSHIFT: disabled by the converter, see the report. domain names bad.example.org"
+set rulebase security rules dl-egress-1 from any
+set rulebase security rules dl-egress-1 to any
+set rulebase security rules dl-egress-1 source HOME_NET
+set rulebase security rules dl-egress-1 destination HOME_NET
+set rulebase security rules dl-egress-1 source-user any
+set rulebase security rules dl-egress-1 category any
+set rulebase security rules dl-egress-1 application ssl
+set rulebase security rules dl-egress-1 service any
+set rulebase security rules dl-egress-1 action allow
+set rulebase security rules dl-egress-1 negate-destination yes
+set rulebase security rules dl-egress-1 log-end no
+set rulebase security rules dl-egress-1 disabled yes
+set rulebase security rules dl-egress-1 description "FWSHIFT: disabled by the converter, see the report. domain names .example.com, updates.example.net"
+set rulebase security rules dl-egress-2 from any
+set rulebase security rules dl-egress-2 to any
+set rulebase security rules dl-egress-2 source HOME_NET
+set rulebase security rules dl-egress-2 destination HOME_NET
+set rulebase security rules dl-egress-2 source-user any
+set rulebase security rules dl-egress-2 category any
+set rulebase security rules dl-egress-2 application ssl
+set rulebase security rules dl-egress-2 service any
+set rulebase security rules dl-egress-2 action drop
+set rulebase security rules dl-egress-2 negate-destination yes
+set rulebase security rules dl-egress-2 log-end yes
+set rulebase security rules dl-egress-2 description "not matching any TLS_SNI allowlisted domain name"
+set rulebase security rules dl-egress-3 from any
+set rulebase security rules dl-egress-3 to any
+set rulebase security rules dl-egress-3 source HOME_NET
+set rulebase security rules dl-egress-3 destination HOME_NET
+set rulebase security rules dl-egress-3 source-user any
+set rulebase security rules dl-egress-3 category any
+set rulebase security rules dl-egress-3 application web-browsing
+set rulebase security rules dl-egress-3 service any
+set rulebase security rules dl-egress-3 action allow
+set rulebase security rules dl-egress-3 negate-destination yes
+set rulebase security rules dl-egress-3 log-end no
+set rulebase security rules dl-egress-3 disabled yes
+set rulebase security rules dl-egress-3 description "FWSHIFT: disabled by the converter, see the report. domain names .example.com, updates.example.net"
+set rulebase security rules dl-egress-4 from any
+set rulebase security rules dl-egress-4 to any
+set rulebase security rules dl-egress-4 source HOME_NET
+set rulebase security rules dl-egress-4 destination HOME_NET
+set rulebase security rules dl-egress-4 source-user any
+set rulebase security rules dl-egress-4 category any
+set rulebase security rules dl-egress-4 application web-browsing
+set rulebase security rules dl-egress-4 service any
+set rulebase security rules dl-egress-4 action drop
+set rulebase security rules dl-egress-4 negate-destination yes
+set rulebase security rules dl-egress-4 log-end yes
+set rulebase security rules dl-egress-4 description "not matching any HTTP_HOST allowlisted domain name"
+set rulebase security rules sf-app-1010 from any
+set rulebase security rules sf-app-1010 to any
+set rulebase security rules sf-app-1010 source any
+set rulebase security rules sf-app-1010 destination any
+set rulebase security rules sf-app-1010 source-user any
+set rulebase security rules sf-app-1010 category any
+set rulebase security rules sf-app-1010 application any
+set rulebase security rules sf-app-1010 service any
+set rulebase security rules sf-app-1010 action allow
+set rulebase security rules sf-app-1010 log-end no
+set rulebase security rules sf-app-1010 disabled yes
+set rulebase security rules sf-app-1010 description "established to clients"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
