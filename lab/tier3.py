@@ -702,10 +702,10 @@ VENDORS: Dict[str, Vendor] = {
     # The image's WAN on the first card is management, by DHCP.
     "pfsense": Vendor("pfsense", "Netgate pfSense Plus (hourly)", "pfsense", "pfSense-plus-ec2-*-RELEASE-amd64*", "c5.xlarge", "admin", "ifconfig ena3", r"$^",
                       _PF_AWS_OPTIONS, ready_answer=r"ena3:", as_command=True, load=load_pf_config, diagnose=_pf_diagnose,
-                      status="run: passed (pfSense Plus 26.07, 0.36.4; NAT included, 0.41.1)"),  # fmt: skip
+                      status="run: passed (pfSense Plus 26.07, 0.36.4; NAT included, 0.41.0)"),  # fmt: skip
     "opnsense": Vendor("opnsense", "OPNsense, Deciso's image (hourly)", "opnsense", "*OPNsense*,*opnsense*", "c5.xlarge", "ec2-user", "ifconfig ena3", r"$^",
                        _PF_AWS_OPTIONS, ready_answer=r"ena3:", as_command=True, sudo="sudo ", load=load_pf_config, diagnose=_pf_diagnose,
-                       status="run: passed (OPNsense 26.1.5, 0.36.4)"),  # fmt: skip
+                       status="run: passed (OPNsense 26.1.5, 0.36.4; NAT included, 0.41.2)"),  # fmt: skip
     # SonicWall NSv, pay as you go (the subscribed product among the images named SonicWall or NSv, find_ami). SonicWall's
     # AWS guide: SSH as `management` with the key pair; Ctrl+S and a space switch between the SonicCore console and the
     # SonicOS CLI, which asks for its own user (admin) and password (the instance id). The first run: `admin` refused,

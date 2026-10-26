@@ -328,10 +328,10 @@ Terraform state (to destroy by hand if even that failed) and without the run's p
 * **The read-back**: through the kernel for nftables and iptables, for real: the ruleset as loaded, and as the source
   decides but the published port; a ruleset with a rule taken out is seen (`tests/test_lab.py`). On the devices, at
   their next run.
-* **NAT on the devices**: the runs above were made before the lab policy had NAT (0.37.0). The NAT of tier 3
-  (OPNsense) is what its next run will test. The SonicWall NSv's first pass (0.40.16)
+* **NAT on the devices**: the runs above were made before the lab policy had NAT (0.37.0). Every image of tier 3 has passed it since.
+  The SonicWall NSv's first pass (0.40.16)
   included it, the FortiGate (central NAT turned on by the lab), the VM-Series and the Catalyst 8000V passed it in
-  0.40.17, Check Point and the ASAv in 0.40.21, the vSRX in 0.41.0 and pfSense Plus in 0.41.1: every check of the addresses seen each time. On the 8000V and the
+  0.40.17, Check Point and the ASAv in 0.40.21, the vSRX and pfSense Plus in 0.41.0, and OPNsense in 0.41.2: every check of the addresses seen each time. On the 8000V and the
   ASAv one connection differed, announced: the outside reaching the published server's real address, which their
   static NAT fails (`IOS_STATIC_NAT_REPLIES`, `ASA_STATIC_NAT_RPF`).
 * **Not verified**: no run of tier 3 on Azure or Google Cloud (0.39.0), nor of the VMs of tier 2 has been
