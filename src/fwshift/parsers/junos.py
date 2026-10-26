@@ -940,7 +940,11 @@ class _Reader:
                 return
             address, port, spread = "", "", False
             for words in lines:
-                if words[0] == "address" and len(words) >= 2:
+                if words[:2] == ["address", "port"] and len(words) == 3:
+                    # (`show configuration | display set` prints `address A port P` as two lines: `address A` and
+                    # `address port P`, as the vSRX of the FWShift lab did, 0.41.0)
+                    port = words[2]
+                elif words[0] == "address" and len(words) >= 2:
                     if address:
                         problems.append("a destination pool of two addresses")
                     if len(words) >= 4 and words[2] == "to":

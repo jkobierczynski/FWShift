@@ -47,6 +47,18 @@ def _q(text: str) -> str:
     return '"' + cleaned.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def activate(text: str) -> str:
+    """The output as it is on an SRX that has its zones: the output names zones and does not create them
+    (`ZONES_REQUIRED`), and read back alone each policy would name zones that are not in the configuration. For reading
+    it back (`convert --compare`, the lab's read-back), a `security-zone` line for each zone it names and does not
+    define is added, as the lab's base configuration and the SRX it is meant for have them."""
+    named = re.findall(r"\b(?:from-zone|to-zone) (\S+)|\b(?:from|to) zone (\S+)", text)
+    defined = set(re.findall(r"^set security zones security-zone (\S+)", text, flags=re.M))
+    zones = [z for pair in named for z in pair if z and z != "any"]
+    missing = [z for z in dict.fromkeys(zones) if z not in defined]
+    return text + "".join(f"set security zones security-zone {zone}\n" for zone in missing)
+
+
 def emit(policy: Policy, report: Report, options: Options) -> str:
     p = copy.deepcopy(policy)
     zones = transform.dedupe([options.zone_map.get(z, z) for z in p.zones])
@@ -189,10 +201,16 @@ class _Emitter:
             self.report.note(Severity.REVIEW, "DEFAULT_PERMIT",
                              "the source allows what no rule matches: written as 'default-policy permit-all', which applies to "
                              "the whole SRX")  # fmt: skip
-        elif self.p.default_interzone == Action.ALLOW or self.p.default_intrazone == Action.ALLOW:
+        elif self.p.default_interzone == Action.ALLOW:
             self.report.note(Severity.REVIEW, "INTERZONE_DEFAULT",
-                             "the source allows what no rule matches between zones or inside one, and not both; the default "
-                             "policy of an SRX is one for both, and denies. Add policies if that was intended")  # fmt: skip
+                             "the source allows what no rule matches between zones, and not inside one; the default policy "
+                             "of an SRX is one for both, and denies. Add policies if that was intended")  # fmt: skip
+        elif self.p.default_intrazone == Action.ALLOW:
+            # (A note of its own: between zones the SRX denies what no policy matches, as the source does.)
+            self.report.note(Severity.REVIEW, "INTRAZONE_DEFAULT",
+                             "the source allows traffic inside a zone that no rule matches, and not between zones; the "
+                             "default policy of an SRX is one for both, and denies. Add a policy from each zone to itself "
+                             "if that was intended")  # fmt: skip
 
     # -- addresses --------------------------------------------------------------------------------
 

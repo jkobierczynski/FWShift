@@ -1108,6 +1108,10 @@ def _compare_output(args: argparse.Namespace, source: Policy, source_report: aud
         elif args.target == "ios":
             # The interfaces are put in their zones by commented lines at the end; compared is the policy once they are.
             back = load(emit_ios.activate(output).encode("utf-8"), args.target, back_report)
+        elif args.target == "junos":
+            # The policies name zones the output does not create (they must exist on the SRX); compared is the policy
+            # on an SRX that has them.
+            back = load(emit_junos.activate(output).encode("utf-8"), args.target, back_report)
         else:
             back = load(output.encode("utf-8"), args.target, back_report)
         transform.harden(back, back_report)

@@ -405,7 +405,7 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
 
 * the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
   the reload commands of OPNsense and pfSense);
-* the NAT of tier 3 on the vSRX, pfSense Plus and OPNsense (each passed before the lab policy had NAT):
+* the NAT of tier 3 on pfSense Plus and OPNsense (each passed before the lab policy had NAT):
   one run each;
 * Sophos Firewall in tier 3: its XML API is switched on in the web console only, so a run would wait for that step;
 * tier 3 on Google Cloud: each firewall's zone interfaces written Google Cloud's way (a `/32` address or DHCP, and the

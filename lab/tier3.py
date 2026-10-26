@@ -677,7 +677,7 @@ VENDORS: Dict[str, Vendor] = {
                    "show interfaces terse | match ge-0/0 | no-more", r"syntax error|^error:|\nerror:|missing mandatory|unknown command", [], "",
                    _vsrx_session, ready_answer=_VSRX_READY,
                    success=r"commit complete", diagnose=_vsrx_diagnose,
-                   status="run: passed (vSRX 23.4R2-S8.9, appsec PAYG, 0.36.1)"),
+                   status="run: passed (vSRX 23.4R2-S8.9, appsec PAYG, 0.36.1; NAT included, 0.41.0)"),
     # The All-In-One image (gateway and management): Check Point's templates find it by a map of ids, not a name; the
     # lab takes the subscribed product among the images named Check Point or CloudGuard (find_ami), or --ami, the id the
     # subscription's launch page shows. 16 GB: the management API may not start below 8.

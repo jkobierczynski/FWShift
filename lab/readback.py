@@ -35,13 +35,15 @@ OUTPUT_FORMAT = {"fortios": "fortios", "panos": "panos", "junos": "junos", "asa"
 
 
 def as_loaded(target: str, text: str) -> str:
-    """The output as the lab loads it: IOS output with its interfaces put in their zones (the commented lines at its end)."""
-    if target != "ios":
+    """The output as the lab loads it: IOS output with its interfaces put in their zones (the commented lines at its end);
+    Junos output on an SRX that has the zones the lab's base configuration creates."""
+    if target not in ("ios", "junos"):
         return text
     sys.path.insert(0, str(labrun.REPO / "src"))
     from fwshift.emitters import ios as emit_ios
+    from fwshift.emitters import junos as emit_junos
 
-    return emit_ios.activate(text)
+    return emit_ios.activate(text) if target == "ios" else emit_junos.activate(text)
 
 
 def _plain(text: str) -> str:

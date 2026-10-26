@@ -116,8 +116,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.41.0.pyz --version
-python3 fwshift-0.41.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.41.1.pyz --version
+python3 fwshift-0.41.1.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -1787,7 +1787,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | Code | Sev. | Meaning and what to do |
 |---|---|---|
 | `CENTRAL_NAT` | R | To FortiOS: NAT is written as central NAT, which has to be enabled first (section 10). |
-| `INTRAZONE_DEFAULT` | R | To FortiOS, Sophos, iptables, ASA, a Management Center or a Device Manager: the source allowed traffic inside a zone by default and the target does not, or (iptables with `FORWARD` policy `ACCEPT`) the other way round. |
+| `INTRAZONE_DEFAULT` | R | To FortiOS, Sophos, iptables, ASA, Juniper SRX, a Management Center or a Device Manager: the source allowed traffic inside a zone by default and the target does not, or (iptables with `FORWARD` policy `ACCEPT`) the other way round. |
 | `INTRAZONE_ALLOW` | R | To iptables or ASA: a FortiOS zone with `set intrazone allow`. No rule was written for the traffic between its interfaces. |
 | `INTRAZONE_DENY_NOT_WRITTEN` | R | To iptables, nftables, pfSense, OPNsense, NSX, Junos, Google Cloud and Azure Firewall: the source blocks traffic inside these zones that no rule matches (a zone's own setting, or zones `--zone-map` merges) while it allows it between zones; the default the target writes for traffic between zones **allows** it inside them as well. Add a rule that blocks it. |
 | `INTERZONE_DEFAULT` | R | The source allows what no rule matches (a PAN-OS `interzone-default` override, an iptables `FORWARD` policy `ACCEPT`, a Check Point layer whose implicit cleanup accepts, an access control policy of a Cisco manager whose default action is not *Block*). That is not carried over; only iptables output keeps it, as the chain policy, ASA output, as a final `permit ip any any` in the global access list, and pfSense output, as a rule that passes everything at the end of every interface. |

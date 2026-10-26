@@ -1563,3 +1563,16 @@ def test_the_check_point_hide_nat_hides_behind_the_outside_address_towards_the_o
     policy = fwcli.load((tier3.labplan.POLICY).read_bytes(), "panos", FwReport())
     hide = next(n for n in policy.nat_rules if n.name == "inside-hide").source_translation
     assert hide is not None and hide.interface == "ethernet1/1" and hide.interface_address == "10.20.3.4"
+
+
+def test_the_vsrx_plan_asserts_what_the_srx_default_decides_between_zones(tmp_path: Path) -> None:
+    """The first vSRX run with NAT (0.41.0) passed with 91 connections unasserted: the Junos report called the
+    difference of the defaults INTERZONE_DEFAULT, though PAN-OS and the SRX both deny between zones and differ only
+    inside a zone. Named INTRAZONE_DEFAULT, the connections between zones that the default decides are asserted."""
+    vendor = tier3.VENDORS["vsrx"]
+    report = lab_conversion(tmp_path, vendor.target, vendor.options)["report"]
+    codes = {note["code"] for note in report["notes"]}
+    assert "INTRAZONE_DEFAULT" in codes and "INTERZONE_DEFAULT" not in codes
+    plan = labplan.build_plan(vendor.target, report)
+    loose = [f for f in plan["flows"] if not f.get("local") and not f["asserted"]]
+    assert all(f["src_zone"] == f["dst_zone"] or f["decided_by"] == "outside-web" for f in loose), loose

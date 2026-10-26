@@ -598,3 +598,37 @@ def test_details_of_writing() -> None:
     p.rules[1].sources = ["junos+lab"]
     text, report = emit(p)
     assert report.item("rule", "never").skipped and "junos_lab" not in text.replace("xjunos_lab", "")
+
+
+def test_a_destination_pool_port_on_a_line_of_its_own_is_read() -> None:
+    """`show configuration | display set` prints `address A port P` of a destination pool as two lines, `address A` and
+    `address port P` (the vSRX of the FWShift lab, 0.41.0). Both forms are the same translation."""
+    def read(pool: List[str]) -> Any:
+        text = "\n".join([
+            "set security zones security-zone outside", "set security zones security-zone dmz", *pool,
+            "set security nat destination rule-set d from zone outside",
+            "set security nat destination rule-set d rule web match destination-address 203.0.113.10/32",
+            "set security nat destination rule-set d rule web match protocol tcp",
+            "set security nat destination rule-set d rule web match destination-port 8080",
+            "set security nat destination rule-set d rule web then destination-nat pool p",
+        ]) + "\n"  # fmt: skip
+        nat = cli.load(text.encode(), "junos", Report()).nat_rules[0]
+        assert not nat.unsupported, nat.unsupported
+        return nat.destination_translation
+
+    one = read(["set security nat destination pool p address 10.20.2.10/32 port 80"])
+    two = read(["set security nat destination pool p address 10.20.2.10/32", "set security nat destination pool p address port 80"])
+    assert one == two and two.port == "80"
+
+
+def test_output_read_back_has_the_zones_it_names() -> None:
+    """The output names zones it does not create (ZONES_REQUIRED); read back for --compare and the lab, each zone is
+    added as the SRX it is meant for has it, so no policy reads as naming a zone that is not there."""
+    from fwshift.emitters import junos as emit_junos
+
+    text = cli.convert(cli.load((DATA / "panos_sample.xml").read_bytes(), "panos", Report()), "junos", Report())
+    assert "set security zones security-zone" not in text
+    back = Report()
+    policy = cli.load(emit_junos.activate(text).encode(), "junos", back)
+    assert not [r.name for r in policy.rules if any("is not in the configuration" in u and "zone" in u for u in r.unsupported)]
+    assert emit_junos.activate(emit_junos.activate(text)) == emit_junos.activate(text)
