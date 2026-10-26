@@ -702,7 +702,7 @@ VENDORS: Dict[str, Vendor] = {
     # The image's WAN on the first card is management, by DHCP.
     "pfsense": Vendor("pfsense", "Netgate pfSense Plus (hourly)", "pfsense", "pfSense-plus-ec2-*-RELEASE-amd64*", "c5.xlarge", "admin", "ifconfig ena3", r"$^",
                       _PF_AWS_OPTIONS, ready_answer=r"ena3:", as_command=True, load=load_pf_config, diagnose=_pf_diagnose,
-                      status="run: passed (pfSense Plus 26.07, 0.36.4)"),  # fmt: skip
+                      status="run: passed (pfSense Plus 26.07, 0.36.4; NAT included, 0.41.1)"),  # fmt: skip
     "opnsense": Vendor("opnsense", "OPNsense, Deciso's image (hourly)", "opnsense", "*OPNsense*,*opnsense*", "c5.xlarge", "ec2-user", "ifconfig ena3", r"$^",
                        _PF_AWS_OPTIONS, ready_answer=r"ena3:", as_command=True, sudo="sudo ", load=load_pf_config, diagnose=_pf_diagnose,
                        status="run: passed (OPNsense 26.1.5, 0.36.4)"),  # fmt: skip
