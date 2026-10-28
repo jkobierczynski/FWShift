@@ -405,7 +405,9 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
 
 * the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
   the reload commands of OPNsense and pfSense);
-* Sophos Firewall in tier 3: its XML API is switched on in the web console only, so a run would wait for that step;
+* Sophos Firewall in tier 3 (scripted in 0.41.4, never run): the first run, and what it finds (the image's name, the
+  first-boot JSON and secrets, the port names and PortB as management, the Interface and Zone entities as the API
+  takes them); the XML API is switched on by hand, since only the web console does it on SFOS 22;
 * tier 3 on Google Cloud: each firewall's zone interfaces written Google Cloud's way (a `/32` address or DHCP, and the
   subnet through its gateway), per vendor; until then a run there stops (`--untested`);
 * IOS: `ip nat inside source static ... extendable` for a published port also translates the replies of direct
@@ -415,7 +417,7 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
 * the first run of each image of tier 3 on Azure (0.39.0, scripted from the vendors' Terraform and guides, never
   run), and the plans and image projects not found yet: the PAYG plans of the Catalyst 8000V and ASAv on
   Azure, pfSense Plus and OPNsense on Azure, the vSRX and the Catalyst 8000V on Google Cloud, SonicWall's BYOL offer;
-* the images not scripted yet ( Stormshield EVA, Sophos,
+* the images not scripted yet (Stormshield EVA,
   Barracuda; WatchGuard and Forcepoint need tools of their own, Meraki a Dashboard);
 * the conversion of the other sample configurations, not only the lab policy;
 * NAT on the devices: the lab policy has NAT since 0.37.0, checked through the kernel for nftables and iptables; the

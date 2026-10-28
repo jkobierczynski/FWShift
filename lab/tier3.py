@@ -24,6 +24,7 @@ import xml.etree.ElementTree as ET
 import labplan
 import readback
 import labrun
+import sophos
 import tier1
 import tier2
 from labrun import LabError, Runner
@@ -107,6 +108,16 @@ class Vendor:
     load: Optional[Callable[["Runner", "Vendor", Path, str, Path], None]] = None
     # The cards of the zones, for a firewall the lab puts its zones on itself (pfSense, OPNsense: ena1 to ena3 on AWS).
     ports: Dict[str, str] = field(default_factory=dict)
+    # A firewall the lab talks to through an API, not a CLI (Sophos: its XML API on 4444): its boot waited for on the
+    # API, its diagnosis and its export through it (sophos.py).
+    api: bool = False
+    # The device index of the management interface (Sophos: 1, its WAN port PortB), the TCP ports open on it to the
+    # admin address, the secrets the image reads at first boot (Terraform makes them, named RUN_ID-NAME, with the run's
+    # password, and a role to read them), and IMDSv2 required.
+    mgmt_index: int = 0
+    mgmt_ports: Tuple[int, ...] = ()
+    secrets: Tuple[str, ...] = ()
+    imdsv2: bool = False
 
 
 @dataclass(frozen=True)
@@ -717,6 +728,14 @@ VENDORS: Dict[str, Vendor] = {
                         ready_answer=_NSV_READY, prompt=_NSV_PROMPT, preamble="\x13 ", preamble_when=_NSV_CORE_PROMPT, pager=_SW_PAGER, idle=15, slow=r"^commit$", close_after=15, boot_minutes=45,
                         screen_noise=_NSV_STATUS_BAR, answers=_NSV_ANSWERS, diagnose=_sonicwall_diagnose,
                         status="scripted from SonicWall's AWS guide; passed on AWS (0.40.16, SonicOSX 8.2.2, NAT included) after twenty runs"),  # fmt: skip
+    # Sophos Firewall, the PAYG listing "Sophos Cloud Firewall" (SFOS 22.0 MR2, 0.41.4; lab/sophos.py). The first-boot
+    # data is JSON, the admin password in Secrets Manager; the XML API is turned on by hand, once (sophos.enable_api).
+    "sophos": Vendor("sophos", "Sophos Firewall (PAYG)", "sophos", "*sophos*,*Sophos*,*SOPHOS*", "c5.xlarge", "admin", "", "",
+                     list(sophos.OPTIONS), sophos.user_data("{run_id}", "{region}"), key_bits=2048, boot_minutes=40,
+                     load=lambda runner, vendor, key, host, out: sophos.load(runner, vendor, key, host, out, sophos.password(runner.work),
+                                                                           {zone: _addr(zone) for zone in ORDER}),
+                     api=True, mgmt_index=1, mgmt_ports=(22, sophos.API_PORT), secrets=("admin", "backup"), imdsv2=True,
+                     status="scripted from Sophos's CloudFormation templates and XML API documentation, never run; one step by hand (the XML API)"),  # fmt: skip
     "asav": Vendor("asav", "Cisco ASAv (pay as you go)", "asa", "asav*,*ASAv*", "c5.xlarge", "admin", "show version | include up",
                    r"ERROR:|% Invalid input|% Incomplete command", list(_ZONE_NETWORKS), _asav_user_data(), _asav_session,
                    "run: passed (ASAv 9.24.10, 0.36.1; NAT included, 0.40.21)",
@@ -818,12 +837,13 @@ NOT_ON: Dict[Tuple[str, str], str] = {
     ("opnsense", "gcp"): "no image on Google Cloud",
     ("sonicwall", "azure"): "on Azure as BYOL only (a licence of your own); the offer's id was not found",
     ("sonicwall", "gcp"): "not offered on Google Cloud",
+    ("sophos", "azure"): "scripted for AWS first: its first-boot data, ports and secrets differ on Azure (not researched yet)",
+    ("sophos", "gcp"): "scripted for AWS first: Sophos Firewall on Google Cloud not researched yet",
 }
 
 
 NOT_SCRIPTED = {
     "stormshield": "Stormshield EVA: the licence of a pay-as-you-go image and snscli's login are not checked yet",
-    "sophos": "Sophos Firewall: the XML API must first be switched on and opened to an address in the web console",
     "barracuda": "Barracuda CloudGen: the REST API needs a token made in Firewall Admin first",
     "watchguard": "WatchGuard: the output is merged into a configuration with Policy Manager, a Windows program",
     "forcepoint": "Forcepoint NGFW: needs a Security Management Center",
@@ -1089,6 +1109,7 @@ EXPORTS: Dict[str, readback.Export] = {
     "c8000v": readback.Export("ios", ("terminal length 0", "show running-config", "exit"),
                               readback.between(r"^(Building configuration|Current configuration|version \d)", r"^end\s*$"), "cfg"),
     "asav": readback.Export("asa", ("terminal pager 0", "show running-config", "exit"), readback.between(r"^(: Saved|: Serial|ASA Version)", r"^: end"), "cfg"),
+    "sophos": readback.Export("sophos", (), lambda text: text, "xml"),  # (through the XML API: sophos.export)
     "pfsense": readback.Export("pfsense", ("cat /conf/config.xml",), readback.between(r"<\?xml|<pfsense", r"</pfsense>"), "xml"),
     "opnsense": readback.Export("opnsense", ("cat /conf/config.xml",), readback.between(r"<\?xml|<opnsense", r"</opnsense>"), "xml"),
     # (every access layer, the inline ones of the converted policy among them, and the NAT rules: the manual's export)
@@ -1109,7 +1130,9 @@ def read_back(runner: Runner, vendor: Vendor, key: Path, host: str, out: Path, l
 
     def step() -> Dict[str, Any]:
         merged = runner.work / "config.merged.xml"
-        if runner.dry_run:
+        if vendor.api:
+            text = sophos.export(runner, host, sophos.password(runner.work), loaded=out.read_text(encoding="utf-8"))
+        elif runner.dry_run:
             text = readback.as_loaded(vendor.target, (merged if merged.exists() else out).read_text(encoding="utf-8"))
             raw = text if vendor.name != "checkpoint" else "{}"
         elif vendor.as_command:
@@ -1164,9 +1187,10 @@ def run_vendor(runner: Runner, args: Any) -> bool:
             describe_ami(runner, region, args.ami)
         instance_type = args.instance_type or pick_instance_type(runner, region, ami, vendor.instance_type)
         labrun.save_state(runner.work, instance_type=instance_type)
+        first_boot = user_data(vendor, key, run_password(runner.work) if "{enable_password}" in vendor.user_data else "",
+                               str(labrun.load_state(runner.work).get("image_name", ""))).replace("{run_id}", runner.work.name).replace("{region}", region)
         tf.apply({"region": region, "run_id": runner.work.name, "zone_order": ORDER, "firewall_ami": ami, "published": published_addresses(),
-                  "firewall_instance_type": instance_type, "firewall_user_data": user_data(vendor, key, run_password(runner.work) if "{enable_password}" in vendor.user_data else "",
-                                                                                  str(labrun.load_state(runner.work).get("image_name", ""))),
+                  "firewall_instance_type": instance_type, "firewall_user_data": first_boot, **aws_firewall_variables(runner, vendor),
                   **tier1.common_variables(runner, args, key), "hosts": tier1.host_variables(gateway="firewall")})  # fmt: skip
         outputs = tf.output({"firewall_ip": "192.0.2.4", "firewall_instance": "i-0dryrun", "user": "ec2-user", "hosts": tier1.fake_hosts()})
         return _boot_load_probe(runner, vendor, key, outputs, out, data, args,
@@ -1175,6 +1199,22 @@ def run_vendor(runner: Runner, args: Any) -> bool:
         if not args.keep:
             with labrun.shielded():
                 teardown(runner, tf)
+
+
+def aws_firewall_variables(runner: Runner, vendor: Vendor) -> Dict[str, Any]:
+    """What of the AWS module a vendor sets beside the defaults: the management interface's device index and ports, the
+    first-boot secrets (with the run's password) and IMDSv2."""
+    out: Dict[str, Any] = {}
+    if vendor.mgmt_index:
+        out["mgmt_device_index"] = vendor.mgmt_index
+    if vendor.mgmt_ports:
+        out["firewall_ports"] = list(vendor.mgmt_ports)
+    if vendor.secrets:
+        word = sophos.password(runner.work) if vendor.api else run_password(runner.work)
+        out["firewall_secrets"] = {name: word for name in vendor.secrets}
+    if vendor.imdsv2:
+        out["require_imdsv2"] = True
+    return out
 
 
 def _filled(text: str, values: Dict[str, str]) -> str:
@@ -1195,7 +1235,9 @@ def _boot_load_probe(runner: Runner, vendor: Vendor, key: Path, outputs: Dict[st
     login: Dict[str, Any] = {"answers": tuple((q, _filled(a, fill)) for q, a in vendor.answers), "batch": not vendor.password_login,
                              "preamble": vendor.preamble, "preamble_when": vendor.preamble_when, "pager": vendor.pager, "idle": vendor.idle, "slow": vendor.slow, "close_after": vendor.close_after,
                              "noise": vendor.screen_noise}  # fmt: skip
-    if not runner.dry_run:
+    if vendor.api:
+        sophos.wait_web_console(runner, outputs["firewall_ip"], args.boot_minutes or vendor.boot_minutes)
+    elif not runner.dry_run:
         try:
             wait_cli(runner, key, vendor.user, outputs["firewall_ip"], vendor.ready, vendor.ready_answer,
                      args.boot_minutes or vendor.boot_minutes, vendor.ssh_options, as_command=vendor.as_command, prompt=vendor.prompt,
@@ -1243,6 +1285,9 @@ def upload(runner: Runner, key: Path, user: str, host: str, files: Sequence[Path
 def diagnose(runner: Runner, vendor: Vendor, key: Path, host: str, login: Optional[Dict[str, Any]] = None) -> None:
     """The firewall's own view after the probes (diagnose.txt), where the vendor has show commands for it; a failure here
     is noted and does not change the result."""
+    if vendor.api:
+        sophos.diagnose(runner, host, sophos.password(runner.work))
+        return
     lines = vendor.diagnose()
     if not lines:
         return

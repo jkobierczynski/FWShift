@@ -37,6 +37,7 @@ import labrun  # noqa: E402
 import lab as labcli  # noqa: E402
 import probe as labprobe  # noqa: E402
 import readback  # noqa: E402
+import sophos as labsophos  # noqa: E402
 import tier1  # noqa: E402
 import tier2  # noqa: E402
 import tier3  # noqa: E402
@@ -430,8 +431,8 @@ def test_the_sessions_of_tier_3(tmp_path: Path, name: str) -> None:
     vendor = tier3.VENDORS[name]
     done = lab_conversion(tmp_path, vendor.target, vendor.options)
     assert done["report"]["summary"]  # (converted)
-    if vendor.load is not None:  # (pfSense, OPNsense: no lines typed; their config.xml is merged, test_the_pf_family_*)
-        assert vendor.as_command and not vendor.session(done["out"])
+    if vendor.load is not None:  # (pfSense, OPNsense: no lines typed; their config.xml is merged, test_the_pf_family_*; Sophos: its API)
+        assert (vendor.as_command or vendor.api) and not vendor.session(done["out"])
         return
     session = vendor.session(done["out"])
     assert session and all("\n" not in line for line in session)
@@ -800,7 +801,7 @@ def test_ssh_to_the_asav_allows_ssh_rsa_and_only_there() -> None:
     assert tier3.VENDORS["c8000v"].ssh_options == ("PubkeyAcceptedAlgorithms=+ssh-rsa",)
     # 2048 bits for the ASAv (its 511-character key line) and the 8000V (the size AWS makes); 4096 elsewhere
     bits = {name: v.key_bits for name, v in tier3.VENDORS.items()}
-    assert {name for name, value in bits.items() if value != 4096} == {"asav", "c8000v"} and bits["asav"] == 2048
+    assert {name for name, value in bits.items() if value != 4096} == {"asav", "c8000v", "sophos"} and bits["asav"] == bits["sophos"] == 2048
 
 
 def test_no_algorithm_in_common_ends_the_wait_at_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -923,7 +924,7 @@ def test_no_ready_check_stops_at_a_pager() -> None:
     try hung until the boot time ran out. A ready check whose answer is long turns the pager off."""
     assert tier3.VENDORS["vsrx"].ready.endswith("| no-more")
     for name, vendor in tier3.VENDORS.items():
-        assert "|" in vendor.ready or name in ("fortigate", "panos", "checkpoint", "sonicwall") or vendor.as_command, (name, vendor.ready)  # (a shell: no pager; SonicOS's show version is short)
+        assert "|" in vendor.ready or name in ("fortigate", "panos", "checkpoint", "sonicwall") or vendor.as_command or vendor.api, (name, vendor.ready)  # (a shell: no pager; SonicOS's show version is short)
 
 
 def test_the_vsrx_is_ready_once_its_data_interfaces_exist() -> None:
@@ -1576,3 +1577,64 @@ def test_the_vsrx_plan_asserts_what_the_srx_default_decides_between_zones(tmp_pa
     plan = labplan.build_plan(vendor.target, report)
     loose = [f for f in plan["flows"] if not f.get("local") and not f["asserted"]]
     assert all(f["src_zone"] == f["dst_zone"] or f["decided_by"] == "outside-web" for f in loose), loose
+
+
+# -- Sophos Firewall (0.41.4): through its XML API ------------------------------------------------------------------
+
+
+def test_the_sophos_run_dry_sets_its_ports_secrets_and_api_steps(tmp_path: Path) -> None:
+    """Sophos: management on PortB (device index 1, its WAN port), 22 and 4444 open to the admin address, the admin
+    password in Secrets Manager named in the first-boot JSON, IMDSv2; then the lab's zone, the three ports, and FWShift's
+    entities one per request, in the file's order. The password is in no log."""
+    assert labcli.main(["run", "tier3", "sophos", "--dry-run", "--work", str(tmp_path)]) == 0
+    work = next(tmp_path.iterdir())
+    variables = json.loads((work / "terraform" / "terraform.tfvars.json").read_text())
+    assert variables["mgmt_device_index"] == 1 and variables["firewall_ports"] == [22, 4444] and variables["require_imdsv2"] is True
+    word = (work / "sophos_password.txt").read_text().strip()
+    assert variables["firewall_secrets"] == {"admin": word, "backup": word}
+    assert len(word) >= 10 and re.search(r"[a-z]", word) and re.search(r"[A-Z]", word) and re.search(r"\d", word) and re.search(r"[^\w]", word)
+    first = json.loads(variables["firewall_user_data"])
+    assert first["secretId"] == f"{work.name}-admin" and first["configSecretId"] == f"{work.name}-backup" and first["acceptedEULA"] == "yes"
+    assert first["region"] and "{" not in variables["firewall_user_data"].replace('{"', "").replace("}", "")
+    log = (work / "commands.log").read_text()
+    assert word not in log and word not in (work / "summary.txt").read_text()
+    posts = [line for line in log.splitlines() if "APIController" in line]
+    sets = [re.search(r'<Set operation="(\w+)"><(\w+)[ >](?:.*?<Name>([^<]*)</Name>)?', line) for line in posts]
+    order = [(m.group(1), m.group(2), m.group(3)) for m in sets if m]
+    assert order[0] == ("add", "Zone", "Outside")
+    assert [o[2] for o in order[1:4]] == ["PortA", "PortC", "PortD"] and all(o[1] == "Interface" for o in order[1:4])  # (a dry run lists no port: added)
+    loaded = [o for o in order[4:] if o[0] == "add"]
+    converted = labsophos.converted_entities((work / "policy.sophos").read_text())
+    assert [(t, n) for _, t, n in loaded] == [(e.tag, e.findtext("Name")) for e in converted]
+    main = (work / "terraform" / "main.tf").read_text()
+    assert "aws_secretsmanager_secret" in main and "recovery_window_in_days = 0" in main and "device_index         = var.mgmt_device_index" in main
+
+
+def test_the_sophos_api_answers_are_read() -> None:
+    assert labsophos.state('<Response><Login><status>Authentication Successful</status></Login></Response>') == "ready"
+    assert labsophos.state('<Response><Login><status>Authentication Failure</status></Login></Response>') == "login-failed"
+    assert labsophos.state('<Response><Status code="532">API access disabled</Status></Response>') == "off"
+    assert labsophos.state('<Response><Status code="534">not allowed</Status></Response>') == "not-allowed"
+    answer = ('<Response><Login><status>Authentication Successful</status></Login><IPHost transactionid=""><Status code="200">'
+              'Configuration applied successfully.</Status></IPHost><FirewallRule><Status code="502">Same name exists</Status></FirewallRule></Response>')
+    assert labsophos.statuses(answer) == [("IPHost", "200", "Configuration applied successfully."), ("FirewallRule", "502", "Same name exists")]
+    request = labsophos.request_xml("a<b&c", "<Get><Zone/></Get>")
+    assert "<Password>a&lt;b&amp;c</Password>" in request and request.startswith('<Request APIVersion="2200.1">')
+
+
+def test_the_sophos_ports_keep_what_the_firewall_has_but_zone_address_and_gateway() -> None:
+    """A port as the firewall has it is updated in place: its zone and a static address, no gateway (a second WAN
+    gateway would take the management traffic); the firewall's own rules are disabled, not deleted."""
+    found = ET.fromstring("<Interface><Name>PortD</Name><Hardware>PortD</Hardware><NetworkZone>WAN</NetworkZone><IPv4Assignment>DHCP</IPv4Assignment>"
+                          "<GatewayName>DHCP_PortD_GW</GatewayName><MTU>9001</MTU></Interface>")  # fmt: skip
+    port = labsophos.interface_element(found, "PortD", "Outside", "10.20.3.4")
+    assert port.findtext("NetworkZone") == "Outside" and port.findtext("IPv4Assignment") == "Static" and port.findtext("IPAddress") == "10.20.3.4"
+    assert port.find("GatewayName") is None and port.findtext("MTU") == "9001" and found.findtext("NetworkZone") == "WAN"
+    new = labsophos.interface_element(None, "PortC", "DMZ", "10.20.2.4")
+    assert new.findtext("Hardware") == "PortC" and new.findtext("Netmask") == "255.255.255.0"
+    rule = ET.fromstring("<NATRule><Name>Default SNAT IPv4</Name><Status>Enable</Status></NATRule>")
+    off = labsophos.disabled(rule)
+    assert off is not None and off.findtext("Status") == "Disable" and rule.findtext("Status") == "Enable"
+    assert labsophos.disabled(off) is None
+    zone = labsophos.zone_element("Outside")
+    assert zone.findtext("Type") == "DMZ"
