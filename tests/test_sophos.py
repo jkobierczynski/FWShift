@@ -1710,3 +1710,26 @@ def test_large_exports_are_read_in_reasonable_time() -> None:
     model, _ = e.parse()
     assert len(model.rules) == 6001 and model.rules[-1].sources == ["10.100.0.0-10.100.0.4", "10.100.0.6-10.100.23.111"]
     assert time.monotonic() - started < 20  # it takes about a second; the search for each rule's place was quadratic
+
+
+def test_a_drop_rule_that_can_meet_web_traffic_is_noted() -> None:
+    """Sophos hands web traffic a Drop rule matches to its web proxy, which completes the connection and answers with a
+    block page (the FWShift lab, 0.41.4): said once for the policy, naming the rules; not for a drop of other ports."""
+    p = Policy(vendor="panos")
+    for zone in ("lan", "dmz"):
+        p.zones[zone] = Zone(zone)
+    p.services["dns"] = Service("dns", [ServiceEntry(Protocol.UDP, "53")])
+    p.services["web"] = Service("web", [ServiceEntry(Protocol.TCP, "400-500")])  # (443 in it)
+    rules = [Rule("drop-dns", src_zones=["lan"], dst_zones=["dmz"], services=["dns"], action=Action.DENY),
+             Rule("allow-any", src_zones=["lan"], dst_zones=["dmz"])]  # fmt: skip
+    for rule in rules:
+        rule.origin = rule.name
+        p.rules.append(rule)
+    report = Report()
+    cli.convert(p, "sophos", report)
+    assert "SOPHOS_DROP_WEB" not in {n.code for n in report.notes}
+    p.rules.insert(0, Rule("drop-web", src_zones=["lan"], dst_zones=["dmz"], services=["web"], action=Action.DROP, origin="drop-web"))
+    report = Report()
+    cli.convert(p, "sophos", report)
+    found = [n for n in report.notes if n.code == "SOPHOS_DROP_WEB"]
+    assert len(found) == 1 and "drop-web" in found[0].message and "drop-dns" not in found[0].message

@@ -22,6 +22,7 @@ Notes for the whole policy
   [info] AZFW_SNAT: Azure Firewall translates the source of what a network rule allows to its public address unless the destination is in its private ranges (IANAPrivateRanges, 198.51.100.0/24); of what an application rule allows always (to one of its private addresses); and, community sources say, of what a DNAT rule translates. None of that is a rule of the policy: no source NAT rule is in the model
   [info] AZFW_INFRASTRUCTURE: after the application rules Azure Firewall allows the FQDNs of its built-in infrastructure rule collection (platform image repository, managed disk status, diagnostics), unless an application rule denies all; the model does not hold them
   [info] EXISTING_OBJECTS: an import overwrites what the firewall has under the same name: a host, a service or a rule that is in this output replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] SOPHOS_DROP_WEB: 2 rule(s) drop traffic that can be TCP to port 80 or 443 (net-deny-lateral_block-lateral, app-deny_no-gambling). Sophos Firewall hands such traffic to its web proxy, which completes the connection itself and answers with a block page: the host is not reached, but the client sees a connection and a page, not a silent drop, and the firewall log shows the connection allowed (the web filter log blocked). For a silent refusal on those ports, Reject answers with a reset
 
 Security rules
   dnat-web/web-https (DNAT)  ->  exact  (emitted as dnat-web_web-https _DNAT_)

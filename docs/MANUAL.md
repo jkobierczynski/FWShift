@@ -116,8 +116,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.41.4.pyz --version
-python3 fwshift-0.41.4.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.41.5.pyz --version
+python3 fwshift-0.41.5.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -1769,6 +1769,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `DUPLICATE_NAME` | R | Sophos source: the input defines a name twice. The last definition was kept. |
 | `GROUP_SPLIT` | I | To Sophos: IPv4 hosts, IPv6 hosts and host names are kept in groups of their own, and groups hold hosts only. A group of the source became `name`, `name_v6` and `name_fqdn` as far as it has members of each kind. To a Management Center or a Device Manager: a network group holds no FQDN objects. The group is written without them, and every rule that uses the group names them next to it. |
 | `SERVICE_SPLIT` | I | To Sophos: a service holds one kind of protocol. A service with several became `name-tcpudp`, `name-ip`, `name-icmp`, `name-icmpv6` and a service group `name`. To a Management Center or a Device Manager: a port object holds one port or range of one protocol. A service with several became a port group `name` of objects such as `tcp-80` and `tcp-443`. |
+| `SOPHOS_DROP_WEB` | I | To Sophos: rules that drop traffic which can be TCP to port 80 or 443. Sophos Firewall hands that traffic to its web proxy, which completes the connection itself and answers with a block page (Sophos's documentation of log behaviour for web traffic; seen in the FWShift lab): the host is not reached, but the client sees a connection and a page instead of a silent drop, and the firewall log shows it allowed. Reject answers with a reset instead. |
 | `PROTOCOL_NAME` | I | To Sophos: an IP protocol is written by name, and the name is the keyword of the IANA registry. For the protocols the Sophos documentation does not show, check that the import took the service. |
 | `ICMP_CODE` | I | To a Device Manager: an ICMP type for which it has no codes was given with code 0 (ping, type 8 code 0, as several platforms write it). It is written as the type alone: 0 is the only code such a type has. |
 | `PORT_ZERO` | I | To Sophos, a Management Center or a Device Manager: a port list that starts at port 0. No connection has port 0, and a service of these platforms starts at port 1: it is left out. |

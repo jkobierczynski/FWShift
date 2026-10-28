@@ -405,9 +405,9 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
 
 * the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
   the reload commands of OPNsense and pfSense);
-* Sophos Firewall in tier 3 (scripted in 0.41.4, never run): the first run, and what it finds (the image's name, the
-  first-boot JSON and secrets, the port names and PortB as management, the Interface and Zone entities as the API
-  takes them); the XML API is switched on by hand, since only the web console does it on SFOS 22;
+* Sophos Firewall in tier 3: a second run with 0.41.5 (the first, 0.41.4, took every entity and every NAT check; its
+  four web connections through a Drop rule, answered by the web proxy, count as blocked since 0.41.5); the XML API is
+  switched on by hand, since only the web console does it on SFOS 22;
 * tier 3 on Google Cloud: each firewall's zone interfaces written Google Cloud's way (a `/32` address or DHCP, and the
   subnet through its gateway), per vendor; until then a run there stops (`--untested`);
 * IOS: `ip nat inside source static ... extendable` for a published port also translates the replies of direct

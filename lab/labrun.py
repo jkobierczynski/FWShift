@@ -468,7 +468,10 @@ def _expected_result(flow: Dict[str, Any]) -> Dict[str, Any]:
     result: Dict[str, Any] = {"id": flow["id"], "observed": observed}
     if observed == "passed" and flow.get("seen_from"):
         result["seen_as"] = flow["seen_from"]
-    if observed == "passed" and (flow.get("answered_by") or flow.get("seen_from")):
+    # (the probe says who answered on every port it listens on, every TCP port but sshd's 22, and on UDP: labplan.check
+    # takes a TCP handshake without it for one something on the way completed)
+    told = flow.get("protocol") == "udp" or (flow.get("protocol") == "tcp" and flow.get("port") != 22)
+    if observed == "passed" and (flow.get("answered_by") or flow.get("seen_from") or told):
         result["answered_by"] = flow.get("answered_by") or flow["dst"]
     return result
 

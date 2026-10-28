@@ -1638,3 +1638,21 @@ def test_the_sophos_ports_keep_what_the_firewall_has_but_zone_address_and_gatewa
     assert labsophos.disabled(off) is None
     zone = labsophos.zone_element("Outside")
     assert zone.findtext("Type") == "DMZ"
+
+
+def test_a_handshake_the_host_did_not_answer_counts_as_blocked() -> None:
+    """The first Sophos run (0.41.4): the guest's connections to the DMZ on 80 and 443 completed, with no answer from
+    the host's probe: Sophos's web proxy answered for a Drop rule, with a block page. Such a flow is "intercepted" and
+    counts as blocked; port 22 (sshd, which never says who it is) and a run whose probes say nothing are as before."""
+    flows = [{"id": "a", "protocol": "tcp", "port": 80, "expected": "blocked", "asserted": True, "decided_by": "r"},
+             {"id": "b", "protocol": "tcp", "port": 22, "expected": "passed", "asserted": True, "decided_by": "r"},
+             {"id": "c", "protocol": "tcp", "port": 443, "expected": "passed", "asserted": True, "decided_by": "r"},
+             {"id": "d", "protocol": "tcp", "port": 80, "expected": "passed", "asserted": True, "decided_by": "r"}]  # fmt: skip
+    results = [{"id": "a", "observed": "passed"}, {"id": "b", "observed": "passed"},
+               {"id": "c", "observed": "passed"}, {"id": "d", "observed": "passed", "answered_by": "10.20.2.10"}]  # fmt: skip
+    summary = labplan.check({"target": "sophos", "flows": flows}, results)
+    verdicts = {row["id"]: (row["observed"], row["verdict"]) for row in summary["rows"]}
+    assert verdicts == {"a": ("intercepted", "ok"), "b": ("passed", "ok"), "c": ("intercepted", "FAIL"), "d": ("passed", "ok")}
+    assert "intercepted 2" in labplan.render(summary)
+    older = labplan.check({"target": "x", "flows": flows}, [{**r, "answered_by": ""} for r in results])  # (no probe says who it is)
+    assert all(row["observed"] == "passed" for row in older["rows"])

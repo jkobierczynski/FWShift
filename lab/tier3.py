@@ -732,10 +732,13 @@ VENDORS: Dict[str, Vendor] = {
     # data is JSON, the admin password in Secrets Manager; the XML API is turned on by hand, once (sophos.enable_api).
     "sophos": Vendor("sophos", "Sophos Firewall (PAYG)", "sophos", "*sophos*,*Sophos*,*SOPHOS*", "c5.xlarge", "admin", "", "",
                      list(sophos.OPTIONS), sophos.user_data("{run_id}", "{region}"), key_bits=2048, boot_minutes=40,
+                     # (the PAYG product, sophos_xg_standalone_22.0.2.546-payg-*: one of five products named Sophos in
+                     # us-east-1, the first run's look-up, 0.41.4)
+                     product_codes=("31lokbvwfdxe8t385jh45lgpu",),
                      load=lambda runner, vendor, key, host, out: sophos.load(runner, vendor, key, host, out, sophos.password(runner.work),
                                                                            {zone: _addr(zone) for zone in ORDER}),
                      api=True, mgmt_index=1, mgmt_ports=(22, sophos.API_PORT), secrets=("admin", "backup"), imdsv2=True,
-                     status="scripted from Sophos's CloudFormation templates and XML API documentation, never run; one step by hand (the XML API)"),  # fmt: skip
+                     status="scripted from Sophos's CloudFormation templates and XML API documentation; loaded and probed on AWS (0.41.4, SFOS 22.0 MR2, NAT included): every connection as the source decides, four of them answered by its web proxy; one step by hand (the XML API)"),  # fmt: skip
     "asav": Vendor("asav", "Cisco ASAv (pay as you go)", "asa", "asav*,*ASAv*", "c5.xlarge", "admin", "show version | include up",
                    r"ERROR:|% Invalid input|% Incomplete command", list(_ZONE_NETWORKS), _asav_user_data(), _asav_session,
                    "run: passed (ASAv 9.24.10, 0.36.1; NAT included, 0.40.21)",

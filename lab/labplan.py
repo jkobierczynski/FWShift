@@ -384,10 +384,18 @@ def check(plan: Dict[str, Any], results: Sequence[Dict[str, Any]]) -> Dict[str, 
     seen = {r["id"]: r["observed"] for r in results}
     told = {r["id"]: r for r in results}
     refused = plan.get("refused_means", "blocked")
+    # The lab's probe answers every TCP port it listens on with who it is (all but 22, sshd's): a handshake completed
+    # without that answer was completed by something on the way, not by the host, as a firewall's web proxy does for
+    # its block page (Sophos, a Drop rule on 80 and 443, the first run of 0.41.4). The host was not reached: blocked.
+    # Only where this run's probes say who answered at all (an older probe says it never).
+    tells = any(r.get("answered_by") for r in results)
     rows = []
     for flow in plan["flows"]:
         observed = seen.get(flow["id"], "missing")
-        got = refused if observed == "refused" else observed
+        if (tells and observed == "passed" and flow.get("protocol") == "tcp" and flow.get("port") not in (22, None)
+                and not told.get(flow["id"], {}).get("answered_by")):
+            observed = "intercepted"
+        got = refused if observed == "refused" else "blocked" if observed == "intercepted" else observed
         if observed in ("missing", "error"):
             verdict = "error"
         elif flow.get("local"):
@@ -443,6 +451,10 @@ def render(summary: Dict[str, Any]) -> str:
     lines = [f"FWShift lab: {summary['target']}", "  " + ", ".join(f"{k} {v}" for k, v in sorted(summary["counts"].items()))]
     if summary.get("nat_counts"):
         lines.append("  NAT: " + ", ".join(f"{k} {v}" for k, v in sorted(summary["nat_counts"].items())))
+    intercepted = [row for row in summary["rows"] if row.get("observed") == "intercepted"]
+    if intercepted:
+        lines.append(f"  intercepted {len(intercepted)}: the handshake completed, but not by the host (no answer from its probe): "
+                     "something on the way answered, such as the firewall's web proxy with a block page; counted as blocked")
     for row in summary["rows"]:
         if row.get("nat_wrong"):
             note = "" if row["nat"] == "FAIL" else f" ({row.get('nat_why', '')})"

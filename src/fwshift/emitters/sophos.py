@@ -43,6 +43,7 @@ from ..appmap import (
 )
 from ..model import (
     ANY,
+    APP_DEFAULT,
     Action,
     AddressKind,
     NatRule,
@@ -417,6 +418,31 @@ class _Emitter:
                 "the source allows traffic between zones that no rule matches; Sophos Firewall drops it, so add a final "
                 "rule that accepts it if that was intended",
             )  # fmt: skip
+        web = [r.name for r in self.p.rules if r.enabled and _ACTIONS.get(r.action) == "Drop" and self._may_be_web(r)]
+        if web:
+            # (Sophos's documentation of log behaviour for web traffic; seen in the FWShift lab, 0.41.4: the guest's
+            # connections to the DMZ on 80 and 443 completed, with no answer from the host, the others timed out)
+            note(
+                Severity.INFO, "SOPHOS_DROP_WEB",
+                f"{len(web)} rule(s) drop traffic that can be TCP to port 80 or 443 ({', '.join(web[:5])}"
+                f"{', ...' if len(web) > 5 else ''}). Sophos Firewall hands such traffic to its web proxy, which completes "
+                "the connection itself and answers with a block page: the host is not reached, but the client sees a "
+                "connection and a page, not a silent drop, and the firewall log shows the connection allowed (the web "
+                "filter log blocked). For a silent refusal on those ports, Reject answers with a reset",
+            )  # fmt: skip
+
+    def _may_be_web(self, rule: Rule) -> bool:
+        """Whether a rule's services can hold TCP to port 80 or 443 (any service, or a service whose entries do)."""
+        if ANY in rule.services or APP_DEFAULT in rule.services:
+            return True
+        for name in rule.services:
+            entries = transform.flatten_services(self.p, name)
+            if entries is None:
+                return True
+            if any(e.protocol == Protocol.TCP and (transform.ports_cover(e.dst_ports, 80) or transform.ports_cover(e.dst_ports, 443))
+                   for e in entries):
+                return True
+        return False
 
     # -- addresses --------------------------------------------------------
 

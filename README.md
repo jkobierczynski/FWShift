@@ -100,8 +100,12 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   the gateway, every connection through it as the source decides, NAT included, and the rulebase read back through
 >   the Management API. It took three runs; the last changed the hide NAT (behind the outgoing interface's address,
 >   towards its zone's networks).
+> * **Sophos Firewall** output was loaded on Sophos's PAYG image (SFOS 22.0 MR2, AWS Marketplace) in 0.41.4, through
+>   the XML API (switched on by hand: only the web console does it): every entity taken, every connection as the
+>   source decides, NAT included. Four web connections through a Drop rule were answered by the firewall's web proxy
+>   with its block page, not by the host (`SOPHOS_DROP_WEB`).
 > * **Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
->   Sophos Firewall, WatchGuard, Barracuda, VMware NSX, RouterOS, Forcepoint, Azure Firewall, AWS Network Firewall, pf
+>   WatchGuard, Barracuda, VMware NSX, RouterOS, Forcepoint, Azure Firewall, AWS Network Firewall, pf
 >   and VyOS** output has **not been loaded on a device**, the **Terraform** output has not been applied with
 >   Terraform, and no **ScreenOS** or **PIX** configuration (both read only) was read from a device. The Check Point input format is taken from the API
 >   documentation, not from a real export, the FTD syntax from Cisco's
@@ -226,8 +230,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.41.4.pyz --version
-python3 fwshift-0.41.4.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.41.5.pyz --version
+python3 fwshift-0.41.5.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
