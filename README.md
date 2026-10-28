@@ -100,7 +100,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   the gateway, every connection through it as the source decides, NAT included, and the rulebase read back through
 >   the Management API. It took three runs; the last changed the hide NAT (behind the outgoing interface's address,
 >   towards its zone's networks).
-> * **Sophos Firewall** output was loaded on Sophos's PAYG image (SFOS 22.0 MR2, AWS Marketplace) in 0.41.4, through
+> * **Sophos Firewall** output passed on Sophos's PAYG image (SFOS 22.0 MR2, AWS Marketplace) in 0.41.5, through
 >   the XML API (switched on by hand: only the web console does it): every entity taken, every connection as the
 >   source decides, NAT included. Four web connections through a Drop rule were answered by the firewall's web proxy
 >   with its block page, not by the host (`SOPHOS_DROP_WEB`).
@@ -230,8 +230,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.41.5.pyz --version
-python3 fwshift-0.41.5.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.41.6.pyz --version
+python3 fwshift-0.41.6.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
