@@ -103,6 +103,10 @@ def probe_hosts(runner: Runner, key: Path, outputs: Dict[str, Any], data: Dict[s
 
 def conversion(cloud: str, run_id: str) -> Tuple[str, List[str]]:
     """(target, options) of the conversion a run of tier 1 makes."""
+    if cloud == "aws-network-firewall":
+        import awsnfw
+
+        return awsnfw.conversion(run_id)
     inside = [x for z in labplan.ZONES for x in ("--inside-zone", z)]
     if cloud == "gcp":
         return "gcp", labplan.zone_options() + ["--target-policy", run_id]
@@ -388,3 +392,15 @@ def leftovers_gcp(runner: Runner, project: str) -> List[str]:
 RUNS = {"aws": run_aws, "azure": run_azure, "gcp": run_gcp}
 TEARDOWNS = {"aws": teardown_aws, "azure": teardown_azure, "gcp": teardown_gcp}
 MODULES = {"aws": "tier1/aws", "azure": "tier1/azure", "gcp": "tier1/gcp"}
+
+
+def _register_managed() -> None:
+    """The managed firewalls of the clouds, run in tier 1 with modules of their own (AWS Network Firewall, 0.41.7)."""
+    import awsnfw
+
+    RUNS[awsnfw.NAME] = awsnfw.run
+    TEARDOWNS[awsnfw.NAME] = awsnfw.teardown
+    MODULES[awsnfw.NAME] = "tier1/awsnfw"
+
+
+_register_managed()

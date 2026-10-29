@@ -405,6 +405,9 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
 
 * the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
   the reload commands of OPNsense and pfSense);
+* AWS Network Firewall in tier 1 (0.41.7, scripted from AWS's documentation, never run): its first run; whether a
+  pass rule with `flow:to_server` lets the replies of its connections through under `aws:drop_strict`, and the
+  routes to the endpoint between subnets of one VPC;
 * Sophos Firewall in tier 3 (passed in 0.41.5): the XML API is switched on by hand, since only the web console does it
   on SFOS 22; the REST API of SFOS 23 may change that;
 * tier 3 on Google Cloud: each firewall's zone interfaces written Google Cloud's way (a `/32` address or DHCP, and the

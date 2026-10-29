@@ -53,6 +53,7 @@ def describe() -> str:
         "  aws          security groups (--to aws)",
         "  azure        network security groups (--to azure)",
         "  gcp          a global network firewall policy (--to gcp)",
+        "  aws-network-firewall  AWS Network Firewall: a policy and a firewall (--to aws-network-firewall; its endpoints cost per hour)",
         "tier2  free images on a local Linux host with KVM (root; base images prepared once)",
         *[f"  {i.name:<12} --to {i.target}" for i in tier2.IMAGES.values()],
         "tier3  Marketplace images of AWS (subscribe once in the console), Azure and Google Cloud (--cloud), pay per hour",
@@ -111,6 +112,8 @@ def plan_options(tier: str, firewall: str, target_version: Optional[str]) -> "tu
     """(target, options, flows inside a zone pass the target, what a reset means) as a run of that tier makes them."""
     if tier == "tier1":
         target, options = tier1.conversion(firewall, "fwlabplan")
+        if firewall == "aws-network-firewall":  # (a firewall in the route: inside a zone the VPC delivers directly)
+            return target, options, False, "blocked"
         return target, options, True, "passed"
     if tier == "tier2":
         target, options = tier2.conversion(firewall, target_version)

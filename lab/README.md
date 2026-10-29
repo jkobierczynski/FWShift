@@ -129,6 +129,7 @@ the firewall policy have the run's id in their names).
 python3 lab/lab.py run tier1 aws --region eu-west-1
 python3 lab/lab.py run tier1 azure --region westeurope
 python3 lab/lab.py run tier1 gcp --project my-project --region europe-west1
+python3 lab/lab.py run tier1 aws-network-firewall --region us-east-1
 ```
 
 Needs `terraform` (1.5 or later) or `tofu`, `ssh`, and the CLI of the cloud (`aws`, `az`, `gcloud`) logged in to an
@@ -153,6 +154,17 @@ account where you may create networks and virtual machines. Each test host has t
   external addresses or enforces OS Login stops the run: use a project without them. Terraform logs in apart from
   gcloud: `gcloud auth login` and `gcloud auth application-default login`, and the Compute Engine API enabled in the
   project (`gcloud services enable compute.googleapis.com`).
+* **AWS Network Firewall** (0.41.7, never run): a firewall of its own, not the test interfaces' groups (those let all
+  lab traffic through). Terraform makes the network and the hosts; FWShift's script (`--to aws-network-firewall
+  --target-policy RUN_ID`) makes the policy and its rule group; a second apply makes the firewall, its endpoint in a
+  subnet of its own (10.20.240.0/28), and in each zone's route table the other zones through the endpoint (routes more
+  specific than the VPC's own). The probes start once the firewall is READY and its policy IN_SYNC (`fw.txt`); the
+  read-back is `describe-firewall-policy` and `describe-rule-group`. Network Firewall does no NAT, so the lab policy's
+  NAT is not converted and not checked; traffic inside a zone does not pass the firewall. The teardown destroys the
+  firewall with the network, then deletes the policy and the rule group. The endpoint is billed by the hour while the
+  run lasts (AWS's Network Firewall pricing). The lab's user also needs the inline policy
+  `lab/tier1/awsnfw/iam-network-firewall.json` (Network Firewall for names starting `fwlab`, and the service-linked role
+  Network Firewall makes the first time).
 * **AWS**: a user of its own for the lab, with `AmazonEC2FullAccess` and an access key for the CLI (`aws configure`)
   (for Sophos Firewall also the inline policy `lab/tier3/aws/iam-sophos.json`: the image reads its admin password from
   Secrets Manager through an instance role, so the run makes a secret and a role, both named `fwlab...`; attach it with

@@ -475,7 +475,7 @@ def test_the_areas_of_pfsense_and_opnsense() -> None:
 
 # -- every run, dry -------------------------------------------------------------------------------------------------
 
-DRY = [["tier1", "aws"], ["tier1", "azure"], ["tier1", "gcp", "--project", "p"], ["tier2", "nftables"], ["tier2", "iptables"],
+DRY = [["tier1", "aws"], ["tier1", "azure"], ["tier1", "gcp", "--project", "p"], ["tier1", "aws-network-firewall"], ["tier2", "nftables"], ["tier2", "iptables"],
        *[["tier2", n, "--image", "IMAGE", "--ssh-key", "KEY"] for n in ("routeros", "opnsense", "pfsense")], *[["tier3", n] for n in sorted(tier3.VENDORS)],
        *[["tier3", n, "--cloud", c, *(["--project", "p", "--untested"] if c == "gcp" else [])] for n in sorted(tier3.CLOUD_IMAGES)
          for c in sorted(tier3.CLOUD_IMAGES[n])]]  # fmt: skip
@@ -512,7 +512,8 @@ def test_every_run_dry(tmp_path: Path, run: List[str], capsys: pytest.CaptureFix
         assert "ip netns exec fwl-out10 ip route add 10.20.3.100/32 via 10.20.3.1" in joined
     # The read-back (0.38.0): its line in the summary; in a dry run the export is what was loaded.
     text = (work / "summary.txt").read_text()
-    if run[0] == "tier1":
+    nfw = run[1] == "aws-network-firewall"  # (a firewall of its own in tier 1, 0.41.7: read back, through no NAT)
+    if run[0] == "tier1" and not nfw:
         assert "read-back" not in text
     elif run[1] in ("checkpoint", "sonicwall", "routeros"):
         assert "read-back: not read" in text, text
@@ -527,7 +528,9 @@ def test_every_run_dry(tmp_path: Path, run: List[str], capsys: pytest.CaptureFix
     if run[0] in ("tier1", "tier3"):
         apply = next(i for i, line in enumerate(log) if " apply " in line)
         destroy = next(i for i, line in enumerate(log) if " destroy " in line)
-        assert apply < destroy and destroy >= len(log) - 1 - 0, joined  # (the teardown is the last step)
+        assert apply < destroy and destroy >= len(log) - 1 - (2 if nfw else 0), joined  # (the teardown is the last step)
+        if nfw:  # (then the policy and the rule group FWShift's script made, which Terraform does not know)
+            assert "delete-firewall-policy" in log[-2] and "delete-rule-group" in log[-1], log[-3:]
         variables = json.loads((work / "terraform" / "terraform.tfvars.json").read_text())
         declared = re.findall(r'^variable "(\w+)"', (work / "terraform" / "main.tf").read_text(), re.M)
         required = re.findall(r'^variable "(\w+)" \{ type = [^}]*\}$', (work / "terraform" / "main.tf").read_text(), re.M)
