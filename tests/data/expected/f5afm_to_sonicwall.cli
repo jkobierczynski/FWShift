@@ -1,0 +1,1045 @@
+configure terminal
+address-object fqdn "partner.example.com" domain "partner.example.com" zone external
+address-object ipv4 "geo:NL" host 192.0.0.8 zone external
+address-object ipv4 "n 198.51.100.0_24" network 198.51.100.0 255.255.255.0 zone dmz
+address-object ipv4 "r 203.0.113.200-203.0.113.220" range 203.0.113.200 203.0.113.220 zone dmz
+address-object ipv4 "n 10.10.5.0_24" network 10.10.5.0 255.255.255.0 zone dmz
+address-object ipv4 "h 10.10.6.10" host 10.10.6.10 zone dmz
+address-object ipv6 "n 2001:db8:10:5::_64" network 2001:db8:10:5:: /64 zone dmz
+address-object ipv4 "h 203.0.113.10" host 203.0.113.10 zone dmz
+address-object ipv6 "h 2001:db8:203::10" host 2001:db8:203::10 zone dmz
+address-object ipv4 "n 10.10.0.0_16" network 10.10.0.0 255.255.0.0 zone dmz
+address-object ipv4 "partners" host 192.0.0.8 zone dmz
+address-object ipv4 "h 203.0.113.53" host 203.0.113.53 zone dmz
+address-object ipv4 "h 203.0.113.60" host 203.0.113.60 zone dmz
+address-object ipv4 "n 192.168.50.0_24" network 192.168.50.0 255.255.255.0 zone dmz
+address-object ipv6 "n 2001:db8:ff::_48" network 2001:db8:ff:: /48 zone dmz
+address-object ipv4 "n 192.0.2.0_24" network 192.0.2.0 255.255.255.0 zone dmz
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone dmz
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone dmz
+address-object ipv6 "n ::_1" network :: /1 zone dmz
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone dmz
+address-group ipv4 "blocklist"
+    address-object ipv4 "n 198.51.100.0_24"
+    address-object ipv4 "r 203.0.113.200-203.0.113.220"
+    exit
+address-group ipv4 "admins"
+    address-object ipv4 "n 10.10.5.0_24"
+    address-object ipv4 "h 10.10.6.10"
+    exit
+address-group ipv6 "admins v6"
+    address-object ipv6 "n 2001:db8:10:5::_64"
+    exit
+address-group ipv4 "web_servers"
+    address-object ipv4 "h 203.0.113.10"
+    exit
+address-group ipv6 "web_servers v6"
+    address-object ipv6 "h 2001:db8:203::10"
+    exit
+address-group ipv4 "inside"
+    address-object ipv4 "n 10.10.0.0_16"
+    address-object ipv4 "n 10.10.5.0_24"
+    address-object ipv4 "h 10.10.6.10"
+    exit
+address-group ipv6 "inside v6"
+    address-object ipv6 "n 2001:db8:10:5::_64"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
+service-object "udp-53" UDP 53 53
+service-object "web_ports tcp 80" TCP 80 80
+service-object "web_ports tcp 443" TCP 443 443
+service-group "web_ports"
+    service-object "web_ports tcp 80"
+    service-object "web_ports tcp 443"
+    exit
+service-object "tcp-443" TCP 443 443
+service-object "tcp-80" TCP 80 80
+service-object "tcp-8080" TCP 8080 8080
+service-object "tcp-23" TCP 23 23
+service-object "tcp-21" TCP 21 21
+service-object "tcp-22" TCP 22 22
+service-object "mgmt_ports tcp 22" TCP 22 22
+service-object "mgmt_ports tcp 80" TCP 80 80
+service-object "mgmt_ports tcp 443" TCP 443 443
+service-object "mgmt_ports tcp 8443" TCP 8443 8443
+service-group "mgmt_ports"
+    service-object "mgmt_ports tcp 22"
+    service-object "mgmt_ports tcp 80"
+    service-object "mgmt_ports tcp 443"
+    service-object "mgmt_ports tcp 8443"
+    exit
+access-rule ipv4 from dmz to dmz action discard source address group "blocklist" service any destination address any
+    name "global/block_bad"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz to external action discard source address group "blocklist" service any destination address any
+    name "global/block_bad 2"
+    priority manual 2
+    exit
+access-rule ipv4 from dmz to internal action discard source address group "blocklist" service any destination address any
+    name "global/block_bad 3"
+    priority manual 3
+    exit
+access-rule ipv4 from external to dmz action discard source address group "blocklist" service any destination address any
+    name "global/block_bad 4"
+    priority manual 4
+    exit
+access-rule ipv4 from external to external action discard source address group "blocklist" service any destination address any
+    name "global/block_bad 5"
+    priority manual 5
+    exit
+access-rule ipv4 from external to internal action discard source address group "blocklist" service any destination address any
+    name "global/block_bad 6"
+    priority manual 6
+    exit
+access-rule ipv4 from internal to dmz action discard source address group "blocklist" service any destination address any
+    name "global/block_bad 7"
+    priority manual 7
+    exit
+access-rule ipv4 from internal to external action discard source address group "blocklist" service any destination address any
+    name "global/block_bad 8"
+    priority manual 8
+    exit
+access-rule ipv4 from internal to internal action discard source address group "blocklist" service any destination address any
+    name "global/block_bad 9"
+    priority manual 9
+    exit
+access-rule ipv4 from internal to dmz action allow source address group "admins" service name "udp-53" destination address name "h 203.0.113.53"
+    name "global/admins_continue>rd0/outbo"
+    priority manual 10
+    exit
+access-rule ipv4 from internal to external action allow source address group "admins" service name "udp-53" destination address name "h 203.0.113.53"
+    name "global/admins_continue>rd0/out 4"
+    priority manual 11
+    exit
+access-rule ipv4 from internal to internal action allow source address group "admins" service name "udp-53" destination address name "h 203.0.113.53"
+    name "global/admins_continue>rd0/out 5"
+    priority manual 12
+    exit
+access-rule ipv4 from internal to dmz action allow source address group "admins" service name "udp-53" destination address any
+    name "global/admins_continue>rd0/out 2"
+    priority manual 13
+    exit
+access-rule ipv4 from internal to external action allow source address group "admins" service name "udp-53" destination address any
+    name "global/admins_continue>rd0/out 6"
+    priority manual 14
+    exit
+access-rule ipv4 from internal to internal action allow source address group "admins" service name "udp-53" destination address any
+    name "global/admins_continue>rd0/out 7"
+    priority manual 15
+    exit
+access-rule ipv4 from internal to dmz action allow source address group "admins" service group "web_ports" destination address any
+    name "global/admins_continue>rd0/out 3"
+    priority manual 16
+    exit
+access-rule ipv4 from internal to external action allow source address group "admins" service group "web_ports" destination address any
+    name "global/admins_continue>rd0/out 8"
+    priority manual 17
+    exit
+access-rule ipv4 from internal to internal action allow source address group "admins" service group "web_ports" destination address any
+    name "global/admins_continue>rd0/out 9"
+    priority manual 18
+    exit
+access-rule ipv4 from dmz to dmz action discard source address group "admins" service any destination address group "inside"
+    name "global/admins_continue>rd0/dmz_n"
+    priority manual 19
+    exit
+access-rule ipv4 from dmz to external action discard source address group "admins" service any destination address group "inside"
+    name "global/admins_continue>rd0/dmz 3"
+    priority manual 20
+    exit
+access-rule ipv4 from dmz to internal action discard source address group "admins" service any destination address group "inside"
+    name "global/admins_continue>rd0/dmz 5"
+    priority manual 21
+    exit
+access-rule ipv4 from external to dmz action allow source address group "admins" service name "tcp-443" destination address name "h 203.0.113.10"
+    name "global/admins_continue>vs_web/we"
+    priority manual 22
+    exit
+access-rule ipv4 from external to external action allow source address group "admins" service name "tcp-443" destination address name "h 203.0.113.10"
+    name "global/admins_continue>vs_web/ 2"
+    priority manual 23
+    exit
+access-rule ipv4 from external to internal action allow source address group "admins" service name "tcp-443" destination address name "h 203.0.113.10"
+    name "global/admins_continue>vs_web/ 3"
+    priority manual 24
+    exit
+access-rule ipv4 from external to dmz action discard source address group "admins" service name "tcp-443" destination address name "h 203.0.113.10"
+    name "global/admins_continue>vs_web/(d"
+    priority manual 25
+    exit
+access-rule ipv4 from external to external action discard source address group "admins" service name "tcp-443" destination address name "h 203.0.113.10"
+    name "global/admins_continue>vs_web/ 4"
+    priority manual 26
+    exit
+access-rule ipv4 from external to internal action discard source address group "admins" service name "tcp-443" destination address name "h 203.0.113.10"
+    name "global/admins_continue>vs_web/ 5"
+    priority manual 27
+    exit
+access-rule ipv4 from external to dmz action deny source address group "admins" service name "tcp-80" destination address name "h 203.0.113.10"
+    name "global/admins_continue>vs_web_ht"
+    priority manual 28
+    exit
+access-rule ipv4 from external to external action deny source address group "admins" service name "tcp-80" destination address name "h 203.0.113.10"
+    name "global/admins_continue>vs_web_ 2"
+    priority manual 29
+    exit
+access-rule ipv4 from external to internal action deny source address group "admins" service name "tcp-80" destination address name "h 203.0.113.10"
+    name "global/admins_continue>vs_web_ 3"
+    priority manual 30
+    exit
+access-rule ipv4 from dmz to dmz action discard source address group "admins" service name "udp-53" destination address name "h 203.0.113.53"
+    name "global/admins_continue>vs_dns/(d"
+    priority manual 31
+    exit
+access-rule ipv4 from dmz to external action discard source address group "admins" service name "udp-53" destination address name "h 203.0.113.53"
+    name "global/admins_continue>vs_dns/ 2"
+    priority manual 32
+    exit
+access-rule ipv4 from dmz to internal action discard source address group "admins" service name "udp-53" destination address name "h 203.0.113.53"
+    name "global/admins_continue>vs_dns/ 3"
+    priority manual 33
+    exit
+access-rule ipv4 from external to dmz action discard source address group "admins" service name "udp-53" destination address name "h 203.0.113.53"
+    name "global/admins_continue>vs_dns/ 4"
+    priority manual 34
+    exit
+access-rule ipv4 from external to external action discard source address group "admins" service name "udp-53" destination address name "h 203.0.113.53"
+    name "global/admins_continue>vs_dns/ 5"
+    priority manual 35
+    exit
+access-rule ipv4 from external to internal action discard source address group "admins" service name "udp-53" destination address name "h 203.0.113.53"
+    name "global/admins_continue>vs_dns/ 6"
+    priority manual 36
+    exit
+access-rule ipv4 from internal to dmz action discard source address group "admins" service name "udp-53" destination address name "h 203.0.113.53"
+    name "global/admins_continue>vs_dns/ 7"
+    priority manual 37
+    exit
+access-rule ipv4 from internal to external action discard source address group "admins" service name "udp-53" destination address name "h 203.0.113.53"
+    name "global/admins_continue>vs_dns/ 8"
+    priority manual 38
+    exit
+access-rule ipv4 from internal to internal action discard source address group "admins" service name "udp-53" destination address name "h 203.0.113.53"
+    name "global/admins_continue>vs_dns/ 9"
+    priority manual 39
+    exit
+access-rule ipv4 from dmz to dmz action deny source address group "admins" service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/admins_continue>vs_old_ap"
+    priority manual 40
+    exit
+access-rule ipv4 from dmz to external action deny source address group "admins" service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/admins_continue>vs_old_ 2"
+    priority manual 41
+    exit
+access-rule ipv4 from dmz to internal action deny source address group "admins" service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/admins_continue>vs_old_ 3"
+    priority manual 42
+    exit
+access-rule ipv4 from external to dmz action deny source address group "admins" service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/admins_continue>vs_old_ 4"
+    priority manual 43
+    exit
+access-rule ipv4 from external to external action deny source address group "admins" service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/admins_continue>vs_old_ 5"
+    priority manual 44
+    exit
+access-rule ipv4 from external to internal action deny source address group "admins" service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/admins_continue>vs_old_ 6"
+    priority manual 45
+    exit
+access-rule ipv4 from internal to dmz action deny source address group "admins" service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/admins_continue>vs_old_ 7"
+    priority manual 46
+    exit
+access-rule ipv4 from internal to external action deny source address group "admins" service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/admins_continue>vs_old_ 8"
+    priority manual 47
+    exit
+access-rule ipv4 from internal to internal action deny source address group "admins" service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/admins_continue>vs_old_ 9"
+    priority manual 48
+    exit
+access-rule ipv4 from dmz to dmz action discard source address group "admins" service any destination address name "n 192.168.50.0_24"
+    name "global/admins_continue>vs_inboun"
+    priority manual 49
+    exit
+access-rule ipv4 from dmz to external action discard source address group "admins" service any destination address name "n 192.168.50.0_24"
+    name "global/admins_continue>vs_inbo 2"
+    priority manual 50
+    exit
+access-rule ipv4 from dmz to internal action discard source address group "admins" service any destination address name "n 192.168.50.0_24"
+    name "global/admins_continue>vs_inbo 3"
+    priority manual 51
+    exit
+access-rule ipv4 from external to dmz action discard source address group "admins" service any destination address name "n 192.168.50.0_24"
+    name "global/admins_continue>vs_inbo 4"
+    priority manual 52
+    exit
+access-rule ipv4 from external to external action discard source address group "admins" service any destination address name "n 192.168.50.0_24"
+    name "global/admins_continue>vs_inbo 5"
+    priority manual 53
+    exit
+access-rule ipv4 from external to internal action discard source address group "admins" service any destination address name "n 192.168.50.0_24"
+    name "global/admins_continue>vs_inbo 6"
+    priority manual 54
+    exit
+access-rule ipv4 from dmz to dmz action discard source address group "admins" service any destination address any
+    name "global/admins_continue>vs_outbou"
+    priority manual 55
+    exit
+access-rule ipv4 from dmz to external action discard source address group "admins" service any destination address any
+    name "global/admins_continue>vs_outb 2"
+    priority manual 56
+    exit
+access-rule ipv4 from dmz to internal action discard source address group "admins" service any destination address any
+    name "global/admins_continue>vs_outb 3"
+    priority manual 57
+    exit
+access-rule ipv4 from internal to dmz action discard source address group "admins" service any destination address any
+    name "global/admins_continue>vs_outb 4"
+    priority manual 58
+    exit
+access-rule ipv4 from internal to external action discard source address group "admins" service any destination address any
+    name "global/admins_continue>vs_outb 5"
+    priority manual 59
+    exit
+access-rule ipv4 from internal to internal action discard source address group "admins" service any destination address any
+    name "global/admins_continue>vs_outb 6"
+    priority manual 60
+    exit
+access-rule ipv4 from dmz to dmz action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet"
+    priority manual 61
+    exit
+access-rule ipv4 from dmz to external action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 3"
+    priority manual 62
+    exit
+access-rule ipv4 from dmz to internal action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 5"
+    priority manual 63
+    exit
+access-rule ipv4 from external to dmz action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 7"
+    priority manual 64
+    exit
+access-rule ipv4 from external to external action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 9"
+    priority manual 65
+    exit
+access-rule ipv4 from external to internal action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 11"
+    priority manual 66
+    exit
+access-rule ipv4 from internal to dmz action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 13"
+    priority manual 67
+    exit
+access-rule ipv4 from internal to external action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 15"
+    priority manual 68
+    exit
+access-rule ipv4 from internal to internal action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 17"
+    priority manual 69
+    exit
+access-rule ipv4 from dmz to dmz action allow source address any service any destination address name "h 203.0.113.10"
+    name "global/ping_in@vs_outbound"
+    priority manual 70
+    no enable
+    exit
+access-rule ipv4 from dmz to external action allow source address any service any destination address name "h 203.0.113.10"
+    name "global/ping_in@vs_outbound 2"
+    priority manual 71
+    no enable
+    exit
+access-rule ipv4 from dmz to internal action allow source address any service any destination address name "h 203.0.113.10"
+    name "global/ping_in@vs_outbound 3"
+    priority manual 72
+    no enable
+    exit
+access-rule ipv4 from internal to dmz action allow source address any service any destination address name "h 203.0.113.10"
+    name "global/ping_in@vs_outbound 4"
+    priority manual 73
+    no enable
+    exit
+access-rule ipv4 from internal to external action allow source address any service any destination address name "h 203.0.113.10"
+    name "global/ping_in@vs_outbound 5"
+    priority manual 74
+    no enable
+    exit
+access-rule ipv4 from internal to internal action allow source address any service any destination address name "h 203.0.113.10"
+    name "global/ping_in@vs_outbound 6"
+    priority manual 75
+    no enable
+    exit
+access-rule ipv4 from dmz to dmz action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule"
+    priority manual 76
+    no enable
+    exit
+access-rule ipv4 from dmz to external action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 3"
+    priority manual 77
+    no enable
+    exit
+access-rule ipv4 from dmz to internal action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 5"
+    priority manual 78
+    no enable
+    exit
+access-rule ipv4 from external to dmz action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 7"
+    priority manual 79
+    no enable
+    exit
+access-rule ipv4 from external to external action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 9"
+    priority manual 80
+    no enable
+    exit
+access-rule ipv4 from external to internal action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 11"
+    priority manual 81
+    no enable
+    exit
+access-rule ipv4 from internal to dmz action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 13"
+    priority manual 82
+    no enable
+    exit
+access-rule ipv4 from internal to external action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 15"
+    priority manual 83
+    no enable
+    exit
+access-rule ipv4 from internal to internal action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 17"
+    priority manual 84
+    no enable
+    exit
+access-rule ipv4 from internal to dmz action allow source address any service name "tcp-22" destination address name "h 203.0.113.10"
+    name "global/office_ssh@vs_outbound"
+    priority manual 85
+    no enable
+    exit
+access-rule ipv4 from internal to external action allow source address any service name "tcp-22" destination address name "h 203.0.113.10"
+    name "global/office_ssh@vs_outbound 2"
+    priority manual 86
+    no enable
+    exit
+access-rule ipv4 from internal to internal action allow source address any service name "tcp-22" destination address name "h 203.0.113.10"
+    name "global/office_ssh@vs_outbound 3"
+    priority manual 87
+    no enable
+    exit
+access-rule ipv4 from external to dmz action allow source address group "partners" service name "tcp-443" destination address name "h 203.0.113.10"
+    name "global/partners_in@vs_web"
+    priority manual 88
+    no enable
+    exit
+access-rule ipv4 from external to external action allow source address group "partners" service name "tcp-443" destination address name "h 203.0.113.10"
+    name "global/partners_in@vs_web 2"
+    priority manual 89
+    no enable
+    exit
+access-rule ipv4 from external to internal action allow source address group "partners" service name "tcp-443" destination address name "h 203.0.113.10"
+    name "global/partners_in@vs_web 3"
+    priority manual 90
+    no enable
+    exit
+access-rule ipv4 from external to dmz action deny source address group "partners" service name "tcp-80" destination address name "h 203.0.113.10"
+    name "global/partners_in@vs_web_http"
+    priority manual 91
+    no enable
+    exit
+access-rule ipv4 from external to external action deny source address group "partners" service name "tcp-80" destination address name "h 203.0.113.10"
+    name "global/partners_in@vs_web_http 2"
+    priority manual 92
+    no enable
+    exit
+access-rule ipv4 from external to internal action deny source address group "partners" service name "tcp-80" destination address name "h 203.0.113.10"
+    name "global/partners_in@vs_web_http 3"
+    priority manual 93
+    no enable
+    exit
+access-rule ipv4 from dmz to dmz action allow source address group "partners" service group "mgmt_ports" destination address name "n 192.168.50.0_24"
+    name "global/partners_in@vs_inbound_dm"
+    priority manual 94
+    no enable
+    exit
+access-rule ipv4 from dmz to external action allow source address group "partners" service group "mgmt_ports" destination address name "n 192.168.50.0_24"
+    name "global/partners_in@vs_inbound_ 2"
+    priority manual 95
+    no enable
+    exit
+access-rule ipv4 from dmz to internal action allow source address group "partners" service group "mgmt_ports" destination address name "n 192.168.50.0_24"
+    name "global/partners_in@vs_inbound_ 3"
+    priority manual 96
+    no enable
+    exit
+access-rule ipv4 from external to dmz action allow source address group "partners" service group "mgmt_ports" destination address name "n 192.168.50.0_24"
+    name "global/partners_in@vs_inbound_ 4"
+    priority manual 97
+    no enable
+    exit
+access-rule ipv4 from external to external action allow source address group "partners" service group "mgmt_ports" destination address name "n 192.168.50.0_24"
+    name "global/partners_in@vs_inbound_ 5"
+    priority manual 98
+    no enable
+    exit
+access-rule ipv4 from external to internal action allow source address group "partners" service group "mgmt_ports" destination address name "n 192.168.50.0_24"
+    name "global/partners_in@vs_inbound_ 6"
+    priority manual 99
+    no enable
+    exit
+access-rule ipv4 from dmz to dmz action allow source address group "partners" service group "mgmt_ports" destination address any
+    name "global/partners_in@vs_outbound"
+    priority manual 100
+    no enable
+    exit
+access-rule ipv4 from dmz to external action allow source address group "partners" service group "mgmt_ports" destination address any
+    name "global/partners_in@vs_outbound 2"
+    priority manual 101
+    no enable
+    exit
+access-rule ipv4 from dmz to internal action allow source address group "partners" service group "mgmt_ports" destination address any
+    name "global/partners_in@vs_outbound 3"
+    priority manual 102
+    no enable
+    exit
+access-rule ipv4 from internal to dmz action allow source address group "partners" service group "mgmt_ports" destination address any
+    name "global/partners_in@vs_outbound 4"
+    priority manual 103
+    no enable
+    exit
+access-rule ipv4 from internal to external action allow source address group "partners" service group "mgmt_ports" destination address any
+    name "global/partners_in@vs_outbound 5"
+    priority manual 104
+    no enable
+    exit
+access-rule ipv4 from internal to internal action allow source address group "partners" service group "mgmt_ports" destination address any
+    name "global/partners_in@vs_outbound 6"
+    priority manual 105
+    no enable
+    exit
+access-rule ipv4 from dmz to dmz action discard source address any service name "tcp-8080" destination address group "inside"
+    name "global/inspect_irule>rd0/dmz_no_"
+    priority manual 106
+    exit
+access-rule ipv4 from dmz to external action discard source address any service name "tcp-8080" destination address group "inside"
+    name "global/inspect_irule>rd0/dmz_n 3"
+    priority manual 107
+    exit
+access-rule ipv4 from dmz to internal action discard source address any service name "tcp-8080" destination address group "inside"
+    name "global/inspect_irule>rd0/dmz_n 5"
+    priority manual 108
+    exit
+access-rule ipv4 from dmz to dmz action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/inspect_irule>vs_old_app/"
+    priority manual 109
+    exit
+access-rule ipv4 from dmz to external action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/inspect_irule>vs_old_ap 2"
+    priority manual 110
+    exit
+access-rule ipv4 from dmz to internal action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/inspect_irule>vs_old_ap 3"
+    priority manual 111
+    exit
+access-rule ipv4 from external to dmz action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/inspect_irule>vs_old_ap 4"
+    priority manual 112
+    exit
+access-rule ipv4 from external to external action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/inspect_irule>vs_old_ap 5"
+    priority manual 113
+    exit
+access-rule ipv4 from external to internal action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/inspect_irule>vs_old_ap 6"
+    priority manual 114
+    exit
+access-rule ipv4 from internal to dmz action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/inspect_irule>vs_old_ap 7"
+    priority manual 115
+    exit
+access-rule ipv4 from internal to external action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/inspect_irule>vs_old_ap 8"
+    priority manual 116
+    exit
+access-rule ipv4 from internal to internal action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "global/inspect_irule>vs_old_ap 9"
+    priority manual 117
+    exit
+access-rule ipv4 from dmz to dmz action discard source address any service name "tcp-8080" destination address name "n 192.168.50.0_24"
+    name "global/inspect_irule>vs_inbound_"
+    priority manual 118
+    exit
+access-rule ipv4 from dmz to external action discard source address any service name "tcp-8080" destination address name "n 192.168.50.0_24"
+    name "global/inspect_irule>vs_inboun 2"
+    priority manual 119
+    exit
+access-rule ipv4 from dmz to internal action discard source address any service name "tcp-8080" destination address name "n 192.168.50.0_24"
+    name "global/inspect_irule>vs_inboun 3"
+    priority manual 120
+    exit
+access-rule ipv4 from external to dmz action discard source address any service name "tcp-8080" destination address name "n 192.168.50.0_24"
+    name "global/inspect_irule>vs_inboun 4"
+    priority manual 121
+    exit
+access-rule ipv4 from external to external action discard source address any service name "tcp-8080" destination address name "n 192.168.50.0_24"
+    name "global/inspect_irule>vs_inboun 5"
+    priority manual 122
+    exit
+access-rule ipv4 from external to internal action discard source address any service name "tcp-8080" destination address name "n 192.168.50.0_24"
+    name "global/inspect_irule>vs_inboun 6"
+    priority manual 123
+    exit
+access-rule ipv4 from dmz to dmz action discard source address any service name "tcp-8080" destination address any
+    name "global/inspect_irule>vs_outbound"
+    priority manual 124
+    exit
+access-rule ipv4 from dmz to external action discard source address any service name "tcp-8080" destination address any
+    name "global/inspect_irule>vs_outbou 2"
+    priority manual 125
+    exit
+access-rule ipv4 from dmz to internal action discard source address any service name "tcp-8080" destination address any
+    name "global/inspect_irule>vs_outbou 3"
+    priority manual 126
+    exit
+access-rule ipv4 from internal to dmz action discard source address any service name "tcp-8080" destination address any
+    name "global/inspect_irule>vs_outbou 4"
+    priority manual 127
+    exit
+access-rule ipv4 from internal to external action discard source address any service name "tcp-8080" destination address any
+    name "global/inspect_irule>vs_outbou 5"
+    priority manual 128
+    exit
+access-rule ipv4 from internal to internal action discard source address any service name "tcp-8080" destination address any
+    name "global/inspect_irule>vs_outbou 6"
+    priority manual 129
+    exit
+access-rule ipv4 from internal to dmz action allow source address any service name "udp-53" destination address name "h 203.0.113.53"
+    name "rd0/outbound/allow_dns_out@vs_dn"
+    priority manual 130
+    exit
+access-rule ipv4 from internal to external action allow source address any service name "udp-53" destination address name "h 203.0.113.53"
+    name "rd0/outbound/allow_dns_out@vs_ 2"
+    priority manual 131
+    exit
+access-rule ipv4 from internal to internal action allow source address any service name "udp-53" destination address name "h 203.0.113.53"
+    name "rd0/outbound/allow_dns_out@vs_ 3"
+    priority manual 132
+    exit
+access-rule ipv4 from internal to dmz action allow source address any service name "udp-53" destination address any
+    name "rd0/outbound/allow_dns_out@vs_ou"
+    priority manual 133
+    exit
+access-rule ipv4 from internal to external action allow source address any service name "udp-53" destination address any
+    name "rd0/outbound/allow_dns_out@vs_ 4"
+    priority manual 134
+    exit
+access-rule ipv4 from internal to internal action allow source address any service name "udp-53" destination address any
+    name "rd0/outbound/allow_dns_out@vs_ 5"
+    priority manual 135
+    exit
+access-rule ipv4 from internal to dmz action allow source address group "inside" service group "web_ports" destination address any
+    name "rd0/outbound/allow_web_out@vs_ou"
+    priority manual 136
+    exit
+access-rule ipv4 from internal to external action allow source address group "inside" service group "web_ports" destination address any
+    name "rd0/outbound/allow_web_out@vs_ 2"
+    priority manual 137
+    exit
+access-rule ipv4 from internal to internal action allow source address group "inside" service group "web_ports" destination address any
+    name "rd0/outbound/allow_web_out@vs_ 3"
+    priority manual 138
+    exit
+access-rule ipv4 from dmz to dmz action discard source address any service any destination address group "inside"
+    name "rd0/dmz_no_inside"
+    priority manual 139
+    exit
+access-rule ipv4 from dmz to external action discard source address any service any destination address group "inside"
+    name "rd0/dmz_no_inside 3"
+    priority manual 140
+    exit
+access-rule ipv4 from dmz to internal action discard source address any service any destination address group "inside"
+    name "rd0/dmz_no_inside 5"
+    priority manual 141
+    exit
+access-rule ipv4 from external to dmz action allow source address any service name "tcp-443" destination address name "h 203.0.113.10"
+    name "vs_web/web_in"
+    priority manual 142
+    exit
+access-rule ipv4 from external to external action allow source address any service name "tcp-443" destination address name "h 203.0.113.10"
+    name "vs_web/web_in 2"
+    priority manual 143
+    exit
+access-rule ipv4 from external to internal action allow source address any service name "tcp-443" destination address name "h 203.0.113.10"
+    name "vs_web/web_in 3"
+    priority manual 144
+    exit
+access-rule ipv4 from external to dmz action discard source address any service name "tcp-443" destination address name "h 203.0.113.10"
+    name "vs_web/(default)"
+    priority manual 145
+    exit
+access-rule ipv4 from external to external action discard source address any service name "tcp-443" destination address name "h 203.0.113.10"
+    name "vs_web/(default) 2"
+    priority manual 146
+    exit
+access-rule ipv4 from external to internal action discard source address any service name "tcp-443" destination address name "h 203.0.113.10"
+    name "vs_web/(default) 3"
+    priority manual 147
+    exit
+access-rule ipv4 from external to dmz action deny source address any service name "tcp-80" destination address name "h 203.0.113.10"
+    name "vs_web_http/(refused)"
+    priority manual 148
+    exit
+access-rule ipv4 from external to external action deny source address any service name "tcp-80" destination address name "h 203.0.113.10"
+    name "vs_web_http/(refused) 2"
+    priority manual 149
+    exit
+access-rule ipv4 from external to internal action deny source address any service name "tcp-80" destination address name "h 203.0.113.10"
+    name "vs_web_http/(refused) 3"
+    priority manual 150
+    exit
+access-rule ipv4 from dmz to dmz action allow source address name "n 192.0.2.0_24" service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/dns_from_partners"
+    priority manual 151
+    exit
+access-rule ipv4 from dmz to external action allow source address name "n 192.0.2.0_24" service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/dns_from_partners 2"
+    priority manual 152
+    exit
+access-rule ipv4 from dmz to internal action allow source address name "n 192.0.2.0_24" service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/dns_from_partners 3"
+    priority manual 153
+    exit
+access-rule ipv4 from external to dmz action allow source address name "n 192.0.2.0_24" service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/dns_from_partners 4"
+    priority manual 154
+    exit
+access-rule ipv4 from external to external action allow source address name "n 192.0.2.0_24" service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/dns_from_partners 5"
+    priority manual 155
+    exit
+access-rule ipv4 from external to internal action allow source address name "n 192.0.2.0_24" service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/dns_from_partners 6"
+    priority manual 156
+    exit
+access-rule ipv4 from internal to dmz action allow source address name "n 192.0.2.0_24" service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/dns_from_partners 7"
+    priority manual 157
+    exit
+access-rule ipv4 from internal to external action allow source address name "n 192.0.2.0_24" service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/dns_from_partners 8"
+    priority manual 158
+    exit
+access-rule ipv4 from internal to internal action allow source address name "n 192.0.2.0_24" service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/dns_from_partners 9"
+    priority manual 159
+    exit
+access-rule ipv4 from dmz to dmz action discard source address any service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/(default)"
+    priority manual 160
+    exit
+access-rule ipv4 from dmz to external action discard source address any service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/(default) 2"
+    priority manual 161
+    exit
+access-rule ipv4 from dmz to internal action discard source address any service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/(default) 3"
+    priority manual 162
+    exit
+access-rule ipv4 from external to dmz action discard source address any service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/(default) 4"
+    priority manual 163
+    exit
+access-rule ipv4 from external to external action discard source address any service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/(default) 5"
+    priority manual 164
+    exit
+access-rule ipv4 from external to internal action discard source address any service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/(default) 6"
+    priority manual 165
+    exit
+access-rule ipv4 from internal to dmz action discard source address any service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/(default) 7"
+    priority manual 166
+    exit
+access-rule ipv4 from internal to external action discard source address any service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/(default) 8"
+    priority manual 167
+    exit
+access-rule ipv4 from internal to internal action discard source address any service name "udp-53" destination address name "h 203.0.113.53"
+    name "vs_dns/(default) 9"
+    priority manual 168
+    exit
+access-rule ipv4 from dmz to dmz action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "vs_old_app/(refused)"
+    priority manual 169
+    exit
+access-rule ipv4 from dmz to external action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "vs_old_app/(refused) 2"
+    priority manual 170
+    exit
+access-rule ipv4 from dmz to internal action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "vs_old_app/(refused) 3"
+    priority manual 171
+    exit
+access-rule ipv4 from external to dmz action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "vs_old_app/(refused) 4"
+    priority manual 172
+    exit
+access-rule ipv4 from external to external action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "vs_old_app/(refused) 5"
+    priority manual 173
+    exit
+access-rule ipv4 from external to internal action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "vs_old_app/(refused) 6"
+    priority manual 174
+    exit
+access-rule ipv4 from internal to dmz action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "vs_old_app/(refused) 7"
+    priority manual 175
+    exit
+access-rule ipv4 from internal to external action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "vs_old_app/(refused) 8"
+    priority manual 176
+    exit
+access-rule ipv4 from internal to internal action deny source address any service name "tcp-8080" destination address name "h 203.0.113.60"
+    name "vs_old_app/(refused) 9"
+    priority manual 177
+    exit
+access-rule ipv4 from dmz to dmz action discard source address any service any destination address name "n 192.168.50.0_24"
+    name "vs_inbound_dmz/(default)"
+    priority manual 178
+    exit
+access-rule ipv4 from dmz to external action discard source address any service any destination address name "n 192.168.50.0_24"
+    name "vs_inbound_dmz/(default) 2"
+    priority manual 179
+    exit
+access-rule ipv4 from dmz to internal action discard source address any service any destination address name "n 192.168.50.0_24"
+    name "vs_inbound_dmz/(default) 3"
+    priority manual 180
+    exit
+access-rule ipv4 from external to dmz action discard source address any service any destination address name "n 192.168.50.0_24"
+    name "vs_inbound_dmz/(default) 4"
+    priority manual 181
+    exit
+access-rule ipv4 from external to external action discard source address any service any destination address name "n 192.168.50.0_24"
+    name "vs_inbound_dmz/(default) 5"
+    priority manual 182
+    exit
+access-rule ipv4 from external to internal action discard source address any service any destination address name "n 192.168.50.0_24"
+    name "vs_inbound_dmz/(default) 6"
+    priority manual 183
+    exit
+access-rule ipv4 from dmz to dmz action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "vs_outbound/(default)"
+    priority manual 184
+    exit
+access-rule ipv4 from dmz to external action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "vs_outbound/(default) 2"
+    priority manual 185
+    exit
+access-rule ipv4 from dmz to internal action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "vs_outbound/(default) 3"
+    priority manual 186
+    exit
+access-rule ipv4 from internal to dmz action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "vs_outbound/(default) 4"
+    priority manual 187
+    exit
+access-rule ipv4 from internal to external action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "vs_outbound/(default) 5"
+    priority manual 188
+    exit
+access-rule ipv4 from internal to internal action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "vs_outbound/(default) 6"
+    priority manual 189
+    exit
+access-rule ipv4 from external to dmz action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT external to dmz"
+    priority manual 190
+    exit
+access-rule ipv4 from external to external action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT external to external"
+    priority manual 191
+    exit
+access-rule ipv4 from external to internal action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT external to internal"
+    priority manual 192
+    exit
+access-rule ipv6 from dmz to dmz action discard source address group "admins v6" service any destination address group "inside v6"
+    name "global/admins_continue>rd0/dmz 2"
+    exit
+access-rule ipv6 from dmz to external action discard source address group "admins v6" service any destination address group "inside v6"
+    name "global/admins_continue>rd0/dmz 4"
+    exit
+access-rule ipv6 from dmz to internal action discard source address group "admins v6" service any destination address group "inside v6"
+    name "global/admins_continue>rd0/dmz 6"
+    exit
+access-rule ipv6 from external to dmz action allow source address group "admins v6" service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "global/admins_continue>vs_web6/w"
+    exit
+access-rule ipv6 from external to external action allow source address group "admins v6" service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "global/admins_continue>vs_web6 2"
+    exit
+access-rule ipv6 from external to internal action allow source address group "admins v6" service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "global/admins_continue>vs_web6 3"
+    exit
+access-rule ipv6 from external to dmz action discard source address group "admins v6" service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "global/admins_continue>vs_web6/("
+    exit
+access-rule ipv6 from external to external action discard source address group "admins v6" service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "global/admins_continue>vs_web6 4"
+    exit
+access-rule ipv6 from external to internal action discard source address group "admins v6" service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "global/admins_continue>vs_web6 5"
+    exit
+access-rule ipv6 from dmz to dmz action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 2"
+    exit
+access-rule ipv6 from dmz to external action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 4"
+    exit
+access-rule ipv6 from dmz to internal action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 6"
+    exit
+access-rule ipv6 from external to dmz action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 8"
+    exit
+access-rule ipv6 from external to external action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 10"
+    exit
+access-rule ipv6 from external to internal action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 12"
+    exit
+access-rule ipv6 from internal to dmz action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 14"
+    exit
+access-rule ipv6 from internal to external action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 16"
+    exit
+access-rule ipv6 from internal to internal action deny source address any service name "tcp-23" destination address any
+    name "global/reject_telnet 18"
+    exit
+access-rule ipv6 from dmz to dmz action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 2"
+    no enable
+    exit
+access-rule ipv6 from dmz to external action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 4"
+    no enable
+    exit
+access-rule ipv6 from dmz to internal action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 6"
+    no enable
+    exit
+access-rule ipv6 from external to dmz action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 8"
+    no enable
+    exit
+access-rule ipv6 from external to external action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 10"
+    no enable
+    exit
+access-rule ipv6 from external to internal action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 12"
+    no enable
+    exit
+access-rule ipv6 from internal to dmz action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 14"
+    no enable
+    exit
+access-rule ipv6 from internal to external action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 16"
+    no enable
+    exit
+access-rule ipv6 from internal to internal action allow source address any service name "tcp-21" destination address any
+    name "global/old_rule 18"
+    no enable
+    exit
+access-rule ipv6 from dmz to dmz action discard source address any service name "tcp-8080" destination address group "inside v6"
+    name "global/inspect_irule>rd0/dmz_n 2"
+    exit
+access-rule ipv6 from dmz to external action discard source address any service name "tcp-8080" destination address group "inside v6"
+    name "global/inspect_irule>rd0/dmz_n 4"
+    exit
+access-rule ipv6 from dmz to internal action discard source address any service name "tcp-8080" destination address group "inside v6"
+    name "global/inspect_irule>rd0/dmz_n 6"
+    exit
+access-rule ipv6 from dmz to dmz action discard source address any service any destination address group "inside v6"
+    name "rd0/dmz_no_inside 2"
+    exit
+access-rule ipv6 from dmz to external action discard source address any service any destination address group "inside v6"
+    name "rd0/dmz_no_inside 4"
+    exit
+access-rule ipv6 from dmz to internal action discard source address any service any destination address group "inside v6"
+    name "rd0/dmz_no_inside 6"
+    exit
+access-rule ipv6 from external to dmz action allow source address any service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "vs_web6/web_in"
+    exit
+access-rule ipv6 from external to external action allow source address any service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "vs_web6/web_in 2"
+    exit
+access-rule ipv6 from external to internal action allow source address any service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "vs_web6/web_in 3"
+    exit
+access-rule ipv6 from external to dmz action allow source address name "n 2001:db8:ff::_48" service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "vs_web6/web6_in"
+    exit
+access-rule ipv6 from external to external action allow source address name "n 2001:db8:ff::_48" service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "vs_web6/web6_in 2"
+    exit
+access-rule ipv6 from external to internal action allow source address name "n 2001:db8:ff::_48" service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "vs_web6/web6_in 3"
+    exit
+access-rule ipv6 from external to dmz action discard source address any service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "vs_web6/(default)"
+    exit
+access-rule ipv6 from external to external action discard source address any service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "vs_web6/(default) 2"
+    exit
+access-rule ipv6 from external to internal action discard source address any service name "tcp-443" destination address name "h 2001:db8:203::10"
+    name "vs_web6/(default) 3"
+    exit
+access-rule ipv6 from dmz to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz to dmz v6"
+    exit
+access-rule ipv6 from dmz to external action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz to external v6"
+    exit
+access-rule ipv6 from dmz to internal action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz to internal v6"
+    exit
+access-rule ipv6 from external to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT external to dmz v6"
+    exit
+access-rule ipv6 from external to external action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT external to external v6"
+    exit
+access-rule ipv6 from external to internal action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT external to internal v6"
+    exit
+access-rule ipv6 from internal to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internal to dmz v6"
+    exit
+access-rule ipv6 from internal to external action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internal to external v6"
+    exit
+access-rule ipv6 from internal to internal action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internal to internal v6"
+    exit
+commit
+exit

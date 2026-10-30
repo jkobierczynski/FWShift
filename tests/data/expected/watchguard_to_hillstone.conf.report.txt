@@ -1,0 +1,41 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: hillstone
+
+Summary
+  Security rules:     10   exact 7, approximated 1, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 2, needs review 0, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10020 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface External / zone "FWS_External"; interface Trusted / zone "FWS_Trusted"; interface DMZ / zone "FWS_DMZ"; interface Guests / zone "FWS_Guests"; interface Lab / zone "FWS_Lab"
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  Web Out  ->  approximated  (emitted as 6 rules of policy-global)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  DMZ Updates  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+      [approximated] HILLSTONE_FQDN: a host name is written into an IPv4 address entry: the rule matches the IPv4 addresses it resolves to, not its IPv6 ones
+  Guests Out  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Staff Only  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+  Ping  ->  exact  (emitted as 4 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Lab Tunnel  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+
+NAT rules
+  Web-Public (Web In)  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from External; the rule written applies to traffic from every zone
+      [approximated] HILLSTONE_NAT_ZONE: the destination zones of the rule are not written: a dnatrule names none
+  Mail-Public (Mail In)  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from External; the rule written applies to traffic from every zone
+      [approximated] HILLSTONE_NAT_ZONE: the destination zones of the rule are not written: a dnatrule names none

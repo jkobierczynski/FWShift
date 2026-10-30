@@ -1,0 +1,257 @@
+set address LAN1_SUBNET ip-netmask 10.10.0.0/24
+set address LAN2_SUBNET ip-netmask 10.20.0.0/24
+set address LAB_SUBNET ip-netmask 0.0.0.0/32
+set address LAB_SUBNET description "FWSHIFT PLACEHOLDER, matches nothing: interface-subnet ge6: interface-subnet of ge6: the interface gets its address by dhcp"
+set address WAN_IP ip-netmask 198.51.100.2
+set address WEB_SRV ip-netmask 10.30.0.10/32
+set address MAIL_SRV ip-netmask 10.30.0.25/32
+set address ADMIN_PCS ip-range 10.10.0.50-10.10.0.59
+set address PARTNER_NET ip-netmask 203.0.113.0/25
+set address MONITOR ip-netmask 192.0.2.0/24
+set address PUBLIC_WEB ip-netmask 198.51.100.10/32
+set address PUBLIC_RANGE ip-range 198.51.100.20-198.51.100.23
+set address INSIDE_RANGE ip-range 10.30.0.20-10.30.0.23
+set address PORTAL fqdn portal.example.com
+set address COUNTRY_X ip-netmask 0.0.0.0/32
+set address COUNTRY_X description "FWSHIFT PLACEHOLDER, matches nothing: geography XX: not an address FWShift can read"
+set address V6_LAN ip-netmask 2001:db8:10::/64
+set address V6_DMZ_WEB ip-netmask 2001:db8:30::10/128
+set address V6_ADMIN ip-range 2001:db8:10::50-2001:db8:10::59
+set address-group SERVERS static [ WEB_SRV MAIL_SRV ]
+set address-group SERVERS description "DMZ servers"
+set address-group ALL_INTERNAL static [ LAN1_SUBNET LAN2_SUBNET SERVERS ]
+set address-group V6_ADMINS static V6_ADMIN
+set service HTTP protocol tcp port 80
+set service HTTPS protocol tcp port 443
+set service SSH protocol tcp port 22
+set service DNS_UDP protocol udp port 53
+set service DNS_TCP protocol tcp port 53
+set service SMTP protocol tcp port 25
+set service WEB_ALT protocol tcp port 8080-8089
+set service HTTPS_8443 protocol tcp port 8443
+set service Any_TCP protocol tcp port 1-65535
+set service DNS-sourceport-1024-65535 protocol udp port 53
+set service DNS-sourceport-1024-65535 protocol udp source-port 1024-65535
+set service DNS-sourceport-1024-65535 description "the service of rule DNS_From_Port with its source port"
+set service udp-5060 protocol udp port 5060
+set service-group DNS members [ DNS_UDP DNS_TCP ]
+set service-group WEB members [ HTTP HTTPS WEB_ALT HTTPS_8443 ]
+set service-group MGMT members [ SSH WEB ]
+set rulebase security rules "block intra-zone DMZ" rule-type intrazone
+set rulebase security rules "block intra-zone DMZ" from DMZ
+set rulebase security rules "block intra-zone DMZ" to DMZ
+set rulebase security rules "block intra-zone DMZ" source any
+set rulebase security rules "block intra-zone DMZ" destination any
+set rulebase security rules "block intra-zone DMZ" source-user any
+set rulebase security rules "block intra-zone DMZ" category any
+set rulebase security rules "block intra-zone DMZ" application any
+set rulebase security rules "block intra-zone DMZ" service any
+set rulebase security rules "block intra-zone DMZ" action drop
+set rulebase security rules "block intra-zone DMZ" log-end no
+set rulebase security rules "block intra-zone DMZ" description "zone DMZ blocks traffic between its members (block)"
+set rulebase security rules LAN1_Outgoing from LAN1
+set rulebase security rules LAN1_Outgoing to WAN
+set rulebase security rules LAN1_Outgoing source ALL_INTERNAL
+set rulebase security rules LAN1_Outgoing destination 0.0.0.0/0
+set rulebase security rules LAN1_Outgoing source-user any
+set rulebase security rules LAN1_Outgoing category any
+set rulebase security rules LAN1_Outgoing application any
+set rulebase security rules LAN1_Outgoing service any
+set rulebase security rules LAN1_Outgoing action allow
+set rulebase security rules LAN1_Outgoing log-end yes
+set rulebase security rules LAN1_Outgoing description "LAN1 to the internet"
+set rulebase security rules Block_Partner_SSH from WAN
+set rulebase security rules Block_Partner_SSH to DMZ
+set rulebase security rules Block_Partner_SSH source PARTNER_NET
+set rulebase security rules Block_Partner_SSH destination SERVERS
+set rulebase security rules Block_Partner_SSH source-user any
+set rulebase security rules Block_Partner_SSH category any
+set rulebase security rules Block_Partner_SSH application any
+set rulebase security rules Block_Partner_SSH service SSH
+set rulebase security rules Block_Partner_SSH action drop
+set rulebase security rules Block_Partner_SSH log-end yes
+set rulebase security rules WAN_to_Web from WAN
+set rulebase security rules WAN_to_Web to DMZ
+set rulebase security rules WAN_to_Web source 0.0.0.0/0
+set rulebase security rules WAN_to_Web destination [ WEB_SRV PUBLIC_WEB ]
+set rulebase security rules WAN_to_Web source-user any
+set rulebase security rules WAN_to_Web category any
+set rulebase security rules WAN_to_Web application any
+set rulebase security rules WAN_to_Web service WEB
+set rulebase security rules WAN_to_Web action allow
+set rulebase security rules WAN_to_Web log-end no
+set rulebase security rules WAN_to_Mail from WAN
+set rulebase security rules WAN_to_Mail to DMZ
+set rulebase security rules WAN_to_Mail source 0.0.0.0/0
+set rulebase security rules WAN_to_Mail destination [ MAIL_SRV 198.51.100.11 ]
+set rulebase security rules WAN_to_Mail source-user any
+set rulebase security rules WAN_to_Mail category any
+set rulebase security rules WAN_to_Mail application any
+set rulebase security rules WAN_to_Mail service SMTP
+set rulebase security rules WAN_to_Mail action allow
+set rulebase security rules WAN_to_Mail log-end yes
+set rulebase security rules Admin_Mgmt from LAN1
+set rulebase security rules Admin_Mgmt to DMZ
+set rulebase security rules Admin_Mgmt source ADMIN_PCS
+set rulebase security rules Admin_Mgmt destination SERVERS
+set rulebase security rules Admin_Mgmt source-user any
+set rulebase security rules Admin_Mgmt category any
+set rulebase security rules Admin_Mgmt application any
+set rulebase security rules Admin_Mgmt service MGMT
+set rulebase security rules Admin_Mgmt action allow
+set rulebase security rules Admin_Mgmt log-end no
+set rulebase security rules LAN1_to_DMZ_Reject from LAN1
+set rulebase security rules LAN1_to_DMZ_Reject to DMZ
+set rulebase security rules LAN1_to_DMZ_Reject source 0.0.0.0/0
+set rulebase security rules LAN1_to_DMZ_Reject destination 0.0.0.0/0
+set rulebase security rules LAN1_to_DMZ_Reject source-user any
+set rulebase security rules LAN1_to_DMZ_Reject category any
+set rulebase security rules LAN1_to_DMZ_Reject application any
+set rulebase security rules LAN1_to_DMZ_Reject service any
+set rulebase security rules LAN1_to_DMZ_Reject action reset-client
+set rulebase security rules LAN1_to_DMZ_Reject log-end yes
+set rulebase security rules Monitor_Ping from any
+set rulebase security rules Monitor_Ping to any
+set rulebase security rules Monitor_Ping source MONITOR
+set rulebase security rules Monitor_Ping destination 0.0.0.0/0
+set rulebase security rules Monitor_Ping source-user any
+set rulebase security rules Monitor_Ping category any
+set rulebase security rules Monitor_Ping application ping
+set rulebase security rules Monitor_Ping service application-default
+set rulebase security rules Monitor_Ping action allow
+set rulebase security rules Monitor_Ping log-end no
+set rulebase security rules Old_Rule from LAN1
+set rulebase security rules Old_Rule to LAB
+set rulebase security rules Old_Rule source 0.0.0.0/0
+set rulebase security rules Old_Rule destination 0.0.0.0/0
+set rulebase security rules Old_Rule source-user any
+set rulebase security rules Old_Rule category any
+set rulebase security rules Old_Rule application gre
+set rulebase security rules Old_Rule service application-default
+set rulebase security rules Old_Rule action allow
+set rulebase security rules Old_Rule log-end no
+set rulebase security rules Old_Rule disabled yes
+set rulebase security rules Alice_Workhours from LAN1
+set rulebase security rules Alice_Workhours to WAN
+set rulebase security rules Alice_Workhours source 0.0.0.0/0
+set rulebase security rules Alice_Workhours destination 0.0.0.0/0
+set rulebase security rules Alice_Workhours source-user alice
+set rulebase security rules Alice_Workhours category any
+set rulebase security rules Alice_Workhours application any
+set rulebase security rules Alice_Workhours service HTTPS
+set rulebase security rules Alice_Workhours action allow
+set rulebase security rules Alice_Workhours log-end no
+set rulebase security rules Alice_Workhours disabled yes
+set rulebase security rules Alice_Workhours description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules DNS_From_Port from LAN1
+set rulebase security rules DNS_From_Port to WAN
+set rulebase security rules DNS_From_Port source 0.0.0.0/0
+set rulebase security rules DNS_From_Port destination 0.0.0.0/0
+set rulebase security rules DNS_From_Port source-user any
+set rulebase security rules DNS_From_Port category any
+set rulebase security rules DNS_From_Port application any
+set rulebase security rules DNS_From_Port service DNS-sourceport-1024-65535
+set rulebase security rules DNS_From_Port action allow
+set rulebase security rules DNS_From_Port log-end no
+set rulebase security rules Country_Block from WAN
+set rulebase security rules Country_Block to any
+set rulebase security rules Country_Block source COUNTRY_X
+set rulebase security rules Country_Block destination 0.0.0.0/0
+set rulebase security rules Country_Block source-user any
+set rulebase security rules Country_Block category any
+set rulebase security rules Country_Block application any
+set rulebase security rules Country_Block service any
+set rulebase security rules Country_Block action drop
+set rulebase security rules Country_Block log-end no
+set rulebase security rules Country_Block disabled yes
+set rulebase security rules Country_Block description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules Portal_Access from LAN1
+set rulebase security rules Portal_Access to WAN
+set rulebase security rules Portal_Access source 0.0.0.0/0
+set rulebase security rules Portal_Access destination PORTAL
+set rulebase security rules Portal_Access source-user any
+set rulebase security rules Portal_Access category any
+set rulebase security rules Portal_Access application any
+set rulebase security rules Portal_Access service HTTPS
+set rulebase security rules Portal_Access action allow
+set rulebase security rules Portal_Access log-end no
+set rulebase security rules VS_Only from WAN
+set rulebase security rules VS_Only to DMZ
+set rulebase security rules VS_Only source 0.0.0.0/0
+set rulebase security rules VS_Only destination 0.0.0.0/0
+set rulebase security rules VS_Only source-user any
+set rulebase security rules VS_Only category any
+set rulebase security rules VS_Only application any
+set rulebase security rules VS_Only service any
+set rulebase security rules VS_Only action allow
+set rulebase security rules VS_Only log-end no
+set rulebase security rules VS_Only disabled yes
+set rulebase security rules VS_Only description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules ESP_Out from DMZ
+set rulebase security rules ESP_Out to WAN
+set rulebase security rules ESP_Out source INSIDE_RANGE
+set rulebase security rules ESP_Out destination 0.0.0.0/0
+set rulebase security rules ESP_Out source-user any
+set rulebase security rules ESP_Out category any
+set rulebase security rules ESP_Out application ipsec-esp
+set rulebase security rules ESP_Out service application-default
+set rulebase security rules ESP_Out action allow
+set rulebase security rules ESP_Out log-end no
+set rulebase security rules V6_LAN_Out from LAN1
+set rulebase security rules V6_LAN_Out to WAN
+set rulebase security rules V6_LAN_Out source V6_LAN
+set rulebase security rules V6_LAN_Out destination ::/0
+set rulebase security rules V6_LAN_Out source-user any
+set rulebase security rules V6_LAN_Out category any
+set rulebase security rules V6_LAN_Out application any
+set rulebase security rules V6_LAN_Out service any
+set rulebase security rules V6_LAN_Out action allow
+set rulebase security rules V6_LAN_Out log-end no
+set rulebase security rules V6_Admin_Web from LAN1
+set rulebase security rules V6_Admin_Web to DMZ
+set rulebase security rules V6_Admin_Web source V6_ADMINS
+set rulebase security rules V6_Admin_Web destination V6_DMZ_WEB
+set rulebase security rules V6_Admin_Web source-user any
+set rulebase security rules V6_Admin_Web category any
+set rulebase security rules V6_Admin_Web application any
+set rulebase security rules V6_Admin_Web service MGMT
+set rulebase security rules V6_Admin_Web action allow
+set rulebase security rules V6_Admin_Web log-end no
+set rulebase security rules V6_Ping from any
+set rulebase security rules V6_Ping to any
+set rulebase security rules V6_Ping source ::/0
+set rulebase security rules V6_Ping destination ::/0
+set rulebase security rules V6_Ping source-user any
+set rulebase security rules V6_Ping category any
+set rulebase security rules V6_Ping application ping6
+set rulebase security rules V6_Ping service application-default
+set rulebase security rules V6_Ping action allow
+set rulebase security rules V6_Ping log-end no
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules "virtual-server ONE2ONE" from any
+set rulebase nat rules "virtual-server ONE2ONE" to WAN
+set rulebase nat rules "virtual-server ONE2ONE" source 10.30.0.30
+set rulebase nat rules "virtual-server ONE2ONE" destination any
+set rulebase nat rules "virtual-server ONE2ONE" service any
+set rulebase nat rules "virtual-server ONE2ONE" source-translation static-ip translated-address 198.51.100.30
+set rulebase nat rules "virtual-server ONE2ONE" source-translation static-ip bi-directional yes
+set rulebase nat rules "virtual-server ONE2ONE" description "ip virtual-server ONE2ONE interface ge1 original-ip 198.51.100.30 map-to 10.30.0.30 map-type any nat-1-1-map"
+set rulebase nat rules "virtual-server MANY2ONE" from any
+set rulebase nat rules "virtual-server MANY2ONE" to WAN
+set rulebase nat rules "virtual-server MANY2ONE" source INSIDE_RANGE
+set rulebase nat rules "virtual-server MANY2ONE" destination any
+set rulebase nat rules "virtual-server MANY2ONE" service any
+set rulebase nat rules "virtual-server MANY2ONE" source-translation static-ip translated-address PUBLIC_RANGE
+set rulebase nat rules "virtual-server MANY2ONE" source-translation static-ip bi-directional yes
+set rulebase nat rules "virtual-server MANY2ONE" description "ip virtual-server MANY2ONE interface ge1 original-ip PUBLIC_RANGE map-to INSIDE_RANGE map-type any nat-1-1-map"

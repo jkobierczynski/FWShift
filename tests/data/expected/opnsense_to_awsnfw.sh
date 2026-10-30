@@ -73,7 +73,7 @@ policy() {
 free_group fwshift-rules
 free_policy fwshift
 
-# Rule group 1: 7 rules, in the order of the policy.
+# Rule group 1: 8 rules, in the order of the policy.
 cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
 {
  "RuleVariables": {
@@ -89,7 +89,7 @@ cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
   }
  },
  "RulesSource": {
-  "RulesString": "drop ip 0.0.0.0/0 any -> [198.51.100.0/30,198.51.100.4/31,198.51.100.6/32,198.51.100.8/29,198.51.100.16/28,198.51.100.32/27,198.51.100.64/26,198.51.100.128/25,203.0.113.128/25] any (msg:\"Never to the blocklist _floating_\"; flow:to_server; sid:1; rev:1;)\ndrop tcp 0.0.0.0/0 any -> 0.0.0.0/0 25 (msg:\"DMZ may not send mail out _received-on_\"; flow:to_server; sid:2; rev:1;)\ndrop ip [10.0.0.0/8,100.64.0.0/10,169.254.0.0/16,172.16.0.0/12,192.168.0.0/16,fd00::/8,fe80::/10] any -> any any (msg:\"Block private networks from WAN\"; flow:to_server; sid:3; rev:1;)\nreject tcp 0.0.0.0/0 any -> 192.0.2.53/32 53 (msg:\"No outside resolver _group_\"; flow:to_server; sid:4; rev:1;)\ndrop udp 0.0.0.0/0 any -> 192.0.2.53/32 53 (msg:\"No outside resolver _group_\"; flow:to_server; sid:5; rev:1;)\ndrop ip 0.0.0.0/0 any -> $Inside_nets any (msg:\"Guests stay out\"; flow:to_server; sid:6; rev:1;)\ndrop ip 0.0.0.0/0 any -> 198.51.100.0/24 any (msg:\"LAN to test net _not quick_\"; flow:to_server; sid:7; rev:1;)\n"
+  "RulesString": "pass ip any any -> any any (msg:\"fwshift-replies\"; flow:to_client; sid:8; rev:1;)\ndrop ip 0.0.0.0/0 any -> [198.51.100.0/30,198.51.100.4/31,198.51.100.6/32,198.51.100.8/29,198.51.100.16/28,198.51.100.32/27,198.51.100.64/26,198.51.100.128/25,203.0.113.128/25] any (msg:\"Never to the blocklist _floating_\"; flow:to_server; sid:1; rev:1;)\ndrop tcp 0.0.0.0/0 any -> 0.0.0.0/0 25 (msg:\"DMZ may not send mail out _received-on_\"; flow:to_server; sid:2; rev:1;)\ndrop ip [10.0.0.0/8,100.64.0.0/10,169.254.0.0/16,172.16.0.0/12,192.168.0.0/16,fd00::/8,fe80::/10] any -> any any (msg:\"Block private networks from WAN\"; flow:to_server; sid:3; rev:1;)\nreject tcp 0.0.0.0/0 any -> 192.0.2.53/32 53 (msg:\"No outside resolver _group_\"; flow:to_server; sid:4; rev:1;)\ndrop udp 0.0.0.0/0 any -> 192.0.2.53/32 53 (msg:\"No outside resolver _group_\"; flow:to_server; sid:5; rev:1;)\ndrop ip 0.0.0.0/0 any -> $Inside_nets any (msg:\"Guests stay out\"; flow:to_server; sid:6; rev:1;)\ndrop ip 0.0.0.0/0 any -> 198.51.100.0/24 any (msg:\"LAN to test net _not quick_\"; flow:to_server; sid:7; rev:1;)\n"
  },
  "StatefulRuleOptions": {
   "RuleOrder": "STRICT_ORDER"

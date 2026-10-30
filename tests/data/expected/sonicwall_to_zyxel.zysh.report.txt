@@ -1,0 +1,71 @@
+FWShift conversion report
+  source: sonicwall (SonicOS 7.1.2-7019)
+  target: zyxel
+
+Summary
+  Security rules:     18   exact 11, approximated 4, needs review 3 (3 emitted disabled), skipped 0
+  NAT rules:           6   exact 0, approximated 3, needs review 0, skipped 3
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZYXEL_LOAD: the output is a script of CLI commands (section 10): new objects, zones without members, rules inserted from position 1 of the security policy on (before the rules the firewall has, which still decide what these do not match), virtual servers and policy routes, which take effect at once. Check, then save with write
+  [info] ZONE_TYPE_ASSUMED: the security type of these zones was read from a code of the export whose meaning is taken from the published readers of the format, not from SonicWall: Servers (trusted)
+  [info] SONICWALL_FORMAT: the settings export is not documented by SonicWall beyond its encoding. The keys read are those every published reader of the format agrees on; what this parser does not know of a rule is not read
+  [info] ZYXEL_DEFAULT_RULES: after the converted rules, 38 rules that do what the source does with traffic no rule matches, for every pair of the zones written (inside a zone as the source decides it): the rules the firewall already has decide only traffic of zones the conversion does not know
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log
+
+Security rules
+  Mail server pings the LAN  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Echo Object': ICMP type and code of a service object: how the export stores them is not known.
+  Administrators to the DMZ  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] USER_MATCH: source user match Admins is not converted.
+  Updates in working hours  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] SCHEDULE: schedule 'Work Hours' is not converted; the rule would apply at all times.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object Update Site: the form of an address object of a host name is not in the documentation FWShift could read.
+  default LAN to DMZ  ->  approximated  (emitted as 2 rules of the security policy)
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from LAN to DMZ; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default DMZ to WAN  ->  approximated  (emitted as 2 rules of the security policy)
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from DMZ to WAN; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default Servers to WAN  ->  approximated  (emitted as 2 rules of the security policy)
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from Servers to WAN; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default Servers to DMZ  ->  approximated  (emitted as 2 rules of the security policy)
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from Servers to DMZ; SonicOS allows it by default for zones of these security types, and this rule stands for that
+
+NAT rules
+  Default NAT  ->  approximated  (emitted as policy route)
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  Web server  ->  skipped
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  Mail on another port  ->  skipped
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  Servers one to one  ->  approximated  (emitted as policy route)
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [approximated] ZYXEL_SNAT_POOL_PORTS: source NAT of kind static written as SNAT to a pool, which the documentation does not say translates ports or not
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  Servers one to one (reflexive)  ->  skipped
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [approximated] NAT_REFLEXIVE: policy 'Servers one to one' is reflexive: SonicOS adds its mirror image, which is converted as this rule. How SonicOS builds the mirror is assumed (sources and destinations swapped with their translations)
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  Old admin NAT  ->  approximated  (emitted as policy route)
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+
+Addresses
+  X0 Subnet  ->  exact
+      [info] DEFAULT_OBJECT: an object SonicOS has by itself, not defined in the export: worked out from the interfaces of the export
+
+Services
+  SMTP (Send E-Mail)  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  HTTP  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  HTTPS  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  SSH  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed

@@ -1,0 +1,127 @@
+FWShift conversion report
+  source: meraki
+  target: windows-firewall
+
+Summary
+  Security rules:     20   exact 0, approximated 2, needs review 17 (15 emitted disabled), skipped 1
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] INTRAZONE_ALLOW: these zones allow traffic inside them without a rule; without their networks (--zone-network) that is not written: vlan10-office, vlan20-servers, vlan30-ot-cell, internet
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  inside a VLAN  ->  needs-review, emitted disabled  (emitted as FWShift-inside_a_VLAN-1, FWShift-inside_a_VLAN-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, and a rule of Windows Firewall names no zone: give the networks behind vlan10-office with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan10-office, and a rule of Windows Firewall names no zone: give the networks behind vlan10-office with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan30-ot-cell, and a rule of Windows Firewall names no zone: give the networks behind vlan30-ot-cell with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan30-ot-cell, and a rule of Windows Firewall names no zone: give the networks behind vlan30-ot-cell with --zone-network (or --zone-map it to Host or a profile).
+  layer 7 rule 2  ->  needs-review  (emitted as FWShift-layer_7_rule_2-1, FWShift-layer_7_rule_2-2, FWShift-layer_7_rule_2-3, FWShift-layer_7_rule_2-4)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan20-servers; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan30-ot-cell; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  layer 7 rule 3  ->  needs-review  (emitted as FWShift-layer_7_rule_3-1, FWShift-layer_7_rule_3-2)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan20-servers; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan30-ot-cell; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  office to servers web  ->  needs-review, emitted disabled  (emitted as FWShift-office_to_servers_web-1, FWShift-office_to_servers_web-2)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.20.25', the address NAT rule 'NAT mail' translates '203.0.113.25' to. The target looks rules up after that translation, so traffic sent to '203.0.113.25' now matches this rule; on the source it did not
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, and a rule of Windows Firewall names no zone: give the networks behind vlan10-office with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan30-ot-cell, and a rule of Windows Firewall names no zone: give the networks behind vlan30-ot-cell with --zone-network (or --zone-map it to Host or a profile).
+  historian  ->  needs-review, emitted disabled  (emitted as FWShift-historian-1, FWShift-historian-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, and a rule of Windows Firewall names no zone: give the networks behind vlan10-office with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan30-ot-cell, and a rule of Windows Firewall names no zone: give the networks behind vlan30-ot-cell with --zone-network (or --zone-map it to Host or a profile).
+  eng ws to plc  ->  needs-review, emitted disabled  (emitted as FWShift-eng_ws_to_plc-1, FWShift-eng_ws_to_plc-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, and a rule of Windows Firewall names no zone: give the networks behind vlan10-office with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan30-ot-cell, and a rule of Windows Firewall names no zone: give the networks behind vlan30-ot-cell with --zone-network (or --zone-map it to Host or a profile).
+  ot cell isolated  ->  approximated  (emitted as FWShift-ot_cell_isolated-1, FWShift-ot_cell_isolated-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan20-servers; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan30-ot-cell; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  ot no internet  ->  approximated  (emitted as FWShift-ot_no_internet-1, FWShift-ot_no_internet-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan20-servers; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan30-ot-cell; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  block update site  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object fqdn updates.example.com: a rule of Windows Firewall names addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dns to servers  ->  needs-review, emitted disabled  (emitted as FWShift-dns_to_servers-1, FWShift-dns_to_servers-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, and a rule of Windows Firewall names no zone: give the networks behind vlan10-office with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan30-ot-cell, and a rule of Windows Firewall names no zone: give the networks behind vlan30-ot-cell with --zone-network (or --zone-map it to Host or a profile).
+  ping servers  ->  needs-review, emitted disabled  (emitted as FWShift-ping_servers-1, FWShift-ping_servers-2)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.20.25', the address NAT rule 'NAT mail' translates '203.0.113.25' to. The target looks rules up after that translation, so traffic sent to '203.0.113.25' now matches this rule; on the source it did not
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, and a rule of Windows Firewall names no zone: give the networks behind vlan10-office with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan30-ot-cell, and a rule of Windows Firewall names no zone: give the networks behind vlan30-ot-cell with --zone-network (or --zone-map it to Host or a profile).
+  office ipv6 out  ->  needs-review, emitted disabled  (emitted as FWShift-office_ipv6_out-1, FWShift-office_ipv6_out-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, and a rule of Windows Firewall names no zone: give the networks behind vlan10-office with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan30-ot-cell, and a rule of Windows Firewall names no zone: give the networks behind vlan30-ot-cell with --zone-network (or --zone-map it to Host or a profile).
+  passive ftp  ->  needs-review, emitted disabled  (emitted as FWShift-passive_ftp-1, FWShift-passive_ftp-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, and a rule of Windows Firewall names no zone: give the networks behind vlan10-office with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan30-ot-cell, and a rule of Windows Firewall names no zone: give the networks behind vlan30-ot-cell with --zone-network (or --zone-map it to Host or a profile).
+  bad ports  ->  needs-review, emitted disabled  (emitted as FWShift-bad_ports-1, FWShift-bad_ports-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, and a rule of Windows Firewall names no zone: give the networks behind vlan10-office with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan30-ot-cell, and a rule of Windows Firewall names no zone: give the networks behind vlan30-ot-cell with --zone-network (or --zone-map it to Host or a profile).
+  Default rule  ->  needs-review, emitted disabled  (emitted as FWShift-Default_rule-1, FWShift-Default_rule-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, and a rule of Windows Firewall names no zone: give the networks behind vlan10-office with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan30-ot-cell, and a rule of Windows Firewall names no zone: give the networks behind vlan30-ot-cell with --zone-network (or --zone-map it to Host or a profile).
+  vpn-portal  ->  needs-review, emitted disabled  (emitted as FWShift-vpn-portal-1, FWShift-vpn-portal-2)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.10.20.30' because of NAT rule 'NAT vpn-portal'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'NAT vpn-portal' also translates the port to 443: the service of this rule (tcp/8443) named the pre-NAT port only, and now names 443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internet, and a rule of Windows Firewall names no zone: give the networks behind internet with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+  mail (1)  ->  needs-review, emitted disabled  (emitted as FWShift-mail__1_-1, FWShift-mail__1_-2)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internet, and a rule of Windows Firewall names no zone: give the networks behind internet with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+  mail (2)  ->  needs-review, emitted disabled  (emitted as FWShift-mail__2_-1, FWShift-mail__2_-2)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internet, and a rule of Windows Firewall names no zone: give the networks behind internet with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+  scada-view  ->  needs-review, emitted disabled  (emitted as FWShift-scada-view-1, FWShift-scada-view-2)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.30' with post-NAT '10.10.20.40' because of NAT rule 'NAT scada-view'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'NAT scada-view' also translates the port to 443: the service of this rule (tcp/9443) named the pre-NAT port only, and now names 443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internet, and a rule of Windows Firewall names no zone: give the networks behind internet with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of Windows Firewall names no zone: give the networks behind vlan20-servers with --zone-network (or --zone-map it to Host or a profile).
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT vpn-portal  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  NAT mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  NAT scada-view  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  NAT to the uplink  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation

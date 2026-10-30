@@ -1,0 +1,56 @@
+FWShift conversion report
+  source: huawei
+  target: hillstone
+
+Summary
+  Security rules:     16   exact 10, approximated 3, needs review 2 (2 emitted disabled), skipped 1
+  NAT rules:           6   exact 1, approximated 5, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with display predefined-service: http, https, smtp, dns, ntp, ssh, icmp, ftp
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10027 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] HUAWEI_SOURCE: 4 zones (trust, untrust, dmz, lab); 15 rules of the security policy, first match. The local zone (the firewall itself) is not converted
+  [info] HUAWEI_NAT_ORDER: destination NAT (nat server) is done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT (nat-policy) is done after it
+  [info] HUAWEI_DEFAULTS: what no rule matches: between zones deny, inside a zone permit
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface GigabitEthernet1/0/1 / zone "trust"; interface GigabitEthernet1/0/0 / zone "untrust"; interface GigabitEthernet1/0/2 / zone "dmz"; interface GigabitEthernet1/0/3 / zone "FWS_lab"
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  web-in  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web-tls'; check that this rule is meant to cover the translated traffic
+  mail-in  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'mail-server' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+  office-out  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  office-dmz  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'dmz-servers' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+  lab-tools  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  ping-dmz  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  video  ->  needs-review, emitted disabled  (emitted as 2 rules of policy-global)
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) YouTube; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  old-ftp  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  lab-deny  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  intrazone default  ->  exact  (emitted as 8 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  manage-fw  ->  skipped
+      [info] HUAWEI_LOCAL_RULE: a rule for traffic to or from the firewall itself (the local zone): not converted
+
+NAT rules
+  nat-server-web  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from untrust; the rule written applies to traffic from every zone
+  nat-server-web-tls  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from untrust; the rule written applies to traffic from every zone
+  no-nat-vpn  ->  approximated  (emitted as dnatrule and snatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from trust; the rule written applies to traffic from every zone
+  office-pat  ->  approximated  (emitted as snatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from trust; the rule written applies to traffic from every zone
+  lab-easy-ip  ->  approximated  (emitted as snatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from lab; the rule written applies to traffic from every zone

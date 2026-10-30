@@ -1,0 +1,156 @@
+FWShift zone matrix
+  source: f5-afm
+  security rules: 42 (1 disabled, 6 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 external          internal          dmz               (other zones)
+  external       tcp/22 +4~        tcp/22 +4~        tcp/22 +4~        tcp/22 +4~
+  internal       icmp type 8… +5~  icmp type 8… +5~  icmp type 8… +5~  icmp type 8… +5~
+  dmz            icmp type 8… +5~  icmp type 8… +5~  icmp type 8… +5~  icmp type 8… +5~
+  (other zones)  udp/53            udp/53            udp/53            udp/53
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+In every conduit
+  rule 'vs_dns/dns_from_partners': 192.0.2.0/24 -> 203.0.113.53/32: udp/53
+
+Conduits
+external -> external (inside the zone)
+  allowed: tcp/22, tcp/80, tcp/443, tcp/8443, udp/53 ~
+  rule 'global/admins_continue>vs_web6/web_in': admins -> 2001:db8:203::10/128: tcp/443
+  rule 'global/admins_continue>vs_web/web_in': admins -> 203.0.113.10/32: tcp/443
+  rule 'global/partners_in@vs_web6': partners -> 2001:db8:203::10/128: tcp/443 ~
+  rule 'global/partners_in@vs_web': partners -> 203.0.113.10/32: tcp/443 ~
+  rule 'global/partners_in@vs_inbound_dmz': partners -> 192.168.50.0/24: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  rule 'vs_web6/web_in': any -> 2001:db8:203::10/128: tcp/443
+  rule 'vs_web/web_in': any -> 203.0.113.10/32: tcp/443
+  and the 1 listed under 'In every conduit'
+external -> internal
+  allowed: tcp/22, tcp/80, tcp/443, tcp/8443, udp/53 ~
+  rule 'global/admins_continue>vs_web6/web_in': admins -> 2001:db8:203::10/128: tcp/443
+  rule 'global/admins_continue>vs_web/web_in': admins -> 203.0.113.10/32: tcp/443
+  rule 'global/partners_in@vs_web6': partners -> 2001:db8:203::10/128: tcp/443 ~
+  rule 'global/partners_in@vs_web': partners -> 203.0.113.10/32: tcp/443 ~
+  rule 'global/partners_in@vs_inbound_dmz': partners -> 192.168.50.0/24: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  rule 'vs_web6/web_in': any -> 2001:db8:203::10/128: tcp/443
+  rule 'vs_web/web_in': any -> 203.0.113.10/32: tcp/443
+  and the 1 listed under 'In every conduit'
+external -> dmz
+  allowed: tcp/22, tcp/80, tcp/443, tcp/8443, udp/53 ~
+  rule 'global/admins_continue>vs_web6/web_in': admins -> 2001:db8:203::10/128: tcp/443
+  rule 'global/admins_continue>vs_web/web_in': admins -> 203.0.113.10/32: tcp/443
+  rule 'global/partners_in@vs_web6': partners -> 2001:db8:203::10/128: tcp/443 ~
+  rule 'global/partners_in@vs_web': partners -> 203.0.113.10/32: tcp/443 ~
+  rule 'global/partners_in@vs_inbound_dmz': partners -> 192.168.50.0/24: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  rule 'vs_web6/web_in': any -> 2001:db8:203::10/128: tcp/443
+  rule 'vs_web/web_in': any -> 203.0.113.10/32: tcp/443
+  and the 1 listed under 'In every conduit'
+external -> (other zones)
+  allowed: tcp/22, tcp/80, tcp/443, tcp/8443, udp/53 ~
+  rule 'global/admins_continue>vs_web6/web_in': admins -> 2001:db8:203::10/128: tcp/443
+  rule 'global/admins_continue>vs_web/web_in': admins -> 203.0.113.10/32: tcp/443
+  rule 'global/partners_in@vs_web6': partners -> 2001:db8:203::10/128: tcp/443 ~
+  rule 'global/partners_in@vs_web': partners -> 203.0.113.10/32: tcp/443 ~
+  rule 'global/partners_in@vs_inbound_dmz': partners -> 192.168.50.0/24: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  rule 'vs_web6/web_in': any -> 2001:db8:203::10/128: tcp/443
+  rule 'vs_web/web_in': any -> 203.0.113.10/32: tcp/443
+  and the 1 listed under 'In every conduit'
+internal -> external
+  allowed: icmp type 8 code 0, tcp/22, tcp/80, tcp/443, tcp/8443, udp/53 ~
+  rule 'global/admins_continue>rd0/outbound/allow_dns_out@vs_dns': admins -> 203.0.113.53/32: udp/53
+  rule 'global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound': admins -> 0.0.0.0/0: udp/53
+  rule 'global/admins_continue>rd0/outbound/allow_web_out@vs_outbound': admins -> 0.0.0.0/0: tcp/80, tcp/443
+  rule 'global/ping_in@vs_outbound': any -> 203.0.113.10: icmp type 8 code 0
+  rule 'global/office_ssh@vs_outbound': any -> 203.0.113.10: tcp/22 (schedule office_hours)
+  rule 'global/partners_in@vs_outbound': partners -> 0.0.0.0/0: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  rule 'rd0/outbound/allow_dns_out@vs_dns': any -> 203.0.113.53/32: udp/53
+  rule 'rd0/outbound/allow_dns_out@vs_outbound': any -> 0.0.0.0/0: udp/53
+  rule 'rd0/outbound/allow_web_out@vs_outbound': inside -> 0.0.0.0/0: tcp/80, tcp/443
+  and the 1 listed under 'In every conduit'
+internal -> internal (inside the zone)
+  allowed: icmp type 8 code 0, tcp/22, tcp/80, tcp/443, tcp/8443, udp/53 ~
+  rule 'global/admins_continue>rd0/outbound/allow_dns_out@vs_dns': admins -> 203.0.113.53/32: udp/53
+  rule 'global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound': admins -> 0.0.0.0/0: udp/53
+  rule 'global/admins_continue>rd0/outbound/allow_web_out@vs_outbound': admins -> 0.0.0.0/0: tcp/80, tcp/443
+  rule 'global/ping_in@vs_outbound': any -> 203.0.113.10: icmp type 8 code 0
+  rule 'global/office_ssh@vs_outbound': any -> 203.0.113.10: tcp/22 (schedule office_hours)
+  rule 'global/partners_in@vs_outbound': partners -> 0.0.0.0/0: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  rule 'rd0/outbound/allow_dns_out@vs_dns': any -> 203.0.113.53/32: udp/53
+  rule 'rd0/outbound/allow_dns_out@vs_outbound': any -> 0.0.0.0/0: udp/53
+  rule 'rd0/outbound/allow_web_out@vs_outbound': inside -> 0.0.0.0/0: tcp/80, tcp/443
+  and the 1 listed under 'In every conduit'
+internal -> dmz
+  allowed: icmp type 8 code 0, tcp/22, tcp/80, tcp/443, tcp/8443, udp/53 ~
+  rule 'global/admins_continue>rd0/outbound/allow_dns_out@vs_dns': admins -> 203.0.113.53/32: udp/53
+  rule 'global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound': admins -> 0.0.0.0/0: udp/53
+  rule 'global/admins_continue>rd0/outbound/allow_web_out@vs_outbound': admins -> 0.0.0.0/0: tcp/80, tcp/443
+  rule 'global/ping_in@vs_outbound': any -> 203.0.113.10: icmp type 8 code 0
+  rule 'global/office_ssh@vs_outbound': any -> 203.0.113.10: tcp/22 (schedule office_hours)
+  rule 'global/partners_in@vs_outbound': partners -> 0.0.0.0/0: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  rule 'rd0/outbound/allow_dns_out@vs_dns': any -> 203.0.113.53/32: udp/53
+  rule 'rd0/outbound/allow_dns_out@vs_outbound': any -> 0.0.0.0/0: udp/53
+  rule 'rd0/outbound/allow_web_out@vs_outbound': inside -> 0.0.0.0/0: tcp/80, tcp/443
+  and the 1 listed under 'In every conduit'
+internal -> (other zones)
+  allowed: icmp type 8 code 0, tcp/22, tcp/80, tcp/443, tcp/8443, udp/53 ~
+  rule 'global/admins_continue>rd0/outbound/allow_dns_out@vs_dns': admins -> 203.0.113.53/32: udp/53
+  rule 'global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound': admins -> 0.0.0.0/0: udp/53
+  rule 'global/admins_continue>rd0/outbound/allow_web_out@vs_outbound': admins -> 0.0.0.0/0: tcp/80, tcp/443
+  rule 'global/ping_in@vs_outbound': any -> 203.0.113.10: icmp type 8 code 0
+  rule 'global/office_ssh@vs_outbound': any -> 203.0.113.10: tcp/22 (schedule office_hours)
+  rule 'global/partners_in@vs_outbound': partners -> 0.0.0.0/0: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  rule 'rd0/outbound/allow_dns_out@vs_dns': any -> 203.0.113.53/32: udp/53
+  rule 'rd0/outbound/allow_dns_out@vs_outbound': any -> 0.0.0.0/0: udp/53
+  rule 'rd0/outbound/allow_web_out@vs_outbound': inside -> 0.0.0.0/0: tcp/80, tcp/443
+  and the 1 listed under 'In every conduit'
+dmz -> external
+  allowed: icmp type 8 code 0, tcp/22, tcp/80, tcp/443, tcp/8443, udp/53 ~
+  rule 'global/ping_in@vs_outbound': any -> 203.0.113.10: icmp type 8 code 0
+  rule 'global/partners_in@vs_inbound_dmz': partners -> 192.168.50.0/24: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  rule 'global/partners_in@vs_outbound': partners -> 0.0.0.0/0: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  and the 1 listed under 'In every conduit'
+dmz -> internal
+  allowed: icmp type 8 code 0, tcp/22, tcp/80, tcp/443, tcp/8443, udp/53 ~
+  rule 'global/ping_in@vs_outbound': any -> 203.0.113.10: icmp type 8 code 0
+  rule 'global/partners_in@vs_inbound_dmz': partners -> 192.168.50.0/24: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  rule 'global/partners_in@vs_outbound': partners -> 0.0.0.0/0: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  and the 1 listed under 'In every conduit'
+dmz -> dmz (inside the zone)
+  allowed: icmp type 8 code 0, tcp/22, tcp/80, tcp/443, tcp/8443, udp/53 ~
+  rule 'global/ping_in@vs_outbound': any -> 203.0.113.10: icmp type 8 code 0
+  rule 'global/partners_in@vs_inbound_dmz': partners -> 192.168.50.0/24: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  rule 'global/partners_in@vs_outbound': partners -> 0.0.0.0/0: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  and the 1 listed under 'In every conduit'
+dmz -> (other zones)
+  allowed: icmp type 8 code 0, tcp/22, tcp/80, tcp/443, tcp/8443, udp/53 ~
+  rule 'global/ping_in@vs_outbound': any -> 203.0.113.10: icmp type 8 code 0
+  rule 'global/partners_in@vs_inbound_dmz': partners -> 192.168.50.0/24: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  rule 'global/partners_in@vs_outbound': partners -> 0.0.0.0/0: tcp/22, tcp/80, tcp/443, tcp/8443 ~
+  and the 1 listed under 'In every conduit'
+(other zones) -> external
+  allowed: udp/53
+  and the 1 listed under 'In every conduit'
+(other zones) -> internal
+  allowed: udp/53
+  and the 1 listed under 'In every conduit'
+(other zones) -> dmz
+  allowed: udp/53
+  and the 1 listed under 'In every conduit'
+(other zones) -> (other zones)
+  allowed: udp/53
+  and the 1 listed under 'In every conduit'
+
+From reading the configuration
+  F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  6 rule(s) never match and are left out; 'fwshift audit' names them.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

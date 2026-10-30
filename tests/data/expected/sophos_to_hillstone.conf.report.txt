@@ -1,0 +1,69 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: hillstone
+
+Summary
+  Security rules:     17   exact 4, approximated 8, needs review 4 (4 emitted disabled), skipped 1
+  NAT rules:           6   exact 3, approximated 3, needs review 0, skipped 0
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10016 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface Port1 / zone "FWS_LAN"; interface Port3 / zone "FWS_LAN"; interface Port2 / zone "FWS_WAN"; interface Port4 / zone "FWS_DMZ"; interface Port5 / zone "FWS_OT"
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'Blocked countries' holds members only its platform knows. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+  Admins to DMZ  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN to DMZ web not mail  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [info] NEGATION_EXPANDED: a rule of StoneOS cannot negate: written as an address entry of the addresses that are left
+  LAN SSH out  ->  approximated  (emitted as 1 rule of policy-global)
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out-2  ->  approximated  (emitted as 2 rules of policy-global)
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Internet to web  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+  Internet to mail  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+  DMZ updates  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+      [approximated] HILLSTONE_FQDN: a host name is written into an IPv4 address entry: the rule matches the IPv4 addresses it resolves to, not its IPv6 ones
+  Finance to app  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] USER_MATCH: source user match Finance is not converted.
+  DNS in office hours  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+  Reject the rest from LAN  ->  exact  (emitted as 1 rule of policy-global)
+      [info] REJECT_AS_DENY: action reset-client: written as deny
+  LAN6 to Internet  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] SERVICE_NOT_WRITTEN: service 'PING6' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0.
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  Publish web  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from WAN; the rule written applies to traffic from every zone
+      [approximated] HILLSTONE_NAT_ZONE: the destination zones of the rule are not written: a dnatrule names none
+  Publish mail  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from WAN; the rule written applies to traffic from every zone
+      [approximated] HILLSTONE_NAT_ZONE: the destination zones of the rule are not written: a dnatrule names none
+  NAT of LAN to Internet web  ->  approximated  (emitted as snatrule)
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from LAN; the rule written applies to traffic from every zone
+
+Addresses
+  any-example-org  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+  Blocked countries  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted

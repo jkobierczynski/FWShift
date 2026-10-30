@@ -1,0 +1,71 @@
+FWShift conversion report
+  source: fortios
+  target: oci
+
+Summary
+  Security rules:     14   exact 6, approximated 2, needs review 5 (4 emitted disabled), skipped 1
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
+  [needs-review] OCI_LOAD: the output is a shell script of OCI CLI calls (section 10): DRY_RUN=1 prints them, COMPARTMENT_ID and VCN_ID create the NSGs and their rules. It creates new NSGs only, and stops if an NSG of the same name exists in the VCN. The NSGs have no VNICs when it is done: nothing changes until VNICs are put in them
+  [needs-review] OCI_ATTACH: 12 NSGs: put each VNIC in the NSGs whose '# attach' line lists its addresses, and take it out of the others; a VNIC with addresses of both IP versions is in an NSG for each. An NSG applies to the whole VNIC: a VNIC with several addresses of one IP version in different NSGs gives each address the rules of all of them, so give such addresses the same NSG. 'oci network vnic update --nsg-ids' replaces the NSGs of a VNIC: it is left to you
+  [needs-review] OCI_SECURITY_LISTS: the security lists of the VNICs' subnets keep applying, and OCI allows what a rule of a security list or of an NSG allows: for the VNICs to be held to what the NSGs allow, their subnets need security lists that allow no more (the default security list of a VCN allows SSH from anywhere and every egress)
+  [needs-review] OCI_RULE_LIMIT: an NSG takes 120 rules, so these were split and a VNIC goes in every part: fwshift-lan (2 NSGs), fwshift-admin-range (2 NSGs), fwshift-scada-server (2 NSGs)
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. --no-source-networks takes none of them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; an NSG does not. VCN flow logs record the connections of the subnets or VNICs instead
+
+Security rules
+  LAN to Internet  ->  approximated  (emitted as NSGs fwshift-wan1, fwshift-lan, fwshift-admin-range, fwshift-scada-server, fwshift-10.99.0.0-16)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it with --zone-network
+  LAN basics  ->  exact  (emitted as NSGs fwshift-wan1, fwshift-lan, fwshift-admin-range, fwshift-scada-server, fwshift-10.99.0.0-16)
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it with --zone-network
+  Inbound web  ->  needs-review  (emitted as NSGs fwshift-wan1, fwshift-web-1, fwshift-10.99.0.0-16)
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination 'vip-web' with post-NAT '10.20.0.10' because of NAT rule 'vip-web', which translates only some of the services of this rule: for the others the rule now names '10.20.0.10', sent there directly, and no longer 'vip-web'
+      [info] ZONE_BY_NETWORKS: the source in zone wan1 is written as the addresses of the networks given for it with --zone-network
+  Inbound mail  ->  approximated  (emitted as NSGs fwshift-wan1, fwshift-mail-1, fwshift-10.99.0.0-16)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'vip-mail' with post-NAT '10.20.0.25' because of NAT rule 'vip-mail'; check that this rule is meant to cover the translated traffic
+      [info] ZONE_BY_NETWORKS: the source in zone wan1 is written as the addresses of the networks given for it with --zone-network
+  Admins to DMZ  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+  Block geo  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ out via pool  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: an NSG rule names addresses.
+  OT no internet  ->  exact  (emitted as taken out of the rules below it)
+      [info] ZONE_BY_NETWORKS: the source in zone ot is written without the networks given for the other zones with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written without the networks given for the other zones with --zone-network
+  LAN v6 out  ->  skipped
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it with --zone-network
+      [info] MATCHES_NOTHING: after the negation and the networks of its zones, the rule matches no connection
+  policy-12  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  Timestamp probes  ->  exact  (emitted as NSGs fwshift-admin-range, fwshift-web-1, fwshift-mail-1)
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+
+NAT rules
+  vip-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  vip-mail  ->  skipped
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  snat-1  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  snat-2  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  snat-7  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted

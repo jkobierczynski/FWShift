@@ -1,0 +1,100 @@
+FWShift conversion report
+  source: pfsense
+  target: windows-firewall
+
+Summary
+  Security rules:     25   exact 2, approximated 4, needs review 19 (19 emitted disabled), skipped 0
+  NAT rules:           8   exact 0, approximated 0, needs review 0, skipped 8
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] RULE_NOT_LOADED: pfSense does not load 1 rule of the configuration, which it cannot resolve; they are not converted: 'Spare network, not in use' (its interface 'opt3' is not there or not enabled)
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: pfSense drops what arrives there from addresses nobody has been given, by a list it downloads. That list is not in the configuration, and nothing is converted for it
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] FLOATING_LAST_MATCH: 1 floating rule is not 'quick': such a rule decides only where no rule of an interface matched, and of several the last one. In the converted policy it stands behind the rules of the interfaces, the last one first: 'Telnet unless a rule says otherwise'
+  [info] PFSENSE_AUTOMATIC_RULES: pfSense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof), packets from or to 169.254.0.0/16, and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without; and it has rules for itself (anti-lockout, DHCP, IPsec). Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  Nothing leaves towards the sinkhole  ->  approximated  (emitted as FWShift-Nothing_leaves_towards_the_sinkhole-1, FWShift-Nothing_leaves_towards_the_sinkhole-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  SSH for the partner - pass  ->  needs-review, emitted disabled  (emitted as FWShift-SSH_for_the_partner_-_pass-1, FWShift-SSH_for_the_partner_-_pass-2)
+      [approximated] AUTOMATIC_RULE: port forward 'SSH for the partner' passes what it forwards without a rule ('Pass' as its filter rule association): pfSense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  Block private networks from WAN  ->  approximated  (emitted as FWShift-Block_private_networks_from_WAN-1, FWShift-Block_private_networks_from_WAN-2)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks and loopback addresses' set: pfSense drops what arrives there from those networks before any rule is looked at. This rule stands for that
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Ping from the inside  ->  needs-review, emitted disabled  (emitted as FWShift-Ping_from_the_inside-1, FWShift-Ping_from_the_inside-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Windows Firewall names no zone: give the networks behind LAN with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Windows Firewall names no zone: give the networks behind DMZ with --zone-network (or --zone-map it to Host or a profile).
+  DNS from the firewall  ->  needs-review, emitted disabled  (emitted as FWShift-DNS_from_the_firewall-1, FWShift-DNS_from_the_firewall-2, FWShift-DNS_from_the_firewall-3, FWShift-DNS_from_the_firewall-4)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Windows Firewall names no zone: give the networks behind LAN with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and a rule of Windows Firewall names no zone: give the networks behind GUEST with --zone-network (or --zone-map it to Host or a profile).
+  NAT Web server HTTPS  ->  needs-review, emitted disabled  (emitted as FWShift-NAT_Web_server_HTTPS-1, FWShift-NAT_Web_server_HTTPS-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  NAT Application ports  ->  needs-review, emitted disabled  (emitted as FWShift-NAT_Application_ports-1, FWShift-NAT_Application_ports-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  Mail in  ->  needs-review, emitted disabled  (emitted as FWShift-Mail_in-1, FWShift-Mail_in-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  Web server over IPv6  ->  needs-review, emitted disabled  (emitted as FWShift-Web_server_over_IPv6-1, FWShift-Web_server_over_IPv6-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  Ping and errors to the firewall  ->  needs-review, emitted disabled  (emitted as FWShift-Ping_and_errors_to_the_firewall-1, FWShift-Ping_and_errors_to_the_firewall-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  Administrators to the servers  ->  needs-review, emitted disabled  (emitted as FWShift-Administrators_to_the_servers-1, FWShift-Administrators_to_the_servers-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Windows Firewall names no zone: give the networks behind LAN with --zone-network (or --zone-map it to Host or a profile).
+  Users to the web servers  ->  needs-review, emitted disabled  (emitted as FWShift-Users_to_the_web_servers-1, FWShift-Users_to_the_web_servers-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Windows Firewall names no zone: give the networks behind LAN with --zone-network (or --zone-map it to Host or a profile).
+  Users to the web server by its outside address  ->  needs-review, emitted disabled  (emitted as FWShift-Users_to_the_web_server_by_its_outside_address-1, FWShift-Users_to_the_web_server_by_its_outside_address-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Windows Firewall names no zone: give the networks behind LAN with --zone-network (or --zone-map it to Host or a profile).
+  No other private network from the LAN  ->  approximated  (emitted as FWShift-No_other_private_network_from_the_LAN-1, FWShift-No_other_private_network_from_the_LAN-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action reset-client: a block rule of Windows Firewall drops without an answer
+  Default allow LAN to any rule  ->  needs-review, emitted disabled  (emitted as FWShift-Default_allow_LAN_to_any_rule-1, FWShift-Default_allow_LAN_to_any_rule-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Windows Firewall names no zone: give the networks behind LAN with --zone-network (or --zone-map it to Host or a profile).
+  Default allow LAN IPv6 to any rule  ->  needs-review, emitted disabled  (emitted as FWShift-Default_allow_LAN_IPv6_to_any_rule-1, FWShift-Default_allow_LAN_IPv6_to_any_rule-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Windows Firewall names no zone: give the networks behind LAN with --zone-network (or --zone-map it to Host or a profile).
+  Servers fetch their updates  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object mirror.example.org, updates.example.com: a rule of Windows Firewall names addresses.
+  Mail out, not to the inside  ->  needs-review, emitted disabled  (emitted as FWShift-Mail_out__not_to_the_inside-1, FWShift-Mail_out__not_to_the_inside-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10).
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Windows Firewall names no zone: give the networks behind DMZ with --zone-network (or --zone-map it to Host or a profile).
+  Syslog to the collector  ->  needs-review, emitted disabled  (emitted as FWShift-Syslog_to_the_collector-1, FWShift-Syslog_to_the_collector-2)
+      [needs-review] SCHEDULE: schedule 'OfficeHours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Windows Firewall names no zone: give the networks behind DMZ with --zone-network (or --zone-map it to Host or a profile).
+  Nothing from the list  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocklist': a URL table: its addresses are in a file on the firewall, not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests reach nothing private  ->  approximated  (emitted as FWShift-Guests_reach_nothing_private-1, FWShift-Guests_reach_nothing_private-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Guests browse  ->  needs-review, emitted disabled  (emitted as FWShift-Guests_browse-1, FWShift-Guests_browse-2)
+      [info] POLICY_ROUTING: the rule also sends what it passes to gateway 'WANGW' (policy routing), which is not converted
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and a rule of Windows Firewall names no zone: give the networks behind GUEST with --zone-network (or --zone-map it to Host or a profile).
+  Phones of the guests  ->  needs-review, emitted disabled  (emitted as FWShift-Phones_of_the_guests-1, FWShift-Phones_of_the_guests-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches a mark set by another rule (tagged) 'VOICE'.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and a rule of Windows Firewall names no zone: give the networks behind GUEST with --zone-network (or --zone-map it to Host or a profile).
+
+NAT rules
+  Web server HTTPS  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  Application ports  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  SSH for the partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  Mail server - inbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  Mail server - outbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  DMZ leaves with the web address  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  No NAT towards the partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  Automatic outbound NAT on WAN  ->  skipped
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: pfSense translates what leaves by an interface with a gateway and comes from the networks of its other interfaces and of its static routes. This rule stands for that
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation

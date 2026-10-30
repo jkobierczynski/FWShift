@@ -1,0 +1,95 @@
+FWShift conversion report
+  source: windows-firewall (Group Policy, local)
+  target: vyos
+
+Summary
+  Security rules:     31   exact 19, approximated 1, needs review 11 (10 emitted disabled), skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           23   exact 23, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] WINFW_BYPASS: rules with authenticated bypass let IPsec-authenticated connections through block rules; they are first in the converted policy and not converted: Management over IPsec, overriding block rules
+  [needs-review] VYOS_LOAD: load the commands in configuration mode: 'configure', paste them, 'compare', then 'commit-confirm 10' (unless 'confirm' follows within 10 minutes, VyOS goes back to the configuration before; older releases reboot to do so) and 'save'. A commit applies all of them or none. The policy is written as the zone-based firewall: zones Host, Domain, Private, Public, and a chain FWS-<from>-<to> for each pair of zones that needs one. Interfaces of the router in no zone: VyOS drops their traffic into a zone and leaves traffic from a zone to them to the forward filter; that traffic is decided by chain FWS-NO-ZONE (the rules for any destination and the default of the policy), jumped to from rule 10000 of the forward filter for what leaves by an interface not in interface group FWS-ZONES. Check that the forward filter has no rule 10000 (show firewall ipv4 forward filter), or give another number with --policy-id-start; its rules with lower numbers come first, and those after rule 10000 are no longer reached by what the chain decides, as it ends with the default of the policy. The forward filter of the router still applies before the zones (an accept there goes on to the zones, a drop is final). A zone of the same name that exists gets these interfaces and chains in addition to its own; a chain set for a pair that has one replaces it. NAT rules are numbered from 10000: rules of the router with lower numbers come first. To take a conversion away: delete the groups, chains, zones and NAT rules the commands name (all under FWS-, and the NAT rules from 10000 on). Assumed: names of up to 63 characters
+  [needs-review] INTERFACES_REQUIRED: zones need the interfaces of the router: these were written with their own name as interface, which matches no traffic until it is replaced (--interface-map, or --zone-map with zones of the router's interfaces): Domain, Host, Private, Public
+  [needs-review] VYOS_NO_ZONE: traffic from a zone to an interface in no zone is decided by chain FWS-NO-ZONE; its replies come in from an interface in no zone, which VyOS drops at the zones unless 'firewall global-options state-policy' accepts established and related packets (the commands do not set it, as it applies to the whole router)
+  [info] WINFW_DEFAULT_ASSUMED: settings that no store of the input holds were taken as Windows's defaults (firewall on, inbound blocked, outbound allowed): Private defaultinboundaction, Public defaultinboundaction, Public defaultoutboundaction
+  [info] WINFW_HOST_POLICY: a host firewall: the zone Host is the host itself, the zones Domain, Private and Public the networks of the interfaces in each profile. Windows has no rule order: block rules decide before allow rules, then the default of the profile; the converted policy says that in first-match order (block rules, allow rules, the defaults that allow). Traffic between the networks is not the host's to decide and is denied
+  [info] WINFW_STORES: stores read: Group Policy 8 rules, local 22 rules
+  [info] WINFW_PROFILES: Domain: inbound blocked (Group Policy), outbound allowed (Group Policy), local rules not merged (Group Policy); Private: inbound blocked (default), outbound blocked (Group Policy); Public: inbound blocked (default), outbound allowed (default)
+  [info] WINFW_LOCAL_NOT_MERGED: Group Policy (or MDM) does not merge local rules in the profile Domain: the local rules are left out there (16 rules named it)
+  [info] WINFW_SETTING_NOT_CONVERTED: profile settings that decide traffic no rule names are not converted: Public: unicast responses to multicast and broadcast traffic are blocked
+  [info] WINFW_ADDRESS_KEYWORDS: rules name address keywords, whose addresses only Windows knows at run time: DNS, LocalSubnet, LocalSubnet4, LocalSubnet6. They are dynamic groups; only a Windows target writes them again
+  [info] WINFW_NOT_READ: not read: 1 connection security (IPsec) rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\ConSecRules; 1 Windows Service Hardening rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Static\System
+  [info] VYOS_TEXT: names and descriptions with characters VyOS does not take in them (or longer than it takes) were changed: FWS-Block the scanner networks-src, FWS-Remote Desktop from the admin networks-src
+
+Security rules
+  Management over IPsec, overriding block rules  ->  needs-review, emitted disabled
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: remote computers; IPsec (Authenticate): only connections IPsec protects match; authenticated bypass: only IPsec-authenticated connections match, and they override block rules. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: remote computers.
+      [needs-review] UNSUPPORTED_MATCH: not converted: IPsec (Authenticate): only connections IPsec protects match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: authenticated bypass: only IPsec-authenticated connections match, and they override block rules.
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  Block a known bad host  ->  exact  (emitted as FWS-Host-Domain rule 10, FWS-Host-Domain rule 10 (IPv6), FWS-Host-Private rule 10, FWS-Host-Private rule 10 (IPv6), FWS-Host-Public rule 10, FWS-Host-Public rule 10 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  Block RDP from the guest half of the admin network  ->  exact  (emitted as FWS-Domain-Host rule 10, FWS-Private-Host rule 10, FWS-Public-Host rule 10)
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  Block telnet out  ->  exact  (emitted as FWS-Host-Private rule 20, FWS-Host-Private rule 20 (IPv6), FWS-Host-Public rule 20, FWS-Host-Public rule 20 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  Block the scanner networks  ->  exact  (emitted as FWS-Private-Host rule 20, FWS-Public-Host rule 20)
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  DNS out on private networks  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'DNS': dynamic address group, members are not known statically.
+  SMB from the local subnet  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet': dynamic address group, members are not known statically.
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  SSH from the IPv6 jump hosts  ->  exact  (emitted as FWS-Domain-Host rule 10 (IPv6), FWS-Private-Host rule 10 (IPv6), FWS-Public-Host rule 20 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  Echo request (ICMPv4-In)  ->  exact  (emitted as FWS-Private-Host rule 30, FWS-Public-Host rule 40)
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  Echo request (ICMPv6-In)  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet6': dynamic address group, members are not known statically.
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  Fragmentation needed and time exceeded  ->  exact  (emitted as FWS-Private-Host rule 40, FWS-Private-Host rule 50, FWS-Public-Host rule 50, FWS-Public-Host rule 60)
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  Web server  ->  exact  (emitted as FWS-Private-Host rule 70, FWS-Private-Host rule 30 (IPv6), FWS-Public-Host rule 70, FWS-Public-Host rule 30 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  SNMP from the local subnet  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet4': dynamic address group, members are not known statically.
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  GRE from the tunnel peer  ->  exact  (emitted as FWS-Private-Host rule 90, FWS-Public-Host rule 80)
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  Example application server  ->  needs-review, emitted disabled
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: program C:\Program Files\Example\server.exe. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: program C:\Program Files\Example\server.exe.
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  Print spooler (RPC)  ->  needs-review, emitted disabled
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the local port keyword RPC; service Spooler. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the local port keyword RPC.
+      [needs-review] UNSUPPORTED_MATCH: not converted: service Spooler.
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  OpenSSH server  ->  exact  (emitted as FWS-Domain-Host rule 40, FWS-Domain-Host rule 20 (IPv6), FWS-Private-Host rule 100, FWS-Private-Host rule 40 (IPv6), FWS-Public-Host rule 90, FWS-Public-Host rule 40 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  mDNS on wireless  ->  needs-review, emitted disabled
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: interface types wireless. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: interface types wireless.
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  Game server through edge traversal  ->  approximated  (emitted as FWS-Public-Host rule 100, FWS-Public-Host rule 50 (IPv6))
+      [approximated] WINFW_EDGE_TRAVERSAL: the rule also accepts traffic that came through edge traversal (Teredo); the model has no such path: the converted rule does not let it in
+  Printer port  ->  needs-review, emitted disabled
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the field 'newfield2_40', which FWShift does not know. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the field 'newfield2_40', which FWShift does not know.
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  A rule Windows cannot parse  ->  needs-review  (emitted as FWS-Domain-Host rule 50, FWS-Domain-Host rule 30 (IPv6), FWS-Private-Host rule 110, FWS-Private-Host rule 50 (IPv6), FWS-Public-Host rule 110, FWS-Public-Host rule 60 (IPv6))
+      [needs-review] WINFW_RULE_INVALID: Windows does not enforce a rule it cannot parse (local ports without protocol TCP or UDP): it is kept disabled
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  SSDP discovery  ->  needs-review, emitted disabled
+      [info] WINFW_PLATFORM: the rule applies on Windows NT 6.2 and later; it is taken as applying on this host
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet': dynamic address group, members are not known statically.
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  DNS server (local copy)  ->  exact  (emitted as FWS-Domain-Host rule 60, FWS-Domain-Host rule 40 (IPv6), FWS-Private-Host rule 120, FWS-Private-Host rule 60 (IPv6), FWS-Public-Host rule 120, FWS-Public-Host rule 70 (IPv6))
+      [info] WINFW_OVERRIDDEN: the Group Policy store has a rule of the same id ('Shared-Id'), which replaces this one: it is kept disabled
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  Backup agent to the backup server  ->  exact  (emitted as FWS-Host-Private rule 40, FWS-Host-Public rule 30)
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  (default) outbound  ->  exact  (emitted as FWS-Host-Domain rule 20, FWS-Host-Domain rule 20 (IPv6), FWS-Host-Public rule 40, FWS-Host-Public rule 30 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones

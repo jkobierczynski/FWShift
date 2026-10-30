@@ -73,7 +73,7 @@ policy() {
 free_group fwshift-rules
 free_policy fwshift
 
-# Rule group 1: 14 rules, in the order of the policy.
+# Rule group 1: 15 rules, in the order of the policy.
 cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
 {
  "RuleVariables": {
@@ -143,7 +143,7 @@ cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
   }
  },
  "RulesSource": {
-  "RulesString": "pass udp [$lan_net,$dmz_net] any -> $dns_servers 53 (msg:\"DNS\"; flow:to_server; sid:1; rev:1;)\npass tcp [$lan_net,$dmz_net] any -> $dns_servers 53 (msg:\"DNS\"; flow:to_server; sid:2; rev:1;)\npass tcp $admin_range any -> $dmz_servers 22 (msg:\"rule-2\"; flow:to_server; sid:3; rev:1;)\ndrop ip $guest_net any -> !$dns_servers any (msg:\"Guests stay out\"; flow:to_server; sid:4; rev:1;)\npass tcp $admin_range any -> $plc_net [22,443] (msg:\"PLC access\"; flow:to_server; sid:5; rev:1;)\npass tcp $lan6_net any -> any 443 (msg:\"IPv6 out\"; flow:to_server; sid:6; rev:1;)\npass tcp any any -> $web_1 443 (msg:\"Public web\"; flow:to_server; sid:7; rev:1;)\npass tcp any any -> 10.20.0.10/32 [443,9000:9010] (msg:\"DMZ access / Web in\"; flow:to_server; sid:8; rev:1;)\npass tcp any any -> $mail_1 25 (msg:\"DMZ access / Mail in\"; flow:to_server; sid:9; rev:1;)\npass icmp $lan_net any -> $dmz_net any (msg:\"DMZ access / Ping from LAN\"; flow:to_server; ip_proto:1; itype:8; sid:10; rev:1;)\ndrop ip any any -> $dmz_net any (msg:\"DMZ access _cleanup of DMZ-Layer_\"; flow:to_server; sid:11; rev:1;)\npass ip any any -> $gw_edge any (msg:\"Tunnels\"; flow:to_server; ip_proto:47; sid:12; rev:1;)\nreject tcp any any -> any 113 (msg:\"No ident\"; flow:to_server; sid:13; rev:1;)\ndrop ip any any -> any any (msg:\"Cleanup rule\"; flow:to_server; sid:14; rev:1;)\n"
+  "RulesString": "pass ip any any -> any any (msg:\"fwshift-replies\"; flow:to_client; sid:15; rev:1;)\npass udp [$lan_net,$dmz_net] any -> $dns_servers 53 (msg:\"DNS\"; flow:to_server; sid:1; rev:1;)\npass tcp [$lan_net,$dmz_net] any -> $dns_servers 53 (msg:\"DNS\"; flow:to_server; sid:2; rev:1;)\npass tcp $admin_range any -> $dmz_servers 22 (msg:\"rule-2\"; flow:to_server; sid:3; rev:1;)\ndrop ip $guest_net any -> !$dns_servers any (msg:\"Guests stay out\"; flow:to_server; sid:4; rev:1;)\npass tcp $admin_range any -> $plc_net [22,443] (msg:\"PLC access\"; flow:to_server; sid:5; rev:1;)\npass tcp $lan6_net any -> any 443 (msg:\"IPv6 out\"; flow:to_server; sid:6; rev:1;)\npass tcp any any -> $web_1 443 (msg:\"Public web\"; flow:to_server; sid:7; rev:1;)\npass tcp any any -> 10.20.0.10/32 [443,9000:9010] (msg:\"DMZ access / Web in\"; flow:to_server; sid:8; rev:1;)\npass tcp any any -> $mail_1 25 (msg:\"DMZ access / Mail in\"; flow:to_server; sid:9; rev:1;)\npass icmp $lan_net any -> $dmz_net any (msg:\"DMZ access / Ping from LAN\"; flow:to_server; ip_proto:1; itype:8; sid:10; rev:1;)\ndrop ip any any -> $dmz_net any (msg:\"DMZ access _cleanup of DMZ-Layer_\"; flow:to_server; sid:11; rev:1;)\npass ip any any -> $gw_edge any (msg:\"Tunnels\"; flow:to_server; ip_proto:47; sid:12; rev:1;)\nreject tcp any any -> any 113 (msg:\"No ident\"; flow:to_server; sid:13; rev:1;)\ndrop ip any any -> any any (msg:\"Cleanup rule\"; flow:to_server; sid:14; rev:1;)\n"
  },
  "StatefulRuleOptions": {
   "RuleOrder": "STRICT_ORDER"

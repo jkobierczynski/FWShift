@@ -1,0 +1,83 @@
+FWShift conversion report
+  source: fortios
+  target: f5-afm
+
+Summary
+  Security rules:     14   exact 0, approximated 1, needs review 13 (13 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_LOAD: the output is a file for 'tmsh load sys config merge file' (section 10): address lists, port lists, the rule list /Common/FWShift_rules and the policy /Common/FWShift. Load it with 'verify' first. The merge changes objects of the same name that exist: check that none does. The policy is enforced in no context: attach it to the global context, a route domain or a virtual server yourself. Allow rules are accept-decisively and the list ends with the default, so the policy decides alone wherever it is attached; the BIG-IP still lets through only traffic that a virtual server takes, which FWShift does not create
+  [needs-review] F5AFM_FQDN_RESOLVER: address lists hold host names (fqdns): AFM resolves them only with a DNS resolver set as the global FQDN resolver (security firewall global-fqdn-policy); without one they match nothing
+  [needs-review] F5AFM_VLANS_REQUIRED: the rules name these VLANs as the zones they come from, which must exist on the BIG-IP under these names (--zone-map renames): /Common/dmz, /Common/lan, /Common/ot, /Common/wan1
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] F5AFM_ICMP_CONTEXT: the policy has ICMP rules: the BIG-IP ignores ICMP rules in the virtual server and self IP contexts, so attach the policy to the global or a route domain context for them to apply
+
+Security rules
+  LAN to Internet  ->  needs-review, emitted disabled  (emitted as LAN_to_Internet, LAN_to_Internet_2)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind wan1 with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  LAN basics  ->  needs-review, emitted disabled  (emitted as LAN_basics, LAN_basics_2, LAN_basics_3)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind wan1 with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  Inbound web  ->  needs-review, emitted disabled  (emitted as Inbound_web)
+      [needs-review] NAT_PORT_TRANSLATION: virtual IP 'vip-web' forwards port 443 to 8443; FortiOS policies name the mapped port, the neutral model the original one. Check the service of this rule
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  Inbound mail  ->  needs-review, emitted disabled  (emitted as Inbound_mail)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  Admins to DMZ  ->  needs-review, emitted disabled  (emitted as Admins_to_DMZ)
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  Block geo  ->  needs-review, emitted disabled  (emitted as Block_geo)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone wan1; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ out via pool  ->  needs-review, emitted disabled  (emitted as DMZ_out_via_pool)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind wan1 with --zone-network.
+  SCADA to PLCs  ->  needs-review, emitted disabled  (emitted as SCADA_to_PLCs)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone ot, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind ot with --zone-network.
+  OT no internet  ->  approximated  (emitted as OT_no_internet)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone wan1; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Partner tunnel  ->  needs-review, emitted disabled  (emitted as Partner_tunnel, Partner_tunnel_2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind wan1 with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  LAN v6 out  ->  needs-review, emitted disabled  (emitted as LAN_v6_out)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind wan1 with --zone-network.
+  policy-12  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  Not web  ->  needs-review, emitted disabled  (emitted as Not_web)
+      [needs-review] SERVICE_NEGATE: a negated service cannot be written: a rule of AFM has no negation.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind wan1 with --zone-network.
+  Timestamp probes  ->  needs-review, emitted disabled  (emitted as Timestamp_probes)
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+
+NAT rules
+  vip-web  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  vip-mail  ->  skipped
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  snat-1  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  snat-2  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  snat-7  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted
+  10.99.0.0/16  ->  exact  (emitted as x10.99.0.0_16)
+      [info] RENAMED: renamed to 'x10.99.0.0_16' to fit the target's naming rules
+
+Service groups
+  Web Access  ->  exact  (emitted as Web_Access)
+      [info] RENAMED: renamed to 'Web_Access' to fit the target's naming rules

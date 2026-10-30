@@ -1,0 +1,46 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: hillstone
+
+Summary
+  Security rules:      8   exact 2, approximated 2, needs review 3 (2 emitted disabled), skipped 1
+  NAT rules:           4   exact 1, approximated 2, needs review 0, skipped 1
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10008 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface outside / zone "FWS_outside_zone"; interface inside / zone "FWS_inside_zone"; interface iot / zone "FWS_iot"
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  Block_IoT_to_office  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-lan' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+  Inside_Outside_web  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  NAS_from_Internet  ->  needs-review  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'outside-interface' next to 'nas' because of NAT rule 'NAS_published'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAS_published' also translates the port to 5001; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'nas' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+  Head_office_v6  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-devices' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation): the rule matches nothing
+  DNS_answers  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Staff_streaming  ->  needs-review, emitted disabled  (emitted as 2 rules of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Guests_by_time  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+
+NAT rules
+  NAS_published  ->  approximated  (emitted as dnatrule)
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 192.0.2.2
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from outside_zone; the rule written applies to traffic from every zone
+      [approximated] HILLSTONE_NAT_ZONE: the destination zones of the rule are not written: a dnatrule names none
+  InsideOutsideNatRule  ->  approximated  (emitted as snatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from inside_zone; the rule written applies to traffic from every zone
+  IoT_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is disabled on the source

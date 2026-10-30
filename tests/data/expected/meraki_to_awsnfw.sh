@@ -73,7 +73,7 @@ policy() {
 free_group fwshift-rules
 free_policy fwshift
 
-# Rule group 1: 5 rules, in the order of the policy.
+# Rule group 1: 6 rules, in the order of the policy.
 cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
 {
  "RuleVariables": {
@@ -86,7 +86,7 @@ cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
   }
  },
  "RulesSource": {
-  "RulesString": "drop tcp any any -> any 23 (msg:\"layer 7 rule 2\"; flow:to_server; sid:1; rev:1;)\ndrop udp any any -> any 23 (msg:\"layer 7 rule 2\"; flow:to_server; sid:2; rev:1;)\ndrop ip any any -> 198.51.100.0/24 any (msg:\"layer 7 rule 3\"; flow:to_server; sid:3; rev:1;)\ndrop ip any any -> [$VLAN_30_,172.16.40.0/24] any (msg:\"ot cell isolated\"; flow:to_server; sid:4; rev:1;)\ndrop ip [10.10.30.0/24,172.16.40.0/24] any -> any any (msg:\"ot no internet\"; flow:to_server; sid:5; rev:1;)\n"
+  "RulesString": "pass ip any any -> any any (msg:\"fwshift-replies\"; flow:to_client; sid:6; rev:1;)\ndrop tcp any any -> any 23 (msg:\"layer 7 rule 2\"; flow:to_server; sid:1; rev:1;)\ndrop udp any any -> any 23 (msg:\"layer 7 rule 2\"; flow:to_server; sid:2; rev:1;)\ndrop ip any any -> 198.51.100.0/24 any (msg:\"layer 7 rule 3\"; flow:to_server; sid:3; rev:1;)\ndrop ip any any -> [$VLAN_30_,172.16.40.0/24] any (msg:\"ot cell isolated\"; flow:to_server; sid:4; rev:1;)\ndrop ip [10.10.30.0/24,172.16.40.0/24] any -> any any (msg:\"ot no internet\"; flow:to_server; sid:5; rev:1;)\n"
  },
  "StatefulRuleOptions": {
   "RuleOrder": "STRICT_ORDER"

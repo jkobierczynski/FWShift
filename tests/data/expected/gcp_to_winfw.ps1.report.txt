@@ -1,0 +1,67 @@
+FWShift conversion report
+  source: gcp (vpc-shop)
+  target: windows-firewall
+
+Summary
+  Security rules:     28   exact 23, approximated 0, needs review 5, skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  db-to-vpc+implied deny ingress  ->  needs-review  (emitted as FWShift-db-to-vpc_implied_deny_ingress-1, FWShift-db-to-vpc_implied_deny_ingress-2, FWShift-db-to-vpc_implied_deny_ingress-3, FWShift-db-to-vpc_implied_deny_ingress-4)
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  db-no-internet (between instances)  ->  needs-review  (emitted as FWShift-db-no-internet__between_instances_-1, FWShift-db-no-internet__between_instances_-2, FWShift-db-no-internet__between_instances_-3, FWShift-db-no-internet__between_instances_-4)
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  pol-shop:deny-smtp-out (between instances)  ->  exact  (emitted as FWShift-pol-shop_deny-smtp-out__between_instances_-1, FWShift-pol-shop_deny-smtp-out__between_instances_-2)
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  implied allow egress+implied deny ingress  ->  needs-review  (emitted as FWShift-implied_allow_egress_implied_deny_ingress-1, FWShift-implied_allow_egress_implied_deny_ingress-2, FWShift-implied_allow_egress_implied_deny_ingress-3, FWShift-implied_allow_egress_implied_deny_ingress-4, FWShift-implied_allow_egress_implied_deny_ingress-5, FWShift-implied_allow_egress_implied_deny_ingress-6, FWShift-implied_allow_egress_implied_deny_ingress-7, FWShift-implied_allow_egress_implied_deny_ingress-8, FWShift-implied_allow_egress_implied_deny_ingress-9, FWShift-implied_allow_egress_implied_deny_ingress-10, FWShift-implied_allow_egress_implied_deny_ingress-11, FWShift-implied_allow_egress_implied_deny_ingress-12, FWShift-implied_allow_egress_implied_deny_ingress-13, FWShift-implied_allow_egress_implied_deny_ingress-14)
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  deny-ssh-blocked  ->  exact  (emitted as FWShift-deny-ssh-blocked-1, FWShift-deny-ssh-blocked-2)
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  pol-shop:deny-tor (in)  ->  needs-review  (emitted as FWShift-pol-shop_deny-tor__in_-1, FWShift-pol-shop_deny-tor__in_-2, FWShift-pol-shop_deny-tor__in_-3, FWShift-pol-shop_deny-tor__in_-4)
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  implied deny ingress (in)  ->  needs-review  (emitted as FWShift-implied_deny_ingress__in_-1, FWShift-implied_deny_ingress__in_-2, FWShift-implied_deny_ingress__in_-3, FWShift-implied_deny_ingress__in_-4, FWShift-implied_deny_ingress__in_-5, FWShift-implied_deny_ingress__in_-6, FWShift-implied_deny_ingress__in_-7, FWShift-implied_deny_ingress__in_-8, FWShift-implied_deny_ingress__in_-9, FWShift-implied_deny_ingress__in_-10, FWShift-implied_deny_ingress__in_-11, FWShift-implied_deny_ingress__in_-12, FWShift-implied_deny_ingress__in_-13, FWShift-implied_deny_ingress__in_-14, FWShift-implied_deny_ingress__in_-15, FWShift-implied_deny_ingress__in_-16, FWShift-implied_deny_ingress__in_-17, FWShift-implied_deny_ingress__in_-18, FWShift-implied_deny_ingress__in_-19, FWShift-implied_deny_ingress__in_-20, FWShift-implied_deny_ingress__in_-21, FWShift-implied_deny_ingress__in_-22, FWShift-implied_deny_ingress__in_-23, FWShift-implied_deny_ingress__in_-24, FWShift-implied_deny_ingress__in_-25, FWShift-implied_deny_ingress__in_-26, FWShift-implied_deny_ingress__in_-27, FWShift-implied_deny_ingress__in_-28, FWShift-implied_deny_ingress__in_-29, FWShift-implied_deny_ingress__in_-30, FWShift-implied_deny_ingress__in_-31)
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  deny-egress-doc  ->  exact  (emitted as FWShift-deny-egress-doc-1, FWShift-deny-egress-doc-2)
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  db-to-vpc  ->  exact  (emitted as FWShift-db-to-vpc-1, FWShift-db-to-vpc-2, FWShift-db-to-vpc-3, FWShift-db-to-vpc-4)
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+  db-no-internet  ->  exact  (emitted as FWShift-db-no-internet-1, FWShift-db-no-internet-2)
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  pol-shop:deny-smtp-out (out)  ->  exact  (emitted as FWShift-pol-shop_deny-smtp-out__out_-1, FWShift-pol-shop_deny-smtp-out__out_-2, FWShift-pol-shop_deny-smtp-out__out_-3, FWShift-pol-shop_deny-smtp-out__out_-4)
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  implied allow egress (out)  ->  exact  (emitted as FWShift-implied_allow_egress__out_-1, FWShift-implied_allow_egress__out_-2, FWShift-implied_allow_egress__out_-3, FWShift-implied_allow_egress__out_-4, FWShift-implied_allow_egress__out_-5, FWShift-implied_allow_egress__out_-6, FWShift-implied_allow_egress__out_-7, FWShift-implied_allow_egress__out_-8, FWShift-implied_allow_egress__out_-9, FWShift-implied_allow_egress__out_-10, FWShift-implied_allow_egress__out_-11, FWShift-implied_allow_egress__out_-12, FWShift-implied_allow_egress__out_-13, FWShift-implied_allow_egress__out_-14)
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+
+NAT rules
+  external-192.0.2.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  external-192.0.2.5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation

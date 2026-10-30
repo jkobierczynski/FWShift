@@ -1,0 +1,55 @@
+FWShift conversion report
+  source: fortios
+  target: hillstone
+
+Summary
+  Security rules:     14   exact 8, approximated 1, needs review 5 (4 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 2, needs review 2, skipped 1
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10013 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface internal1 / zone "FWS_lan"; interface internal2 / zone "FWS_lan"
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  LAN to Internet  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
+  Inbound web  ->  needs-review  (emitted as 1 rule of policy-global)
+      [needs-review] NAT_PORT_TRANSLATION: virtual IP 'vip-web' forwards port 443 to 8443; FortiOS policies name the mapped port, the neutral model the original one. Check the service of this rule
+  Admins to DMZ  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+  Block geo  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'geo-blocked' holds members only its platform knows. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  policy-12  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  Not web  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NEGATE: every service but some: a rule of StoneOS lists the services it matches.
+  Timestamp probes  ->  exact  (emitted as 1 rule of policy-global)
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+
+NAT rules
+  vip-web  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from wan1; the rule written applies to traffic from every zone
+      [approximated] HILLSTONE_NAT_ZONE: the destination zones of the rule are not written: a dnatrule names none
+  vip-mail  ->  approximated  (emitted as dnatrule)
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from wan1; the rule written applies to traffic from every zone
+      [approximated] HILLSTONE_NAT_ZONE: the destination zones of the rule are not written: a dnatrule names none
+  snat-1  ->  needs-review  (emitted as snatrule)
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from lan; the rule written applies to traffic from every zone
+  snat-2  ->  needs-review  (emitted as snatrule)
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from lan; the rule written applies to traffic from every zone
+  snat-7  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an address of the rule cannot be written as one address entry of one IP version
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted

@@ -1,0 +1,118 @@
+FWShift conversion report
+  source: f5-afm
+  target: windows-firewall
+
+Summary
+  Security rules:     42   exact 9, approximated 14, needs review 19 (18 emitted disabled), skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled  (emitted as FWShift-global_admins_continue_rd0_outbound_allow_dns_out_vs_dns-1, FWShift-global_admins_continue_rd0_outbound_allow_dns_out_vs_dns-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Windows Firewall names no zone: give the networks behind internal with --zone-network (or --zone-map it to Host or a profile).
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as FWShift-global_admins_continue_rd0_outbound_allow_dns_out_vs_outbound-1, FWShift-global_admins_continue_rd0_outbound_allow_dns_out_vs_outbound-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Windows Firewall names no zone: give the networks behind internal with --zone-network (or --zone-map it to Host or a profile).
+  global/admins_continue>rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as FWShift-global_admins_continue_rd0_outbound_allow_web_out_vs_outbound-1, FWShift-global_admins_continue_rd0_outbound_allow_web_out_vs_outbound-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Windows Firewall names no zone: give the networks behind internal with --zone-network (or --zone-map it to Host or a profile).
+  global/admins_continue>rd0/dmz_no_inside  ->  approximated  (emitted as FWShift-global_admins_continue_rd0_dmz_no_inside-1, FWShift-global_admins_continue_rd0_dmz_no_inside-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web6/web_in  ->  needs-review, emitted disabled  (emitted as FWShift-global_admins_continue_vs_web6_web_in-1, FWShift-global_admins_continue_vs_web6_web_in-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of Windows Firewall names no zone: give the networks behind external with --zone-network (or --zone-map it to Host or a profile).
+  global/admins_continue>vs_web6/(default)  ->  approximated  (emitted as FWShift-global_admins_continue_vs_web6__default_-1, FWShift-global_admins_continue_vs_web6__default_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web/web_in  ->  needs-review, emitted disabled  (emitted as FWShift-global_admins_continue_vs_web_web_in-1, FWShift-global_admins_continue_vs_web_web_in-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of Windows Firewall names no zone: give the networks behind external with --zone-network (or --zone-map it to Host or a profile).
+  global/admins_continue>vs_web/(default)  ->  approximated  (emitted as FWShift-global_admins_continue_vs_web__default_-1, FWShift-global_admins_continue_vs_web__default_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web_http/(refused)  ->  approximated  (emitted as FWShift-global_admins_continue_vs_web_http__refused_-1, FWShift-global_admins_continue_vs_web_http__refused_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  global/admins_continue>vs_old_app/(refused)  ->  exact  (emitted as FWShift-global_admins_continue_vs_old_app__refused_-1, FWShift-global_admins_continue_vs_old_app__refused_-2)
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  global/admins_continue>vs_inbound_dmz/(default)  ->  approximated  (emitted as FWShift-global_admins_continue_vs_inbound_dmz__default_-1, FWShift-global_admins_continue_vs_inbound_dmz__default_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_outbound/(default)  ->  approximated  (emitted as FWShift-global_admins_continue_vs_outbound__default_-1, FWShift-global_admins_continue_vs_outbound__default_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone internal; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/reject_telnet  ->  exact  (emitted as FWShift-global_reject_telnet-1, FWShift-global_reject_telnet-2)
+      [info] ACTION_DROP: action reset-client: a block rule of Windows Firewall drops without an answer
+  global/ping_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as FWShift-global_ping_in_vs_outbound-1, FWShift-global_ping_in_vs_outbound-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and a rule of Windows Firewall names no zone: give the networks behind dmz with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Windows Firewall names no zone: give the networks behind internal with --zone-network (or --zone-map it to Host or a profile).
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled  (emitted as FWShift-global_office_ssh_vs_outbound-1, FWShift-global_office_ssh_vs_outbound-2)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Windows Firewall names no zone: give the networks behind internal with --zone-network (or --zone-map it to Host or a profile).
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a rule of Windows Firewall names addresses.
+  global/partners_in@vs_web  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a rule of Windows Firewall names addresses.
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a rule of Windows Firewall names addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a rule of Windows Firewall names addresses.
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a rule of Windows Firewall names addresses.
+  global/inspect_irule>rd0/dmz_no_inside  ->  approximated  (emitted as FWShift-global_inspect_irule_rd0_dmz_no_inside-1, FWShift-global_inspect_irule_rd0_dmz_no_inside-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/inspect_irule>vs_old_app/(refused)  ->  exact  (emitted as FWShift-global_inspect_irule_vs_old_app__refused_-1, FWShift-global_inspect_irule_vs_old_app__refused_-2)
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  global/inspect_irule>vs_inbound_dmz/(default)  ->  approximated  (emitted as FWShift-global_inspect_irule_vs_inbound_dmz__default_-1, FWShift-global_inspect_irule_vs_inbound_dmz__default_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/inspect_irule>vs_outbound/(default)  ->  approximated  (emitted as FWShift-global_inspect_irule_vs_outbound__default_-1, FWShift-global_inspect_irule_vs_outbound__default_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone internal; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled  (emitted as FWShift-rd0_outbound_allow_dns_out_vs_dns-1, FWShift-rd0_outbound_allow_dns_out_vs_dns-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Windows Firewall names no zone: give the networks behind internal with --zone-network (or --zone-map it to Host or a profile).
+  rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as FWShift-rd0_outbound_allow_dns_out_vs_outbound-1, FWShift-rd0_outbound_allow_dns_out_vs_outbound-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Windows Firewall names no zone: give the networks behind internal with --zone-network (or --zone-map it to Host or a profile).
+  rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as FWShift-rd0_outbound_allow_web_out_vs_outbound-1, FWShift-rd0_outbound_allow_web_out_vs_outbound-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Windows Firewall names no zone: give the networks behind internal with --zone-network (or --zone-map it to Host or a profile).
+  rd0/dmz_no_inside  ->  approximated  (emitted as FWShift-rd0_dmz_no_inside-1, FWShift-rd0_dmz_no_inside-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web6/web_in  ->  needs-review, emitted disabled  (emitted as FWShift-vs_web6_web_in-1, FWShift-vs_web6_web_in-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of Windows Firewall names no zone: give the networks behind external with --zone-network (or --zone-map it to Host or a profile).
+  vs_web6/web6_in  ->  needs-review, emitted disabled  (emitted as FWShift-vs_web6_web6_in-1, FWShift-vs_web6_web6_in-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of Windows Firewall names no zone: give the networks behind external with --zone-network (or --zone-map it to Host or a profile).
+  vs_web6/(default)  ->  approximated  (emitted as FWShift-vs_web6__default_-1, FWShift-vs_web6__default_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web/web_in  ->  needs-review, emitted disabled  (emitted as FWShift-vs_web_web_in-1, FWShift-vs_web_web_in-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of Windows Firewall names no zone: give the networks behind external with --zone-network (or --zone-map it to Host or a profile).
+  vs_web/(default)  ->  approximated  (emitted as FWShift-vs_web__default_-1, FWShift-vs_web__default_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web_http/(refused)  ->  approximated  (emitted as FWShift-vs_web_http__refused_-1, FWShift-vs_web_http__refused_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  vs_dns/(default)  ->  exact  (emitted as FWShift-vs_dns__default_-1, FWShift-vs_dns__default_-2)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  vs_old_app/(refused)  ->  exact  (emitted as FWShift-vs_old_app__refused_-1, FWShift-vs_old_app__refused_-2)
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  vs_inbound_dmz/(default)  ->  approximated  (emitted as FWShift-vs_inbound_dmz__default_-1, FWShift-vs_inbound_dmz__default_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_outbound/(default)  ->  needs-review
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone internal; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] WINFW_LEFT_TO_DEFAULT: all of it is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)

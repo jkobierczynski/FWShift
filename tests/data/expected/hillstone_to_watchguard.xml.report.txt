@@ -1,0 +1,69 @@
+FWShift conversion report
+  source: hillstone
+  target: watchguard
+
+Summary
+  Security rules:     14   exact 6, approximated 0, needs review 8 (5 emitted disabled), skipped 0
+  NAT rules:           9   exact 0, approximated 0, needs review 0, skipped 9
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 8, approximated 0, needs review 1, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_NAT_ORDER: DNAT is looked up before the route and the policy, SNAT after the route; the rules were read as naming the destination before DNAT and the zone after it, which is what Hillstone's troubleshooting guide shows (one of its configuration examples names the translated address instead): check the rules for translated traffic on the firewall
+  [needs-review] HILLSTONE_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with show service predefined: HTTP, HTTPS, SSH, PING, DNS
+  [needs-review] WATCHGUARD_LOAD: the output is the policy part of a configuration file of Policy Manager: address groups, aliases, services, static NAT actions and policies in manual order. It holds no interfaces and no system settings, so it is not a file to restore on a Firebox as it is (a restore replaces the whole configuration). Merge its lists into a configuration saved from the target, open the result in Policy Manager and check it there before it goes to the Firebox. WatchGuard publishes no schema of the file: the elements are those of the published readers of the format, and the words for the action of a policy (Allow, Deny) are assumed
+  [needs-review] INTERFACES_REQUIRED: the policies name these zones as interfaces of the Firebox, which must exist under these names (or be renamed with --zone-map): dmz, lab, trust, untrust
+  [info] HILLSTONE_SOURCE: 4 zones (trust, untrust, dmz, lab); 14 rules of the policy, first match in the order of the configuration (not by id)
+  [info] HILLSTONE_ANY: the address Any is read as every IPv4 address and IPv6-any as every IPv6 address
+  [info] HILLSTONE_REJECT: action reject: read as a deny that answers the client: lab-to-inside
+  [info] HILLSTONE_SCHEDULE: rules with a schedule: schedules are not converted, a target writes these rules disabled: app-clients: office-hours
+  [info] HILLSTONE_DEFAULTS: what no rule matches, between zones and inside a zone (default-action): deny
+
+Security rules
+  publish-web  ->  needs-review
+      [needs-review] NAT_NOT_IN_POLICY: the rule allows the destination of NAT rule 'dnatrule 1' for other services or zones than the NAT rule translates: on a Firebox the translation is part of the policy, and it is not written into this one, which allows the address without translating it
+  block-country  ->  needs-review, emitted disabled
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-country': address entry blocked-country: country XX, which the configuration does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  lab-to-inside  ->  needs-review
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [info] RESET_ACTION: action reset-client becomes Deny
+  inside-to-servers  ->  needs-review
+      [needs-review] HILLSTONE_DNAT_INSIDE: names servers, which holds an address that dnatrule 1, dnatrule 2, dnatrule 3 translate(s) to: read as the address a packet has before DNAT; if the firewall matches rules after DNAT, the rule also matches the connections translated to it
+  app-clients  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'app-ports': source ports, which a service of Fireware does not match.
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] UNCONVERTIBLE_OBJECT: the services of the rule hold source ports, which a service of Fireware does not match.
+  p2p  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: application BitTorrent: application identification narrows the match.
+  to-branch-vpn  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action tunnel vpn-to-branch: traffic of a VPN tunnel only.
+  contractors-out  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'wild-hosts': address entry wild-hosts: wildcard address '10.10.0.5 0.0.255.0'.
+      [needs-review] USER_MATCH: source user match role contractors is not converted.
+
+NAT rules
+  bnatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule without translation (a NAT exemption) has no place in this file
+  dnatrule 1  ->  skipped
+      [info] NAT_NO_POLICY: on a Firebox static NAT is part of a policy, and no rule allows exactly the traffic this rule translates: the action is written and used by no policy
+  dnatrule 2  ->  skipped
+      [info] NAT_NO_POLICY: on a Firebox static NAT is part of a policy, and no rule allows exactly the traffic this rule translates: the action is written and used by no policy
+  dnatrule 3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a translation to one of several addresses (server load balancing is not written); translated destination 'servers' is not one IPv4 address
+  dnatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule without translation (a NAT exemption) has no place in this file
+  snatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule without translation (a NAT exemption) has no place in this file
+  snatrule 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  snatrule 3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  snatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+
+Services
+  app-ports  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a service of Fireware does not match: not written, and the policies that use it are disabled

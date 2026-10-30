@@ -1,0 +1,62 @@
+FWShift conversion report
+  source: hillstone
+  target: vyos
+
+Summary
+  Security rules:     14   exact 6, approximated 1, needs review 7 (5 emitted disabled), skipped 0
+  NAT rules:           9   exact 5, approximated 0, needs review 0, skipped 4
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_NAT_ORDER: DNAT is looked up before the route and the policy, SNAT after the route; the rules were read as naming the destination before DNAT and the zone after it, which is what Hillstone's troubleshooting guide shows (one of its configuration examples names the translated address instead): check the rules for translated traffic on the firewall
+  [needs-review] HILLSTONE_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with show service predefined: HTTP, HTTPS, SSH, PING, DNS
+  [needs-review] VYOS_LOAD: load the commands in configuration mode: 'configure', paste them, 'compare', then 'commit-confirm 10' (unless 'confirm' follows within 10 minutes, VyOS goes back to the configuration before; older releases reboot to do so) and 'save'. A commit applies all of them or none. The policy is written as the zone-based firewall: zones trust, untrust, dmz, lab, and a chain FWS-<from>-<to> for each pair of zones that needs one. Interfaces of the router in no zone: VyOS drops their traffic into a zone and leaves traffic from a zone to them to the forward filter; that traffic is decided by chain FWS-NO-ZONE (the rules for any destination and the default of the policy), jumped to from rule 10000 of the forward filter for what leaves by an interface not in interface group FWS-ZONES. Check that the forward filter has no rule 10000 (show firewall ipv4 forward filter), or give another number with --policy-id-start; its rules with lower numbers come first, and those after rule 10000 are no longer reached by what the chain decides, as it ends with the default of the policy. The forward filter of the router still applies before the zones (an accept there goes on to the zones, a drop is final). A zone of the same name that exists gets these interfaces and chains in addition to its own; a chain set for a pair that has one replaces it. NAT rules are numbered from 10000: rules of the router with lower numbers come first. To take a conversion away: delete the groups, chains, zones and NAT rules the commands name (all under FWS-, and the NAT rules from 10000 on). Assumed: names of up to 63 characters
+  [needs-review] INTERFACES_REQUIRED: zones need the interfaces of the router: these were written with their own name as interface, which matches no traffic until it is replaced (--interface-map, or --zone-map with zones of the router's interfaces): dmz, lab, trust, untrust (interfaces of the source that are no names of Linux interfaces: dmz: ethernet0/2; lab: ethernet0/3; trust: ethernet0/1; untrust: ethernet0/0)
+  [needs-review] VYOS_NO_ZONE: traffic from a zone to an interface in no zone is decided by chain FWS-NO-ZONE; its replies come in from an interface in no zone, which VyOS drops at the zones unless 'firewall global-options state-policy' accepts established and related packets (the commands do not set it, as it applies to the whole router)
+  [info] HILLSTONE_SOURCE: 4 zones (trust, untrust, dmz, lab); 14 rules of the policy, first match in the order of the configuration (not by id)
+  [info] HILLSTONE_ANY: the address Any is read as every IPv4 address and IPv6-any as every IPv6 address
+  [info] HILLSTONE_REJECT: action reject: read as a deny that answers the client: lab-to-inside
+  [info] HILLSTONE_SCHEDULE: rules with a schedule: schedules are not converted, a target writes these rules disabled: app-clients: office-hours
+  [info] HILLSTONE_DEFAULTS: what no rule matches, between zones and inside a zone (default-action): deny
+  [info] VYOS_FQDN: host names are written as fqdn or domain-group, which the router resolves while it runs: files.example.org, partner.example.net, updates.example.com
+
+Security rules
+  publish-web  ->  approximated  (emitted as FWS-untrust-dmz rule 10)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'pub-web' with post-NAT 'web-srv' because of NAT rule 'dnatrule 1'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'dnatrule 1' also translates the port to 8080: the service of this rule (HTTP) named the pre-NAT port only, and now names 8080, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+  block-country  ->  needs-review, emitted disabled
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-country': address entry blocked-country: country XX, which the configuration does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  lab-to-inside  ->  needs-review  (emitted as FWS-lab-trust rule 10)
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [info] RESET_ACTION: action reset-client becomes reject, which answers with an ICMP unreachable rather than a TCP reset
+  inside-to-servers  ->  needs-review  (emitted as FWS-trust-dmz rule 10, FWS-trust-dmz rule 20)
+      [needs-review] HILLSTONE_DNAT_INSIDE: names servers, which holds an address that dnatrule 1, dnatrule 2, dnatrule 3 translate(s) to: read as the address a packet has before DNAT; if the firewall matches rules after DNAT, the rule also matches the connections translated to it
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-srv', the address NAT rule 'dnatrule 1' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'dnatrule 2' translates '203.0.113.11' to. The target looks rules up after that translation, so traffic sent to '203.0.113.11' now matches this rule; on the source it did not
+  app-clients  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  p2p  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: application BitTorrent: application identification narrows the match.
+  tunnels-to-partners  ->  exact  (emitted as FWS-dmz-untrust rule 10, FWS-dmz-untrust rule 20, FWS-lab-untrust rule 20, FWS-lab-untrust rule 30)
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  to-branch-vpn  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action tunnel vpn-to-branch: traffic of a VPN tunnel only.
+  contractors-out  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'wild-hosts': address entry wild-hosts: wildcard address '10.10.0.5 0.0.255.0'.
+      [needs-review] USER_MATCH: source user match role contractors is not converted.
+
+NAT rules
+  bnatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a BNAT rule (bidirectional NAT), which is not converted
+  dnatrule 3  ->  skipped
+      [needs-review] NAT_DESTINATION: the translated address must be one IPv4 address or range
+  dnatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT between IPv4 and IPv6, which is not converted
+  snatrule 1  ->  skipped
+      [needs-review] NAT_ADDRESSES: the rule needs static IPv4 addresses as source and destination
+  snatrule 4  ->  exact
+      [info] NAT_DISABLED: disabled in the source; written disabled

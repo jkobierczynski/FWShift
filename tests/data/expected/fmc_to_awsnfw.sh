@@ -73,11 +73,11 @@ policy() {
 free_group fwshift-rules
 free_policy fwshift
 
-# Rule group 1: 8 rules, in the order of the policy.
+# Rule group 1: 9 rules, in the order of the policy.
 cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
 {
  "RulesSource": {
-  "RulesString": "drop ip 10.0.0.0/8 any -> any any (msg:\"pre-spoofed\"; flow:to_server; sid:1; rev:1;)\ndrop udp any any -> any 3544 (msg:\"prefilter-default-block-tunnels\"; flow:to_server; sid:2; rev:1;)\ndrop ip any any -> any any (msg:\"prefilter-default-block-tunnels\"; flow:to_server; ip_proto:47; sid:3; rev:1;)\ndrop ip any any -> any any (msg:\"prefilter-default-block-tunnels\"; flow:to_server; ip_proto:4; sid:4; rev:1;)\ndrop ip any any -> any any (msg:\"prefilter-default-block-tunnels\"; flow:to_server; ip_proto:41; sid:5; rev:1;)\ndrop ip 10.30.0.0/24 any -> any any (msg:\"Block OT outbound\"; flow:to_server; sid:6; rev:1;)\ndrop tcp [10.10.0.200/29,10.10.0.208/28,10.10.0.224/28,10.10.0.240/29,10.10.0.248/31,10.10.0.250/32] any -> any [80,443] (msg:\"Uncategorised web\"; flow:to_server; sid:7; rev:1;)\ndrop ip any any -> any any (msg:\"Reset the rest from inside\"; flow:to_server; sid:8; rev:1;)\n"
+  "RulesString": "pass ip any any -> any any (msg:\"fwshift-replies\"; flow:to_client; sid:9; rev:1;)\ndrop ip 10.0.0.0/8 any -> any any (msg:\"pre-spoofed\"; flow:to_server; sid:1; rev:1;)\ndrop udp any any -> any 3544 (msg:\"prefilter-default-block-tunnels\"; flow:to_server; sid:2; rev:1;)\ndrop ip any any -> any any (msg:\"prefilter-default-block-tunnels\"; flow:to_server; ip_proto:47; sid:3; rev:1;)\ndrop ip any any -> any any (msg:\"prefilter-default-block-tunnels\"; flow:to_server; ip_proto:4; sid:4; rev:1;)\ndrop ip any any -> any any (msg:\"prefilter-default-block-tunnels\"; flow:to_server; ip_proto:41; sid:5; rev:1;)\ndrop ip 10.30.0.0/24 any -> any any (msg:\"Block OT outbound\"; flow:to_server; sid:6; rev:1;)\ndrop tcp [10.10.0.200/29,10.10.0.208/28,10.10.0.224/28,10.10.0.240/29,10.10.0.248/31,10.10.0.250/32] any -> any [80,443] (msg:\"Uncategorised web\"; flow:to_server; sid:7; rev:1;)\ndrop ip any any -> any any (msg:\"Reset the rest from inside\"; flow:to_server; sid:8; rev:1;)\n"
  },
  "StatefulRuleOptions": {
   "RuleOrder": "STRICT_ORDER"

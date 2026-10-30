@@ -1,0 +1,59 @@
+FWShift conversion report
+  source: stormshield
+  target: windows-firewall
+
+Summary
+  Security rules:     18   exact 4, approximated 0, needs review 12 (8 emitted disabled), skipped 2
+  Addresses:          22   exact 22, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  [needs-review] STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  [needs-review] STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  [needs-review] STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  [info] STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  local 1  ->  needs-review, emitted disabled  (emitted as FWShift-local_1-1, FWShift-local_1-2)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone in, and a rule of Windows Firewall names no zone: give the networks behind in with --zone-network (or --zone-map it to Host or a profile).
+  local 2  ->  needs-review  (emitted as FWShift-local_2-1, FWShift-local_2-2)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 4  ->  needs-review  (emitted as FWShift-local_4-1, FWShift-local_4-2)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (inspection=ips); attach equivalent inspection on the target
+  local 5  ->  needs-review, emitted disabled  (emitted as FWShift-local_5-1, FWShift-local_5-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone in, and a rule of Windows Firewall names no zone: give the networks behind in with --zone-network (or --zone-map it to Host or a profile).
+  local 6  ->  needs-review  (emitted as FWShift-local_6-1, FWShift-local_6-2)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [info] ACTION_DROP: action reset-client: a block rule of Windows Firewall drops without an answer
+  local 8  ->  needs-review, emitted disabled  (emitted as FWShift-local_8-1, FWShift-local_8-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone out, and a rule of Windows Firewall names no zone: give the networks behind out with --zone-network (or --zone-map it to Host or a profile).
+  local 9  ->  needs-review, emitted disabled  (emitted as FWShift-local_9-1, FWShift-local_9-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone out, and a rule of Windows Firewall names no zone: give the networks behind out with --zone-network (or --zone-map it to Host or a profile).
+  local 10  ->  needs-review, emitted disabled  (emitted as FWShift-local_10-1, FWShift-local_10-2, FWShift-local_10-3, FWShift-local_10-4)
+      [needs-review] STORMSHIELD_BRIDGE: names a bridge or a port of one: read as that interface only; whether the firewall matches the bridge for its ports, or the reverse, is not documented
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lab, and a rule of Windows Firewall names no zone: give the networks behind lab with --zone-network (or --zone-map it to Host or a profile).
+  local 11  ->  needs-review, emitted disabled  (emitted as FWShift-local_11-1, FWShift-local_11-2)
+      [needs-review] USER_MATCH: source user match staff@corp.example is not converted.
+  local 13  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: a rule of Windows Firewall names addresses.
+  local 15  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application protocol=http); attach equivalent inspection on the target
+      [needs-review] FQDN_NOT_SUPPORTED: host name object www.example.org: a rule of Windows Firewall names addresses.
+  local 16  ->  needs-review
+      [needs-review] WINFW_LEFT_TO_DEFAULT: all of it is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  global 2  ->  skipped
+      [info] STORMSHIELD_DELEG: deleg of everything: the rest goes to the local policy
+  local 7  ->  skipped
+      [info] STORMSHIELD_NON_TERMINAL: action decrypt: the firewall goes on to the next rule; nothing is decided here

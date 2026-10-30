@@ -1,0 +1,84 @@
+FWShift conversion report
+  source: hillstone
+  target: sonicwall
+
+Summary
+  Security rules:     14   exact 6, approximated 0, needs review 8 (7 emitted disabled), skipped 0
+  NAT rules:           9   exact 4, approximated 0, needs review 1, skipped 4
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 6, approximated 0, needs review 3, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_NAT_ORDER: DNAT is looked up before the route and the policy, SNAT after the route; the rules were read as naming the destination before DNAT and the zone after it, which is what Hillstone's troubleshooting guide shows (one of its configuration examples names the translated address instead): check the rules for translated traffic on the firewall
+  [needs-review] HILLSTONE_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with show service predefined: HTTP, HTTPS, SSH, PING, DNS
+  [needs-review] NAT_NOTHING_ELSE: SonicOS adds NAT policies of its own (an interface in a WAN zone hides the LAN and DMZ subnets behind its address), and the source translated only what its NAT rules say. The interfaces of the zones are not known (--interface-map), so no policy that translates nothing was written: disable the policies SonicOS added (Network, NAT Policies, Default & Custom), or check that the source's translations are all it does
+  [needs-review] IPV6_PRIORITY_AUTO: IPv6 rules are written without a priority, after every IPv4 rule: SonicOS keeps one list of priorities for the rules of every pair of zones, IPv4 first and with rules of its own among them, so the place of an IPv6 rule is not known beforehand (SonicOS 8.2.2 refused the places FWShift gave). SonicOS places them. Pairs with more than one IPv6 rule, whose order SonicOS decides: trust to untrust: check it
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, address-object ipv6, nat-policy name and comment, nat-policy priority manual, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): trust, untrust, dmz, lab
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] HILLSTONE_SOURCE: 4 zones (trust, untrust, dmz, lab); 14 rules of the policy, first match in the order of the configuration (not by id)
+  [info] HILLSTONE_ANY: the address Any is read as every IPv4 address and IPv6-any as every IPv6 address
+  [info] HILLSTONE_REJECT: action reject: read as a deny that answers the client: lab-to-inside
+  [info] HILLSTONE_SCHEDULE: rules with a schedule: schedules are not converted, a target writes these rules disabled: app-clients: office-hours
+  [info] HILLSTONE_DEFAULTS: what no rule matches, between zones and inside a zone (default-action): deny
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv4' (all addresses, in two halves) instead of any
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv6' (all addresses, in two halves) instead of any
+  [info] DEFAULT_DENY_ADDED: 31 rules that deny were added, one at the end of each pair of zones and IP version: SonicOS allows some traffic between zones by itself (from LAN to WAN, for example), and the source did not
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  block-country  ->  needs-review, emitted disabled
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-country': address entry blocked-country: country XX, which the configuration does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  lab-to-inside  ->  needs-review
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [info] RESET_ACTION: action reset-client becomes deny
+  inside-to-servers  ->  needs-review, emitted disabled
+      [needs-review] HILLSTONE_DNAT_INSIDE: names servers, which holds an address that dnatrule 1, dnatrule 2, dnatrule 3 translate(s) to: read as the address a packet has before DNAT; if the firewall matches rules after DNAT, the rule also matches the connections translated to it
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ping-reply': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  app-clients  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'app-ports': source ports, which a SonicOS service object does not have.
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  p2p  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: application BitTorrent: application identification narrows the match.
+  tunnels-to-partners  ->  needs-review, emitted disabled  (emitted as tunnels-to-partners, tunnels-to-partners 2)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 2 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'gre-tunnel': IP protocol 47, for which FWShift does not know the command of SonicOS.
+  to-branch-vpn  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action tunnel vpn-to-branch: traffic of a VPN tunnel only.
+  contractors-out  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'wild-hosts': address entry wild-hosts: wildcard address '10.10.0.5 0.0.255.0'.
+      [needs-review] USER_MATCH: source user match role contractors is not converted.
+
+NAT rules
+  bnatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a BNAT rule (bidirectional NAT), which is not converted
+  dnatrule 3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: translation to one of several addresses (servers), which FWShift does not write for SonicOS; translated destination servers is not one IPv4 address, network or range
+  dnatrule 4  ->  skipped
+      [needs-review] NAT_IPV6: IPv6 NAT is not written
+  snatrule 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+  snatrule 3  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic to untrust only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+
+Services
+  app-ports  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  ping-reply  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  gre-tunnel  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 47, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  HTTP  ->  exact  (emitted as HTTP 2)
+      [info] RENAMED: renamed to 'HTTP 2' to fit the target's naming rules
+  HTTPS  ->  exact  (emitted as HTTPS 2)
+      [info] RENAMED: renamed to 'HTTPS 2' to fit the target's naming rules
+  SSH  ->  exact  (emitted as SSH 2)
+      [info] RENAMED: renamed to 'SSH 2' to fit the target's naming rules
+  PING  ->  exact  (emitted as PING 2)
+      [info] RENAMED: renamed to 'PING 2' to fit the target's naming rules
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that
+  DNS  ->  exact  (emitted as DNS, DNS tcp 53, DNS udp 53)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'DNS' of 'DNS tcp 53', 'DNS udp 53'

@@ -1,0 +1,40 @@
+FWShift conversion report
+  source: gcp (vpc-shop)
+  target: hillstone
+
+Summary
+  Security rules:     28   exact 26, approximated 0, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 2, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] HILLSTONE_NO_ZONES: the source names no zones: the rules are written without zones, so they match between every pair of zones and inside every zone; give them zones (--zone-map, or edit them)
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10031 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  implied allow egress+implied deny ingress  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  allow-mgmt-v6  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'tcp-22_icmpv6' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0.
+  pol-shop:geo-and-fqdn (in)  ->  needs-review, emitted disabled  (emitted as 2 rules of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: matches srcFqdns, srcRegionCodes, which the export does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  implied deny ingress (in)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  implied allow egress (out)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+
+NAT rules
+  external-192.0.2.10  ->  needs-review  (emitted as snatrule and dnatrule)
+      [needs-review] NAT_ORDER: on the source, the traffic this rule forwards to 10.50.1.10 keeps its source address. The target translates sources apart from destinations, after the destination: there NAT rule 'external-192.0.2.5' translates the source of that traffic as well
+  external-192.0.2.5  ->  needs-review  (emitted as snatrule and dnatrule)
+      [needs-review] NAT_ORDER: on the source, NAT rule 'external-192.0.2.10' above this one matches part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well

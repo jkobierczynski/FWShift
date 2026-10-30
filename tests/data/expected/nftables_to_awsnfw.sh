@@ -73,7 +73,7 @@ policy() {
 free_group fwshift-rules
 free_policy fwshift
 
-# Rule group 1: 6 rules, in the order of the policy.
+# Rule group 1: 7 rules, in the order of the policy.
 cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
 {
  "RuleVariables": {
@@ -87,7 +87,7 @@ cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
   }
  },
  "RulesSource": {
-  "RulesString": "drop ip $blocked any -> any any (msg:\"Block bad hosts\"; flow:to_server; sid:1; rev:1;)\ndrop ip 10.10.200.0/24 any -> any any (msg:\"Guests stay in\"; flow:to_server; sid:2; rev:1;)\ndrop ip any any -> any any (msg:\"OT no internet\"; flow:to_server; sid:3; rev:1;)\npass icmp ::/0 any -> any any (msg:\"ICMPv6 basics\"; flow:to_server; ip_proto:58; itype:128; sid:4; rev:1;)\npass icmp ::/0 any -> any any (msg:\"ICMPv6 basics\"; flow:to_server; ip_proto:58; itype:135; sid:5; rev:1;)\npass icmp ::/0 any -> any any (msg:\"ICMPv6 basics\"; flow:to_server; ip_proto:58; itype:136; sid:6; rev:1;)\n"
+  "RulesString": "pass ip any any -> any any (msg:\"fwshift-replies\"; flow:to_client; sid:7; rev:1;)\ndrop ip $blocked any -> any any (msg:\"Block bad hosts\"; flow:to_server; sid:1; rev:1;)\ndrop ip 10.10.200.0/24 any -> any any (msg:\"Guests stay in\"; flow:to_server; sid:2; rev:1;)\ndrop ip any any -> any any (msg:\"OT no internet\"; flow:to_server; sid:3; rev:1;)\npass icmp ::/0 any -> any any (msg:\"ICMPv6 basics\"; flow:to_server; ip_proto:58; itype:128; sid:4; rev:1;)\npass icmp ::/0 any -> any any (msg:\"ICMPv6 basics\"; flow:to_server; ip_proto:58; itype:135; sid:5; rev:1;)\npass icmp ::/0 any -> any any (msg:\"ICMPv6 basics\"; flow:to_server; ip_proto:58; itype:136; sid:6; rev:1;)\n"
  },
  "StatefulRuleOptions": {
   "RuleOrder": "STRICT_ORDER"

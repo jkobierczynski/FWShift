@@ -1,0 +1,61 @@
+FWShift conversion report
+  source: zyxel
+  target: nftables
+
+Summary
+  Security rules:     19   exact 13, approximated 1, needs review 4 (4 emitted disabled), skipped 1
+  NAT rules:           9   exact 4, approximated 4, needs review 0, skipped 1
+  Addresses:          17   exact 17, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           16   exact 16, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZYXEL_DEFAULT_SNAT: the default SNAT of the WAN trunk (connections from internal interfaces leave with the address of the WAN interface) is not a rule of the configuration and is not converted: give the target the source NAT it needs
+  [needs-review] ZYXEL_BLOCK_INTRAZONE: zones that block traffic between their members: read as a rule at the top that denies inside the zone, whatever the rules say (not confirmed on a device): DMZ
+  [needs-review] ZYXEL_FQDN: address objects of a host name (fqdn), read as names resolved for IPv4; the form is not in the CLI Reference Guide FWShift could read: PORTAL
+  [needs-review] NFT_LOAD: the output is one table, inet fwshift, which replaces itself when loaded: check it with 'nft -c -f FILE', load it with 'nft -f FILE'. Other tables stay as they are, but every base chain at the forward hook sees each packet: the drop policy here drops what this table does not accept even where another table (firewalld, Docker, libvirt, iptables-nft) accepts it, and a drop in another table still wins over an accept here
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: DMZ, LAN1, WAN, LAB
+  [info] ZYXEL_SOURCE: 4 zones (WAN, LAN1, DMZ, LAB); 18 rules of the security policy, first match, IPv4 and IPv6 lists one after the other. Rules to and from the firewall itself (ZyWALL) are not converted
+  [info] ZYXEL_NAT_ORDER: virtual servers and 1:1 NAT are done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT of policy routes is done after it
+  [info] ZYXEL_UNZONED: interfaces in no zone, which only rules from any or to any match: ge7
+  [info] ZYXEL_INTERFACE_OBJECT: address objects of an interface, read with the static address the configuration gives the interface: interface-subnet ge3, interface-subnet ge4, interface-ip ge1
+  [info] ZYXEL_ICMP_NAMES: ICMP types by name, read with the numbers of the IANA registry: echo, echo-request
+  [info] ZYXEL_DEFAULTS: what no rule matches (secure-policy default-rule): IPv4 deny, IPv6 deny
+  [info] LOGGING_AT_END: 4 rules log the end of a connection on the source; an nftables rule logs the packet it matches, so only rules that log the start of a connection got a log statement. Connection ends are in the conntrack events (conntrack -E, ulogd)
+
+Security rules
+  Admin_Mgmt  ->  approximated  (emitted as 1 forward rule)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default_av); attach equivalent inspection on the target
+  LAN1_to_DMZ_Reject  ->  exact  (emitted as 1 forward rule)
+      [info] RESET_ACTION: action reset-client becomes a plain reject: a TCP reset can only answer TCP
+  Alice_Workhours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'WORKHOURS' is not converted; the rule would apply at all times.
+      [needs-review] USER_MATCH: source user match alice is not converted.
+  Country_Block  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'COUNTRY_X': geography XX: not an address FWShift can read. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Portal_Access  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object PORTAL: an nftables rule matches addresses only; resolve it into an address object or a set kept up to date by a script.
+  VS_Only  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: ctmatch dnat: matches only connections that a virtual server translated.
+  LAN1_to_Device  ->  skipped
+      [info] ZYXEL_DEVICE_RULE: a rule for traffic to the firewall itself (LAN1 to ZyWALL): not converted
+
+NAT rules
+  virtual-server WEB_VS  ->  approximated  (emitted as 1 prerouting)
+      [approximated] ZYXEL_NAT_LOOPBACK: nat-loopback: hosts behind the firewall that use the original address are translated as well (and their source is translated to the firewall); only the translation for traffic that arrives on the interface is converted
+  virtual-server ONE2ONE  ->  exact  (emitted as 1 prerouting, 1 postrouting)
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as an SNAT rule plus a DNAT rule for the inbound direction
+  virtual-server MANY2ONE  ->  approximated  (emitted as 1 prerouting, 1 postrouting)
+      [approximated] NAT_STATIC_RANGE: static NAT of several addresses becomes SNAT to a range, which does not promise that each host keeps the same translated address
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as an SNAT rule plus a DNAT rule for the inbound direction
+  virtual-server OLD_VS  ->  exact
+      [info] NAT_DISABLED: disabled in the source; written as a comment
+  policy-route 1  ->  skipped
+      [info] ZYXEL_ROUTE_NO_SNAT: a policy route without SNAT above one with SNAT: kept as a rule that translates nothing, so that the SNAT of the routes below it does not apply to its traffic
+      [needs-review] NAT_NOT_CONVERTED: not converted: references 'LAB_SUBNET': interface-subnet ge6: interface-subnet of ge6: the interface gets its address by dhcp
+  policy-route 2  ->  approximated  (emitted as 1 postrouting)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from LAN1 only; postrouting cannot match the input interface, so it applies to traffic from every interface
+  policy-route 3  ->  approximated  (emitted as 2 postrouting)
+      [info] ZYXEL_SNAT_POOL: SNAT to the addresses of PUBLIC_RANGE, read as translation with port translation (the documentation does not say)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from DMZ only; postrouting cannot match the input interface, so it applies to traffic from every interface

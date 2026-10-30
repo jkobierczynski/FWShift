@@ -1,0 +1,52 @@
+FWShift conversion report
+  source: windows-firewall (Group Policy, local)
+  target: windows-firewall
+
+Summary
+  Security rules:     31   exact 24, approximated 1, needs review 6 (5 emitted disabled), skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           23   exact 23, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] WINFW_BYPASS: rules with authenticated bypass let IPsec-authenticated connections through block rules; they are first in the converted policy and not converted: Management over IPsec, overriding block rules
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Private
+  [info] WINFW_DEFAULT_ASSUMED: settings that no store of the input holds were taken as Windows's defaults (firewall on, inbound blocked, outbound allowed): Private defaultinboundaction, Public defaultinboundaction, Public defaultoutboundaction
+  [info] WINFW_HOST_POLICY: a host firewall: the zone Host is the host itself, the zones Domain, Private and Public the networks of the interfaces in each profile. Windows has no rule order: block rules decide before allow rules, then the default of the profile; the converted policy says that in first-match order (block rules, allow rules, the defaults that allow). Traffic between the networks is not the host's to decide and is denied
+  [info] WINFW_STORES: stores read: Group Policy 8 rules, local 22 rules
+  [info] WINFW_PROFILES: Domain: inbound blocked (Group Policy), outbound allowed (Group Policy), local rules not merged (Group Policy); Private: inbound blocked (default), outbound blocked (Group Policy); Public: inbound blocked (default), outbound allowed (default)
+  [info] WINFW_LOCAL_NOT_MERGED: Group Policy (or MDM) does not merge local rules in the profile Domain: the local rules are left out there (16 rules named it)
+  [info] WINFW_SETTING_NOT_CONVERTED: profile settings that decide traffic no rule names are not converted: Public: unicast responses to multicast and broadcast traffic are blocked
+  [info] WINFW_ADDRESS_KEYWORDS: rules name address keywords, whose addresses only Windows knows at run time: DNS, LocalSubnet, LocalSubnet4, LocalSubnet6. They are dynamic groups; only a Windows target writes them again
+  [info] WINFW_NOT_READ: not read: 1 connection security (IPsec) rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\ConSecRules; 1 Windows Service Hardening rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Static\System
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] WINFW_ZONES: read as the host and as profiles: Domain, Host, Private, Public; every other zone is the networks given for it (--zone-network)
+
+Security rules
+  Management over IPsec, overriding block rules  ->  needs-review, emitted disabled  (emitted as FWShift-Management_over_IPsec__overriding_block_rules)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: remote computers; IPsec (Authenticate): only connections IPsec protects match; authenticated bypass: only IPsec-authenticated connections match, and they override block rules. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: remote computers.
+      [needs-review] UNSUPPORTED_MATCH: not converted: IPsec (Authenticate): only connections IPsec protects match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: authenticated bypass: only IPsec-authenticated connections match, and they override block rules.
+  Example application server  ->  needs-review, emitted disabled  (emitted as FWShift-Example_application_server)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: program C:\Program Files\Example\server.exe. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: program C:\Program Files\Example\server.exe.
+  Print spooler (RPC)  ->  needs-review, emitted disabled  (emitted as FWShift-Print_spooler__RPC_)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the local port keyword RPC; service Spooler. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the local port keyword RPC.
+      [needs-review] UNSUPPORTED_MATCH: not converted: service Spooler.
+  mDNS on wireless  ->  needs-review, emitted disabled  (emitted as FWShift-mDNS_on_wireless)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: interface types wireless. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: interface types wireless.
+  Game server through edge traversal  ->  approximated  (emitted as FWShift-Game_server_through_edge_traversal)
+      [approximated] WINFW_EDGE_TRAVERSAL: the rule also accepts traffic that came through edge traversal (Teredo); the model has no such path: the converted rule does not let it in
+  Printer port  ->  needs-review, emitted disabled  (emitted as FWShift-Printer_port)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the field 'newfield2_40', which FWShift does not know. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the field 'newfield2_40', which FWShift does not know.
+  A rule Windows cannot parse  ->  needs-review
+      [needs-review] WINFW_RULE_INVALID: Windows does not enforce a rule it cannot parse (local ports without protocol TCP or UDP): it is kept disabled
+  SSDP discovery  ->  exact  (emitted as FWShift-SSDP_discovery)
+      [info] WINFW_PLATFORM: the rule applies on Windows NT 6.2 and later; it is taken as applying on this host
+  DNS server (local copy)  ->  exact
+      [info] WINFW_OVERRIDDEN: the Group Policy store has a rule of the same id ('Shared-Id'), which replaces this one: it is kept disabled

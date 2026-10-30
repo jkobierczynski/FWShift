@@ -271,6 +271,15 @@ class NfwJudge:
             return None
         if "aws:forward_to_sfe" not in verdicts:
             return True
+        if self.strict and self.drop == "strict":
+            # Strict order with aws:drop_strict: every packet on its own (AWS: "Drop all - Drops all packets"; a pass rule
+            # passes the packet it matches). The FWShift lab, 0.41.7: pass rules with flow:to_server and nothing for the
+            # replies blocked every connection.
+            for p in packets:
+                verdict = next((rule.action for rule in self.rules if rule.action != "alert" and rule.matches(p)), "")
+                if verdict != "pass":
+                    return False
+            return True
         decided = ""
         for p in packets:
             if decided == "pass":
@@ -527,7 +536,7 @@ def script_documents(text: str) -> List[Dict[str, Any]]:
         for line in rules.splitlines():
             for variable in re.findall(r"\$([A-Za-z0-9_]+)", line):
                 assert variable in body.get("RuleVariables", {}).get("IPSets", {}), (variable, line)
-            assert "flow:to_server;" in line
+            assert "flow:to_server;" in line or line.startswith('pass ip any any -> any any (msg:"fwshift-replies"; flow:to_client;'), line
         out.append(group_answer(names[number], body))
     return out
 
@@ -692,6 +701,11 @@ def test_awsnfw_sample_decides_like_the_judge() -> None:
 # -- the traps, one by one -------------------------------------------------------------------------------------------
 
 
+# With aws:drop_strict every packet is decided on its own (the FWShift lab, 0.41.7): a test about something else lets the
+# replies through with this rule, as FWShift's own output does.
+REPLIES = "pass ip any any -> any any (flow:to_client; sid:999;)\n"
+
+
 def decide(documents: List[Dict[str, Any]], src: str, dst: str, proto: str = "tcp", sport: int = 40000, dport: int = 443,
            icmp_type: int = 8) -> Tuple[bool, Optional[bool]]:  # fmt: skip
     """(the model's verdict, the judge's)."""
@@ -744,7 +758,7 @@ def test_both_directions_and_the_external_net_pitfall() -> None:
     documents = suricata_policy(rules, [])
     assert decide(documents, "10.0.2.9", "10.0.1.9") == (False, False) and decide(documents, "10.0.1.9", "10.0.2.9") == (False, False)
     # A group's own HOME_NET does not change EXTERNAL_NET, which stays the negation of the policy's.
-    documents = suricata_policy("pass tcp $HOME_NET any -> $EXTERNAL_NET any (flow:to_server; sid:1;)\n", ["aws:drop_strict"],
+    documents = suricata_policy("pass tcp $HOME_NET any -> $EXTERNAL_NET any (flow:to_server; sid:1;)\n" + REPLIES, ["aws:drop_strict"],
                                 variables={"IPSets": {"HOME_NET": {"Definition": ["10.0.4.0/22"]}}})  # fmt: skip
     assert decide(documents, "10.0.4.1", "198.51.100.7") == (True, True)
     assert decide(documents, "10.0.4.1", "10.0.1.1") == (False, False)  # (10.0.1.1 is in the policy's HOME_NET)
@@ -822,7 +836,7 @@ def test_what_cannot_be_read_is_never_read_as_any() -> None:
 
 
 def test_ip_set_references_variables_and_lists() -> None:
-    documents = suricata_policy("pass tcp @PL any -> [$NETS,!10.0.1.5] $PORTS (flow:to_server; sid:1;)\n", ["aws:drop_strict"],
+    documents = suricata_policy("pass tcp @PL any -> [$NETS,!10.0.1.5] $PORTS (flow:to_server; sid:1;)\n" + REPLIES, ["aws:drop_strict"],
                                 variables={"IPSets": {"NETS": {"Definition": ["10.0.1.0/24"]}},
                                            "PortSets": {"PORTS": {"Definition": ["80", "8000:8010"]}}})  # fmt: skip
     documents[-2]["RuleGroup"]["ReferenceSets"] = {"IPSetReferences": {"PL": {"ReferenceArn": "arn:aws:ec2:eu-west-1:111122223333:prefix-list/pl-9"}}}
@@ -927,9 +941,11 @@ def test_emitted_rules_variables_and_policy() -> None:
     assert group["RuleVariables"]["IPSets"] == {"guests": {"Definition": ["10.2.0.0/24"]}, "web": {"Definition": ["10.1.0.10/32"]},
                                                 "FWS_HOME_NET": {"Definition": ["10.1.0.10/32", "10.2.0.0/24"]}}
     lines = group["RulesSource"]["RulesString"].splitlines()
-    assert lines[0] == 'drop ip $guests any -> $web any (msg:"no-guests"; flow:to_server; sid:1; rev:1;)'
-    assert lines[1] == 'pass tcp any any -> $web 443 (msg:"to-web"; flow:to_server; sid:2; rev:1;)'
-    assert lines[2].startswith("reject tcp $FWS_HOME_NET any -> any 443")
+    # (the first rule passes the replies: with aws:drop_strict every packet is decided on its own, the FWShift lab, 0.41.7)
+    assert lines[0].startswith('pass ip any any -> any any (msg:"fwshift-replies"; flow:to_client; sid:')
+    assert lines[1] == 'drop ip $guests any -> $web any (msg:"no-guests"; flow:to_server; sid:1; rev:1;)'
+    assert lines[2] == 'pass tcp any any -> $web 443 (msg:"to-web"; flow:to_server; sid:2; rev:1;)'
+    assert lines[3].startswith("reject tcp $FWS_HOME_NET any -> any 443")
     policy = documents[0]["FirewallPolicy"]
     assert policy["StatefulDefaultActions"] == ["aws:drop_strict"] and policy["StatelessDefaultActions"] == ["aws:forward_to_sfe"]
     assert policy["StatefulEngineOptions"] == {"RuleOrder": "STRICT_ORDER"}
@@ -1069,7 +1085,7 @@ def test_icmp_types_ip_proto_negation_and_both_directions() -> None:
     for src, dst, proto, kind, wanted in (("10.0.1.5", "10.0.0.5", "icmp", 8, False), ("10.0.0.5", "10.0.1.5", "icmp", 8, False),
                                           ("10.0.0.5", "10.0.1.5", "icmp", 13, True), ("10.0.1.5", "10.0.0.5", "icmp", 0, False)):  # fmt: skip
         assert decide(documents, src, dst, proto, 1024, 53, kind) == (wanted, wanted), (src, dst, proto, kind)
-    strict = suricata_policy(rules, ["aws:drop_strict"])
+    strict = suricata_policy(rules + REPLIES, ["aws:drop_strict"])
     for src, dst, proto, kind, wanted in (("10.0.0.5", "10.0.4.1", "icmp", 13, True), ("10.0.0.5", "10.0.4.1", "icmp", 8, False),
                                           ("10.0.0.5", "10.0.4.1", "47", 0, True), ("10.0.0.5", "10.0.4.1", "udp", 0, False)):  # fmt: skip
         assert decide(strict, src, dst, proto, 1024, 53, kind) == (wanted, wanted), (src, dst, proto, kind)

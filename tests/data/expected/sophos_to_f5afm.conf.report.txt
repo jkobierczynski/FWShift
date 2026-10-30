@@ -1,0 +1,98 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: f5-afm
+
+Summary
+  Security rules:     17   exact 2, approximated 0, needs review 14 (14 emitted disabled), skipped 1
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_LOAD: the output is a file for 'tmsh load sys config merge file' (section 10): address lists, port lists, the rule list /Common/FWShift_rules and the policy /Common/FWShift. Load it with 'verify' first. The merge changes objects of the same name that exist: check that none does. The policy is enforced in no context: attach it to the global context, a route domain or a virtual server yourself. Allow rules are accept-decisively and the list ends with the default, so the policy decides alone wherever it is attached; the BIG-IP still lets through only traffic that a virtual server takes, which FWShift does not create
+  [needs-review] F5AFM_FQDN_RESOLVER: address lists hold host names (fqdns): AFM resolves them only with a DNS resolver set as the global FQDN resolver (security firewall global-fqdn-policy); without one they match nothing
+  [needs-review] F5AFM_VLANS_REQUIRED: the rules name these VLANs as the zones they come from, which must exist on the BIG-IP under these names (--zone-map renames): /Common/DMZ, /Common/LAN, /Common/OT, /Common/WAN
+  [info] F5AFM_ICMP_CONTEXT: the policy has ICMP rules: the BIG-IP ignores ICMP rules in the virtual server and self IP contexts, so attach the policy to the global or a route domain context for them to apply
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled  (emitted as Block_countries)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked_countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  needs-review, emitted disabled  (emitted as LAN_to_Internet_web, LAN_to_Internet_web_2)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind WAN with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  LAN web again  ->  needs-review, emitted disabled  (emitted as LAN_web_again)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind WAN with --zone-network.
+  Admins to DMZ  ->  needs-review, emitted disabled  (emitted as Admins_to_DMZ, Admins_to_DMZ_2)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  LAN to DMZ web not mail  ->  needs-review, emitted disabled  (emitted as LAN_to_DMZ_web_not_mail)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [info] NEGATION_EXPANDED: a rule of AFM has no negation: 'not destination mail-1' is written as the addresses that are left
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  LAN SSH out  ->  needs-review, emitted disabled  (emitted as LAN_SSH_out)
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OT, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OT with --zone-network.
+  LAN SSH out-2  ->  needs-review, emitted disabled  (emitted as LAN_SSH_out-2)
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, OT, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ, OT with --zone-network.
+  Internet to web  ->  needs-review, emitted disabled  (emitted as Internet_to_web)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  Internet to mail  ->  needs-review, emitted disabled  (emitted as Internet_to_mail)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  OT to SCADA  ->  needs-review, emitted disabled  (emitted as OT_to_SCADA, OT_to_SCADA_2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAN, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind LAN with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  DMZ updates  ->  needs-review, emitted disabled  (emitted as DMZ_updates)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind WAN with --zone-network.
+  Finance to app  ->  needs-review, emitted disabled  (emitted as Finance_to_app)
+      [needs-review] USER_MATCH: source user match Finance is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  DNS in office hours  ->  needs-review, emitted disabled  (emitted as DNS_in_office_hours, DNS_in_office_hours_2, DNS_in_office_hours_3)
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAN, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind LAN with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  Old test rule  ->  exact  (emitted as Old_test_rule, Old_test_rule_2)
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  LAN6 to Internet  ->  needs-review, emitted disabled  (emitted as LAN6_to_Internet, LAN6_to_Internet_2)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind WAN with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  Publish web  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  Publish mail  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  Mail server out  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  No NAT to partner  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  NAT of LAN to Internet web  ->  skipped
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  Default SNAT IPv4  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+
+Addresses
+  any-example-org  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+  Blocked countries  ->  needs-review  (emitted as Blocked_countries)
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted
+      [info] RENAMED: renamed to 'Blocked_countries' to fit the target's naming rules
+
+Service groups
+  Web Access  ->  exact  (emitted as Web_Access)
+      [info] RENAMED: renamed to 'Web_Access' to fit the target's naming rules
+  NAT of LAN to Internet web services  ->  exact  (emitted as NAT_of_LAN_to_Internet_web_services)
+      [info] RENAMED: renamed to 'NAT_of_LAN_to_Internet_web_services' to fit the target's naming rules

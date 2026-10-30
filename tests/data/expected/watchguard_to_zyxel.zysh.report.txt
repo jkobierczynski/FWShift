@@ -1,0 +1,33 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: zyxel
+
+Summary
+  Security rules:     10   exact 5, approximated 3, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] ZYXEL_LOAD: the output is a script of CLI commands (section 10): new objects, zones without members, rules inserted from position 1 of the security policy on (before the rules the firewall has, which still decide what these do not match), virtual servers and policy routes, which take effect at once. Check, then save with write
+  [needs-review] ZYXEL_NAT_INTERFACES: virtual servers and policy routes name the interfaces of the zones as the source names them (after --interface-map): check that the firewall has them (ge1, wan1 ...): External
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] ZYXEL_DEFAULT_RULES: after the converted rules, 50 rules that do what the source does with traffic no rule matches, for every pair of the zones written (inside a zone as the source decides it): the rules the firewall already has decide only traffic of zones the conversion does not know
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log
+  [info] ZYXEL_NAT_WRITTEN: virtual servers are done before the security policy, whose rules name the inside address: the rules were written for it
+
+Security rules
+  Web Out  ->  approximated  (emitted as 6 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+  Web In  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Web-Public.1.snat' with post-NAT 'Web-Public.2.snat' because of NAT rule 'Web-Public (Web In)'; check that this rule is meant to cover the translated traffic
+  Mail In  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Mail-Public.1.snat' with post-NAT 'Mail-Public.2.snat' because of NAT rule 'Mail-Public (Mail In)'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'Mail-Public (Mail In)' also translates the port to 2525: the service of this rule (SMTP) named the pre-NAT port only, and now names 2525, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+  DMZ Updates  ->  needs-review, emitted disabled  (emitted as 2 rules of the security policy)
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_DYNAMIC: 'Update-Site.1.alm' holds members only its platform knows.
+  Staff Only  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] USER_MATCH: source user match Staff is not converted.

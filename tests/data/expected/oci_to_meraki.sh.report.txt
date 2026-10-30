@@ -1,0 +1,119 @@
+FWShift conversion report
+  source: oci (ocid1.vcn.oc1.eu-frankfurt-1.exampleshopvcn)
+  target: meraki
+
+Summary
+  Security rules:     37   exact 3, approximated 0, needs review 25 (3 emitted disabled), skipped 9
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Address groups:     21   exact 21, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OCI_HAIRPIN: connections from inside the VCN to its own public addresses are not converted as OCI decides them: they go through the internet gateway, and the rules see public addresses at both ends (a rule that names an NSG does not match them). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] OCI_REMOTE_NSG: rules name NSGs that are not in the input: ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplemonitoringnsgotherteam. No VNIC of the input is in them, so those rules allow nothing (an NSG names NSGs of its own VCN; if VNICs are missing from the input, add them)
+  [needs-review] OCI_SERVICE_LABEL: rules name service CIDR labels whose addresses are not in the input: oci-ams-objectstorage. Those rules are not converted; add Oracle's public_ip_ranges.json and 'oci iam region list'
+  [needs-review] MERAKI_LOAD: the output is a shell script for the Dashboard API (section 10): it backs up and replaces the outbound table; DRY_RUN=1 writes the bodies only. The fixed default rule of the MX (allow) stays at the end
+  [info] OCI_STATELESS_REPLY: stateless rules let traffic through without tracking the connection, and some of their replies are not allowed in the other direction (a stateless rule decides over a stateful one that matches the same traffic). Those connections fail on OCI and are blocked first in the converted policy ('...-stateless-in', '...-stateless-out')
+  [info] OCI_EGRESS_PAIRS: inside the VCN a connection needs an egress rule of the sender's lists and NSGs and an ingress rule of the receiver's. Where the egress rules do not allow everything, 3 rules allow what both allow, and a rule after them blocks the rest of what those addresses send inside the VCN
+  [info] OCI_RULE_INVALID: ingress rule 3 of NSG web-nsg names NSG ocid1.networksecuritygroup.oc1.eu-frankfurt-1.exampledeletednsg, which was deleted (is-valid false): OCI ignores the rule, and so does the converted policy
+  [info] OCI_PUBLIC_ADDRESSES: the public IP addresses of the VNICs are static NAT of their primary private addresses: the internet gateway translates what comes from outside, and the rules see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] OCI_UNFILTERED: security rules are never enforced for traffic to or from 169.254.0.0/16 (instance metadata, iSCSI boot volumes, the VCN's DNS and NTP); neither does the converted policy say anything about it
+  [info] OCI_UNUSED: these security lists are associated with no subnet, or no VNIC is in these NSGs, so their rules allow nothing and were left out: spare-sl, legacy-nsg
+  [info] OCI_DEFAULT_SECURITY_LIST: these subnets use the default security list of the VCN, whose rules (as created: SSH from anywhere, ICMP type 3, every egress) are converted as they are now: web-subnet, mgmt-subnet
+  [info] OCI_UDP_FRAGMENTS: rules allow UDP to or from certain ports: OCI drops the fragments after the first of a fragmented UDP packet that such a rule allows (they carry no ports). The model has no fragments
+  [info] OCI_TERMINATED: 1 objects that are terminated or being terminated were left out
+  [info] MERAKI_DEFAULT_DENY: the source blocks what no rule matches: the outbound table ends in a rule that blocks everything, before the fixed default rule of the MX
+
+Security rules
+  db-subnet-stateless-in  ->  needs-review, emitted disabled
+      [needs-review] SERVICE_NOT_WRITTEN: port 0, which the MX does not take. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-subnet-stateless-in-2  ->  needs-review, emitted disabled
+      [needs-review] SERVICE_NOT_WRITTEN: port 0, which the MX does not take. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-subnet-stateless-in-3  ->  needs-review, emitted disabled
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  app-subnet-to-db-sl  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  app-subnet+app-nsg-to-db-sl  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  db-subnet-to-Default Security List for shop-vcn  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  Default Security List for shop-vcn-in-1  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  Default Security List for shop-vcn-in-2  ->  skipped
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  Default Security List for shop-vcn-in-3  ->  skipped
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  Default Security List for shop-vcn-in-4  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  Default Security List for shop-vcn-in-5  ->  skipped
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  web-sl-in-1  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  web-sl-in-2  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  web-sl-in-3  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  app-sl-in-1  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  app-sl-in-2  ->  skipped
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  app-sl-in-3  ->  skipped
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  db-sl-in-1  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  db-sl-in-2  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  db-sl-in-3  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  db-sl-in-4  ->  skipped
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  db-sl-in-5  ->  skipped
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  db-sl-in-6  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: ICMPv6 with an address of the other IP version (10.30.0.0/16), which matches no packet.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  web-nsg-in-1  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  app-nsg-in-1  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  app-nsg-in-2  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  bastion-nsg-in-1  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  bastion-nsg-in-2  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  Default Security List for shop-vcn-out-1  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  Default Security List for shop-vcn-out-2  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  app-sl-out-2  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [approximated] OCI_SERVICE_RANGES: service CIDR label all-fra-services-in-oracle-services-network is read as the ranges Oracle publishes for it; on OCI the rule matches that traffic only through a service gateway, and the published ranges change
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  app-sl-out-3  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  app-sl-out-4  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [approximated] OCI_SERVICE_RANGES: service CIDR label oci-fra-objectstorage is read as the ranges Oracle publishes for it; on OCI the rule matches that traffic only through a service gateway, and the published ranges change
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  app-sl-out-5  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'oci-ams-objectstorage': the addresses of the Oracle services of oci-ams-objectstorage are not in the input (add Oracle's public_ip_ranges.json and the answer of 'oci iam region list').
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+
+NAT rules
+  public-203.0.113.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's. Here: rule app-subnet-egress-rest blocks some of it first
+  public-203.0.113.11  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's. Here: rule app-subnet-egress-rest blocks some of it first
+  public-203.0.113.50  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's. Here: rule app-subnet-egress-rest blocks some of it first

@@ -1,0 +1,720 @@
+{
+  "resource_type": "Infra",
+  "children": [
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "PING",
+        "display_name": "PING",
+        "service_entries": [
+          {
+            "resource_type": "ICMPTypeServiceEntry",
+            "protocol": "ICMPv4",
+            "icmp_type": 8,
+            "id": "PING-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "HTTP-2",
+        "display_name": "HTTP",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "80"
+            ],
+            "source_ports": [],
+            "id": "HTTP-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "HTTPS-2",
+        "display_name": "HTTPS",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "443"
+            ],
+            "source_ports": [],
+            "id": "HTTPS-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "tcp-8080",
+        "display_name": "tcp-8080",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "8080"
+            ],
+            "source_ports": [],
+            "id": "tcp-8080-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "web-group",
+        "display_name": "web-group",
+        "service_entries": [
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-1",
+            "nested_service_path": "/infra/services/HTTP-2"
+          },
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-2",
+            "nested_service_path": "/infra/services/HTTPS-2"
+          },
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-3",
+            "nested_service_path": "/infra/services/tcp-8080"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "DNS-2",
+        "display_name": "DNS",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "53"
+            ],
+            "source_ports": [],
+            "id": "DNS-1"
+          },
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "UDP",
+            "destination_ports": [
+              "53"
+            ],
+            "source_ports": [],
+            "id": "DNS-2"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "SSH-2",
+        "display_name": "SSH",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "22"
+            ],
+            "source_ports": [],
+            "id": "SSH-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "admin-group",
+        "display_name": "admin-group",
+        "service_entries": [
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-1",
+            "nested_service_path": "/infra/services/web-group"
+          },
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-2",
+            "nested_service_path": "/infra/services/SSH-2"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "ping-reply",
+        "display_name": "ping-reply",
+        "service_entries": [
+          {
+            "resource_type": "ICMPTypeServiceEntry",
+            "protocol": "ICMPv4",
+            "icmp_type": 8,
+            "icmp_code": 0,
+            "id": "ping-reply-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "app-ports",
+        "display_name": "app-ports",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "8000-8010"
+            ],
+            "source_ports": [
+              "1024-65535"
+            ],
+            "id": "app-ports-1"
+          },
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "UDP",
+            "destination_ports": [
+              "5000-5001"
+            ],
+            "source_ports": [],
+            "id": "app-ports-2"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "gre-tunnel",
+        "display_name": "gre-tunnel",
+        "service_entries": [
+          {
+            "resource_type": "IPProtocolServiceEntry",
+            "protocol_number": 47,
+            "id": "gre-tunnel-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildResourceReference",
+      "id": "default",
+      "target_type": "Domain",
+      "children": [
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "blocked-country",
+            "display_name": "blocked-country",
+            "expression": [],
+            "description": "FWSHIFT PLACEHOLDER: address entry blocked-country: country XX, which the configuration does not resolve to addresses"
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "update-site",
+            "display_name": "update-site",
+            "expression": []
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "files.example.org",
+            "display_name": "files.example.org",
+            "expression": []
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "partners",
+            "display_name": "partners",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "198.51.100.0/24"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "wild-hosts",
+            "display_name": "wild-hosts",
+            "expression": [],
+            "description": "FWSHIFT PLACEHOLDER: address entry wild-hosts: wildcard address '10.10.0.5 0.0.255.0'"
+          }
+        },
+        {
+          "resource_type": "ChildSecurityPolicy",
+          "SecurityPolicy": {
+            "resource_type": "SecurityPolicy",
+            "id": "FWShift",
+            "display_name": "FWShift",
+            "category": "Application",
+            "sequence_number": 1,
+            "stateful": true,
+            "scope": [
+              "ANY"
+            ],
+            "description": "Generated by FWShift - review the conversion report before loading this.",
+            "rules": [
+              {
+                "resource_type": "Rule",
+                "id": "inside-ping",
+                "display_name": "inside-ping",
+                "sequence_number": 10,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/PING"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "inside-ping",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network; the destination of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "inside-to-web",
+                "display_name": "inside-to-web",
+                "sequence_number": 20,
+                "source_groups": [
+                  "10.10.0.0/24"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/web-group",
+                  "/infra/services/DNS-2"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "inside-to-web",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network; the destination of the rule is in zone untrust, and a rule of the distributed firewall names no zone: give the networks behind untrust with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "publish-web",
+                "display_name": "publish-web",
+                "sequence_number": 30,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "10.20.0.10"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/tcp-8080"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "publish-web",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone untrust, and a rule of the distributed firewall names no zone: give the networks behind untrust with --zone-network; the destination of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network | web server published by dnatrule 1"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "block-country",
+                "display_name": "block-country",
+                "sequence_number": 40,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/blocked-country"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "REJECT",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "block-country",
+                "notes": "FWSHIFT disabled, see the report: references 'blocked-country': address entry blocked-country: country XX, which the configuration does not resolve to addresses; the destination 'blocked-country' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "lab-to-inside",
+                "display_name": "lab-to-inside",
+                "sequence_number": 50,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "REJECT",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "lab-to-inside"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "inside-to-servers",
+                "display_name": "inside-to-servers",
+                "sequence_number": 60,
+                "source_groups": [
+                  "10.10.0.0-10.10.0.199",
+                  "10.10.0.210-10.10.0.255"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "10.20.0.10",
+                  "10.20.0.25",
+                  "10.20.0.40/31"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/admin-group",
+                  "/infra/services/ping-reply"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "inside-to-servers",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network; the destination of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "lab-updates",
+                "display_name": "lab-updates",
+                "sequence_number": 70,
+                "source_groups": [
+                  "10.30.0.100-10.30.0.150"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/update-site"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/HTTPS-2"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "lab-updates",
+                "notes": "FWSHIFT disabled, see the report: host name object update-site: a group of NSX holds addresses; a domain name needs a context profile, which is not written; the source of the rule is in zone lab, and a rule of the distributed firewall names no zone: give the networks behind lab with --zone-network; the destination 'update-site' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "app-clients",
+                "display_name": "app-clients",
+                "sequence_number": 80,
+                "source_groups": [
+                  "10.10.0.50",
+                  "10.10.0.60-10.10.0.69"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/files.example.org"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/app-ports"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "app-clients",
+                "notes": "FWSHIFT disabled, see the report: schedule 'office-hours' is not converted; the rule would apply at all times; host name object files.example.org: a group of NSX holds addresses; a domain name needs a context profile, which is not written; the source of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network; the destination 'files.example.org' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "p2p",
+                "display_name": "p2p",
+                "sequence_number": 90,
+                "source_groups": [
+                  "10.10.0.0/24"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "p2p",
+                "notes": "FWSHIFT disabled, see the report: not converted: application BitTorrent: application identification narrows the match; the source of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network; the destination of the rule is in zone untrust, and a rule of the distributed firewall names no zone: give the networks behind untrust with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "v6-out",
+                "display_name": "v6-out",
+                "sequence_number": 100,
+                "source_groups": [
+                  "2001:db8:10::/64"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "::/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/HTTPS-2",
+                  "/infra/services/PING"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "v6-out",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network; the destination of the rule is in zone untrust, and a rule of the distributed firewall names no zone: give the networks behind untrust with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "tunnels-to-partners",
+                "display_name": "tunnels-to-partners",
+                "sequence_number": 110,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/partners"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/gre-tunnel"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "tunnels-to-partners",
+                "notes": "FWSHIFT disabled, see the report: host name object partners/partner.example.net: a group of NSX holds addresses; a domain name needs a context profile, which is not written; the source of the rule is in zone lab, dmz, and a rule of the distributed firewall names no zone: give the networks behind lab, dmz with --zone-network; the destination 'partners' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "to-branch-vpn",
+                "display_name": "to-branch-vpn",
+                "sequence_number": 120,
+                "source_groups": [
+                  "10.10.0.0/24"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "to-branch-vpn",
+                "notes": "FWSHIFT disabled, see the report: not converted: action tunnel vpn-to-branch: traffic of a VPN tunnel only; the source of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network; the destination of the rule is in zone untrust, and a rule of the distributed firewall names no zone: give the networks behind untrust with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "contractors-out",
+                "display_name": "contractors-out",
+                "sequence_number": 130,
+                "source_groups": [
+                  "/infra/domains/default/groups/wild-hosts"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "contractors-out",
+                "notes": "FWSHIFT disabled, see the report: references 'wild-hosts': address entry wild-hosts: wildcard address '10.10.0.5 0.0.255.0'; source user match role contractors is not converted; the source 'wild-hosts' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks; the destination of the rule is in zone untrust, and a rule of the distributed firewall names no zone: give the networks behind untrust with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "rule_13",
+                "display_name": "rule 13",
+                "sequence_number": 140,
+                "source_groups": [
+                  "10.10.0.0/24"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "rule_13",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network; the destination of the rule is in zone lab, and a rule of the distributed firewall names no zone: give the networks behind lab with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "fwshift-default-deny",
+                "display_name": "fwshift-default-deny",
+                "sequence_number": 150,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": false,
+                "notes": "FWShift: what no rule above allows is dropped, as the source policy does"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

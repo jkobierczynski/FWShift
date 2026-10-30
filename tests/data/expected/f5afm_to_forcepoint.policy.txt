@@ -1,0 +1,2229 @@
+# The policy, as data. Do not change it here: convert again.
+#
+#: {
+#:  "format": 1,
+#:  "generator": "FWShift (this version)",
+#:  "policy": "FWShift",
+#:  "template": "Firewall Template",
+#:  "comment": "Converted by FWShift from f5-afm",
+#:  "zones": [
+#:   "internal",
+#:   "dmz",
+#:   "external"
+#:  ],
+#:  "existing": [],
+#:  "elements": [
+#:   {
+#:    "type": "domain_name",
+#:    "body": {
+#:     "name": "partner.example.com",
+#:     "comment": "resolved by the global FQDN resolver of AFM"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-198.51.100.0_24",
+#:     "ipv4_network": "198.51.100.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "address_range",
+#:    "body": {
+#:     "name": "r-203.0.113.200-203.0.113.220",
+#:     "ip_range": "203.0.113.200-203.0.113.220"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "blocklist",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-198.51.100.0_24"
+#:      },
+#:      {
+#:       "@ref": "address_range",
+#:       "name": "r-203.0.113.200-203.0.113.220"
+#:      }
+#:     ],
+#:     "comment": "sources that are never let in"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-10.10.5.0_24",
+#:     "ipv4_network": "10.10.5.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-10.10.6.10",
+#:     "address": "10.10.6.10"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-2001.db8.10.5.._64",
+#:     "ipv6_network": "2001:db8:10:5::/64",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "admins",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.10.5.0_24"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-10.10.6.10"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-2001.db8.10.5.._64"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-203.0.113.10",
+#:     "address": "203.0.113.10"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-2001.db8.203..10",
+#:     "ipv6_address": "2001:db8:203::10"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "web_servers",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-203.0.113.10"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-2001.db8.203..10"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-10.10.0.0_16",
+#:     "ipv4_network": "10.10.0.0/16",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "inside",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.10.0.0_16"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "admins"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "udp-53",
+#:     "min_dst_port": 53,
+#:     "max_dst_port": 53,
+#:     "comment": "AFM: protocol and ports of a rule"
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "web_ports tcp-80",
+#:     "min_dst_port": 80,
+#:     "max_dst_port": 80
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "web_ports tcp-443",
+#:     "min_dst_port": 443,
+#:     "max_dst_port": 443
+#:    }
+#:   },
+#:   {
+#:    "type": "service_group",
+#:    "body": {
+#:     "name": "web_ports",
+#:     "element": [
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "web_ports tcp-80"
+#:      },
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "web_ports tcp-443"
+#:      }
+#:     ],
+#:     "comment": "AFM: protocol and ports of a rule"
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-443",
+#:     "min_dst_port": 443,
+#:     "max_dst_port": 443,
+#:     "comment": "AFM: protocol and ports of a rule"
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-80",
+#:     "min_dst_port": 80,
+#:     "max_dst_port": 80,
+#:     "comment": "AFM: protocol and ports of a rule"
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-8080",
+#:     "min_dst_port": 8080,
+#:     "max_dst_port": 8080,
+#:     "comment": "AFM: protocol and ports of a rule"
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-23",
+#:     "min_dst_port": 23,
+#:     "max_dst_port": 23,
+#:     "comment": "AFM: protocol and ports of a rule"
+#:    }
+#:   },
+#:   {
+#:    "type": "icmp_service",
+#:    "body": {
+#:     "name": "icmp-8-0",
+#:     "icmp_type": 8,
+#:     "icmp_code": 0,
+#:     "comment": "AFM: protocol and ports of a rule"
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-21",
+#:     "min_dst_port": 21,
+#:     "max_dst_port": 21,
+#:     "comment": "AFM: protocol and ports of a rule"
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-22",
+#:     "min_dst_port": 22,
+#:     "max_dst_port": 22,
+#:     "comment": "AFM: protocol and ports of a rule"
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "mgmt_ports tcp-22",
+#:     "min_dst_port": 22,
+#:     "max_dst_port": 22
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "mgmt_ports tcp-80",
+#:     "min_dst_port": 80,
+#:     "max_dst_port": 80
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "mgmt_ports tcp-443",
+#:     "min_dst_port": 443,
+#:     "max_dst_port": 443
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "mgmt_ports tcp-8443",
+#:     "min_dst_port": 8443,
+#:     "max_dst_port": 8443
+#:    }
+#:   },
+#:   {
+#:    "type": "service_group",
+#:    "body": {
+#:     "name": "mgmt_ports",
+#:     "element": [
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "mgmt_ports tcp-22"
+#:      },
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "mgmt_ports tcp-80"
+#:      },
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "mgmt_ports tcp-443"
+#:      },
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "mgmt_ports tcp-8443"
+#:      }
+#:     ],
+#:     "comment": "AFM: protocol and ports of a rule"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "admins IPv4",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.10.5.0_24"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-10.10.6.10"
+#:      }
+#:     ],
+#:     "comment": "the IPv4 addresses of admins"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "internal and admins IPv4",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "internal"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "admins IPv4"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-203.0.113.53",
+#:     "address": "203.0.113.53"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "admins IPv6",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-2001.db8.10.5.._64"
+#:      }
+#:     ],
+#:     "comment": "the IPv6 addresses of admins"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "internal and admins IPv6",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "internal"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "admins IPv6"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "dmz and admins IPv4",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "dmz"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "admins IPv4"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "inside IPv4",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.10.0.0_16"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "admins IPv4"
+#:      }
+#:     ],
+#:     "comment": "the IPv4 addresses of inside"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "dmz and admins IPv6",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "dmz"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "admins IPv6"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "inside IPv6",
+#:     "element": [
+#:      {
+#:       "@ref": "group",
+#:       "name": "admins IPv6"
+#:      }
+#:     ],
+#:     "comment": "the IPv6 addresses of inside"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "external and admins IPv4",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "external"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "admins IPv4"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "external and admins IPv6",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "external"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "admins IPv6"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-203.0.113.60",
+#:     "address": "203.0.113.60"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-192.168.50.0_24",
+#:     "ipv4_network": "192.168.50.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "internal and inside IPv4",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "internal"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "inside IPv4"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "internal and inside IPv6",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "internal"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "inside IPv6"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-2001.db8.ff.._48",
+#:     "ipv6_network": "2001:db8:ff::/48",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "external and n-2001.db8.ff.._48",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "external"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-2001.db8.ff.._48"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-192.0.2.0_24",
+#:     "ipv4_network": "192.0.2.0/24",
+#:     "broadcast": true
+#:    }
+#:   }
+#:  ],
+#:  "rules": {
+#:   "fw_ipv4_access_rule": [
+#:    {
+#:     "name": "global/block_bad",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "group",
+#:        "name": "blocklist"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/admins_continue>rd0/outbound/allow_dns_out@vs_dns",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "internal and admins IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.53"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "internal and admins IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/admins_continue>rd0/outbound/allow_web_out@vs_outbound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "internal and admins IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "web_ports"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/admins_continue>rd0/dmz_no_inside",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and admins IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "group",
+#:        "name": "inside IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/admins_continue>vs_web/web_in",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "external and admins IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/admins_continue>vs_web/(default)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "external and admins IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "the default action"
+#:    },
+#:    {
+#:     "name": "global/admins_continue>vs_web_http/(refused)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "external and admins IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-80"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "what the virtual server takes and lets nothing through"
+#:    },
+#:    {
+#:     "name": "global/admins_continue>vs_dns/(default)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "group",
+#:        "name": "admins IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.53"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "the default action"
+#:    },
+#:    {
+#:     "name": "global/admins_continue>vs_old_app/(refused)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "group",
+#:        "name": "admins IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.60"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8080"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "what the virtual server takes and lets nothing through"
+#:    },
+#:    {
+#:     "name": "global/admins_continue>vs_inbound_dmz/(default)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and admins IPv4"
+#:       },
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "external and admins IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "n-192.168.50.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "the default action"
+#:    },
+#:    {
+#:     "name": "global/admins_continue>vs_outbound/(default)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and admins IPv4"
+#:       },
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "internal and admins IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "the default action"
+#:    },
+#:    {
+#:     "name": "global/reject_telnet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-23"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "refuse"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/ping_in@vs_outbound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "dmz"
+#:       },
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "internal"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "icmp_service",
+#:        "name": "icmp-8-0"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/old_rule",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-21"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/office_ssh@vs_outbound",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "internal"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-22"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "global/partners_in@vs_web6",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "none": true
+#:     },
+#:     "destinations": {
+#:      "none": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "global/partners_in@vs_web",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "none": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "global/partners_in@vs_web_http",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "none": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-80"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "global/partners_in@vs_inbound_dmz",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "none": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "n-192.168.50.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "mgmt_ports"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "global/partners_in@vs_outbound",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "none": true
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "mgmt_ports"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "global/inspect_irule>rd0/dmz_no_inside",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "dmz"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "group",
+#:        "name": "inside IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8080"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/inspect_irule>vs_old_app/(refused)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.60"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8080"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "what the virtual server takes and lets nothing through"
+#:    },
+#:    {
+#:     "name": "global/inspect_irule>vs_inbound_dmz/(default)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "dmz"
+#:       },
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "external"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "n-192.168.50.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8080"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "the default action"
+#:    },
+#:    {
+#:     "name": "global/inspect_irule>vs_outbound/(default)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "dmz"
+#:       },
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "internal"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8080"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "the default action"
+#:    },
+#:    {
+#:     "name": "rd0/outbound/allow_dns_out@vs_dns",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "internal"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.53"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "rd0/outbound/allow_dns_out@vs_outbound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "internal"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "rd0/outbound/allow_web_out@vs_outbound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "internal and inside IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "web_ports"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "rd0/dmz_no_inside",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "dmz"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "group",
+#:        "name": "inside IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "vs_web/web_in",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "external"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "vs_web/(default)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "external"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "the default action"
+#:    },
+#:    {
+#:     "name": "vs_web_http/(refused)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "external"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-80"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "what the virtual server takes and lets nothing through"
+#:    },
+#:    {
+#:     "name": "vs_dns/dns_from_partners",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "n-192.0.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.53"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "vs_dns/(default)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.53"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "the default action"
+#:    },
+#:    {
+#:     "name": "vs_old_app/(refused)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-203.0.113.60"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8080"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "what the virtual server takes and lets nothing through"
+#:    },
+#:    {
+#:     "name": "vs_inbound_dmz/(default)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "dmz"
+#:       },
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "external"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "n-192.168.50.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "the default action"
+#:    },
+#:    {
+#:     "name": "vs_outbound/(default)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "dmz"
+#:       },
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "internal"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "the default action"
+#:    }
+#:   ],
+#:   "fw_ipv6_access_rule": [
+#:    {
+#:     "name": "global/admins_continue>rd0/dmz_no_inside",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and admins IPv6"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "group",
+#:        "name": "inside IPv6"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/admins_continue>vs_web6/web_in",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "external and admins IPv6"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-2001.db8.203..10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/admins_continue>vs_web6/(default)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "external and admins IPv6"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-2001.db8.203..10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "the default action"
+#:    },
+#:    {
+#:     "name": "global/reject_telnet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-23"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "refuse"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/old_rule",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-21"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "global/inspect_irule>rd0/dmz_no_inside",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "dmz"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "group",
+#:        "name": "inside IPv6"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8080"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "rd0/dmz_no_inside",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "dmz"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "group",
+#:        "name": "inside IPv6"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "vs_web6/web_in",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "external"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-2001.db8.203..10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "vs_web6/web6_in",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "external and n-2001.db8.ff.._48"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-2001.db8.203..10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "vs_web6/(default)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "external"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-2001.db8.203..10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "the default action"
+#:    }
+#:   ]
+#:  },
+#:  "nat": {
+#:   "fw_ipv4_nat_rule": [],
+#:   "fw_ipv6_nat_rule": []
+#:  }
+#: }

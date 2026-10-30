@@ -1,0 +1,82 @@
+FWShift conversion report
+  source: pf
+  target: zyxel
+
+Summary
+  Security rules:     31   exact 14, approximated 4, needs review 12 (10 emitted disabled), skipped 1
+  NAT rules:           4   exact 0, approximated 2, needs review 0, skipped 2
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 7, approximated 0, needs review 2, skipped 0
+  Services:           20   exact 20, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PF_ANCHOR: the rules of these anchors are not converted: 'relayd/*' (line 94). Rules loaded into an anchor decide where the anchor stands, before or after any converted rule; add them to the file to convert them
+  [needs-review] ZYXEL_LOAD: the output is a script of CLI commands (section 10): new objects, zones without members, rules inserted from position 1 of the security policy on (before the rules the firewall has, which still decide what these do not match), virtual servers and policy routes, which take effect at once. Check, then save with write
+  [info] PF_LAST_MATCH: 22 rules are not quick: pf decides by the last rule that matches unless a quick rule matches first. The model is first match: the quick rules come first, in their order, then the others, the last one first
+  [info] PF_DEFAULT_PASS: pf passes what no rule matches; the model records that as its default action
+  [info] PF_HOST_NAMES: pfctl resolves host names once, when the rules are loaded: www.example.com. They are host name objects here
+  [info] PF_OVERLOAD: rules that add addresses to a table when they exceed a limit (overload): 'line 57'. The table they fill is empty in pf.conf
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log
+
+Security rules
+  line 72  ->  exact  (emitted as 1 rules of the security policy)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+  line 75  ->  exact  (emitted as 1 rules of the security policy)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+  line 46 out  ->  needs-review  (emitted as 2 rules of the security policy)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by every interface: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic, less what the rules before it that decide pass ('line 50', 'line 74')
+      [needs-review] PF_OUT_UNNAMED: the rule blocks what leaves by any interface, less what rules for some interfaces pass; it is written for the interfaces this ruleset names, and traffic that leaves by another interface is not blocked by it
+  antispoof em1 network  ->  needs-review, emitted disabled  (emitted as 2 rules of the security policy)
+      [needs-review] PF_NEGATED_INTERFACE: 'on ! em1' is every interface but em1; it is written for the other interfaces this ruleset names, em0, em2, and not for interfaces it does not name
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 network': the network of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  antispoof em1 address  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 address': the address of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  brute force  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'bruteforce': it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  line 49  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'spamd': its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  admin ssh  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em2 network': the network of em2 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+  line 92  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: the user of the socket (user proxy), which only traffic of the firewall itself has.
+  line 91  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'egress address': the address of egress is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+  line 90  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: a mark set by another rule (tagged INTERNAL).
+  line 87  ->  needs-review  (emitted as 1 rules of the security policy)
+      [needs-review] PF_ROUTE_TO: the rule sends what it matches elsewhere (route-to ( em3 10.30.0.1 )); the converted rule decides only whether it passes, and the traffic takes the route the target chooses
+  line 85  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] FQDN_NOT_SUPPORTED: host name object www.example.com: the form of an address object of a host name is not in the documentation FWShift could read.
+  line 84  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PF_NO_STATE: the rule passes packets without keeping state (no state): the replies need a rule of their own on pf. The converted rule allows the connection, replies included
+  line 80  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] ZYXEL_PORT_ZERO: a range of ports from 0: written from 1, as ZLD takes ports 1 to 65535; port 0 is no port a connection uses
+  line 78  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] ZYXEL_PORT_ZERO: a range of ports from 0: written from 1, as ZLD takes ports 1 to 65535; port 0 is no port a connection uses
+  line 69  ->  exact  (emitted as 1 rules of the security policy)
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+  line 69.2  ->  exact  (emitted as 1 rules of the security policy)
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+  line 65  ->  needs-review, emitted disabled  (emitted as 2 rules of the security policy)
+      [needs-review] SERVICE_NOT_WRITTEN: service icmp-8+icmp-3-4: source ports, an ICMP code, SCTP ports or protocol 0, which a service object cannot say.
+  line 57  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.1.10' because of NAT rule 'line 39 rdr'; check that this rule is meant to cover the translated traffic
+  line 73  ->  skipped
+      [info] PF_OUT_SHADOWED: the rule blocks traffic that leaves, but the rules before it that decide ('line 74') pass all of it: it decides nothing for forwarded traffic and is not converted for that direction
+
+NAT rules
+  line 36 nat  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  line 37 nat  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_POOL_PORTS: source NAT of kind dynamic-ip written as SNAT to a pool, which the documentation does not say translates ports or not
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  line 39 rdr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  line 41 rdr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+
+Address groups
+  bruteforce  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <bruteforce> cannot be converted: it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload)
+  spamd  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <spamd> cannot be converted: its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf

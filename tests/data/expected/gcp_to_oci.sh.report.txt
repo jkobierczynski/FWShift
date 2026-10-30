@@ -1,0 +1,66 @@
+FWShift conversion report
+  source: gcp (vpc-shop)
+  target: oci
+
+Summary
+  Security rules:     28   exact 25, approximated 0, needs review 1, skipped 2
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] OCI_LOAD: the output is a shell script of OCI CLI calls (section 10): DRY_RUN=1 prints them, COMPARTMENT_ID and VCN_ID create the NSGs and their rules. It creates new NSGs only, and stops if an NSG of the same name exists in the VCN. The NSGs have no VNICs when it is done: nothing changes until VNICs are put in them
+  [needs-review] OCI_ATTACH: 29 NSGs: put each VNIC in the NSGs whose '# attach' line lists its addresses, and take it out of the others; a VNIC with addresses of both IP versions is in an NSG for each. An NSG applies to the whole VNIC: a VNIC with several addresses of one IP version in different NSGs gives each address the rules of all of them, so give such addresses the same NSG. 'oci network vnic update --nsg-ids' replaces the NSGs of a VNIC: it is left to you
+  [needs-review] OCI_SECURITY_LISTS: the security lists of the VNICs' subnets keep applying, and OCI allows what a rule of a security list or of an NSG allows: for the VNICs to be held to what the NSGs allow, their subnets need security lists that allow no more (the default security list of a VCN allows SSH from anywhere and every egress)
+  [needs-review] OCI_RULE_LIMIT: an NSG takes 120 rules, so these were split and a VNIC goes in every part: fwshift-addresses-3 (3 NSGs), fwshift-addresses-4 (3 NSGs), fwshift-sources-account-app-example-shop.iam.gserviceaccount.com (4 NSGs), fwshift-addresses-5 (3 NSGs), fwshift-addresses-6 (4 NSGs), fwshift-sources-tag-web-ipv6 (2 NSGs)
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; an NSG does not. VCN flow logs record the connections of the subnets or VNICs instead
+
+Security rules
+  db-to-vpc+implied deny ingress  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: an NSG drops what it does not allow, without an answer
+  db-no-internet (between instances)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: an NSG drops what it does not allow, without an answer
+  pol-shop:deny-smtp-out (between instances)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: an NSG drops what it does not allow, without an answer
+  implied allow egress+allow-https-web  ->  exact  (emitted as NSGs fwshift-addresses-3, fwshift-addresses-4, fwshift-sources-account-app-example-shop.iam.gserviceaccount.com, fwshift-addresses-5, fwshift-addresses-6)
+      [info] DENY_SUBTRACTED: an NSG cannot block: the rule is written without what the blocking rules above it match
+  implied allow egress+implied deny ingress  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: an NSG drops what it does not allow, without an answer
+  allow-app-from-web  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  allow-db-from-app  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  deny-ssh-blocked  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: an NSG drops what it does not allow, without an answer
+  allow-https-web  ->  exact  (emitted as NSGs fwshift-addresses, fwshift-addresses-2, fwshift-addresses-3, fwshift-addresses-4, fwshift-addresses-7, fwshift-addresses-8, fwshift-addresses-9, fwshift-addresses-10, fwshift-addresses-11)
+      [info] DENY_SUBTRACTED: an NSG cannot block: the rule is written without what the blocking rules above it match
+  allow-https-web-v6  ->  exact  (emitted as NSGs fwshift-addresses-ipv6, fwshift-sources-tag-web-ipv6, fwshift-addresses-ipv6-2)
+      [info] DENY_SUBTRACTED: an NSG cannot block: the rule is written without what the blocking rules above it match
+  pol-shop:deny-tor (in)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: an NSG drops what it does not allow, without an answer
+  implied deny ingress (in)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: an NSG drops what it does not allow, without an answer
+  deny-egress-doc  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: an NSG drops what it does not allow, without an answer
+  db-to-vpc  ->  exact  (emitted as NSGs fwshift-addresses-2, fwshift-targets-tag-db)
+      [info] DENY_SUBTRACTED: an NSG cannot block: the rule is written without what the blocking rules above it match
+  db-no-internet  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: an NSG drops what it does not allow, without an answer
+  pol-shop:deny-smtp-out (out)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: an NSG drops what it does not allow, without an answer
+  implied allow egress (out)  ->  needs-review  (emitted as NSGs fwshift-addresses, fwshift-addresses-2, fwshift-addresses-3, fwshift-addresses-4, fwshift-sources-account-app-example-shop.iam.gserviceaccount.com, fwshift-addresses-5, fwshift-addresses-6, fwshift-addresses-9, fwshift-addresses-10, fwshift-addresses-11, fwshift-addresses-ipv6, fwshift-sources-tag-web-ipv6, fwshift-addresses-ipv6-2)
+      [info] DENY_SUBTRACTED: an NSG cannot block: the rule is written without what the blocking rules above it match
+      [needs-review] OCI_PART_NOT_WRITTEN: part of what the rule allows cannot be said by an NSG rule (every protocol but some, ports of SCTP or many ICMP codes) and is not written; the converted rule allows less
+
+NAT rules
+  external-192.0.2.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  external-192.0.2.5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see

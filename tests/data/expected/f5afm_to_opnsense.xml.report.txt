@@ -1,0 +1,44 @@
+FWShift conversion report
+  source: f5-afm
+  target: opnsense
+
+Summary
+  Security rules:     42   exact 35, approximated 0, needs review 7 (7 emitted disabled), skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] INTERFACES_REQUIRED: OPNsense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: external, internal, dmz
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] SELF_EXCLUDED: on OPNsense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  global/ping_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as dmz, internal)
+      [needs-review] ICMP_CODE: ICMP type 8 with code 0: a rule of OPNsense names types, no codes.
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled  (emitted as internal)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled  (emitted as external)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_web  ->  needs-review, emitted disabled  (emitted as external)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled  (emitted as external)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled  (emitted as dmz, external)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as dmz, internal)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+
+Addresses
+  partner.example.com  ->  exact  (emitted as partner_example_com)
+      [info] RENAMED: renamed to 'partner_example_com' to fit the target's naming rules
+  geo:NL  ->  exact  (emitted as geo_NL)
+      [info] RENAMED: renamed to 'geo_NL' to fit the target's naming rules

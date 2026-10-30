@@ -1,0 +1,62 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: oci
+
+Summary
+  Security rules:     18   exact 16, approximated 0, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OCI_LOAD: the output is a shell script of OCI CLI calls (section 10): DRY_RUN=1 prints them, COMPARTMENT_ID and VCN_ID create the NSGs and their rules. It creates new NSGs only, and stops if an NSG of the same name exists in the VCN. The NSGs have no VNICs when it is done: nothing changes until VNICs are put in them
+  [needs-review] OCI_ATTACH: 26 NSGs: put each VNIC in the NSGs whose '# attach' line lists its addresses, and take it out of the others; a VNIC with addresses of both IP versions is in an NSG for each. An NSG applies to the whole VNIC: a VNIC with several addresses of one IP version in different NSGs gives each address the rules of all of them, so give such addresses the same NSG. 'oci network vnic update --nsg-ids' replaces the NSGs of a VNIC: it is left to you
+  [needs-review] OCI_SECURITY_LISTS: the security lists of the VNICs' subnets keep applying, and OCI allows what a rule of a security list or of an NSG allows: for the VNICs to be held to what the NSGs allow, their subnets need security lists that allow no more (the default security list of a VCN allows SSH from anywhere and every egress)
+  [needs-review] OCI_RULE_LIMIT: an NSG takes 120 rules, so these were split and a VNIC goes in every part: fwshift-outside (2 NSGs), fwshift-inside (3 NSGs), fwshift-admin-range (3 NSGs), fwshift-dmz (2 NSGs), fwshift-web-srv (3 NSGs), fwshift-mail-srv (4 NSGs), fwshift-dmz-2 (2 NSGs), fwshift-guest (2 NSGs), fwshift-inside-2 (2 NSGs)
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them. Behind interfaces that are in no zone of the policy, so behind none of its zones (an allow for the zone of the default route does not reach them): mgmt=192.168.1.0/24
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Behind no zone, as the configuration routes them (no zone's networks hold them): 192.168.1.0/24. --no-source-networks takes none of them
+  [info] ZONE_NETWORKS_ANY_ZONE: 8 allow rules for any zone and any address are written for FWSHIFT-ROUTED, every address but the networks behind no zone (192.168.1.0/24), which the source does not let them reach
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; an NSG does not. VCN flow logs record the connections of the subnets or VNICs instead
+
+Security rules
+  outside_access_in-1  ->  exact  (emitted as NSGs fwshift-outside, fwshift-web-srv)
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+  outside_access_in-2  ->  exact  (emitted as NSGs fwshift-outside, fwshift-mail-srv)
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+  outside_access_in-3  ->  exact  (emitted as NSGs fwshift-outside, fwshift-inside, fwshift-admin-range, fwshift-dmz, fwshift-web-srv, fwshift-mail-srv, fwshift-dmz-2, fwshift-guest, fwshift-inside-2)
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+  outside_access_in-4  ->  exact  (emitted as taken out of the rules below it)
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written without the networks given for the other zones with --zone-network
+  inside_access_in-2  ->  exact  (emitted as NSGs fwshift-outside, fwshift-inside, fwshift-admin-range, fwshift-dmz, fwshift-web-srv, fwshift-mail-srv, fwshift-dmz-2, fwshift-guest, fwshift-inside-2)
+      [info] ZONE_BY_NETWORKS: the source in zone inside is written as the addresses of the networks given for it with --zone-network
+  inside_access_in-4  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: an NSG rule names addresses.
+  inside_access_in-7  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+  dmz_access_in-3  ->  exact  (emitted as taken out of the rules below it)
+      [info] ZONE_BY_NETWORKS: the source in zone dmz is written without the networks given for the other zones with --zone-network
+  dmz_access_in-4  ->  exact  (emitted as NSGs fwshift-outside, fwshift-dmz, fwshift-web-srv, fwshift-mail-srv, fwshift-dmz-2, fwshift-guest, fwshift-inside-2)
+      [info] DENY_SUBTRACTED: an NSG cannot block: the rule is written without what the blocking rules above it match
+  implicit-guest  ->  exact  (emitted as NSGs fwshift-outside, fwshift-guest)
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+      [info] ZONE_BY_NETWORKS: the source in zone guest is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone outside is written as the addresses of the networks given for it with --zone-network
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  nat-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  nat-mail-srv  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  nat-inside-net  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  nat-after-auto-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see

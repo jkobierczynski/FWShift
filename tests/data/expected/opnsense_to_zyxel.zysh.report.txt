@@ -1,0 +1,63 @@
+FWShift conversion report
+  source: opnsense
+  target: zyxel
+
+Summary
+  Security rules:     25   exact 18, approximated 1, needs review 6 (5 emitted disabled), skipped 0
+  NAT rules:           7   exact 0, approximated 4, needs review 0, skipped 3
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:     14   exact 14, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NPT_NOT_CONVERTED: 1 IPv6 prefix translation (NPt) of the configuration is not converted
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: OPNsense drops what arrives there from addresses nobody has been given, by a list it downloads, which is not in the configuration
+  [needs-review] ZYXEL_LOAD: the output is a script of CLI commands (section 10): new objects, zones without members, rules inserted from position 1 of the security policy on (before the rules the firewall has, which still decide what these do not match), virtual servers and policy routes, which take effect at once. Check, then save with write
+  [info] FLOATING_LAST_MATCH: 2 rules are not 'quick' (floating rules, and rules of an interface with 'quick' off): such a rule decides only where no quick rule matched, and of several the last one. In the converted policy they stand behind the quick rules, the last one first: 'LAN to test net (not quick)', 'Time for everyone (floating, not quick)'
+  [info] OPNSENSE_VERSION: the configuration was written by OPNsense 26.7 (firewall model 1.0.6), and read as that series reads it
+  [info] OPNSENSE_RULE_EMPTY: rules that match nothing on OPNsense (a protocol of the other IP version, a disabled alias) were left out: 'ICMP for IPv6 only (matches nothing)' (ICMP in a rule for IPv6 only)
+  [info] OPNSENSE_DISABLED_ALIAS: disabled aliases are empty tables on OPNsense: rules that name one match nothing (and 'not' one everything): Old_partner
+  [info] OPNSENSE_REGISTERED_RULE: 1 port forward registers a rule of its own ('Register rule'), which OPNsense puts after every other rule; so does the converted policy
+  [info] OPNSENSE_AUTOMATIC_RULES: OPNsense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof) and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without (RFC 4890), DHCP, and the web interface on its first interface (anti-lockout); and it lets out whatever the firewall itself sends. Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] ZYXEL_DEFAULT_RULES: after the converted rules, 72 rules that do what the source does with traffic no rule matches, for every pair of the zones written (inside a zone as the source decides it): the rules the firewall already has decide only traffic of zones the conversion does not know
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log
+
+Security rules
+  Never to the blocklist (floating) 2  ->  needs-review, emitted disabled  (emitted as 2 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Geo_block': an alias of type 'geoip' (the countries of a GeoIP database), whose addresses are not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests never to the blocklist  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the source of traffic that leaves, which is the source after outbound NAT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Voice from the partner - pass  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] AUTOMATIC_RULE: port forward 'Voice from the partner' passes what it forwards without a rule ('Pass' as its filter rule association): OPNsense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '172.16.20.20' because of NAT rule 'Voice from the partner'; check that this rule is meant to cover the translated traffic
+  Block private networks from WAN  ->  exact  (emitted as 2 rules of the security policy)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks' set: OPNsense drops what arrives there from those networks (the list of 26.7) before any rule of the configuration. This rule stands for that
+  Servers fetch updates  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] ZONE_DYNAMIC: 'Updates' holds members only its platform knows.
+  Servers fetch updates 3  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] ZONE_DYNAMIC: 'Updates' holds members only its platform knows.
+  Guests to the portal (no protocol, both IP versions)  ->  exact  (emitted as 1 rules of the security policy)
+      [info] RULE_HALF_NOT_LOADED: the rule is for IPv4 and IPv6, and there is no IPv6 rule for it on OPNsense (source: interface GUEST has no IPv6 network; the rule matches nothing of IPv6 there; destination: '192.0.2.80' is not an IPv6 address): it is converted for the other IP version only
+  Guests interactive (tos)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the type of service (tos) '0x10'.
+  SSH to bastion (rule the port forward registers)  ->  needs-review  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '172.16.20.10' because of NAT rule 'SSH to bastion'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'SSH to bastion' also translates the port to 22; the service of this rule still names the post-NAT port and must be adjusted
+
+NAT rules
+  SSH to bastion  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  Voice from the partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  Mail relay 1:1 - inbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  Mail relay 1:1 - outbound  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_POOL_PORTS: source NAT of kind static written as SNAT to a pool, which the documentation does not say translates ports or not
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  DMZ leaves as .10  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  Guests leave as .30  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  Automatic outbound NAT on WAN  ->  approximated  (emitted as policy route)
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: OPNsense translates what leaves by an interface with an IPv4 gateway and comes from the networks of its other interfaces, or from the firewall itself. This rule stands for that
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches

@@ -1,0 +1,55 @@
+FWShift conversion report
+  source: fortios
+  target: zyxel
+
+Summary
+  Security rules:     14   exact 7, approximated 1, needs review 6 (6 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 2, skipped 3
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZYXEL_LOAD: the output is a script of CLI commands (section 10): new objects, zones without members, rules inserted from position 1 of the security policy on (before the rules the firewall has, which still decide what these do not match), virtual servers and policy routes, which take effect at once. Check, then save with write
+  [needs-review] ZYXEL_NAT_INTERFACES: virtual servers and policy routes name the interfaces of the zones as the source names them (after --interface-map): check that the firewall has them (ge1, wan1 ...): internal1, internal2
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] ZYXEL_DEFAULT_RULES: after the converted rules, 31 rules that do what the source does with traffic no rule matches, for every pair of the zones written (inside a zone as the source decides it): the rules the firewall already has decide only traffic of zones the conversion does not know
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log
+
+Security rules
+  LAN to Internet  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
+  Admins to DMZ  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+  Block geo  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ out via pool  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: the form of an address object of a host name is not in the documentation FWShift could read.
+  Partner tunnel  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] SERVICE_NOT_WRITTEN: service syslog-from-high: source ports, an ICMP code, SCTP ports or protocol 0, which a service object cannot say.
+  policy-12  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  Not web  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] SERVICE_NEGATE: every service but some: a service object of ZLD lists what it matches.
+  Timestamp probes  ->  exact  (emitted as 1 rules of the security policy)
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+
+NAT rules
+  vip-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  vip-mail  ->  skipped
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  snat-1  ->  needs-review  (emitted as policy route)
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  snat-2  ->  needs-review  (emitted as policy route)
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  snat-7  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted

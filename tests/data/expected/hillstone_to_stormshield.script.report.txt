@@ -1,0 +1,64 @@
+FWShift conversion report
+  source: hillstone
+  target: stormshield
+
+Summary
+  Security rules:     14   exact 5, approximated 0, needs review 9 (7 emitted disabled), skipped 0
+  NAT rules:           9   exact 4, approximated 0, needs review 0, skipped 5
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_NAT_ORDER: DNAT is looked up before the route and the policy, SNAT after the route; the rules were read as naming the destination before DNAT and the zone after it, which is what Hillstone's troubleshooting guide shows (one of its configuration examples names the translated address instead): check the rules for translated traffic on the firewall
+  [needs-review] HILLSTONE_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with show service predefined: HTTP, HTTPS, SSH, PING, DNS
+  [needs-review] STORMSHIELD_LOAD: the output is a script of serverd commands (section 10): it creates objects (and changes those of the same names, also where an active slot uses them), empties filter slot 9 and writes the rules there; the slot is not made active. snscli goes on after a command that fails: read its output, and check the slot with CONFIG FILTER CHECK before it is made active
+  [needs-review] STORMSHIELD_INTERFACES: rules name interfaces by the zone names of the source: each must be the name of an interface of the firewall (in, out, dmz1 ...); rename the zones with --zone-map ZONE=INTERFACE; written with characters replaced: ethernet0/0 as ethernet0_0
+  [needs-review] STORMSHIELD_IPV6: IPv6 objects are written with ipv6= and prefixlenv6=, the names CONFIG OBJECT LIST answers with; that the commands that create objects take them is not documented: check them
+  [needs-review] STORMSHIELD_NAT_ARP: translated addresses are published by ARP (natsrcarp, natdstarp); leave that out where the address is one of the firewall
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] HILLSTONE_SOURCE: 4 zones (trust, untrust, dmz, lab); 14 rules of the policy, first match in the order of the configuration (not by id)
+  [info] HILLSTONE_ANY: the address Any is read as every IPv4 address and IPv6-any as every IPv6 address
+  [info] HILLSTONE_REJECT: action reject: read as a deny that answers the client: lab-to-inside
+  [info] HILLSTONE_SCHEDULE: rules with a schedule: schedules are not converted, a target writes these rules disabled: app-clients: office-hours
+  [info] HILLSTONE_DEFAULTS: what no rule matches, between zones and inside a zone (default-action): deny
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have loglevel=log where the source logs the start of a connection, and the standard connection log otherwise
+
+Security rules
+  block-country  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-country': address entry blocked-country: country XX, which the configuration does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'blocked-country' holds members only its platform knows. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  lab-to-inside  ->  needs-review  (emitted as 1 rules of slot 9)
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+  inside-to-servers  ->  needs-review  (emitted as 2 rules of slot 9)
+      [needs-review] HILLSTONE_DNAT_INSIDE: names servers, which holds an address that dnatrule 1, dnatrule 2, dnatrule 3 translate(s) to: read as the address a packet has before DNAT; if the firewall matches rules after DNAT, the rule also matches the connections translated to it
+  lab-updates  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] FQDN_NOT_SUPPORTED: host name object update-site: written with addresses only.
+  app-clients  ->  needs-review, emitted disabled  (emitted as 2 rules of slot 9)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule office-hours is not converted.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object files.example.org: written with addresses only.
+  p2p  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] UNSUPPORTED_MATCH: not converted: application BitTorrent: application identification narrows the match.
+  tunnels-to-partners  ->  needs-review, emitted disabled  (emitted as 2 rules of slot 9)
+      [needs-review] ZONE_DYNAMIC: 'partners' holds members only its platform knows.
+  to-branch-vpn  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action tunnel vpn-to-branch: traffic of a VPN tunnel only.
+  contractors-out  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'wild-hosts': address entry wild-hosts: wildcard address '10.10.0.5 0.0.255.0'.
+      [needs-review] USER_MATCH: source user match role contractors is not converted.
+      [needs-review] ZONE_DYNAMIC: 'wild-hosts' holds members only its platform knows.
+
+NAT rules
+  bnatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  dnatrule 3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  dnatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  snatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  snatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written

@@ -1,0 +1,34 @@
+FWShift audit
+  source: f5-afm
+  security rules: 42 (1 disabled), NAT rules: 0
+
+Summary
+  high 4, medium 1, low 19, info 2
+
+Findings in the policy as it was read
+  [high] SHADOWED_RULE: rule 'global/admins_continue>vs_web6/(default)' never matches: the rule blocks traffic from zone external to any zone, but all it could match is taken by earlier rules: 'global/admins_continue>vs_web6/web_in' allows it
+  [high] SHADOWED_RULE: rule 'global/admins_continue>vs_web/(default)' never matches: the rule blocks traffic from zone external to any zone, but all it could match is taken by earlier rules: 'global/admins_continue>vs_web/web_in' allows it
+  [high] SHADOWED_RULE: rule 'vs_web6/(default)' never matches: the rule blocks traffic from zone external to any zone, but all it could match is taken by earlier rules: 'global/admins_continue>vs_web6/web_in', 'vs_web6/web_in' allow it
+  [high] SHADOWED_RULE: rule 'vs_web/(default)' never matches: the rule blocks traffic from zone external to any zone, but all it could match is taken by earlier rules: 'global/admins_continue>vs_web/web_in', 'vs_web/web_in' allow part of it, 'global/block_bad' blocks the rest
+  [medium] ANY_TO_ANY: rule 'rd0/outbound/allow_dns_out@vs_outbound' allows its services from any source to any destination, from zone internal to any zone
+  [low] ANY_DESTINATION: rule 'global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound' allows its sources to reach any destination, from zone internal to any zone
+  [low] ANY_DESTINATION: rule 'global/admins_continue>rd0/outbound/allow_web_out@vs_outbound' allows its sources to reach any destination, from zone internal to any zone
+  [low] ANY_SOURCE: rule 'global/ping_in@vs_outbound' allows any source, from zone dmz, internal to any zone
+  [low] ANY_SOURCE: rule 'global/office_ssh@vs_outbound' allows any source, from zone internal to any zone
+  [low] ANY_DESTINATION: rule 'global/partners_in@vs_outbound' allows its sources to reach any destination, from zone dmz, internal to any zone
+  [low] ANY_SOURCE: rule 'rd0/outbound/allow_dns_out@vs_dns' allows any source, from zone internal to any zone
+  [low] ANY_DESTINATION: rule 'rd0/outbound/allow_web_out@vs_outbound' allows its sources to reach any destination, from zone internal to any zone
+  [low] ANY_SOURCE: rule 'vs_web6/web_in' allows any source, from zone external to any zone
+  [low] ANY_SOURCE: rule 'vs_web/web_in' allows any source, from zone external to any zone
+  [low] REDUNDANT_RULE: rule 'vs_web6/web6_in' never matches: 'vs_web6/web_in' above it already allows everything it could match
+  [low] REDUNDANT_RULE: rule 'vs_old_app/(refused)' never matches: 'global/block_bad', 'global/admins_continue>vs_old_app/(refused)', 'global/inspect_irule>vs_old_app/(refused)' above it already block everything it could match
+  [low] REDUNDANT_RULE: rule 'global/admins_continue>rd0/outbound/allow_dns_out@vs_dns' adds nothing: 'global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'global/admins_continue>vs_web_http/(refused)' adds nothing: 'vs_web_http/(refused)' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'global/partners_in@vs_web6' adds nothing: 'vs_web6/web_in' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'global/partners_in@vs_web' adds nothing: 'vs_web/web_in' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'global/partners_in@vs_web_http' adds nothing: 'vs_web_http/(refused)' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'global/inspect_irule>rd0/dmz_no_inside' adds nothing: 'rd0/dmz_no_inside' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'global/inspect_irule>vs_inbound_dmz/(default)' adds nothing: 'vs_inbound_dmz/(default)' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'rd0/outbound/allow_dns_out@vs_dns' adds nothing: 'rd0/outbound/allow_dns_out@vs_outbound' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [info] DISABLED_RULE: rule 'global/old_rule' is disabled: remove it, or note why it is kept
+  [info] UNUSED_OBJECT: 1 address group no rule uses: 'web_servers'

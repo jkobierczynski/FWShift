@@ -1,0 +1,51 @@
+FWShift conversion report
+  source: f5-afm
+  target: forcepoint
+
+Summary
+  Security rules:     42   exact 35, approximated 1, needs review 6 (6 emitted disabled), skipped 0
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] SMC_LOADER: the output is a Python program that loads the policy into a Security Management Center through its REST API (python3 FILE --help). It creates the elements and a new firewall policy 'FWShift' on template 'Firewall Template', checks first that every name is free, and uploads the policy to no engine: review it in the Management Client, then install it yourself. --undo deletes what a run created
+  [needs-review] TEMPLATE_RULES: the rules are written at the insert point of template 'Firewall Template': its rules above the insert point (the traffic of the engine with the SMC) come first, and its rules below come after the rules of the policy (the predefined templates refuse Ident and discard and log the rest)
+  [needs-review] ZONES_REQUIRED: the rules use these zones, which must be set on the interfaces of the engine (or renamed with --zone-map); a zone the SMC does not have is created without interfaces: internal, dmz, external
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] MATCH_EXPRESSIONS: rules that limit a side by zones and addresses name a match expression per zone and address element (its parts must all match): 9 were written
+  [info] DOMAIN_NAMES: host names are written as domain name elements; the engine resolves them only with DNS servers in its properties: partner.example.com
+  [info] NAME_COLLISIONS: an SMC predefines many elements (HTTPS, SSH, ...). An element of the same name that says the same is used by the loader; one that says something else stops it: convert again with --target-prefix
+
+Security rules
+  global/reject_telnet  ->  approximated  (emitted as global/reject_telnet (IPv4), global/reject_telnet (IPv6))
+      [approximated] REFUSE_ACTION: action reset-client becomes Refuse, which answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented)
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_web  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+
+Addresses
+  geo:NL  ->  exact  (emitted as geo_NL)
+      [info] RENAMED: renamed to 'geo_NL' to fit the target's naming rules
+  geo_NL  ->  exact
+      [info] NOT_CREATED: not created (the geolocation NL (a country or region), which FWShift cannot write as addresses); rules that use it are written disabled
+
+Address groups
+  partners  ->  exact
+      [info] NOT_CREATED: not created (contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses)); rules that use it are written disabled

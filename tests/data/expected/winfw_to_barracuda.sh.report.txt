@@ -1,0 +1,167 @@
+FWShift conversion report
+  source: windows-firewall (Group Policy, local)
+  target: barracuda
+
+Summary
+  Security rules:     31   exact 0, approximated 5, needs review 26 (26 emitted disabled), skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           23   exact 20, approximated 0, needs review 3, skipped 0
+
+Notes for the whole policy
+  [needs-review] WINFW_BYPASS: rules with authenticated bypass let IPsec-authenticated connections through block rules; they are first in the converted policy and not converted: Management over IPsec, overriding block rules
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [info] WINFW_DEFAULT_ASSUMED: settings that no store of the input holds were taken as Windows's defaults (firewall on, inbound blocked, outbound allowed): Private defaultinboundaction, Public defaultinboundaction, Public defaultoutboundaction
+  [info] WINFW_HOST_POLICY: a host firewall: the zone Host is the host itself, the zones Domain, Private and Public the networks of the interfaces in each profile. Windows has no rule order: block rules decide before allow rules, then the default of the profile; the converted policy says that in first-match order (block rules, allow rules, the defaults that allow). Traffic between the networks is not the host's to decide and is denied
+  [info] WINFW_STORES: stores read: Group Policy 8 rules, local 22 rules
+  [info] WINFW_PROFILES: Domain: inbound blocked (Group Policy), outbound allowed (Group Policy), local rules not merged (Group Policy); Private: inbound blocked (default), outbound blocked (Group Policy); Public: inbound blocked (default), outbound allowed (default)
+  [info] WINFW_LOCAL_NOT_MERGED: Group Policy (or MDM) does not merge local rules in the profile Domain: the local rules are left out there (16 rules named it)
+  [info] WINFW_SETTING_NOT_CONVERTED: profile settings that decide traffic no rule names are not converted: Public: unicast responses to multicast and broadcast traffic are blocked
+  [info] WINFW_ADDRESS_KEYWORDS: rules name address keywords, whose addresses only Windows knows at run time: DNS, LocalSubnet, LocalSubnet4, LocalSubnet6. They are dynamic groups; only a Windows target writes them again
+  [info] WINFW_NOT_READ: not read: 1 connection security (IPsec) rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\ConSecRules; 1 Windows Service Hardening rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Static\System
+
+Security rules
+  Management over IPsec, overriding block rules  ->  needs-review, emitted disabled  (emitted as Management_over_IPsec__overridin, Management_over_IPsec__overrid_2)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: remote computers; IPsec (Authenticate): only connections IPsec protects match; authenticated bypass: only IPsec-authenticated connections match, and they override block rules. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: remote computers.
+      [needs-review] UNSUPPORTED_MATCH: not converted: IPsec (Authenticate): only connections IPsec protects match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: authenticated bypass: only IPsec-authenticated connections match, and they override block rules.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Block a known bad host  ->  approximated  (emitted as Block_a_known_bad_host, Block_a_known_bad_host-v6)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Host; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Domain, Private, Public; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Block RDP from the guest half of the admin network  ->  approximated  (emitted as Block_RDP_from_the_guest_half_of)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Domain, Private, Public; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Host; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Block telnet out  ->  approximated  (emitted as Block_telnet_out, Block_telnet_out-v6)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Host; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Private, Public; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Block the scanner networks  ->  approximated  (emitted as Block_the_scanner_networks)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Private, Public; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Host; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Block SMB on public networks  ->  approximated  (emitted as Block_SMB_on_public_networks, Block_SMB_on_public_networks-v6)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Public; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Host; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Allow WinRM from management  ->  needs-review, emitted disabled  (emitted as Allow_WinRM_from_management)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Domain, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Domain with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+  Web out on private networks  ->  needs-review, emitted disabled  (emitted as Web_out_on_private_networks, Web_out_on_private_networks-v6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Host, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Host with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Private, and a rule of the firewall names no zone: give the networks behind Private with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  DNS out on private networks  ->  needs-review, emitted disabled  (emitted as DNS_out_on_private_networks)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'DNS': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Host, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Host with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Private, and a rule of the firewall names no zone: give the networks behind Private with --zone-network.
+  SMB from the local subnet  ->  needs-review, emitted disabled  (emitted as SMB_from_the_local_subnet)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Domain, Private, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Domain, Private with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+  SSH from the IPv6 jump hosts  ->  needs-review, emitted disabled  (emitted as SSH_from_the_IPv6_jump_hosts)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Domain, Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Domain, Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+  DNS server  ->  needs-review, emitted disabled  (emitted as DNS_server)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Domain, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Domain with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+  Echo request (ICMPv4-In)  ->  needs-review, emitted disabled  (emitted as Echo_request__ICMPv4-In_, Echo_request__ICMPv4-In_-v6)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-8': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Echo request (ICMPv6-In)  ->  needs-review, emitted disabled  (emitted as Echo_request__ICMPv6-In_)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet6': dynamic address group, members are not known statically.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-128': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+  Fragmentation needed and time exceeded  ->  needs-review, emitted disabled  (emitted as Fragmentation_needed_and_time_ex, Fragmentation_needed_and_time__2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-3.4_11.0': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Remote Desktop from the admin networks  ->  needs-review, emitted disabled  (emitted as Remote_Desktop_from_the_admin_ne, Remote_Desktop_from_the_admin__2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Web server  ->  needs-review, emitted disabled  (emitted as Web_server, Web_server-v6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  FTP passive ports  ->  needs-review, emitted disabled  (emitted as FTP_passive_ports)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+  SNMP from the local subnet  ->  needs-review, emitted disabled  (emitted as SNMP_from_the_local_subnet)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet4': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+  GRE from the tunnel peer  ->  needs-review, emitted disabled  (emitted as GRE_from_the_tunnel_peer)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+  Example application server  ->  needs-review, emitted disabled  (emitted as Example_application_server, Example_application_server-v6)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: program C:\Program Files\Example\server.exe. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: program C:\Program Files\Example\server.exe.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Print spooler (RPC)  ->  needs-review, emitted disabled  (emitted as Print_spooler__RPC_, Print_spooler__RPC_-v6)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the local port keyword RPC; service Spooler. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the local port keyword RPC.
+      [needs-review] UNSUPPORTED_MATCH: not converted: service Spooler.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  OpenSSH server  ->  needs-review, emitted disabled  (emitted as OpenSSH_server, OpenSSH_server-v6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Domain, Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Domain, Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  mDNS on wireless  ->  needs-review, emitted disabled  (emitted as mDNS_on_wireless, mDNS_on_wireless-v6)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: interface types wireless. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: interface types wireless.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Game server through edge traversal  ->  needs-review, emitted disabled  (emitted as Game_server_through_edge_travers, Game_server_through_edge_trave_2)
+      [approximated] WINFW_EDGE_TRAVERSAL: the rule also accepts traffic that came through edge traversal (Teredo); the model has no such path: the converted rule does not let it in
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Printer port  ->  needs-review, emitted disabled  (emitted as Printer_port, Printer_port-v6)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the field 'newfield2_40', which FWShift does not know. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the field 'newfield2_40', which FWShift does not know.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  A rule Windows cannot parse  ->  needs-review, emitted disabled  (emitted as A_rule_Windows_cannot_parse, A_rule_Windows_cannot_parse-v6)
+      [needs-review] WINFW_RULE_INVALID: Windows does not enforce a rule it cannot parse (local ports without protocol TCP or UDP): it is kept disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Domain, Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Domain, Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  SSDP discovery  ->  needs-review, emitted disabled  (emitted as SSDP_discovery)
+      [info] WINFW_PLATFORM: the rule applies on Windows NT 6.2 and later; it is taken as applying on this host
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+  DNS server (local copy)  ->  needs-review, emitted disabled  (emitted as DNS_server__local_copy_, DNS_server__local_copy_-v6)
+      [info] WINFW_OVERRIDDEN: the Group Policy store has a rule of the same id ('Shared-Id'), which replaces this one: it is kept disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Domain, Private, Public, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Domain, Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a rule of the firewall names no zone: give the networks behind Host with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Backup agent to the backup server  ->  needs-review, emitted disabled  (emitted as Backup_agent_to_the_backup_serve)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Host, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Host with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Private, Public, and a rule of the firewall names no zone: give the networks behind Private, Public with --zone-network.
+  (default) outbound  ->  needs-review, emitted disabled  (emitted as x_default__outbound, x_default__outbound-v6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Host, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind Host with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Domain, Public, and a rule of the firewall names no zone: give the networks behind Domain, Public with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+
+Services
+  icmp-8  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
+  icmp6-128  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
+  icmp-3.4_11.0  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated

@@ -1,0 +1,55 @@
+FWShift conversion report
+  source: junos (root)
+  target: hillstone
+
+Summary
+  Security rules:     14   exact 10, approximated 1, needs review 3 (2 emitted disabled), skipped 0
+  NAT rules:           6   exact 1, approximated 4, needs review 0, skipped 1
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10018 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] JUNOS_FORMAT: read 14 security policies and 6 NAT rules of the root system. Policies are looked up after static and destination NAT; they were brought back to the original destination, as the model has it
+  [info] PREDEFINED_APPLICATIONS: predefined applications are not in the configuration; these were taken from FWShift's table of them: junos-dns-udp, junos-http, junos-https, junos-ping, junos-smtp, junos-ssh
+  [info] HOST_POLICIES: policies for the zone junos-host (traffic to and from the firewall itself) are not read: 'to-box'
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface ge-0/0/0.0 / zone "untrust"; interface ge-0/0/1.0 / zone "trust"; interface ge-0/0/2.0 / zone "dmz"; interface ge-0/0/3.0 / zone "dmz"; interface ge-0/0/4.0 / zone "FWS_guest"
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  block-bad  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  ping-out  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  web-in  ->  needs-review  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to 'web-srv' because of NAT rule 'from-internet dnat-web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'from-internet dnat-web' also translates the port to 8080; the service of this rule still names the post-NAT port and must be adjusted
+  mail-in  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to 'mail-srv' because of NAT rule 'inbound static-mail'; check that this rule is meant to cover the translated traffic
+  not-servers  ->  exact  (emitted as 1 rule of policy-global)
+      [info] NEGATION_EXPANDED: a rule of StoneOS cannot negate: written as an address entry of the addresses that are left
+  guest-web  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SCHEDULE: schedule 'work-hours' is not converted; the rule would apply at all times.
+  guest-ping  ->  needs-review, emitted disabled  (emitted as 2 rules of policy-global)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'junos-ping': the predefined application junos-ping: Juniper describes it as ICMP echo, other readers of Junos as every ICMP type.
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  intra  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  global-block  ->  exact  (emitted as 1 rule of policy-global)
+      [info] REJECT_AS_DENY: action reset-client: written as deny
+  global-ntp  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+
+NAT rules
+  inbound static-mail  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from untrust; the rule written applies to traffic from every zone
+  from-internet dnat-web  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from untrust; the rule written applies to traffic from every zone
+  trust-out snat-lan  ->  approximated  (emitted as snatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from trust; the rule written applies to traffic from every zone
+  dmz-out snat-dmz  ->  approximated  (emitted as snatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from dmz; the rule written applies to traffic from every zone
+  vr-out snat-vr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: not converted on the source: a rule set for routing instance 'VR1', which is not read; a rule set that does not say where its traffic comes from

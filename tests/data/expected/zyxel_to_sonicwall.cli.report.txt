@@ -1,0 +1,109 @@
+FWShift conversion report
+  source: zyxel
+  target: sonicwall
+
+Summary
+  Security rules:     19   exact 8, approximated 3, needs review 7 (7 emitted disabled), skipped 1
+  NAT rules:           9   exact 0, approximated 1, needs review 6, skipped 2
+  Addresses:          17   exact 17, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           16   exact 11, approximated 0, needs review 5, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZYXEL_DEFAULT_SNAT: the default SNAT of the WAN trunk (connections from internal interfaces leave with the address of the WAN interface) is not a rule of the configuration and is not converted: give the target the source NAT it needs
+  [needs-review] ZYXEL_BLOCK_INTRAZONE: zones that block traffic between their members: read as a rule at the top that denies inside the zone, whatever the rules say (not confirmed on a device): DMZ
+  [needs-review] ZYXEL_FQDN: address objects of a host name (fqdn), read as names resolved for IPv4; the form is not in the CLI Reference Guide FWShift could read: PORTAL
+  [needs-review] NAT_NOTHING_ELSE: SonicOS adds NAT policies of its own (an interface in a WAN zone hides the LAN and DMZ subnets behind its address), and the source translated only what its NAT rules say. The interfaces of the zones are not known (--interface-map), so no policy that translates nothing was written: disable the policies SonicOS added (Network, NAT Policies, Default & Custom), or check that the source's translations are all it does
+  [needs-review] IPV6_PRIORITY_AUTO: IPv6 rules are written without a priority, after every IPv4 rule: SonicOS keeps one list of priorities for the rules of every pair of zones, IPv4 first and with rules of its own among them, so the place of an IPv6 rule is not known beforehand (SonicOS 8.2.2 refused the places FWShift gave). SonicOS places them. Pairs with more than one IPv6 rule, whose order SonicOS decides: DMZ to DMZ, LAN1 to WAN, LAN1 to DMZ, DMZ to LAB, DMZ to LAN1, DMZ to WAN, LAB to DMZ, LAB to LAB, LAB to LAN1, LAB to WAN, LAN1 to LAB, LAN1 to LAN1, WAN to DMZ, WAN to LAB, WAN to LAN1, WAN to WAN: check it
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, address-object ipv6, nat-policy name and comment, nat-policy priority manual, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): DMZ, LAN1, WAN, LAB
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] ZYXEL_SOURCE: 4 zones (WAN, LAN1, DMZ, LAB); 18 rules of the security policy, first match, IPv4 and IPv6 lists one after the other. Rules to and from the firewall itself (ZyWALL) are not converted
+  [info] ZYXEL_NAT_ORDER: virtual servers and 1:1 NAT are done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT of policy routes is done after it
+  [info] ZYXEL_UNZONED: interfaces in no zone, which only rules from any or to any match: ge7
+  [info] ZYXEL_INTERFACE_OBJECT: address objects of an interface, read with the static address the configuration gives the interface: interface-subnet ge3, interface-subnet ge4, interface-ip ge1
+  [info] ZYXEL_ICMP_NAMES: ICMP types by name, read with the numbers of the IANA registry: echo, echo-request
+  [info] ZYXEL_DEFAULTS: what no rule matches (secure-policy default-rule): IPv4 deny, IPv6 deny
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv4' (all addresses, in two halves) instead of any
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv6' (all addresses, in two halves) instead of any
+  [info] DEFAULT_DENY_ADDED: 32 rules that deny were added, one at the end of each pair of zones and IP version: SonicOS allows some traffic between zones by itself (from LAN to WAN, for example), and the source did not
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 1 rule(s) match IPv4 and IPv6 traffic and were written twice: SonicOS has address objects and access rules per IP version
+
+Security rules
+  WAN_to_Web  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'PUBLIC_WEB' next to 'WEB_SRV' because of NAT rule 'virtual-server WEB_VS'; check that this rule is meant to cover the translated traffic
+  WAN_to_Mail  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to 'MAIL_SRV' because of NAT rule 'virtual-server MAIL_VS'; check that this rule is meant to cover the translated traffic
+  Admin_Mgmt  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default_av); attach equivalent inspection on the target
+  LAN1_to_DMZ_Reject  ->  exact
+      [info] RESET_ACTION: action reset-client becomes deny
+  Monitor_Ping  ->  exact  (emitted as Monitor_Ping, Monitor_Ping 2, Monitor_Ping 3, Monitor_Ping 4, Monitor_Ping 5, Monitor_Ping 6, Monitor_Ping 7, Monitor_Ping 8, Monitor_Ping 9, Monitor_Ping 10, Monitor_Ping 11, Monitor_Ping 12, Monitor_Ping 13, Monitor_Ping 14, Monitor_Ping 15, Monitor_Ping 16)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 16 rules
+  Old_Rule  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'GRE': IP protocol 47, for which FWShift does not know the command of SonicOS.
+  Alice_Workhours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'WORKHOURS' is not converted; the rule would apply at all times.
+      [needs-review] USER_MATCH: source user match alice is not converted.
+  DNS_From_Port  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'DNS-sourceport-1024-65535': source ports, which a SonicOS service object does not have.
+  Country_Block  ->  needs-review, emitted disabled  (emitted as Country_Block, Country_Block 2, Country_Block 3, Country_Block 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'COUNTRY_X': geography XX: not an address FWShift can read. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  VS_Only  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: ctmatch dnat: matches only connections that a virtual server translated.
+  ESP_Out  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ESP': IP protocol 50, for which FWShift does not know the command of SonicOS.
+  V6_Ping  ->  needs-review, emitted disabled  (emitted as V6_Ping, V6_Ping 2, V6_Ping 3, V6_Ping 4, V6_Ping 5, V6_Ping 6, V6_Ping 7, V6_Ping 8, V6_Ping 9, V6_Ping 10, V6_Ping 11, V6_Ping 12, V6_Ping 13, V6_Ping 14, V6_Ping 15, V6_Ping 16)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 16 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'PING6': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  LAN1_to_Device  ->  skipped
+      [info] ZYXEL_DEVICE_RULE: a rule for traffic to the firewall itself (LAN1 to ZyWALL): not converted
+
+NAT rules
+  virtual-server WEB_VS  ->  needs-review
+      [approximated] ZYXEL_NAT_LOOPBACK: nat-loopback: hosts behind the firewall that use the original address are translated as well (and their source is translated to the firewall); only the translation for traffic that arrives on the interface is converted
+      [needs-review] NAT_ZONES: the rule applied to traffic from WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  virtual-server MAIL_VS  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  virtual-server ALT_VS  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  virtual-server ONE2ONE  ->  needs-review  (emitted as virtual-server ONE2ONE, virtual-server ONE2ONE in)
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT policy plus policy 'virtual-server ONE2ONE in' for the inbound direction
+  virtual-server MANY2ONE  ->  needs-review  (emitted as virtual-server MANY2ONE, virtual-server MANY2ONE in)
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT policy plus policy 'virtual-server MANY2ONE in' for the inbound direction
+  virtual-server OLD_VS  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  policy-route 1  ->  skipped
+      [info] ZYXEL_ROUTE_NO_SNAT: a policy route without SNAT above one with SNAT: kept as a rule that translates nothing, so that the SNAT of the routes below it does not apply to its traffic
+      [needs-review] NAT_NOT_CONVERTED: not converted: references 'LAB_SUBNET': interface-subnet ge6: interface-subnet of ge6: the interface gets its address by dhcp
+  policy-route 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+  policy-route 3  ->  approximated
+      [info] ZYXEL_SNAT_POOL: SNAT to the addresses of PUBLIC_RANGE, read as translation with port translation (the documentation does not say)
+      [approximated] NAT_ZONES: the rule applied to traffic from DMZ only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+
+Services
+  HTTP  ->  exact  (emitted as HTTP 2)
+      [info] RENAMED: renamed to 'HTTP 2' to fit the target's naming rules
+  HTTPS  ->  exact  (emitted as HTTPS 2)
+      [info] RENAMED: renamed to 'HTTPS 2' to fit the target's naming rules
+  SSH  ->  exact  (emitted as SSH 2)
+      [info] RENAMED: renamed to 'SSH 2' to fit the target's naming rules
+  PING  ->  exact  (emitted as PING 2)
+      [info] RENAMED: renamed to 'PING 2' to fit the target's naming rules
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that
+  TRACE  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  PING6  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  GRE  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 47, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  ESP  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 50, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  DNS-sourceport-1024-65535  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled

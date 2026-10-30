@@ -1,0 +1,99 @@
+FWShift conversion report
+  source: zyxel
+  target: terraform-azure
+
+Summary
+  Security rules:     19   exact 1, approximated 3, needs review 12 (12 emitted disabled), skipped 3
+  NAT rules:           9   exact 0, approximated 0, needs review 0, skipped 9
+  Addresses:          17   exact 17, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           16   exact 16, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZYXEL_DEFAULT_SNAT: the default SNAT of the WAN trunk (connections from internal interfaces leave with the address of the WAN interface) is not a rule of the configuration and is not converted: give the target the source NAT it needs
+  [needs-review] ZYXEL_BLOCK_INTRAZONE: zones that block traffic between their members: read as a rule at the top that denies inside the zone, whatever the rules say (not confirmed on a device): DMZ
+  [needs-review] ZYXEL_FQDN: address objects of a host name (fqdn), read as names resolved for IPv4; the form is not in the CLI Reference Guide FWShift could read: PORTAL
+  [needs-review] AZURE_ONE_GROUP: no zone has networks (--zone-network): one group holds every rule, inbound and outbound; associate it with every subnet the policy is for
+  [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var resource_group_name=... shows what it creates, terraform apply creates new network security groups with their rules; a group of the same name in the resource group makes it fail (it is not in the state). Then associate each group with the subnets of its networks (the comments and the output fwshift_networks), with azurerm_subnet_network_security_group_association
+  [info] ZYXEL_SOURCE: 4 zones (WAN, LAN1, DMZ, LAB); 18 rules of the security policy, first match, IPv4 and IPv6 lists one after the other. Rules to and from the firewall itself (ZyWALL) are not converted
+  [info] ZYXEL_NAT_ORDER: virtual servers and 1:1 NAT are done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT of policy routes is done after it
+  [info] ZYXEL_UNZONED: interfaces in no zone, which only rules from any or to any match: ge7
+  [info] ZYXEL_INTERFACE_OBJECT: address objects of an interface, read with the static address the configuration gives the interface: interface-subnet ge3, interface-subnet ge4, interface-ip ge1
+  [info] ZYXEL_ICMP_NAMES: ICMP types by name, read with the numbers of the IANA registry: echo, echo-request
+  [info] ZYXEL_DEFAULTS: what no rule matches (secure-policy default-rule): IPv4 deny, IPv6 deny
+  [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
+
+Security rules
+  block intra-zone DMZ  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  LAN1_Outgoing  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAN1, WAN, and a security rule names no zone: give the networks behind it with --zone-network.
+  Block_Partner_SSH  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone WAN, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN_to_Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone WAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN_to_Mail  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone WAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  Admin_Mgmt  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default_av); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAN1, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  LAN1_to_DMZ_Reject  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAN1, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] RESET_ACTION: action reset-client becomes Deny: a security group has no reject
+  Monitor_Ping  ->  skipped
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  Alice_Workhours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'WORKHOURS' is not converted; the rule would apply at all times.
+      [needs-review] USER_MATCH: source user match alice is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAN1, WAN, and a security rule names no zone: give the networks behind it with --zone-network.
+  DNS_From_Port  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAN1, WAN, and a security rule names no zone: give the networks behind it with --zone-network.
+  Country_Block  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone WAN; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'COUNTRY_X': geography XX: not an address FWShift can read. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Portal_Access  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object PORTAL: a security rule names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAN1, WAN, and a security rule names no zone: give the networks behind it with --zone-network.
+  VS_Only  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] UNSUPPORTED_MATCH: not converted: ctmatch dnat: matches only connections that a virtual server translated.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone WAN, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  ESP_Out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone DMZ, WAN, and a security rule names no zone: give the networks behind it with --zone-network.
+  V6_LAN_Out  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAN1, WAN, and a security rule names no zone: give the networks behind it with --zone-network.
+  V6_Admin_Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAN1, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  V6_Ping  ->  skipped
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  LAN1_to_Device  ->  skipped
+      [info] ZYXEL_DEVICE_RULE: a rule for traffic to the firewall itself (LAN1 to ZyWALL): not converted
+
+NAT rules
+  virtual-server WEB_VS  ->  skipped
+      [approximated] ZYXEL_NAT_LOOPBACK: nat-loopback: hosts behind the firewall that use the original address are translated as well (and their source is translated to the firewall); only the translation for traffic that arrives on the interface is converted
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  virtual-server MAIL_VS  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  virtual-server ALT_VS  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  virtual-server ONE2ONE  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  virtual-server MANY2ONE  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  virtual-server OLD_VS  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  policy-route 1  ->  skipped
+      [info] ZYXEL_ROUTE_NO_SNAT: a policy route without SNAT above one with SNAT: kept as a rule that translates nothing, so that the SNAT of the routes below it does not apply to its traffic
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  policy-route 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  policy-route 3  ->  skipped
+      [info] ZYXEL_SNAT_POOL: SNAT to the addresses of PUBLIC_RANGE, read as translation with port translation (the documentation does not say)
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see

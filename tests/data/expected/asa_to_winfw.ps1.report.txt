@@ -1,0 +1,66 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: windows-firewall
+
+Summary
+  Security rules:     18   exact 14, approximated 0, needs review 4 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them. Behind interfaces that are in no zone of the policy, so behind none of its zones (an allow for the zone of the default route does not reach them): mgmt=192.168.1.0/24
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Behind no zone, as the configuration routes them (no zone's networks hold them): 192.168.1.0/24. --no-source-networks takes none of them
+  [info] ZONE_NETWORKS_ANY_ZONE: 8 allow rules for any zone and any address are written for FWSHIFT-ROUTED, every address but the networks behind no zone (192.168.1.0/24), which the source does not let them reach
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  outside_access_in-1  ->  exact  (emitted as FWShift-outside_access_in-1-1, FWShift-outside_access_in-1-2)
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+  outside_access_in-2  ->  exact  (emitted as FWShift-outside_access_in-2-1, FWShift-outside_access_in-2-2)
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+  outside_access_in-3  ->  exact  (emitted as FWShift-outside_access_in-3-1, FWShift-outside_access_in-3-2)
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+  outside_access_in-4  ->  needs-review  (emitted as FWShift-outside_access_in-4-1, FWShift-outside_access_in-4-2, FWShift-outside_access_in-4-3, FWShift-outside_access_in-4-4, FWShift-outside_access_in-4-5, FWShift-outside_access_in-4-6, FWShift-outside_access_in-4-7, FWShift-outside_access_in-4-8, FWShift-outside_access_in-4-9, FWShift-outside_access_in-4-10)
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written without the networks given for the other zones with --zone-network
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  inside_access_in-2  ->  exact  (emitted as FWShift-inside_access_in-2-1, FWShift-inside_access_in-2-2)
+      [info] ZONE_BY_NETWORKS: the source in zone inside is written as the addresses of the networks given for it with --zone-network
+  inside_access_in-4  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: a rule of Windows Firewall names addresses.
+  inside_access_in-7  ->  needs-review, emitted disabled  (emitted as FWShift-inside_access_in-7-1, FWShift-inside_access_in-7-2)
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+  dmz_access_in-3  ->  needs-review  (emitted as FWShift-dmz_access_in-3-1, FWShift-dmz_access_in-3-2, FWShift-dmz_access_in-3-3, FWShift-dmz_access_in-3-4, FWShift-dmz_access_in-3-5, FWShift-dmz_access_in-3-6, FWShift-dmz_access_in-3-7, FWShift-dmz_access_in-3-8)
+      [info] ZONE_BY_NETWORKS: the source in zone dmz is written without the networks given for the other zones with --zone-network
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  dmz_access_in-4  ->  exact  (emitted as FWShift-dmz_access_in-4-1, FWShift-dmz_access_in-4-2)
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+  implicit-guest  ->  exact  (emitted as FWShift-implicit-guest-1, FWShift-implicit-guest-2)
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+      [info] ZONE_BY_NETWORKS: the source in zone guest is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone outside is written as the addresses of the networks given for it with --zone-network
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat-mail-srv  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat-inside-net  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat-after-auto-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation

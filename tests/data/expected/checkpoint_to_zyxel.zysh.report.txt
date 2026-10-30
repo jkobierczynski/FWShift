@@ -1,0 +1,70 @@
+FWShift conversion report
+  source: checkpoint (Network)
+  target: zyxel
+
+Summary
+  Security rules:     22   exact 12, approximated 1, needs review 9 (8 emitted disabled), skipped 0
+  NAT rules:           9   exact 4, approximated 3, needs review 0, skipped 2
+  Addresses:          16   exact 13, approximated 1, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')
+  [needs-review] ZYXEL_LOAD: the output is a script of CLI commands (section 10): new objects, zones without members, rules inserted from position 1 of the security policy on (before the rules the firewall has, which still decide what these do not match), virtual servers and policy routes, which take effect at once. Check, then save with write
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log
+
+Security rules
+  rule-2  ->  needs-review  (emitted as 1 rules of the security policy)
+      [needs-review] DEVICE_TARGET: the rule is installed only on gw-edge; decide whether it belongs on the target firewall
+  Social  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Facebook': object of type 'application-site'.
+  Admins  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netadmins': access role whose networks and users are not in the export (add the output of 'show access-roles details-level full').
+  PLC access (plc-operators)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] ACCESS_ROLE: access role plc-operators: the rule matches the networks of the role for its users ad_group_PLC-Operators, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [needs-review] USER_MATCH: source user match ad_group_PLC-Operators is not converted.
+  PLC access (vendor-support)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] ACCESS_ROLE: access role vendor-support: the rule matches the networks of the role for its users ad_group_Vendor-Support, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [needs-review] USER_MATCH: source user match ad_group_Vendor-Support is not converted.
+  DMZ users  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] ACCESS_ROLE: access role all-identified: the rule matches the networks of the role for all identified users, written 'known-user' as PAN-OS calls them
+      [needs-review] USER_MATCH: source user match known-user is not converted.
+  Updates  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] SCHEDULE: schedule 'Work-Hours' is not converted; the rule would apply at all times.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object .updates.example.com: the form of an address object of a host name is not in the documentation FWShift could read.
+  Old rule  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'lan-without-guests': object of type 'group-with-exclusion'.
+  Partners  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: VPN community match Partner-VPN.
+  DMZ access (cleanup of DMZ-Layer)  ->  exact  (emitted as 1 rules of the security policy)
+      [info] INLINE_CLEANUP: added for the implicit cleanup of inline layer 'DMZ-Layer', which is drop
+  Tunnels  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] GATEWAY_OBJECT: matches gateway object gw-edge, which stood for every address of the gateway; only its main address is known, so the converted rule no longer applies to its other addresses
+
+NAT rules
+  nat-1  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_POOL_PORTS: source NAT of kind static written as SNAT to a pool, which the documentation does not say translates ports or not
+  nat-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  nat-3  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_EXEMPTION: a rule that translates nothing, written as a policy route without SNAT: it keeps the source NAT of the policy routes below it from applying, not virtual servers, 1:1 NAT or the default SNAT of a WAN trunk
+  nat-5  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_EXEMPTION: a rule that translates nothing, written as a policy route without SNAT: it keeps the source NAT of the policy routes below it from applying, not virtual servers, 1:1 NAT or the default SNAT of a WAN trunk
+  nat-6  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+
+Addresses
+  web-1  ->  exact
+      [info] AUTOMATIC_NAT: the object has automatic static NAT to 203.0.113.10: as on Check Point, rules and groups that name it also match that address, written as 'web-1_valid_address'
+  netadmins  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: access role whose networks and users are not in the export (add the output of 'show access-roles details-level full') cannot be converted
+  lan-without-guests  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'group-with-exclusion' cannot be converted
+  gw-edge  ->  approximated
+      [approximated] GATEWAY_OBJECT: a gateway object stands for every address of the gateway; only its main address 198.51.100.1 is in the export
+
+Services
+  Facebook  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: object of type 'application-site': not converted

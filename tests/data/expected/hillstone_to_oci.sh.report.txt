@@ -1,0 +1,98 @@
+FWShift conversion report
+  source: hillstone
+  target: oci
+
+Summary
+  Security rules:     14   exact 1, approximated 0, needs review 13 (12 emitted disabled), skipped 0
+  NAT rules:           9   exact 0, approximated 0, needs review 0, skipped 9
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_NAT_ORDER: DNAT is looked up before the route and the policy, SNAT after the route; the rules were read as naming the destination before DNAT and the zone after it, which is what Hillstone's troubleshooting guide shows (one of its configuration examples names the translated address instead): check the rules for translated traffic on the firewall
+  [needs-review] HILLSTONE_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with show service predefined: HTTP, HTTPS, SSH, PING, DNS
+  [needs-review] OCI_LOAD: the output is a shell script of OCI CLI calls (section 10): DRY_RUN=1 prints them, COMPARTMENT_ID and VCN_ID create the NSGs and their rules. It creates new NSGs only, and stops if an NSG of the same name exists in the VCN. The NSGs have no VNICs when it is done: nothing changes until VNICs are put in them
+  [needs-review] OCI_ATTACH: 1 NSG: put each VNIC in the NSGs whose '# attach' line lists its addresses, and take it out of the others; a VNIC with addresses of both IP versions is in an NSG for each. An NSG applies to the whole VNIC: a VNIC with several addresses of one IP version in different NSGs gives each address the rules of all of them, so give such addresses the same NSG. 'oci network vnic update --nsg-ids' replaces the NSGs of a VNIC: it is left to you
+  [needs-review] OCI_SECURITY_LISTS: the security lists of the VNICs' subnets keep applying, and OCI allows what a rule of a security list or of an NSG allows: for the VNICs to be held to what the NSGs allow, their subnets need security lists that allow no more (the default security list of a VCN allows SSH from anywhere and every egress)
+  [info] HILLSTONE_SOURCE: 4 zones (trust, untrust, dmz, lab); 14 rules of the policy, first match in the order of the configuration (not by id)
+  [info] HILLSTONE_ANY: the address Any is read as every IPv4 address and IPv6-any as every IPv6 address
+  [info] HILLSTONE_REJECT: action reject: read as a deny that answers the client: lab-to-inside
+  [info] HILLSTONE_SCHEDULE: rules with a schedule: schedules are not converted, a target writes these rules disabled: app-clients: office-hours
+  [info] HILLSTONE_DEFAULTS: what no rule matches, between zones and inside a zone (default-action): deny
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; an NSG does not. VCN flow logs record the connections of the subnets or VNICs instead
+
+Security rules
+  inside-ping  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and an NSG names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone trust, and an NSG names no zone: give the networks behind trust with --zone-network.
+  inside-to-web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and an NSG names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and an NSG names no zone: give the networks behind untrust with --zone-network.
+  publish-web  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'pub-web' with post-NAT 'web-srv' because of NAT rule 'dnatrule 1'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'dnatrule 1' also translates the port to 8080: the service of this rule (HTTP) named the pre-NAT port only, and now names 8080, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and an NSG names no zone: give the networks behind untrust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and an NSG names no zone: give the networks behind dmz with --zone-network.
+  block-country  ->  needs-review, emitted disabled
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone trust; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-country': address entry blocked-country: country XX, which the configuration does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  lab-to-inside  ->  needs-review  (emitted as taken out of the rules below it)
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone lab; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone trust; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action reset-client: an NSG drops what it does not allow, without an answer
+  inside-to-servers  ->  needs-review, emitted disabled
+      [needs-review] HILLSTONE_DNAT_INSIDE: names servers, which holds an address that dnatrule 1, dnatrule 2, dnatrule 3 translate(s) to: read as the address a packet has before DNAT; if the firewall matches rules after DNAT, the rule also matches the connections translated to it
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-srv', the address NAT rule 'dnatrule 1' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'dnatrule 2' translates '203.0.113.11' to. The target looks rules up after that translation, so traffic sent to '203.0.113.11' now matches this rule; on the source it did not
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'servers', the address NAT rule 'dnatrule 3' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and an NSG names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and an NSG names no zone: give the networks behind dmz with --zone-network.
+  app-clients  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object files.example.org: an NSG rule names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and an NSG names no zone: give the networks behind trust with --zone-network.
+  p2p  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: application BitTorrent: application identification narrows the match.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and an NSG names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and an NSG names no zone: give the networks behind untrust with --zone-network.
+  v6-out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and an NSG names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and an NSG names no zone: give the networks behind untrust with --zone-network.
+  tunnels-to-partners  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partners/partner.example.net: an NSG rule names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lab, dmz, and an NSG names no zone: give the networks behind lab, dmz with --zone-network.
+  to-branch-vpn  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action tunnel vpn-to-branch: traffic of a VPN tunnel only.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and an NSG names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and an NSG names no zone: give the networks behind untrust with --zone-network.
+  contractors-out  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'wild-hosts': address entry wild-hosts: wildcard address '10.10.0.5 0.0.255.0'.
+      [needs-review] USER_MATCH: source user match role contractors is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and an NSG names no zone: give the networks behind untrust with --zone-network.
+  rule 13  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and an NSG names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone lab, and an NSG names no zone: give the networks behind lab with --zone-network.
+
+NAT rules
+  bnatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  dnatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  dnatrule 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  dnatrule 3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  dnatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  snatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  snatrule 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  snatrule 3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  snatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see

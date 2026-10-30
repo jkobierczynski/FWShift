@@ -1,0 +1,92 @@
+FWShift conversion report
+  source: panos (vsys1)
+  target: windows-firewall
+
+Summary
+  Security rules:     14   exact 1, approximated 2, needs review 11 (11 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:            5   exact 5, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] INTRAZONE_ALLOW: these zones allow traffic inside them without a rule; without their networks (--zone-network) that is not written: trust, untrust, dmz, ot
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  Allow-Web-Out  ->  needs-review, emitted disabled  (emitted as FWShift-Allow-Web-Out-1, FWShift-Allow-Web-Out-2)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (group=default-profiles); attach equivalent inspection on the target
+      [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Windows Firewall names no zone: give the networks behind trust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of Windows Firewall names no zone: give the networks behind untrust with --zone-network (or --zone-map it to Host or a profile).
+  Allow-DNS  ->  needs-review, emitted disabled  (emitted as FWShift-Allow-DNS-1, FWShift-Allow-DNS-2, FWShift-Allow-DNS-3, FWShift-Allow-DNS-4)
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Windows Firewall names no zone: give the networks behind trust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of Windows Firewall names no zone: give the networks behind untrust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and a rule of Windows Firewall names no zone: give the networks behind dmz with --zone-network (or --zone-map it to Host or a profile).
+  Inbound-Web  ->  needs-review, emitted disabled  (emitted as FWShift-Inbound-Web-1, FWShift-Inbound-Web-2)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-public' with post-NAT 'web-1' because of NAT rule 'Inbound-Web-DNAT'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'Inbound-Web-DNAT' also translates the port to 8443: the service of this rule (service-https) named the pre-NAT port only, and now names 8443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a rule of Windows Firewall names no zone: give the networks behind untrust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Windows Firewall names no zone: give the networks behind dmz with --zone-network (or --zone-map it to Host or a profile).
+  Inbound-Mail  ->  needs-review, emitted disabled  (emitted as FWShift-Inbound-Mail-1, FWShift-Inbound-Mail-2)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail-public' with post-NAT 'mail-1' because of NAT rule 'Mail-Static'; check that this rule is meant to cover the translated traffic
+      [approximated] APP_TO_PORTS: applications smtp reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a rule of Windows Firewall names no zone: give the networks behind untrust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Windows Firewall names no zone: give the networks behind dmz with --zone-network (or --zone-map it to Host or a profile).
+  Admin-SSH  ->  needs-review, emitted disabled  (emitted as FWShift-Admin-SSH-1, FWShift-Admin-SSH-2)
+      [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] USER_MATCH: source user match example\netadmins is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Windows Firewall names no zone: give the networks behind trust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Windows Firewall names no zone: give the networks behind dmz with --zone-network (or --zone-map it to Host or a profile).
+  Engineering to PLCs  ->  needs-review, emitted disabled  (emitted as FWShift-Engineering_to_PLCs-1, FWShift-Engineering_to_PLCs-2)
+      [approximated] APP_TO_PORTS: applications modbus, siemens-s7 reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Windows Firewall names no zone: give the networks behind trust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone ot, and a rule of Windows Firewall names no zone: give the networks behind ot with --zone-network (or --zone-map it to Host or a profile).
+  Block-OT-Outbound  ->  approximated  (emitted as FWShift-Block-OT-Outbound-1, FWShift-Block-OT-Outbound-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone ot; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone untrust; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  Block-Torrents  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Region  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'KP': not defined in the input. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  App-Server-Ports  ->  needs-review, emitted disabled  (emitted as FWShift-App-Server-Ports-1, FWShift-App-Server-Ports-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Windows Firewall names no zone: give the networks behind trust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Windows Firewall names no zone: give the networks behind dmz with --zone-network (or --zone-map it to Host or a profile).
+  Tagged-Servers-Updates  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tagged-servers': dynamic address group, members are not known statically.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: a rule of Windows Firewall names addresses.
+  Not-From-Guests  ->  needs-review, emitted disabled  (emitted as FWShift-Not-From-Guests-1, FWShift-Not-From-Guests-2)
+      [approximated] APP_TO_PORTS: applications ping reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Windows Firewall names no zone: give the networks behind trust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Windows Firewall names no zone: give the networks behind dmz with --zone-network (or --zone-map it to Host or a profile).
+  DMZ-Intrazone  ->  approximated  (emitted as FWShift-DMZ-Intrazone-1, FWShift-DMZ-Intrazone-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone dmz; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+
+NAT rules
+  No-NAT-Partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  Inbound-Web-DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  Mail-Static  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  DMZ-Out-Pool  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  Outbound-PAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+
+Addresses
+  odd-hosts  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
+  KP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'Block-Region' but not an address object in the input (a region, an external list or a missing object); emitted as a placeholder that matches nothing

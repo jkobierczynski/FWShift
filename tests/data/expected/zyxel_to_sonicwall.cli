@@ -1,0 +1,456 @@
+configure terminal
+address-object ipv4 "LAN1_SUBNET" network 10.10.0.0 255.255.255.0 zone LAN1
+address-object ipv4 "LAN2_SUBNET" network 10.20.0.0 255.255.255.0 zone LAN1
+address-object ipv4 "LAB_SUBNET" host 192.0.0.8 zone LAB
+address-object ipv4 "WAN_IP" host 198.51.100.2 zone DMZ
+address-object ipv4 "WEB_SRV" host 10.30.0.10 zone LAN1
+address-object ipv4 "MAIL_SRV" host 10.30.0.25 zone LAN1
+address-object ipv4 "ADMIN_PCS" range 10.10.0.50 10.10.0.59 zone LAN1
+address-object ipv4 "PARTNER_NET" network 203.0.113.0 255.255.255.128 zone WAN
+address-object ipv4 "MONITOR" network 192.0.2.0 255.255.255.0 zone DMZ
+address-object ipv4 "PUBLIC_WEB" host 198.51.100.10 zone DMZ
+address-object ipv4 "PUBLIC_RANGE" range 198.51.100.20 198.51.100.23 zone DMZ
+address-object ipv4 "INSIDE_RANGE" range 10.30.0.20 10.30.0.23 zone DMZ
+address-object fqdn "PORTAL" domain "portal.example.com" zone WAN
+address-object ipv4 "COUNTRY_X" host 192.0.0.8 zone WAN
+address-object ipv6 "V6_LAN" network 2001:db8:10:: /64 zone LAN1
+address-object ipv6 "V6_DMZ_WEB" host 2001:db8:30::10 zone DMZ
+address-object ipv6 "V6_ADMIN" range 2001:db8:10::50 2001:db8:10::59 zone LAN1
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone DMZ
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone DMZ
+address-object ipv6 "n ::_1" network :: /1 zone DMZ
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone DMZ
+address-object ipv4 "h 198.51.100.11" host 198.51.100.11 zone DMZ
+address-object ipv4 "h 10.30.0.12" host 10.30.0.12 zone DMZ
+address-object ipv4 "h 10.30.0.30" host 10.30.0.30 zone DMZ
+address-object ipv4 "h 198.51.100.30" host 198.51.100.30 zone DMZ
+address-object ipv4 "h 198.51.100.40" host 198.51.100.40 zone DMZ
+address-object ipv4 "h 10.30.0.40" host 10.30.0.40 zone DMZ
+address-group ipv4 "SERVERS"
+    address-object ipv4 "WEB_SRV"
+    address-object ipv4 "MAIL_SRV"
+    exit
+address-group ipv4 "ALL_INTERNAL"
+    address-object ipv4 "LAN1_SUBNET"
+    address-object ipv4 "LAN2_SUBNET"
+    address-object ipv4 "WEB_SRV"
+    address-object ipv4 "MAIL_SRV"
+    exit
+address-group ipv6 "V6_ADMINS"
+    address-object ipv6 "V6_ADMIN"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
+address-group ipv4 "dst WAN_to_Web"
+    address-object ipv4 "WEB_SRV"
+    address-object ipv4 "PUBLIC_WEB"
+    exit
+address-group ipv4 "dst WAN_to_Mail"
+    address-object ipv4 "MAIL_SRV"
+    address-object ipv4 "h 198.51.100.11"
+    exit
+service-object "HTTP 2" TCP 80 80
+service-object "HTTPS 2" TCP 443 443
+service-object "SSH 2" TCP 22 22
+service-object "DNS_UDP" UDP 53 53
+service-object "DNS_TCP" TCP 53 53
+service-object "SMTP" TCP 25 25
+service-object "WEB_ALT" TCP 8080 8089
+service-object "HTTPS_8443" TCP 8443 8443
+service-object "Any_TCP" TCP 1 65535
+service-object "udp-5060" UDP 5060 5060
+service-object "tcp 8443" TCP 8443 8443
+service-group "DNS"
+    service-object "DNS_UDP"
+    service-object "DNS_TCP"
+    exit
+service-group "WEB"
+    service-object "HTTP 2"
+    service-object "HTTPS 2"
+    service-object "WEB_ALT"
+    service-object "HTTPS_8443"
+    exit
+service-group "MGMT"
+    service-object "SSH 2"
+    service-group "WEB"
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "PUBLIC_WEB" translated-destination name "WEB_SRV" service name "HTTPS 2" translated-service name "tcp 8443"
+    name "virtual-server WEB_VS"
+    comment "ip virtual-server WEB_VS interfa"
+    priority manual 1
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 198.51.100.11" translated-destination name "MAIL_SRV" service name "SMTP" translated-service original
+    name "virtual-server MAIL_VS"
+    comment "ip virtual-server MAIL_VS interf"
+    priority manual 2
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination any translated-destination name "h 10.30.0.12" service name "WEB_ALT" translated-service original
+    name "virtual-server ALT_VS"
+    comment "ip virtual-server ALT_VS interfa"
+    priority manual 3
+    exit
+nat-policy ipv4 inbound any outbound any source name "h 10.30.0.30" translated-source name "h 198.51.100.30" destination any translated-destination original service any translated-service original
+    name "virtual-server ONE2ONE"
+    comment "ip virtual-server ONE2ONE interf"
+    priority manual 4
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 198.51.100.30" translated-destination name "h 10.30.0.30" service any translated-service original
+    name "virtual-server ONE2ONE in"
+    comment "inbound of virtual-server ONE2ON"
+    priority manual 5
+    exit
+nat-policy ipv4 inbound any outbound any source name "INSIDE_RANGE" translated-source name "PUBLIC_RANGE" destination any translated-destination original service any translated-service original
+    name "virtual-server MANY2ONE"
+    comment "ip virtual-server MANY2ONE inter"
+    priority manual 6
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "PUBLIC_RANGE" translated-destination name "INSIDE_RANGE" service any translated-service original
+    name "virtual-server MANY2ONE in"
+    comment "inbound of virtual-server MANY2O"
+    priority manual 7
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 198.51.100.40" translated-destination name "h 10.30.0.40" service name "udp-5060" translated-service original
+    name "virtual-server OLD_VS"
+    comment "ip virtual-server OLD_VS interfa"
+    priority manual 8
+    no enable
+    exit
+nat-policy ipv4 inbound any outbound any source group "SERVERS" translated-source name "PUBLIC_RANGE" destination any translated-destination original service any translated-service original
+    name "policy-route 3"
+    comment "DMZ out with a pool"
+    priority manual 9
+    exit
+access-rule ipv4 from DMZ to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "block intra-zone DMZ"
+    priority manual 1
+    exit
+access-rule ipv4 from LAN1 to WAN action allow source address group "ALL_INTERNAL" service any destination address any
+    name "LAN1_Outgoing"
+    priority manual 2
+    exit
+access-rule ipv4 from WAN to DMZ action discard source address name "PARTNER_NET" service name "SSH 2" destination address group "SERVERS"
+    name "Block_Partner_SSH"
+    priority manual 3
+    exit
+access-rule ipv4 from WAN to DMZ action allow source address any service group "WEB" destination address group "dst WAN_to_Web"
+    name "WAN_to_Web"
+    priority manual 4
+    exit
+access-rule ipv4 from WAN to DMZ action allow source address any service name "SMTP" destination address group "dst WAN_to_Mail"
+    name "WAN_to_Mail"
+    priority manual 5
+    exit
+access-rule ipv4 from LAN1 to DMZ action allow source address name "ADMIN_PCS" service group "MGMT" destination address group "SERVERS"
+    name "Admin_Mgmt"
+    priority manual 6
+    exit
+access-rule ipv4 from LAN1 to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "LAN1_to_DMZ_Reject"
+    priority manual 7
+    exit
+access-rule ipv4 from DMZ to DMZ action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping"
+    priority manual 8
+    exit
+access-rule ipv4 from DMZ to LAB action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 2"
+    priority manual 9
+    exit
+access-rule ipv4 from DMZ to LAN1 action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 3"
+    priority manual 10
+    exit
+access-rule ipv4 from DMZ to WAN action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 4"
+    priority manual 11
+    exit
+access-rule ipv4 from LAB to DMZ action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 5"
+    priority manual 12
+    exit
+access-rule ipv4 from LAB to LAB action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 6"
+    priority manual 13
+    exit
+access-rule ipv4 from LAB to LAN1 action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 7"
+    priority manual 14
+    exit
+access-rule ipv4 from LAB to WAN action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 8"
+    priority manual 15
+    exit
+access-rule ipv4 from LAN1 to DMZ action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 9"
+    priority manual 16
+    exit
+access-rule ipv4 from LAN1 to LAB action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 10"
+    priority manual 17
+    exit
+access-rule ipv4 from LAN1 to LAN1 action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 11"
+    priority manual 18
+    exit
+access-rule ipv4 from LAN1 to WAN action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 12"
+    priority manual 19
+    exit
+access-rule ipv4 from WAN to DMZ action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 13"
+    priority manual 20
+    exit
+access-rule ipv4 from WAN to LAB action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 14"
+    priority manual 21
+    exit
+access-rule ipv4 from WAN to LAN1 action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 15"
+    priority manual 22
+    exit
+access-rule ipv4 from WAN to WAN action allow source address name "MONITOR" service name "Ping" destination address any
+    name "Monitor_Ping 16"
+    priority manual 23
+    exit
+access-rule ipv4 from LAN1 to LAB action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Old_Rule"
+    priority manual 24
+    no enable
+    exit
+access-rule ipv4 from LAN1 to WAN action allow source address any service name "HTTPS 2" destination address any
+    name "Alice_Workhours"
+    priority manual 25
+    no enable
+    exit
+access-rule ipv4 from LAN1 to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "DNS_From_Port"
+    priority manual 26
+    no enable
+    exit
+access-rule ipv4 from WAN to DMZ action discard source address name "COUNTRY_X" service any destination address any
+    name "Country_Block"
+    priority manual 27
+    no enable
+    exit
+access-rule ipv4 from WAN to LAB action discard source address name "COUNTRY_X" service any destination address any
+    name "Country_Block 2"
+    priority manual 28
+    no enable
+    exit
+access-rule ipv4 from WAN to LAN1 action discard source address name "COUNTRY_X" service any destination address any
+    name "Country_Block 3"
+    priority manual 29
+    no enable
+    exit
+access-rule ipv4 from WAN to WAN action discard source address name "COUNTRY_X" service any destination address any
+    name "Country_Block 4"
+    priority manual 30
+    no enable
+    exit
+access-rule ipv4 from LAN1 to WAN action allow source address any service name "HTTPS 2" destination address name "PORTAL"
+    name "Portal_Access"
+    priority manual 31
+    exit
+access-rule ipv4 from WAN to DMZ action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "VS_Only"
+    priority manual 32
+    no enable
+    exit
+access-rule ipv4 from DMZ to WAN action allow source address name "INSIDE_RANGE" service any destination address any
+    name "ESP_Out"
+    priority manual 33
+    no enable
+    exit
+access-rule ipv4 from DMZ to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT DMZ to DMZ"
+    priority manual 34
+    exit
+access-rule ipv4 from DMZ to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT DMZ to LAB"
+    priority manual 35
+    exit
+access-rule ipv4 from DMZ to LAN1 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT DMZ to LAN1"
+    priority manual 36
+    exit
+access-rule ipv4 from DMZ to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT DMZ to WAN"
+    priority manual 37
+    exit
+access-rule ipv4 from LAB to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT LAB to DMZ"
+    priority manual 38
+    exit
+access-rule ipv4 from LAB to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT LAB to LAB"
+    priority manual 39
+    exit
+access-rule ipv4 from LAB to LAN1 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT LAB to LAN1"
+    priority manual 40
+    exit
+access-rule ipv4 from LAB to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT LAB to WAN"
+    priority manual 41
+    exit
+access-rule ipv4 from LAN1 to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT LAN1 to DMZ"
+    priority manual 42
+    exit
+access-rule ipv4 from LAN1 to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT LAN1 to LAB"
+    priority manual 43
+    exit
+access-rule ipv4 from LAN1 to LAN1 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT LAN1 to LAN1"
+    priority manual 44
+    exit
+access-rule ipv4 from LAN1 to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT LAN1 to WAN"
+    priority manual 45
+    exit
+access-rule ipv4 from WAN to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to DMZ"
+    priority manual 46
+    exit
+access-rule ipv4 from WAN to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to LAB"
+    priority manual 47
+    exit
+access-rule ipv4 from WAN to LAN1 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to LAN1"
+    priority manual 48
+    exit
+access-rule ipv4 from WAN to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to WAN"
+    priority manual 49
+    exit
+access-rule ipv6 from DMZ to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "block intra-zone DMZ 2"
+    exit
+access-rule ipv6 from LAN1 to WAN action allow source address name "V6_LAN" service any destination address any
+    name "V6_LAN_Out"
+    exit
+access-rule ipv6 from LAN1 to DMZ action allow source address group "V6_ADMINS" service group "MGMT" destination address name "V6_DMZ_WEB"
+    name "V6_Admin_Web"
+    exit
+access-rule ipv6 from DMZ to DMZ action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping"
+    no enable
+    exit
+access-rule ipv6 from DMZ to LAB action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 2"
+    no enable
+    exit
+access-rule ipv6 from DMZ to LAN1 action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 3"
+    no enable
+    exit
+access-rule ipv6 from DMZ to WAN action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 4"
+    no enable
+    exit
+access-rule ipv6 from LAB to DMZ action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 5"
+    no enable
+    exit
+access-rule ipv6 from LAB to LAB action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 6"
+    no enable
+    exit
+access-rule ipv6 from LAB to LAN1 action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 7"
+    no enable
+    exit
+access-rule ipv6 from LAB to WAN action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 8"
+    no enable
+    exit
+access-rule ipv6 from LAN1 to DMZ action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 9"
+    no enable
+    exit
+access-rule ipv6 from LAN1 to LAB action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 10"
+    no enable
+    exit
+access-rule ipv6 from LAN1 to LAN1 action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 11"
+    no enable
+    exit
+access-rule ipv6 from LAN1 to WAN action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 12"
+    no enable
+    exit
+access-rule ipv6 from WAN to DMZ action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 13"
+    no enable
+    exit
+access-rule ipv6 from WAN to LAB action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 14"
+    no enable
+    exit
+access-rule ipv6 from WAN to LAN1 action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 15"
+    no enable
+    exit
+access-rule ipv6 from WAN to WAN action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "V6_Ping 16"
+    no enable
+    exit
+access-rule ipv6 from DMZ to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT DMZ to DMZ v6"
+    exit
+access-rule ipv6 from DMZ to LAB action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT DMZ to LAB v6"
+    exit
+access-rule ipv6 from DMZ to LAN1 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT DMZ to LAN1 v6"
+    exit
+access-rule ipv6 from DMZ to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT DMZ to WAN v6"
+    exit
+access-rule ipv6 from LAB to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT LAB to DMZ v6"
+    exit
+access-rule ipv6 from LAB to LAB action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT LAB to LAB v6"
+    exit
+access-rule ipv6 from LAB to LAN1 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT LAB to LAN1 v6"
+    exit
+access-rule ipv6 from LAB to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT LAB to WAN v6"
+    exit
+access-rule ipv6 from LAN1 to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT LAN1 to DMZ v6"
+    exit
+access-rule ipv6 from LAN1 to LAB action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT LAN1 to LAB v6"
+    exit
+access-rule ipv6 from LAN1 to LAN1 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT LAN1 to LAN1 v6"
+    exit
+access-rule ipv6 from LAN1 to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT LAN1 to WAN v6"
+    exit
+access-rule ipv6 from WAN to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT WAN to DMZ v6"
+    exit
+access-rule ipv6 from WAN to LAB action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT WAN to LAB v6"
+    exit
+access-rule ipv6 from WAN to LAN1 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT WAN to LAN1 v6"
+    exit
+access-rule ipv6 from WAN to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT WAN to WAN v6"
+    exit
+commit
+exit

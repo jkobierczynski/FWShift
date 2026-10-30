@@ -1,0 +1,109 @@
+FWShift conversion report
+  source: hillstone
+  target: opnsense
+
+Summary
+  Security rules:     14   exact 0, approximated 3, needs review 11 (11 emitted disabled), skipped 0
+  NAT rules:           9   exact 4, approximated 0, needs review 0, skipped 5
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_NAT_ORDER: DNAT is looked up before the route and the policy, SNAT after the route; the rules were read as naming the destination before DNAT and the zone after it, which is what Hillstone's troubleshooting guide shows (one of its configuration examples names the translated address instead): check the rules for translated traffic on the firewall
+  [needs-review] HILLSTONE_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with show service predefined: HTTP, HTTPS, SSH, PING, DNS
+  [needs-review] INTERFACES_REQUIRED: OPNsense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: trust, untrust, dmz, lab
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. The NAT area holds 8 port forwards and 0 1:1 rules, and sets outbound NAT to manual mode with the 2 rules of the source; it removes every rule of NPt. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [info] HILLSTONE_SOURCE: 4 zones (trust, untrust, dmz, lab); 14 rules of the policy, first match in the order of the configuration (not by id)
+  [info] HILLSTONE_ANY: the address Any is read as every IPv4 address and IPv6-any as every IPv6 address
+  [info] HILLSTONE_REJECT: action reject: read as a deny that answers the client: lab-to-inside
+  [info] HILLSTONE_SCHEDULE: rules with a schedule: schedules are not converted, a target writes these rules disabled: app-clients: office-hours
+  [info] HILLSTONE_DEFAULTS: what no rule matches, between zones and inside a zone (default-action): deny
+  [info] SELF_EXCLUDED: on OPNsense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  inside-ping  ->  needs-review, emitted disabled  (emitted as trust)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by trust, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind untrust, dmz, lab, trust with --zone-network.
+  inside-to-web  ->  needs-review, emitted disabled  (emitted as trust)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, dmz, lab, untrust with --zone-network.
+  publish-web  ->  approximated  (emitted as untrust)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'pub_web' with post-NAT 'web_srv' because of NAT rule 'dnatrule 1'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'dnatrule 1' also translates the port to 8080: the service of this rule (HTTP) named the pre-NAT port only, and now names 8080, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  block-country  ->  needs-review, emitted disabled  (emitted as trust)
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked_country': address entry blocked-country: country XX, which the configuration does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  lab-to-inside  ->  needs-review, emitted disabled  (emitted as lab)
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by trust, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind untrust, dmz, lab, trust with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  inside-to-servers  ->  needs-review, emitted disabled  (emitted as trust)
+      [needs-review] HILLSTONE_DNAT_INSIDE: names servers, which holds an address that dnatrule 1, dnatrule 2, dnatrule 3 translate(s) to: read as the address a packet has before DNAT; if the firewall matches rules after DNAT, the rule also matches the connections translated to it
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web_srv', the address NAT rule 'dnatrule 1' translates 'pub_web' to. The target looks rules up after that translation, so traffic sent to 'pub_web' now matches this rule; on the source it did not
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'dnatrule 2' translates '203.0.113.11' to. The target looks rules up after that translation, so traffic sent to '203.0.113.11' now matches this rule; on the source it did not
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] ICMP_CODE: ICMP type 8 with code 0: a rule of OPNsense names types, no codes.
+  lab-updates  ->  approximated  (emitted as lab)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  app-clients  ->  needs-review, emitted disabled  (emitted as trust (2 rules))
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  p2p  ->  needs-review, emitted disabled  (emitted as trust)
+      [needs-review] UNSUPPORTED_MATCH: not converted: application BitTorrent: application identification narrows the match.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, dmz, lab, untrust with --zone-network.
+  v6-out  ->  needs-review, emitted disabled  (emitted as trust)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, dmz, lab, untrust with --zone-network.
+  tunnels-to-partners  ->  approximated  (emitted as lab, dmz)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  to-branch-vpn  ->  needs-review, emitted disabled  (emitted as trust)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action tunnel vpn-to-branch: traffic of a VPN tunnel only.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, dmz, lab, untrust with --zone-network.
+  contractors-out  ->  needs-review, emitted disabled  (emitted as trust)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'wild_hosts': address entry wild-hosts: wildcard address '10.10.0.5 0.0.255.0'.
+      [needs-review] USER_MATCH: source user match role contractors is not converted.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, dmz, lab, untrust with --zone-network.
+  rule 13  ->  needs-review, emitted disabled  (emitted as trust)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by lab, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, untrust, dmz, lab with --zone-network.
+
+NAT rules
+  bnatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a BNAT rule (bidirectional NAT), which is not converted
+  dnatrule 3  ->  skipped
+      [needs-review] NAT_DESTINATION: a port forward of OPNsense sends to one IPv4 address
+  dnatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT between IPv4 and IPv6, which is not converted
+  snatrule 1  ->  skipped
+      [needs-review] NAT_ADDRESSES: the rule needs static IPv4 addresses as source and destination
+  snatrule 4  ->  skipped
+      [needs-review] NAT_INTERFACE: the rule names no zone its traffic leaves by: outbound NAT of OPNsense is per interface. Name one with --target-nat-zone
+
+Addresses
+  inside-net  ->  exact  (emitted as inside_net)
+      [info] RENAMED: renamed to 'inside_net' to fit the target's naming rules
+  web-srv  ->  exact  (emitted as web_srv)
+      [info] RENAMED: renamed to 'web_srv' to fit the target's naming rules
+  mail-srv  ->  exact  (emitted as mail_srv)
+      [info] RENAMED: renamed to 'mail_srv' to fit the target's naming rules
+  lab-pool  ->  exact  (emitted as lab_pool)
+      [info] RENAMED: renamed to 'lab_pool' to fit the target's naming rules
+  update-site  ->  exact  (emitted as update_site)
+      [info] RENAMED: renamed to 'update_site' to fit the target's naming rules
+  partners/partner.example.net  ->  exact  (emitted as partners_partner_example_net)
+      [info] RENAMED: renamed to 'partners_partner_example_net' to fit the target's naming rules
+  v6-inside  ->  exact  (emitted as v6_inside)
+      [info] RENAMED: renamed to 'v6_inside' to fit the target's naming rules
+  pub-web  ->  exact  (emitted as pub_web)
+      [info] RENAMED: renamed to 'pub_web' to fit the target's naming rules
+  snat-pool  ->  exact  (emitted as snat_pool)
+      [info] RENAMED: renamed to 'snat_pool' to fit the target's naming rules
+  files.example.org  ->  exact  (emitted as files_example_org)
+      [info] RENAMED: renamed to 'files_example_org' to fit the target's naming rules
+
+Address groups
+  inside-no-printers  ->  exact  (emitted as inside_no_printers)
+      [info] RENAMED: renamed to 'inside_no_printers' to fit the target's naming rules
+  wild-hosts  ->  exact  (emitted as wild_hosts)
+      [info] RENAMED: renamed to 'wild_hosts' to fit the target's naming rules
+  blocked-country  ->  exact  (emitted as blocked_country)
+      [info] RENAMED: renamed to 'blocked_country' to fit the target's naming rules

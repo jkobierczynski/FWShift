@@ -3,12 +3,12 @@
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco IOS and IOS XE routers, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall (managed by a Management Center
 or by its Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables, the VMware NSX
-distributed firewall, AWS security groups, Azure network security groups, Google Cloud firewall rules and network firewall policies (these three also as the resources of a Terraform state or plan, and as Terraform configuration), Azure Firewall policies, AWS Network Firewall, MikroTik RouterOS, Forcepoint NGFW (through its Security Management Center), VyOS (also VyOS 1.3 and Ubiquiti EdgeOS as sources) and pf (OpenBSD, FreeBSD); it also reads Juniper ScreenOS and Cisco PIX 6.x (read only). It tells you,
+distributed firewall, AWS security groups, Azure network security groups, Google Cloud firewall rules and network firewall policies (these three also as the resources of a Terraform state or plan, and as Terraform configuration), Azure Firewall policies, AWS Network Firewall, Oracle Cloud Infrastructure security lists and network security groups, MikroTik RouterOS, Forcepoint NGFW (through its Security Management Center), VyOS (also VyOS 1.3 and Ubiquiti EdgeOS as sources), pf (OpenBSD, FreeBSD), F5 BIG-IP AFM, Hillstone StoneOS, Zyxel ZLD (USG FLEX, ATP, VPN) and Windows Defender Firewall; it also reads Juniper ScreenOS and Cisco PIX 6.x (read only). It tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.41.
+This manual covers version 0.42.
 
 **Contents**
 
@@ -62,13 +62,13 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.41 is tested against synthetic configurations. iptables
+> **Status.** Version 0.42 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). AWS, Azure and Google Cloud output was loaded into a real account
 > by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15), ASA output on an ASAv (9.24.10), Junos output on a vSRX (23.4R2-S8.9), IOS output on a Catalyst 8000V (IOS XE 26.02.1), pfSense output on pfSense Plus 26.07 and OPNsense output on OPNsense 26.1.5; the policy then had no NAT (it has since 0.37.0, and the lab checks it: so far through the kernel for nftables and iptables). Check Point output for
 > the same policy was loaded on a management server by hand (R82.20): published and verified, not installed on a
 > gateway. Output for
-> Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, SonicWall, WatchGuard, Barracuda, NSX, RouterOS, Forcepoint, Azure Firewall, AWS Network Firewall, pf and VyOS has
+> Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, SonicWall, WatchGuard, Barracuda, NSX, RouterOS, Forcepoint, Azure Firewall, AWS Network Firewall, pf, VyOS, F5 BIG-IP AFM, OCI, Hillstone, Zyxel and Windows Defender Firewall has
 > not been loaded on a device yet, no ScreenOS or PIX configuration (both read only) was read from a device, and the Terraform output has not been applied with Terraform; the Check Point input format follows the
 > API documentation, the FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -116,8 +116,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.41.7.pyz --version
-python3 fwshift-0.41.7.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.42.0.pyz --version
+python3 fwshift-0.42.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -321,6 +321,78 @@ told from the answers of the security groups (`--from aws`) by the key
 `FirewallPolicy`; a Terraform state that holds a firewall policy is Terraform
 (`TERRAFORM_NOT_READ`).
 
+**Oracle Cloud Infrastructure (OCI).** FWShift reads the JSON the OCI CLI
+prints, for one VCN: the VCN, its subnets, its security lists, its network
+security groups with their rules, and the VNICs (which say which addresses
+each NSG stands for). The CLI prints one JSON document per call; put them in
+one file, one after the other, as they come:
+
+```sh
+c=ocid1.compartment.oc1..aaaaexample; v=ocid1.vcn.oc1.eu-frankfurt-1.aaaaexample
+ids() { tr -d '[]",'; }
+{
+  oci network vcn get --vcn-id "$v"
+  oci network subnet list --compartment-id "$c" --vcn-id "$v" --all
+  oci network security-list list --compartment-id "$c" --vcn-id "$v" --all
+  oci network nsg list --compartment-id "$c" --vcn-id "$v" --all
+  for n in $(oci network nsg list --compartment-id "$c" --vcn-id "$v" --all --query 'data[].id' --raw-output | ids); do
+    oci network nsg rules list --nsg-id "$n" --all --query "{nsgId: '$n', data: data}"
+  done
+  for s in $(oci network subnet list --compartment-id "$c" --vcn-id "$v" --all --query 'data[].id' --raw-output | ids); do
+    oci network private-ip list --subnet-id "$s" --all
+    for i in $(oci network private-ip list --subnet-id "$s" --all --query 'data[]."vnic-id"' --raw-output | ids | sort -u); do
+      oci network vnic get --vnic-id "$i"
+    done
+  done
+  oci iam region list
+  curl -s https://docs.oracle.com/iaas/tools/public_ip_ranges.json
+} > oci.json
+```
+
+A JSON array of the same answers is read as well, and so are the keys as the
+API and the SDKs spell them (`isStateless` for `is-stateless`). A security
+rule of an NSG does not name its NSG: the `--query` above wraps the rules of
+each NSG with its OCID (`{"nsgId": ..., "data": [...]}`), and rules without
+it are left out (`OCI_NSG_RULES_UNWRAPPED`). The security lists or the NSGs
+are required. Without the subnets it is not known where a security list
+applies (`OCI_SUBNETS_MISSING`); without the VNICs an NSG's members are not
+known, and no target can write its rules (`OCI_NO_VNICS`). `vnic get` gives
+the NSGs of a VNIC, its IPv6 addresses and its public address; `private-ip
+list` its secondary IPv4 addresses. The last two answers are optional: Oracle's
+published address ranges, and the region keys, give a service CIDR label
+(`all-fra-services-in-oracle-services-network`, `oci-fra-objectstorage`) its
+addresses; without them a rule that names a label is not converted
+(`OCI_SERVICE_LABEL`). Let the CLI page through everything (`--all`): an
+answer with `opc-next-page` is incomplete (`OCI_INCOMPLETE_EXPORT`). Subnets,
+lists or NSGs of the VCN in other compartments need the list commands once per
+compartment. A file with several VCNs needs `--policy` with the OCID or the
+name of one.
+
+**Windows Defender Firewall.** FWShift reads the registry keys that hold the
+policy, as `reg export` writes them (run it in an elevated prompt): the local
+store and the store of Group Policy, joined into one file.
+
+```bat
+reg export "HKLM\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy" local.reg /y
+reg export "HKLM\SOFTWARE\Policies\Microsoft\WindowsFirewall" gpo.reg /y
+copy /b local.reg + gpo.reg winfw.reg
+```
+
+`reg export` writes UTF-16 with a byte order mark; the joined file has a second
+one in the middle, which is skipped. A file saved as UTF-8 or in the code page
+of the system (`regedit /a`) is read too. Without the Group Policy key (a host
+that no policy reaches does not have it) the second command fails: export the
+local store alone. The report says when one of the two is missing
+(`WINFW_STORE_MISSING`). Where Intune or another MDM manages the firewall, its
+rules are in the key `Mdm` under the local store, and are exported with it.
+Each rule is one string value of the key `FirewallRules`, in the grammar of
+[MS-GPFAS] (`v2.30|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=3389|...`);
+the defaults of each profile are values of `DomainProfile`, `StandardProfile`
+(the private profile, in the local store), `PrivateProfile` and
+`PublicProfile`. Connection security (IPsec) rules and the rules of Windows
+Service Hardening are in the same keys and are not read (`WINFW_NOT_READ`).
+The binary file of `netsh advfirewall export` (`.wfw`) is not read.
+
 **Azure network security groups.** FWShift reads the groups as the Azure CLI
 prints them, and with them the network interfaces (the members of
 application security groups), the virtual networks (the subnets behind each
@@ -488,6 +560,21 @@ what the configuration holds, and the report says which was read
 `configure`, `commit`, `save`, `exit` and `#` comments are left out; `delete`
 and the other commands of a file of commands are refused.
 
+**Zyxel (ZLD).** FWShift reads the configuration file of a USG FLEX, ATP or VPN firewall, or a ZyWALL/USG, with ZLD
+4.x or 5.x: `startup-config.conf` from *Maintenance > File Manager > Configuration File*, or what the console prints:
+
+```
+show running-config
+```
+
+What is read: the interfaces' static addresses (for address objects of an interface), the zones with their members
+and `block`, address objects and groups (IPv4 and IPv6), service objects and groups, the IPv4 and IPv6 security policy
+(`secure-policy`, `secure-policy6`; the `firewall` rules of ZLD 3.x the same way) with their default rules, virtual
+servers and 1:1 NAT (`ip virtual-server`), and the policy routes with SNAT (`policy`). Rules to and from the firewall
+itself (`to ZyWALL`) are not converted (`ZYXEL_DEVICE_RULE`). A firewall managed by Nebula in cloud mode keeps its
+configuration in Nebula; its local CLI shows it read-only, which is enough. The USG FLEX H series runs uOS, whose
+configuration is another language (named rules in a VRF, `edit running` and `commit`); it is not read.
+
 **Cisco IOS and IOS XE.** FWShift reads the running configuration of a router (IOS 15 and IOS XE 16 and 17; ISR,
 ASR, Catalyst 8000 and the virtual routers):
 
@@ -521,6 +608,22 @@ The zones of the converted policy are the security zones; `local` is the firewal
 (`HUAWEI_LOCAL_RULE`). The `policy interzone` configuration of older USGs (USG2000, USG5000, USG5500) and packet
 filters between zones (`firewall interzone`, as on a router) are refused. Of a firewall with virtual systems the root
 system is read, up to the first `switch vsys` (`HUAWEI_VSYS`).
+
+**Hillstone StoneOS.** FWShift reads the configuration of an E-, T- or X-series firewall or a CloudEdge (StoneOS
+5.x) as the firewall prints it:
+
+```
+show configuration
+```
+
+`show configuration running` and a saved configuration are the same text; the zone-pair policies of StoneOS 4.x
+(`policy from "trust" to "untrust"`) are read as far as they go (`HILLSTONE_ZONE_PAIR`). What is read: the zones and
+the interfaces bound to them (the `zone` line of an interface), the address book (`address` entries with `ip`,
+`range`, `host`, `member` and `exclude`), the service book (`service`, `servgroup` and the predefined services FWShift
+knows the ports of), the rules (`rule id N` blocks at the top level or in `policy-global`, rules in one line,
+`move`), `default-action permit`, and the `snatrule` and `dnatrule` lines of the virtual routers (`ip vrouter`).
+Schedules, application identification, users and roles, VPN actions and BNAT are not converted; virtual systems are
+not told apart (`HILLSTONE_VSYS`). The XML form (`show configuration xml`) is not read.
 
 **Cisco Meraki MX.** FWShift reads the answers of the Dashboard API (v1) for one network of an MX, gathered in one
 JSON file under the names of their endpoints. The commands below fetch them with curl and put them together with jq;
@@ -1032,6 +1135,43 @@ the access lists, `access-group`, `conduit`, `outbound` and `apply` lines.
 Without a `PIX Version` line the configuration is read as 6.x and the report
 says so (`PIX_VERSION_ASSUMED`). PIX is read only: there is no `--to pix`.
 
+**F5 BIG-IP AFM (the network firewall of the Advanced Firewall Manager).**
+FWShift reads the configuration as tmsh prints it: the firewall lists and
+policies, and the objects the policies are attached to and that decide what
+passes (VLANs, route domains, self IPs, virtual servers, the default action).
+In a shell (bash) of the BIG-IP:
+
+```sh
+{
+  for part in "security firewall address-list" "security firewall port-list" \
+              "security firewall rule-list" "security firewall policy" "security zone" \
+              "net vlan" "net vlan-group" "net route-domain" "net self" "ltm virtual"; do
+    tmsh -q -c "cd /; list $part recursive"
+  done
+  tmsh -q list security firewall global-rules
+  tmsh -q list security firewall management-ip-rules
+  tmsh -q list sys db tm.fw.defaultaction
+  tmsh -q list sys db tm.rejectunmatched
+} > afm.conf 2> afm.errors
+```
+
+(Older releases have no `security zone`; the error goes to `afm.errors`.) `/config/bigip_base.conf` and `/config/bigip.conf` put
+together are read as well, but they hold no `sys db` value that is at its
+default: add the two `list sys db` lines. Names are read with their partition
+(`/Common/web`), and also as tmsh prints them in a folder (`web`, or
+`Common/web` from `/`). What is read: address lists (nested, with `fqdns` and
+`geo`), port lists (nested), rule lists, policies and their rules, the policy
+each context enforces (`security firewall global-rules`, `fw-enforced-policy`
+of a route domain, a self IP or a virtual server), the VLANs and AFM zones,
+the virtual servers (destination, mask, source, protocol, VLANs, type, state)
+and the default action (`tm.fw.defaultaction`: `accept` is ADC mode, `drop`
+or `reject` Firewall mode; when it is missing, ADC mode is assumed,
+`F5AFM_MODE`). Staged policies, the rules of the management port and the
+policies of self IPs are reported, not converted. iRules (`ltm rule`) and
+other Tcl in the file are skipped. When no context enforces a policy, the one
+policy of the input is read as if the global context did (`F5AFM_POLICY_NOT_ATTACHED`);
+`--policy NAME` reads a policy that way in any case (section 8).
+
 **Check Point.** There is no configuration file to export. FWShift reads what
 the Management API answers to `show access-rulebase` and `show nat-rulebase`,
 as JSON. On the management server, or on any host with `mgmt_cli`:
@@ -1226,7 +1366,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 `FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `ios`, `huawei`, `stormshield`, `meraki`, `fmc`, `fdm`,
 `sophos`, `pfsense`, `opnsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
-`iptables`, `ip6tables`, `nftables`, `nsx`, `aws`, `azure`, `gcp`, `terraform-aws`, `terraform-azure`, `terraform-google`, `routeros`, `forcepoint`, `azure-firewall`, `pf` and `json` (the neutral model; see `--to json` below).
+`iptables`, `ip6tables`, `nftables`, `nsx`, `aws`, `azure`, `gcp`, `terraform-aws`, `terraform-azure`, `terraform-google`, `routeros`, `forcepoint`, `azure-firewall`, `pf`, `vyos`, `aws-network-firewall`, `f5-afm`, `oci`, `windows-firewall`, `hillstone`, `zyxel` and `json` (the neutral model; see `--to json` below).
 
 `INPUT` is a file, or `-` for standard input.
 
@@ -1234,12 +1374,12 @@ fwshift convert INPUT --to FORMAT [options]
 
 | Option | Meaning |
 |---|---|
-| `--from FORMAT` | Source format: one of the formats above, except `json`, or `screenos` or `pix`, which are read only. Detected when left out: the JSON of `terraform show -json` or a raw state of Terraform is `terraform-aws`, `terraform-azure` or `terraform-google`, by the resources it holds; JSON that holds the answers of the SMC API for a firewall policy (list answers with `fwshift_list`, or hrefs into `/elements/fw_policy/`), or the XML export of an SMC (`<generic_import_export>`, which is refused), is Forcepoint; JSON of gcloud with objects of the kinds `compute#firewall` or `compute#firewallPolicy` (or firewall rules with `allowed` or `denied`, `IPProtocol` and `network`) is `gcp`; a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<opnsense>` is OPNsense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `"fwshift": "meraki-mx"` or `l3FirewallRules`, or rules with `srcCidr`, `destCidr` and `policy`, is `meraki`; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with an Azure Firewall policy or firewall (objects of the types `Microsoft.Network/firewallPolicies...` or `Microsoft.Network/azureFirewalls`, or `ruleCollectionType`, or classic rule collections) is `azure-firewall` (refused when it holds network security groups too: give `--from`); JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; set lines of VyOS (`set firewall ipv4 ...`, `set firewall name ...`, `set zone-policy ...`, `set nat destination ...`, `set service nat ...`, `set interfaces ethernet ...`), or a configuration in braces with the version line of VyOS or Vyatta (`vyos-config-version`, `vyatta-config-version`) or with nodes only they have (`firewall {` holding `ipv4 {` or `name X {`, `ethernet eth0 {`) and no semicolons, is `vyos` (VyOS 1.3 and EdgeOS too); other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with ScreenOS lines (`set policy id N from "Z" to "Z" ...`, `set address "Z" "N" A M`, `set interface I zone "Z"`) is `screenos`, a file with rules of pf (lines that start with `pass`, `block` or `match` followed by words of pf such as `in`, `out`, `quick`, `on`, `from` or `all`) and none of the other text formats is `pf`, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a `.tar` or `.tgz` that holds ConfigFiles (`object`, `Filter/slotinfo` or a filter slot), or a Stormshield backup (`.na`, refused with the command that opens it), is `stormshield`; a file with `security-policy` or `nat-policy` and `firewall zone`, `ip address-set`, `ip service-set`, `nat address-group` or `sysname` lines is `huawei`; a file with lines only IOS writes (`ip access-list standard|extended`, `ipv6 access-list`, ` ip access-group` under an interface, `zone security`, `zone-pair security`, `ip nat inside source`, `access-list 101 permit ...`, `version 15.4`) and none only an ASA writes is `ios`; a file with a `PIX Version` line of 6.x or earlier, or (without a version line) with `nameif HARDWARE NAME securityN` at the start of a line, is `pix`; a file with an `ASA Version` line (or `PIX Version` 7 and later) or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from FORMAT` | Source format: one of the formats above, except `json`, or `screenos` or `pix`, which are read only. Detected when left out: a registry export (`reg export`, UTF-16 or UTF-8) that holds a key of the firewall policy of Windows (the local store under `SharedAccess\Parameters\FirewallPolicy`, or the Group Policy store under `Policies\Microsoft\WindowsFirewall`) is `windows-firewall`; the JSON of `terraform show -json` or a raw state of Terraform is `terraform-aws`, `terraform-azure` or `terraform-google`, by the resources it holds; JSON that holds the answers of the SMC API for a firewall policy (list answers with `fwshift_list`, or hrefs into `/elements/fw_policy/`), or the XML export of an SMC (`<generic_import_export>`, which is refused), is Forcepoint; JSON of gcloud with objects of the kinds `compute#firewall` or `compute#firewallPolicy` (or firewall rules with `allowed` or `denied`, `IPProtocol` and `network`) is `gcp`; a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<opnsense>` is OPNsense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `"fwshift": "meraki-mx"` or `l3FirewallRules`, or rules with `srcCidr`, `destCidr` and `policy`, is `meraki`; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with an Azure Firewall policy or firewall (objects of the types `Microsoft.Network/firewallPolicies...` or `Microsoft.Network/azureFirewalls`, or `ruleCollectionType`, or classic rule collections) is `azure-firewall` (refused when it holds network security groups too: give `--from`); JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; set lines of VyOS (`set firewall ipv4 ...`, `set firewall name ...`, `set zone-policy ...`, `set nat destination ...`, `set service nat ...`, `set interfaces ethernet ...`), or a configuration in braces with the version line of VyOS or Vyatta (`vyos-config-version`, `vyatta-config-version`) or with nodes only they have (`firewall {` holding `ipv4 {` or `name X {`, `ethernet eth0 {`) and no semicolons, is `vyos` (VyOS 1.3 and EdgeOS too); stanzas of tmsh at the start of a line (`security firewall policy|rule-list|address-list|port-list|global-rules ... {`, `ltm virtual ... {`, `net vlan|self|route-domain ... {`) are `f5-afm`; JSON of the OCI CLI with security lists or network security groups (`ocid1.securitylist.` or `ocid1.networksecuritygroup.` identifiers, or `ingress-security-rules` / `egress-security-rules`) is `oci`; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with ScreenOS lines (`set policy id N from "Z" to "Z" ...`, `set address "Z" "N" A M`, `set interface I zone "Z"`) is `screenos`, a file with rules of pf (lines that start with `pass`, `block` or `match` followed by words of pf such as `in`, `out`, `quick`, `on`, `from` or `all`) and none of the other text formats is `pf`, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a `.tar` or `.tgz` that holds ConfigFiles (`object`, `Filter/slotinfo` or a filter slot), or a Stormshield backup (`.na`, refused with the command that opens it), is `stormshield`; a file with `security-policy` or `nat-policy` and `firewall zone`, `ip address-set`, `ip service-set`, `nat address-group` or `sysname` lines is `huawei`; a file with two kinds of the lines only ZLD writes at the start of a line (`secure-policy N`, `secure-policy insert N`, `object-group address NAME`, `service-object NAME tcp eq P`, `address-object NAME interface-subnet IF`, `ip virtual-server ... map-to ...`), one of them a rule or a virtual server, is `zyxel` (looked for before pf, whose `block` a zone of ZLD also has); a file with `policy-global`, `snatrule`/`dnatrule`, `servgroup "`, `rule id N`, `src-addr "`/`dst-zone "`, `ip vrouter`, `address "N"` or an indented `zone "Z"` line, two of these signs, is `hillstone`; a file with lines only IOS writes (`ip access-list standard|extended`, `ipv6 access-list`, ` ip access-group` under an interface, `zone security`, `zone-pair security`, `ip nat inside source`, `access-list 101 permit ...`, `version 15.4`) and none only an ASA writes is `ios`; a file with a `PIX Version` line of 6.x or earlier, or (without a version line) with `nameif HARDWARE NAME securityN` at the start of a line, is `pix`; a file with an `ASA Version` line (or `PIX Version` 7 and later) or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
 | `--layer NAME` | Check Point source with several access layers: the one to read. |
-| `--policy NAME` | Management Center source with several access control policies: the one to read, by its name or its id. Without it the policy that no other policy in the input inherits from is read, if there is one such policy. Forcepoint source with several firewall policies: the one to read, by its name. `terraform-aws` source with security groups of several VPCs: the VPC to read, by its id or the address of its `aws_vpc`. `gcp` or `terraform-google` source with the firewall rules of several networks: the network to read, by its name. `aws-network-firewall` source with several firewall policies: the one to read, by its name. `azure-firewall` source with several policies or firewalls: the policy (or the firewall, whose policy or classic rules are read), by its name or its id; without it the one firewall in the input, or the policy that is no other's base policy. |
+| `--policy NAME` | Management Center source with several access control policies: the one to read, by its name or its id. Without it the policy that no other policy in the input inherits from is read, if there is one such policy. Forcepoint source with several firewall policies: the one to read, by its name. `terraform-aws` source with security groups of several VPCs: the VPC to read, by its id or the address of its `aws_vpc`. `gcp` or `terraform-google` source with the firewall rules of several networks: the network to read, by its name. `aws-network-firewall` source with several firewall policies: the one to read, by its name. `azure-firewall` source with several policies or firewalls: the policy (or the firewall, whose policy or classic rules are read), by its name or its id; without it the one firewall in the input, or the policy that is no other's base policy. `f5-afm` source: a firewall policy to read as if it were enforced in the global context, by its name; the policies of the contexts are then not read. |
 | `--nat-policy NAME` | Management Center source with several NAT policies: the one to read, by its name or its id. |
 | `--interface-address INTERFACE=ADDRESS/BITS` | pfSense, OPNsense, SonicWall and pf sources: the address of an interface that gets it by DHCP, PPPoE, SLAAC or from a tracked interface, which is then not in the file (SonicWall: IPv4, by the name of the interface, `X1`; pf: by the name of the interface or interface group, `em0`, for `(em0)`, `em0:network`, `em0:broadcast` and `self`, which pf.conf never holds). `INTERFACE` is the name of the interface (`wan`, `opt1`) or its description (`WAN`), `BITS` the prefix length of its network. One address per IP version and interface; repeatable. Without it, rules that name such an address or network are written disabled (section 3). |
 
@@ -1268,20 +1408,25 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to ip6tables` | A file for `ip6tables-restore`: the IPv6 half. |
 | `--to nsx` | The body of one `PATCH /policy/api/v1/infra` of the VMware NSX Policy API: services, groups and one security policy with the rules (section 10). |
 | `--to aws` | A shell script of AWS CLI calls that creates security groups for one VPC, without members, and says which addresses each is for (section 10). |
+| `--to oci` | A shell script of OCI CLI calls that creates network security groups in one VCN, with their rules and without VNICs, cut by address and with the deny rules of the source subtracted; it changes no security list (section 10). |
 | `--to azure` | An ARM template with one network security group per zone (section 10). |
 | `--to azure-firewall` | An ARM template that creates one new Azure Firewall policy with its rule collection groups, associated with no firewall: a network rule collection per rule of the source, in order, and DNAT rules (section 10). Zones become the networks of `--zone-network`, as for Google Cloud. |
 | `--to terraform-aws` | Terraform configuration (HCL, hashicorp/aws 5 or later): the security groups the `aws` target writes, as `aws_security_group` resources without members and one `aws_vpc_security_group_ingress_rule` or `_egress_rule` per address block and service, for the VPC in the variable `vpc_id` (section 10). |
 | `--to ios` | Configuration commands for the zone-based policy firewall of IOS and IOS XE: a zone per zone of the source, an access list and an inspect class map per rule, an inspect policy per zone pair in the order of the rules, ending in the default of the source (section 10). The `zone-member security` lines and NAT are comments to move into place. |
 | `--to huawei` | Commands for the system view of a Huawei USG: security zones (`trust`, `untrust` and `dmz` as they are, others new with a priority of their own), address and service sets, the rules of `security-policy` in the order of the source, the defaults, `nat server` and `nat-policy` (section 10). Which interfaces go in which zone is a comment. |
+| `--to hillstone` | Commands for the configuration mode of Hillstone StoneOS: zones (`trust`, `untrust` and `dmz` as they are, others new), address entries, services, the rules of `policy-global` in the order of the source with ids from 10000 (`--policy-id-start`), the defaults, and `snatrule` and `dnatrule` lines of trust-vr (section 10). Which interfaces go in which zone is in the report. |
 | `--to stormshield` | A script of serverd commands for an SNS firewall (version 4), to run with `snscli --script`: objects, then the rules in one filter slot (slot 9, or `--target-policy N` or `N:NAME`) that the script empties first and does not make active, then the NAT rules (section 10). The zones are the names of the firewall's interfaces (`--zone-map`). |
 | `--to meraki` | A shell script that puts the rule tables of one Cisco Meraki MX network through the Dashboard API, with curl: the outbound table (`l3FirewallRules`) and the tables of port forwarding, 1:1 NAT and 1:many NAT it has rules for. It backs up each table before it replaces it; `DRY_RUN=1` writes the bodies only (section 10). The zones of the LAN are `--inside-zone` (from a Meraki source the VLANs), their networks `--zone-network`. |
-| `--to aws-network-firewall` | A shell script of AWS CLI calls that creates one stateful rule group of Suricata rules in strict order and one firewall policy that uses it, associated with no firewall (section 10). Every rule is for the first packet of a connection (`flow:to_server`); the default of the source is `aws:drop_strict` or no default action. Zones become the networks of `--zone-network`, as for NSX. |
+| `--to aws-network-firewall` | A shell script of AWS CLI calls that creates one stateful rule group of Suricata rules in strict order and one firewall policy that uses it, associated with no firewall (section 10). Every rule is for the first packet of a connection (`flow:to_server`); the default of the source is `aws:drop_strict` or no default action, and with `aws:drop_strict` a first rule passes the replies. Zones become the networks of `--zone-network`, as for NSX. |
+| `--to windows-firewall` | A PowerShell script of `New-NetFirewallRule` calls that creates rules in one rule group (`FWShift`, or `--target-prefix`) on a Windows host or in a GPO, without changing a profile setting or deleting anything (section 10). Each rule is written for every way the host can be one of its ends; block rules lose what the allow rules above them match. The zone `Host` and the zones `Domain`, `Private` and `Public` (of a Windows source, or named so with `--zone-map`) are the host and the profiles; other zones become the networks of `--zone-network`, as for AWS. |
 | `--to gcp` | A shell script of gcloud commands that creates one new global network firewall policy with the rules, associated with no network (section 10). Each rule of the source becomes a rule per IP version, both ingress and egress, at priorities from 1000 in steps of 10; the last rules are the default of the source. Zones become the networks of `--zone-network`, as for NSX. |
 | `--to terraform-google` | Terraform configuration (HCL, hashicorp/google 5 or later): the policy and rules the `gcp` target writes, as a `google_compute_network_firewall_policy` and its `_rule` resources, in the project in the variable `project`; the association with a network is a comment (section 10). |
 | `--to terraform-azure` | Terraform configuration (HCL, hashicorp/azurerm 3 or later): the network security groups the `azure` target writes, as `azurerm_network_security_group` resources with their rules inline, in the resource group in the variable `resource_group_name` (section 10). |
 | `--to routeros` | A script for `/import` on RouterOS 6 or 7: interface lists for the zones, address lists, the rules in chains of their own, and the jumps that switch them on, disabled (section 10). |
 | `--to pf` | A ruleset for an anchor of pf (OpenBSD, FreeBSD 15 and later), loaded with `pfctl -a fwshift -f FILE`: a macro per zone for its interface or interface group, tables, and the rules, decided when the traffic leaves with tags that say where it arrived; `rdr-to` and `nat-to` for NAT. Nothing outside the anchor changes (section 10). |
+| `--to f5-afm` | A file for `tmsh load sys config merge file` on a BIG-IP with AFM: address lists, port lists, one rule list with the rules of the policy, and one policy (`--target-policy`) that holds it, enforced in no context (section 10). Allow rules are `accept-decisively` and the last rule is the default, so the policy decides alone wherever it is attached. Zones are VLANs; destination zones become the networks of `--zone-network`. |
 | `--to vyos` | `set` commands for VyOS 1.4 and later, for a configuration session: groups, the zones of the zone-based firewall with a named chain for each pair of zones and one for traffic to interfaces in no zone (one chain jumped to from the forward filter where the policy has no zones, or where its zones are interfaces, its rules matching them), and NAT rules (section 10). |
+| `--to zyxel` | A script of CLI commands for a Zyxel firewall with ZLD 4.x or 5.x (USG FLEX, ATP, VPN): new address and service objects and groups, zones without members, the rules as `secure-policy insert N` and `secure-policy6 insert N` before the rules the firewall has, then the source's default for every pair of the zones written, virtual servers and policy routes with SNAT (section 10). |
 | `--to forcepoint` | A Python program that creates the policy on a Forcepoint Security Management Center through its REST API: elements, zones it does not have, and a new firewall policy on a template, with the access rules and the NAT rules of both IP versions. It installs nothing on an engine (section 10). |
 | `--to nftables` | A ruleset for `nft -f`: one table, `inet fwshift`, with the forward hook for both IP versions and the IPv4 NAT chains. Loading it replaces that table and nothing else (section 10). |
 | `--to json` | The neutral model as JSON, for inspection or other tools. It is the model as it was read: the audit options cannot be combined with it. Each rule carries what the source calls it (`source_ids`: the uid of a Check Point rule, the name and uuid of a PAN-OS rule, the policy ID and uuid of a FortiOS policy), the devices it is installed on where the source limits that (`targets`), and its hit count where the input has one (`hits`). |
@@ -1291,13 +1436,13 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-nat-zone ZONE` | PAN-OS: destination zone for NAT rules of a source that names none (Check Point, some iptables and ASA rules). Without it those NAT rules are skipped. ASA: the interface for source NAT "to the address of the outgoing interface" where the rule does not name one. Management Center and Device Manager: the zone of that interface. pfSense and OPNsense: the interface a port forward of a rule for every zone is written for, and the interface outbound NAT is written for where a rule does not say where its traffic leaves. |
 | `--target-version SERIES` | OPNsense: the series the output is written for: `24.7`, `25.1`, `25.7`, `26.1` or `26.7` (the default). It decides the form of the port forwards (26.1 changed it), the version of the firewall model, and what a rule can say: before 25.1 a rule is for one IP version and names no ICMP types, before 25.7 no ICMPv6 types; only 26.7 has *received-on*. |
 | `--target-vdom NAME` | FortiOS: wrap the output in `config vdom` / `edit NAME`. |
-| `--policy-id-start N` | FortiOS: number policies from N. Default is `edit 0`, which lets the FortiGate pick free ids and appends after existing policies. VyOS: the number of the forward filter rule that jumps to the chain of a policy without zones (or whose zones are interfaces), or to the chain of traffic to interfaces in no zone, and of the first NAT rule (default 10000). |
+| `--policy-id-start N` | FortiOS: number policies from N. Default is `edit 0`, which lets the FortiGate pick free ids and appends after existing policies. VyOS: the number of the forward filter rule that jumps to the chain of a policy without zones (or whose zones are interfaces), or to the chain of traffic to interfaces in no zone, and of the first NAT rule (default 10000). Zyxel: the position in the security policy (both lists) and among the policy routes from which the converted rules are inserted, each after the one before it (default 1: before the rules the firewall has). |
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA, IOS, Huawei, Stormshield, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure (also as Terraform), Google Cloud (also as Terraform), RouterOS, Forcepoint, pf, VyOS, AWS Network Firewall and Azure Firewall: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on AWS Network Firewall the firewall policy and its rule group, not the variables inside the group; on Azure Firewall the firewall policy; on Azure every network security group; on Google Cloud the network firewall policy; on IOS every zone, access list, object group, class map and policy map, instead of `FWS-`; on Huawei every zone, address set, service set, rule, address pool and `nat server`, instead of `FWS_`; on Stormshield every object, instead of `fws_` (not `Firewall_` or `Network_`); on RouterOS every interface list and address list, instead of `fws-`; on pf every table, tag and macro, instead of `fws_`; on VyOS every group and named chain, instead of `FWS-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
-| `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `azure-firewall`, `fdm`, `fortios`, `huawei`, `ios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `panos`, `routeros`, `sophos`, `vyos`, `watchguard`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared (from a FortiOS, PAN-OS or ASA source, the networks its interfaces and routes tell are taken for the zones not given). |
-| `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure and `terraform-azure`: the name of the one network security group written when no zone has networks. `gcp` and `terraform-google`: the name of the network firewall policy, in lower case with hyphens (`fwshift` when not given). Default `FWShift`. Forcepoint: the name of the firewall policy the program creates (`--name` when it is run gives another). `aws-network-firewall`: the name of the firewall policy (`fwshift` when not given), and of its rule group, `NAME-rules`. `azure-firewall`: the name of the firewall policy the template creates. |
+| `--target-prefix TEXT` | Check Point, ASA, IOS, Huawei, Stormshield, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure (also as Terraform), Google Cloud (also as Terraform), RouterOS, Forcepoint, pf, VyOS, AWS Network Firewall, Azure Firewall, F5 BIG-IP AFM, OCI, Hillstone, Zyxel and Windows Defender Firewall: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on AWS Network Firewall the firewall policy and its rule group, not the variables inside the group; on Azure Firewall the firewall policy; on Azure every network security group; on Google Cloud the network firewall policy; on IOS every zone, access list, object group, class map and policy map, instead of `FWS-`; on Huawei every zone, address set, service set, rule, address pool and `nat server`, instead of `FWS_`; on Stormshield every object, instead of `fws_` (not `Firewall_` or `Network_`); on RouterOS every interface list and address list, instead of `fws-`; on pf every table, tag and macro, instead of `fws_`; on VyOS every group and named chain, instead of `FWS-`; on Hillstone every zone, address entry, service and rule, instead of `FWS_`; on Zyxel every object, group, zone, rule, virtual server and policy route, instead of `FWS_`, up to 12 letters, digits, underscores and hyphens; on Windows Defender Firewall it is the rule group and the start of every rule name, instead of `FWShift`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `azure-firewall`, `fdm`, `fortios`, `huawei`, `ios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `panos`, `routeros`, `sophos`, `vyos`, `watchguard`, `f5-afm`, `hillstone`, `zyxel`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared (from a FortiOS, PAN-OS or ASA source, the networks its interfaces and routes tell are taken for the zones not given). |
+| `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure and `terraform-azure`: the name of the one network security group written when no zone has networks. `gcp` and `terraform-google`: the name of the network firewall policy, in lower case with hyphens (`fwshift` when not given). Default `FWShift`. Forcepoint: the name of the firewall policy the program creates (`--name` when it is run gives another). `aws-network-firewall`: the name of the firewall policy (`fwshift` when not given), and of its rule group, `NAME-rules`. `azure-firewall`: the name of the firewall policy the template creates. `f5-afm`: the name of the policy in `/Common`, and of its rule list, `NAME_rules`. |
 | `--target-template NAME` | Forcepoint: the template the new firewall policy is based on (default `Firewall Template`, the predefined one). The loader stops when the SMC has no template of that name; it can be given another when it is run (`--template`). |
 
 **Adapting the policy**
@@ -1305,7 +1450,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | Option | Meaning |
 |---|---|
 | `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables and ASA this is how a zone becomes an interface name, and the other way round; for pfSense how it becomes an interface (`lan`, `opt1`) or an interface group. |
-| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Azure Firewall, Google Cloud (also `terraform-aws`, `terraform-azure` and `terraform-google`), AWS Network Firewall and Meraki targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda, NSX, AWS, Google Cloud, AWS Network Firewall and Meraki: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". Where the configuration tells them (FortiOS, PAN-OS and ASA sources: the addresses of the interfaces and the static routes, section 3), the networks of the zones this option does not name are taken from it (`ZONE_NETWORKS_FROM_SOURCE`). |
+| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Azure Firewall, Google Cloud (also `terraform-aws`, `terraform-azure` and `terraform-google`), AWS Network Firewall, Meraki, OCI and Windows Defender Firewall targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda, NSX, AWS, Google Cloud, AWS Network Firewall, Meraki, OCI and Windows Defender Firewall: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". Where the configuration tells them (FortiOS, PAN-OS and ASA sources: the addresses of the interfaces and the static routes, section 3), the networks of the zones this option does not name are taken from it (`ZONE_NETWORKS_FROM_SOURCE`). |
 | `--no-source-networks` | Take no networks of the zones from the configuration: only those of `--zone-network`. |
 | `--inside-zone ZONE` | AWS and Azure targets (also `terraform-aws` and `terraform-azure`): a zone whose networks (`--zone-network`) are inside the VPC or the virtual network. Repeatable. For Azure only those zones get a network security group. Only addresses inside get security groups, and their outbound rules leave the addresses inside to the inbound rules of the destination's group, which keeps them short. Without it every address gets a group (those outside are never attached), and each end says everything. From an AWS source the VPC it was read from is the inside. Meraki target: a zone of the LAN of the MX; the other zones are the internet, from which only NAT lets traffic in (section 8). Without it every zone is taken as LAN (`MERAKI_INSIDE`); from a Meraki source the VLANs are. |
 | `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall, SonicWall and a Device Manager, which match interfaces and not zones (SonicWall: `X1`, `X3:V10`); for a Barracuda target, the interface of the entries of the source of a rule in that zone (`port2`). For those two, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself); for a Device Manager `DST` is the logical name of the interface (`inside`, `outside`). Repeatable. |
@@ -1917,6 +2062,48 @@ Findings and notes that only an AWS source or target raises (an AWS target also 
 | `SOURCE_PORTS_WIDENED` | A | Target (on a blocking rule): it blocks certain source ports only, and is written for every source port, which blocks more. |
 | `ADDRESS_UNKNOWN`, `SERVICE_UNKNOWN`, `NOT_WRITTEN` | R, disabled | Target (on the rule): addresses (a dynamic group) or a service that cannot be read; a security group rule names addresses and ports. |
 
+Findings and notes that only an OCI source or target raises (an OCI target also raises `ZONE_BY_NETWORKS`,
+`ZONE_NETWORK_MISSING`, `ZONE_WIDENED`, `RULE_TYPE`, `SERVICE_SCTP`, `DENY_SUBTRACTED`, `SHADOWED_BY_DENY`, `ACTION_DROP`,
+`ADDRESS_UNKNOWN`, `SERVICE_UNKNOWN` and `NOT_WRITTEN`, as for AWS):
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `OCI_NO_VNICS` | R | Source: NSGs, and no VNICs (`oci network vnic get`). Which addresses an NSG stands for is not known: the NSGs are dynamic groups, no target writes their rules, and where connections inside the VCN are worked out, what NSGs allow is left out. Add those answers. |
+| `OCI_VNIC_MISSING` | R | Source: private IPs of VNICs whose `vnic get` answer is not in the input. Their NSGs are not known; they are read with the security lists of their subnet only. |
+| `OCI_SUBNETS_MISSING`, `OCI_SUBNET_MISSING` | R | Source: no subnets in the input (where a security list applies is not known, and its rules are not converted), or VNICs in subnets that are not in it (their security lists are missing). |
+| `OCI_LIST_MISSING`, `OCI_NSG_MISSING` | R | Source: subnets name security lists, or VNICs are in NSGs, that are not in the input. What those allow is missing from the converted policy. |
+| `OCI_NSG_RULES_MISSING` | R | Source: an NSG without the answer of `nsg rules list`; it is read as allowing nothing. The CLI may print nothing for an NSG without rules. |
+| `OCI_NSG_RULES_UNWRAPPED` | R | Source: NSG rules that are not wrapped with the OCID of their NSG (`--query "{nsgId: '<ocid>', data: data}"`); they were left out. |
+| `OCI_REMOTE_NSG` | R | Source: rules name NSGs that are not in the input. With the VNICs in the input, their members are the VNICs in them (none, then those rules allow nothing); without, those rules are not converted. |
+| `OCI_UNUSED` | I | Source: security lists of no subnet, or NSGs without VNICs; their rules allow nothing and were left out. |
+| `OCI_RULE_INVALID` | I | Source: a rule names an NSG that was deleted (`is-valid` false). OCI ignores it, and so does the converted policy. |
+| `OCI_SERVICE_LABEL` | R | Source: rules name service CIDR labels whose addresses are not in the input. Those rules are not converted; add Oracle's `public_ip_ranges.json` and `oci iam region list`. |
+| `OCI_SERVICE_RANGES` | A | Source (on the rule): a service CIDR label is read as the ranges Oracle publishes for it (tag `OSN` for all services, `OBJECT_STORAGE` for Object Storage). On OCI the rule matches that traffic through a service gateway only, and the ranges change. |
+| `OCI_STATELESS_REPLY` | I | Source (note, and on each rule concerned): a stateless rule lets traffic through without tracking the connection, and where a stateless and a stateful rule match the same traffic the stateless one decides. Connections whose replies the VNIC does not let through in the other direction fail on OCI, and are blocked first (`...-stateless-in`, `...-stateless-out`). |
+| `OCI_STATELESS_UNKNOWN` | R | Source: whether the replies of stateless rules are let through is worked out without rules whose addresses are not known (an NSG without its VNICs, a label without its ranges); the converted policy may block connections OCI allows. |
+| `OCI_STATELESS_NOT_WORKED_OUT` | R | Source: what stateless rules let through without its replies is too complex to work out for these addresses; the converted policy allows it, which may be more than OCI does. |
+| `OCI_EGRESS_PAIRS` | I | Source: addresses whose egress rules do not allow everything inside the VCN. For them a rule per egress rule of their lists and NSGs and ingress rule of the destination's says what both allow, and a rule after those blocks the rest of what they send inside the VCN (`... members`, `...-egress-rest`). |
+| `OCI_EGRESS_PAIRS_LEFT_OUT` | R | Source: for these addresses not every such pair could be worked out (too many, an NSG without its rules, addresses that are not known); the converted policy blocks what was left out. |
+| `OCI_PUBLIC_ADDRESSES` | I | Source: the public IP address of a VNIC is a static NAT of its primary private address; the rules that name the private address name the public one too. |
+| `OCI_HAIRPIN` | R | Source: connections from inside the VCN to its own public addresses go through the internet gateway, and OCI's rules see public addresses at both ends (a rule that names an NSG does not match them); the converted policy treats them as connections to the private address, which may allow more. |
+| `OCI_ROUTED_THROUGH` | R | Source: VNICs with the source/destination check skipped (appliances, route targets). Traffic they forward also passes their rules and what they do themselves; neither is converted. |
+| `OCI_ZPR` | R | Source: VNICs with Zero Trust Packet Routing security attributes. Traffic to them must satisfy the ZPR policies too, which are not read. |
+| `OCI_VLAN` | R | Source: VNICs in VLANs (Oracle Cloud VMware Solution) were left out; their NSGs are those of the VLAN, which are not read. |
+| `OCI_OTHER_VCN` | I | Source: subnets, lists and NSGs of other VCNs were left out (`--policy`). |
+| `OCI_TERMINATED` | I | Source: objects that are terminated or being terminated were left out. |
+| `OCI_INCOMPLETE_EXPORT` | R | Source: an answer says there is another page (`opc-next-page`). List with `--all`. |
+| `OCI_UNFILTERED` | I | Source: security rules are never enforced for traffic to or from 169.254.0.0/16 (instance metadata, iSCSI, the VCN's DNS and NTP). |
+| `OCI_UDP_FRAGMENTS` | I | Source: rules allow UDP to or from certain ports; OCI drops the fragments after the first of a fragmented UDP packet such a rule allows. The model has no fragments. |
+| `OCI_DEFAULT_SECURITY_LIST` | I | Source: subnets that use the default security list of the VCN; its rules are converted as they are. |
+| `OCI_LOAD` | R | Target: how the script is run (section 10): `DRY_RUN=1` prints the calls, `COMPARTMENT_ID=... VCN_ID=...` create the NSGs and their rules. It creates new NSGs only, and stops if one of the same name exists in the VCN. |
+| `OCI_ATTACH` | R | Target: the NSGs have no VNICs. Put each VNIC in the NSGs whose `# attach` line lists its addresses, and take it out of others; an NSG applies to a whole VNIC, so addresses of one VNIC (and one IP version) need the same NSG. |
+| `OCI_SECURITY_LISTS` | R | Target: the security lists of the subnets keep applying, and OCI allows what a rule of either allows. For the VNICs to be held to the NSGs, their subnets need security lists that allow no more. |
+| `OCI_RULE_LIMIT` | R | Target: an NSG takes 120 rules; these were split into parts, and a VNIC goes in every part. A VNIC can be in five NSGs. |
+| `OCI_PART_NOT_WRITTEN` | R | Target (on the rule): part of what the rule allows cannot be said by an NSG rule (every protocol but some, ports of SCTP, many ICMP codes) and is not written: the converted rule allows less. |
+| `OCI_TOO_COMPLEX` | R, disabled | Target (on the rule): without what the blocking rules above it block, the rule falls apart into more pieces than are written. |
+| `OCI_DEFAULT_ALLOW` | R | Target: the source allows what no rule matches; written as rules that allow everything the blocking rules do not block. |
+| `OCI_DEFAULT_NOT_WRITTEN` | R | Target: the source allows what no rule matches between zones, and blocks it inside some zones; without the networks of those zones that is not written. |
+
 Findings and notes that only an AWS Network Firewall source or target raises (a target also raises `ZONE_BY_NETWORKS`,
 `ZONE_NETWORK_MISSING`, `ZONE_WIDENED`, `RULE_TYPE`, `SERVICE_SCTP`, `SERVICE_NEGATE`, `RESET_ACTION`, `REJECT_AS_DENY`,
 `INTRAZONE_WRITTEN`, `INTRAZONE_DEFAULT` and `INTRAZONE_DENY_NOT_WRITTEN`, as for NSX and Google Cloud):
@@ -1933,7 +2120,8 @@ Findings and notes that only an AWS Network Firewall source or target raises (a 
 | `AWSNFW_FRAGMENTS` | I | Source: UDP fragments that no stateless rule matches have a default action of their own, other fragments are dropped; the model has no fragments, and the default for full packets is converted. |
 | `AWSNFW_DEFAULT_UNREADABLE` | R | Source: a default action that cannot be read, or several stateful drop defaults (the strictest is read). |
 | `AWSNFW_STATELESS_FORWARD` | I | Source: stateless rules that forward to the stateful engine. The stateless rules below them do not see that traffic; they are written without it. |
-| `AWSNFW_REPLY_DROPPED` | I | Source (on the rule): the stateless engine filters each packet, and the replies of these connections meet a stateless rule (or default action) that drops them; the connections are blocked, first in the converted policy (`...-replies`). |
+| `AWSNFW_REPLY_DROPPED` | I | Source (on the rule): the stateless engine filters each packet, and the replies of these connections meet a stateless rule (or default action) that drops them; or, with `STRICT_ORDER` and `aws:drop_strict`, which decide each packet on its own, no stateful rule passes their replies or, for TCP, their established packets. The connections are blocked, first in the converted policy (`...-replies`, `strict-replies-dropped`). |
+| `AWSNFW_STRICT_REPLIES` | I, R | Source: with `STRICT_ORDER` and `aws:drop_strict` every packet is decided on its own, so a pass rule with `flow:to_server` passes the packets from the client and not the replies. Connections whose replies or later packets no rule passes are blocked at the top (`AWSNFW_REPLY_DROPPED`). REVIEW when the rules that match them cannot be worked out as sets (applications, unknown members): the connections are then read as decided on their first packet. |
 | `AWSNFW_STATELESS_REPLY` | I | Source (on the rule): a stateless pass whose replies are dropped for some of the connections it passes; those connections are blocked, as on the firewall. |
 | `AWSNFW_ASYMMETRIC` | R | Source (on the rule, or for the policy): one direction of some connections is passed by the stateless rules and the other forwarded to the stateful engine, which sees half a flow and may drop it. The converted policy leaves those connections to the stateful rules. |
 | `AWSNFW_STATELESS_NOTHING` | I | Source: a stateless pass that decides no connection: what it matches is taken by the rules above it. |
@@ -1952,12 +2140,58 @@ Findings and notes that only an AWS Network Firewall source or target raises (a 
 | `AWSNFW_RESOLVED_IP_VALIDATION` | R | Source: the policy checks that destinations of domain rules were resolved by Route 53 Resolver; not converted. |
 | `AWSNFW_LOAD` | R | Target: how the script is run (section 10): `DRY_RUN=1` prints the calls, `CHECK=1` sends them with `--dry-run`, without either it creates the rule group and the policy, and stops if one of that name exists. The policy is attached to no firewall. |
 | `AWSNFW_ORDER` | R | Target: the policy decides every packet the firewall sees, in strict order, every rule for the first packet of a connection, and ends in the default of the source (`aws:drop_strict`, or none). Check it against what the route tables send through the firewall. |
+| `AWSNFW_REPLIES` | I | Target: with `aws:drop_strict` every packet is decided on its own, so the first rule of the group, `pass ip any any -> any any (flow:to_client)`, passes the packets back to the client of a flow: the replies of the connections the rules below pass on their first packet. |
 | `AWSNFW_SPLIT` | I | Target: the rules did not fit in one rule group (2,000,000 characters, or 10,000 rules as written here); they are in several, in order. |
 | `AWSNFW_CAPACITY` | R | Target: more than 30,000 rules, the default capacity of the stateful rule groups of one policy; AWS refuses the policy unless the quota was raised. |
 | `AWSNFW_NEGATED_SERVICE` | I | Target (on the rule): a negated service is written as what it leaves: a rule per protocol, ICMP types as ranges, and for the protocols it does not name one with `ip_proto:!N` for each it does. |
 | `AWSNFW_SERVICE_NOT_WRITTEN` | R, disabled | Target (on the rule): what a negated service leaves of ICMP is more single types and codes than are written. |
 | `AWSNFW_BLOCKS_MORE` | A | Target (on a blocking rule): what a negated service leaves holds many ICMP types and codes, or SCTP ports; the rule blocks all of ICMP, or of SCTP, there. |
 | `FQDN_NOT_SUPPORTED`, `ADDRESS_UNKNOWN`, `ADDRESS_NOT_WRITTEN`, `SERVICE_UNKNOWN`, `NOT_WRITTEN` | R, disabled | Target (on the rule): a host name, a dynamic group, an address or a service that cannot be written; a rule of Network Firewall names addresses (a domain list matches TLS and HTTP names, which is something else). |
+
+Findings and notes that only a Windows Defender Firewall source or target raises (a target also raises
+`ZONE_BY_NETWORKS`, `ZONE_NETWORK_MISSING`, `ZONE_WIDENED`, `RULE_TYPE`, `ACTION_DROP`, `SHADOWED_BY_DENY`,
+`INTRAZONE_ALLOW`, `NAT_NOT_CONVERTED` and `LOGGING_NOT_CONVERTED`, as for AWS):
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `WINFW_HOST_POLICY` | I | Source: a host firewall. The zone `Host` is the host, `Domain`, `Private` and `Public` the networks of the interfaces in each profile. Windows has no rule order: the converted policy has the block rules first, then the allow rules, then the defaults that allow. Traffic between the networks is denied. |
+| `WINFW_STORES`, `WINFW_PROFILES` | I | Source: the stores read and their rules; the settings of each profile as Windows merges them (Group Policy, then MDM, then local, then Windows's default), and which store each came from. |
+| `WINFW_STORE_MISSING` | R | Source: the input holds no Group Policy store, or no local store. Rules and settings of the missing one are not converted; if its key does not exist on the host, nothing is missing. |
+| `WINFW_DEFAULT_ASSUMED` | I | Source: a profile setting that no store holds is taken as Windows's default: firewall on, inbound blocked, outbound allowed. |
+| `WINFW_CONTROL_SET` | I | Source: the export holds several control sets; `CurrentControlSet` is read. |
+| `WINFW_LOCAL_NOT_MERGED` | I | Source: Group Policy (or MDM) sets `AllowLocalPolicyMerge` to 0 for these profiles; the local rules are left out there. |
+| `WINFW_LOCAL_IGNORED` | I | Source (on the rule): a local rule for profiles in which local rules are not merged only. It is kept disabled. |
+| `WINFW_FIREWALL_OFF` | R | Source: the firewall is off in a profile: everything to and from its networks is allowed, whatever the rules say (two rules at the top). |
+| `WINFW_SHIELDED` | I | Source: a profile blocks every inbound connection (`DoNotAllowExceptions`), whatever the rules say (a rule at the top). |
+| `WINFW_PROFILE_LEFT_OUT` | I | Source (on the rule): the rule names a profile whose firewall is off, or that blocks every inbound connection; the rules at the top decide there, and the rule is left out of it. |
+| `WINFW_OVERRIDDEN` | I | Source (on the rule): a store that wins (Group Policy over MDM over local) has a rule of the same id, which replaces this one. It is kept disabled. |
+| `WINFW_NOT_MODELLED` | R | Source (on the rule): the rule matches less than its addresses and ports say: a program, a service, an app package, users, computers, interfaces, interface types, IPsec, authenticated bypass, a port keyword (RPC, Teredo, IP-HTTPS, Play To discovery, DHCP) or a field FWShift does not know. It is not converted (`UNSUPPORTED_MATCH` on the target). |
+| `WINFW_BYPASS` | R | Source: rules with authenticated bypass ("override block rules", `Action=ByPass`) let IPsec-authenticated connections through block rules. They come first and are not converted. |
+| `WINFW_RULE_INVALID` | R | Source (on the rule): a rule string Windows cannot parse (no action or direction, ports without TCP or UDP, ICMP types of the other protocol, an address of the wrong IP version, a major version other than 2). Windows does not enforce it; it is kept disabled. |
+| `WINFW_EDGE_TRAVERSAL` | A | Source (on an allow rule): the rule also accepts traffic that came through edge traversal (Teredo), always or when the program or user asks; the converted rule does not. |
+| `WINFW_LOOSE_SOURCE` | A | Source (on an allow rule): loose source mapping accepts UDP replies from another host than the one the packets went to; the converted rule does not. |
+| `WINFW_PLATFORM` | I or A | Source (on the rule): the rule applies only on the Windows versions it names. I: from a version on (`GTEQ`), taken as applying. A: other versions, taken as applying, which the host may not be. |
+| `WINFW_ADDRESS_KEYWORDS` | I | Source: rules name address keywords (`LocalSubnet`, `DNS`, `DHCP`, `WINS`, `DefaultGateway`, `Intranet`, `Internet`, ...), whose addresses Windows works out at run time. They are dynamic groups: a Windows target writes them again, other targets write the rules disabled. A keyword for one IP version only has the suffix 4 or 6 (`LocalSubnet4`). |
+| `WINFW_SETTING_NOT_CONVERTED` | I | Source: profile settings that decide traffic no rule names (unicast responses to multicast and broadcast blocked, stealth mode off). |
+| `WINFW_NOT_READ` | I | Source: what was not read: connection security rules, Windows Service Hardening rules, values that are not of the expected type, rules in keys Windows does not apply. |
+| `WINFW_LEGACY_POLICY` | R | Source: settings of the Windows Firewall of Windows XP in the Group Policy store (open ports, programs, the standard profile), which Windows still applies; not converted. |
+| `WINFW_LOAD` | R | Target: how the script is run (section 10): `-DryRun` shows what it would create; without it it creates the rules, as administrator, in one rule group. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of the group or of one of its names exists. |
+| `WINFW_HOST_RULES` | R | Target: Windows evaluates the rules written here with every other rule of the host. A block rule of the host beats an allow rule written here; an allow rule of the host lets through what the policy only denies by default. |
+| `WINFW_DEFAULT_INBOUND` | I | Target: inbound connections no rule allows are left to the profile's default, Block. The script warns when a profile allows them. |
+| `WINFW_DEFAULT_OUTBOUND` | R | Target: the policy denies outbound connections that no rule written allows, in these profiles, and Windows allows them unless the profile's default outbound action is Block. Set it (`Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block`); the script does not, and warns. |
+| `WINFW_DEFAULT_ALLOW` | R | Target: the source allows what no rule matches; written as allow rules for every connection in both directions (less inside zones that block, with their networks), which the block rules beat. |
+| `WINFW_DEFAULT_NOT_WRITTEN` | R | Target: the source allows what no rule matches between zones and blocks it inside some zones, which have no networks; or that falls apart into too many pieces. It is not written. |
+| `WINFW_ZONES` | I | Target: the zones read as the host and as profiles. |
+| `WINFW_BLOCK_CUT` | I | Target (on a block rule): Windows decides block rules before allow rules, so the rule is written without what the allow rules above it match. |
+| `WINFW_LEFT_TO_DEFAULT` | I or R | Target (on a block rule): part of it, or all of it, is not written but left to the default of the profile: what Windows cannot say (every protocol but some, ports of SCTP, more ICMP types and codes than are listed), a rule that blocks everything below allow rules, or one whose cut falls apart. The allow rules below it are written without it. I: inbound only, which the default blocks. R: also outbound, blocked only where the profile's default outbound action is Block. |
+| `WINFW_ALLOW_CUT` | I | Target (on an allow rule): block rules above it are left to the default; the rule is written without what they match. |
+| `WINFW_PART_NOT_WRITTEN` | R | Target (on an allow rule): part of what it allows cannot be said by a rule of Windows Firewall (every protocol but some, ports of SCTP, more ICMP types and codes than are listed) and is not written: the converted rule allows less. |
+| `WINFW_SHADOWED_BY_ALLOW` | I, skipped | Target (on a block rule): the allow rules above it allow everything it blocks; nothing is written. |
+| `WINFW_NOTHING_TO_WRITE` | I, skipped | Target (on the rule): the rule matches no connection to or from the host (only the host to itself, or nothing after the negation and the networks of its zones). |
+| `WINFW_KEYWORD` | R, disabled | Target (on the rule): an address keyword where Windows takes none: on the host's side, in a negated list, or in a zone whose networks the rule has to be kept to. |
+| `WINFW_KEYWORD_ORDER` | R, disabled | Target (on the rule): a block rule and an allow rule above it (or a block rule left to the default and an allow rule below it) meet, and one names an address keyword, so what is left of one cannot be worked out. |
+| `WINFW_TOO_COMPLEX` | R, disabled | Target (on an allow rule): without what the block rules left to the default above it match, the rule falls apart into more pieces than are written. |
+| `FQDN_NOT_SUPPORTED`, `ADDRESS_UNKNOWN`, `SERVICE_UNKNOWN`, `NOT_WRITTEN`, `USER_MATCH`, `URL_CATEGORY` | R, disabled | Target (on the rule): a host name, a dynamic group, a service that cannot be read, users or URL categories; a rule of Windows Firewall names addresses and ports. |
 
 Findings and notes that only an Azure source or target raises (an Azure target also raises `ZONE_NETWORK_MISSING`,
 `ZONE_WIDENED`, `ZONE_DYNAMIC` and `RESET_ACTION`):
@@ -2080,6 +2314,42 @@ and `OBJECTS_MISSING`; a VyOS target `INTERFACES_REQUIRED`, `ZONES_REQUIRED`, `O
 | `VYOS_NEGATED_SERVICE` | I | Target (on the rule): a negated service of several protocols, or with ports, is written as a chain of its own that returns for each service the rule leaves out and decides the rest. |
 | `VYOS_LOG` | I | Target: rules that log the start of a connection have `log`. |
 | `VYOS_TEXT` | I | Target: names and descriptions with characters VyOS does not take in them, or longer than it takes, were changed. |
+
+Findings and notes that only an F5 BIG-IP AFM source or target raises (an AFM target also raises
+`ZONE_NETWORK_MISSING`, `ZONE_BY_NETWORKS`, `ZONE_WIDENED`, `NEGATION_EXPANDED`, `SERVICE_NEGATE`, `RULE_TYPE`,
+`RULE_SPLIT`, `RESET_ACTION`, `INTRAZONE_WRITTEN`, `INTRAZONE_DEFAULT` and `INTRAZONE_DENY_NOT_WRITTEN`):
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `F5AFM_CONTEXTS` | I | Source: how many rules each context gave, and how many rules of one first-match list they became (section 8). |
+| `F5AFM_MODE` | I/R | Source: the default action of the virtual server and self IP contexts (`tm.fw.defaultaction`): ADC mode accepts what no rule decides, Firewall mode drops or rejects it. Needs review when the input does not hold it: ADC mode, the default, was assumed. |
+| `F5AFM_NO_VIRTUAL_SERVERS` | R | Source: the input holds no virtual servers. Every packet was read as having one that lets it through, as a forwarding virtual server for every address would, and what no rule decides gets the default of the virtual server contexts. On the BIG-IP, traffic for which there is no virtual server is dropped: add the `ltm virtual` part to the input. |
+| `F5AFM_VIRTUAL_UNREAD` | R | Source: virtual servers whose destination, mask, source or VLANs cannot be read (a destination that names a virtual address object, `vlans-disabled` without the `net vlan` part). They are left out, and the converted policy lets nothing through to them. |
+| `F5AFM_VIRTUAL_SKIPPED` | I | Source: virtual servers of type internal or DHCP relay, which take no forwarded traffic. |
+| `F5AFM_VIRTUAL_REFUSES` | I | Source: virtual servers that are disabled or of type reject: the traffic they take is denied, whatever the rules say. |
+| `F5AFM_ICMP_IGNORED` | I | Source: ICMP rules in the virtual server context, which the BIG-IP ignores; not converted. |
+| `F5AFM_POLICY_MISSING` | R | Source: a context enforces a policy that is not in the input. Read as if no rule of that context matched; add the policy to the input. |
+| `F5AFM_RULE_LIST_MISSING` | R | Source: a policy refers to a rule list that is not in the input; its rules are missing. |
+| `F5AFM_POLICY_NOT_ATTACHED` | R | Source: no context enforces a policy, and the one policy of the input was read as if the global context did. This is how a file written by FWShift is read back. |
+| `F5AFM_POLICY_SELECTED` | I | Source: `--policy` named the policy that was read, as if the global context enforced it. |
+| `F5AFM_NO_POLICY` | R | Source: no context enforces a policy and the input has several or none: the converted policy holds only the defaults. Name one with `--policy`. |
+| `F5AFM_UNUSED_POLICY` | I | Source: policies no context enforces; not converted. |
+| `F5AFM_STAGED` | I | Source: a staged policy only counts and logs; not converted. |
+| `F5AFM_SELF_IP` | I | Source: a self IP with a firewall policy filters traffic to the BIG-IP itself; not converted. |
+| `F5AFM_MANAGEMENT_RULES` | I | Source: the rules of the management port filter traffic to the BIG-IP itself; not converted. |
+| `F5AFM_NAT_NOT_READ` | R | Source: virtual servers that send traffic to a pool or translate its source, SNATs and `security nat` policies are NAT, which is not read. The rules name addresses as they arrive, before NAT, as the model does; set up the NAT on the target by hand. |
+| `F5AFM_ROUTE_DOMAINS` | R | Source: route domains other than 0. An address without `%ID` is read as matching in every route domain (not confirmed): where route domains reuse addresses, a rule may match more than on the BIG-IP. |
+| `F5AFM_ROUTE_DOMAIN` | R | Source (on the rule or the list): an address with a route domain (`10.0.0.0%2/16`) is read without it. |
+| `F5AFM_ROUTE_DOMAIN_EMPTY` | I | Source: a route domain with a policy holds no VLAN the input names; its policy matches nothing. |
+| `F5AFM_DESTINATION_ZONE` | R | Source (on the rule): destination zones were read as the VLANs a packet leaves on, which is not confirmed. |
+| `F5AFM_IRULE` | I | Source (on the rule): the iRule of a rule that drops or rejects is not converted. On a rule that accepts, an iRule may drop what the rule accepts: the allow rules that follow from it are not converted. |
+| `F5AFM_LOAD` | R | Target: how the file is checked and merged, what it creates, and that the policy is attached by hand (section 10). |
+| `F5AFM_VLANS_REQUIRED` | R | Target: the VLANs the rules name as the zones traffic comes from; they must exist on the BIG-IP under these names (`--zone-map` renames). Information only for an AFM source. |
+| `F5AFM_FQDN_RESOLVER` | R | Target: address lists with host names, which AFM resolves only with a global FQDN resolver (`security firewall global-fqdn-policy`); without one they match nothing. |
+| `F5AFM_ICMP_CONTEXT` | I | Target: the policy has ICMP rules, which the BIG-IP ignores in the virtual server and self IP contexts: attach the policy to the global or a route domain context. |
+| `F5AFM_DEFAULT_ALLOW` | I | Target: the source allows what no rule matches; the last rule of the list accepts it decisively. |
+| `F5AFM_LOG` | I | Target (on the rule): AFM logs the matches of a rule, not the start or end of a session; written with `log yes`. |
+| `F5AFM_NAT_NOT_CONVERTED` | R | Target (on the NAT rule): NAT is not part of the firewall policy of a BIG-IP; it is done by virtual servers with pools, SNAT automap and SNAT pools, or by CGNAT (`security nat` policies). Set it up there by hand. |
 
 Notes that only a Cisco ASA source or target raises:
 
@@ -2412,6 +2682,76 @@ Findings and notes that only a Huawei USG source or target raises:
 | `HUAWEI_DEFAULT_PERMIT` | R | Target: the source allows what no rule matches between zones; the output sets `default action permit`, which also applies to traffic no rule of this policy is about. |
 | `HUAWEI_INTRAZONE` | I | Target: traffic inside a zone that no rule matches passes, as on the source, as long as the firewall does not have `default packet-filter intrazone enable`. |
 | `HUAWEI_NO_ZONES` | R | Target: the source names no zones; the rules are written without zones, so they match between every pair of zones and to the firewall itself, and traffic inside a zone passes. Give the rules zones. |
+
+Findings and notes that only a Hillstone StoneOS source or target raises:
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `HILLSTONE_SOURCE` | I | Source: the zones and the number of rules read, first match in the order of the configuration (the id does not decide). |
+| `HILLSTONE_DEFAULTS` | I | Source: what no rule matches is denied, between zones and inside a zone, unless `default-action permit`. |
+| `HILLSTONE_ANY` | I | Source: the address `Any` was read as every IPv4 address, `IPv6-any` as every IPv6 address. |
+| `HILLSTONE_ANY_IPV4` | R | Source (on the rule): a blocking rule names `Any` in a configuration that has IPv6. If `Any` takes in IPv6 addresses on the firewall, the converted rule blocks less: check, and add `IPv6-any` to the source rule if so. |
+| `HILLSTONE_NAT_ORDER` | R | Source: DNAT is looked up before the route and the policy, SNAT after the route. The rules were read as naming the destination before DNAT and the zone after it, as Hillstone's troubleshooting guide shows; one of its configuration examples names the translated address instead. Check the rules for translated traffic on the firewall. |
+| `HILLSTONE_DNAT_INSIDE` | R | Source (on the rule): the rule names an address a `dnatrule` translates to. It was read as the address a packet has before DNAT; if the firewall matches rules after DNAT, the rule also matches the connections translated to it. |
+| `HILLSTONE_PREDEFINED` | R | Source: predefined services (`HTTP`, `DNS`, `PING` and the like, in any case) were read with the well-known ports FWShift knows for them; check them with `show service predefined`. A predefined service FWShift does not know makes its rule not converted. |
+| `HILLSTONE_SCHEDULE` | I | Source: rules with a `schedule`; schedules are not converted, and a target writes these rules disabled (`SCHEDULE`). |
+| `HILLSTONE_REJECT` | I | Source: `action reject` was read as a deny that answers the client. |
+| `HILLSTONE_ZONE_PAIR` | R | Source: zone-pair policies of StoneOS 4.x; their rules were put before the global rules, in the order of the configuration. |
+| `HILLSTONE_MOVE` | R | Source: a `move`, `before` or `after` names a rule the configuration does not have; the rule was left where it is. |
+| `HILLSTONE_RULE_TWICE` | R | Source: a rule id is written twice with a rule in one line; both are read, as two rules. |
+| `HILLSTONE_VROUTER` | R | Source: NAT rules of several virtual routers; the converted policy has one routing table, and their rules are one list. |
+| `HILLSTONE_VSYS` | R | Source: virtual systems; their configuration was read as if it were the root system's. Give FWShift one system at a time. |
+| `HILLSTONE_L2_ZONE` | I | Source: layer-2 and tap zones were read as zones. |
+| `HILLSTONE_SNAT_MODE` | A | Source (on the NAT rule): an `snatrule` that translates to addresses names no `mode`; read as `dynamicport`. |
+| `HILLSTONE_LOAD` | R | Target: the output is commands for the configuration mode (section 10); they take effect as they are entered, nothing is saved, the rules have the ids the note names (they must be free) and go after the rules the firewall has. |
+| `HILLSTONE_ZONES` | I | Target: the `interface` / `zone` commands that put the interfaces in their zones; binding an interface changes traffic at once, so the output leaves it to you. |
+| `HILLSTONE_DEFAULT_PERMIT` | R | Target: the source allows what no rule matches; the output sets `default-action permit`, which also applies to traffic no rule of this policy is about. |
+| `HILLSTONE_NO_ZONES` | R | Target: the source names no zones; the rules are written without zones and match between every pair of zones and inside every zone. Give the rules zones. |
+| `HILLSTONE_IPV4_ONLY` | A | Target: the policy names no IPv6 address; rules that match any address were written for IPv4 (`Any`) only, and IPv6 traffic meets the firewall's default, deny. |
+| `HILLSTONE_FQDN` | A, R | Target (on the rule): a host name is written into an IPv4 address entry; the rule matches the IPv4 addresses it resolves to, not its IPv6 ones. On a blocking rule `R`: it blocks less. |
+| `HILLSTONE_NAT_ZONE` | A | Target (on the NAT rule): the zones of the NAT rule are not written: a `dnatrule` names none, and an `snatrule` names one egress interface, which is written only where the destination is one zone with one known interface. The rule written translates traffic of every zone. |
+| `NEGATION_EXPANDED`, `IP_VERSION_SPLIT`, `NO_COMMON_FAMILY`, `REJECT_AS_DENY`, `SERVICE_NOT_WRITTEN`, `INTRAZONE_RULES_ADDED`, `NAT_NOT_CONVERTED` | | Target, as for the other targets: a rule of StoneOS cannot negate (written as the addresses left), an address entry is of one IP version (a rule per version), a reset is a deny, a service takes the ICMP types 3, 4, 5, 8, 11, 12, 13 and 15 with codes 0 to 5 and no ICMPv6, NAT rules are written only as `snatrule` and `dnatrule` can say them. |
+
+Findings and notes that only a Zyxel (ZLD) source or target raises:
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `ZYXEL_SOURCE` | I | Source: the zones and the number of rules read, the IPv4 and IPv6 lists one after the other; rules to and from the firewall itself are not converted. |
+| `ZYXEL_DEFAULTS` | I | Source: what no rule of each list matches (`secure-policy default-rule`, `secure-policy6 default-rule`; deny when not set). Where the two lists differ, the IPv6 default is a rule at the end of the converted policy. |
+| `ZYXEL_DEFAULT_REJECT` | I | Source: a default rule that rejects (TCP reset or ICMP unreachable); read as deny. |
+| `ZYXEL_DEVICE_RULE` | I, skipped | Source (on the rule): a rule to or from the firewall itself (`to ZyWALL`). |
+| `ZYXEL_BLOCK_INTRAZONE` | R | Source: zones with `block`, read as a rule at the top of the policy that denies traffic between the members of the zone whatever the rules say. Not confirmed on a device. |
+| `ZYXEL_UNZONED` | I | Source: interfaces in no zone; only rules from `any` or to `any` match their traffic. |
+| `ZYXEL_ZONE_NOT_DEFINED` | I | Source: zones the rules name that the configuration does not define and that are not zones a ZLD firewall comes with. |
+| `ZYXEL_INTERFACE_OBJECT` | I | Source: address objects of an interface (`interface-ip`, `interface-subnet`), read with the static address of the interface. One of an interface with a dynamic address, or of a gateway, is not converted. |
+| `ZYXEL_FQDN` | R | Source: address objects of a host name, read as names resolved for IPv4; the form is not in the CLI Reference Guide FWShift could read. |
+| `ZYXEL_MIXED_GROUP` | I | Source: an address group with addresses of both IP versions named in a rule of one list; the rule matches its own version only. |
+| `ZYXEL_ICMP_NAMES` | I | Source: ICMP types by name (`echo`), read with the numbers of the IANA registry. |
+| `ZYXEL_ACTIVATE_UNSAID` | R | Source: rules whose configuration says neither `activate` nor `no activate`; read as active. |
+| `ZYXEL_POLICY_OFF` | R | Source: `no secure-policy activate`: the firewall filters nothing; the rules of that list were read disabled and its default as allow. Zones with `block` still block. |
+| `ZYXEL_FIREWALL` | I | Source: the `firewall` rules of ZLD 3.x, read as the security policy. |
+| `ZYXEL_EDIT_COMMANDS` | R | Source: commands that delete, move or flush rules; not carried out, the rules are read as they are listed. |
+| `ZYXEL_UNREAD` | R | Source: a setting of the security policy that was not read. |
+| `ZYXEL_ASYMMETRICAL` | I | Source: asymmetrical routes are allowed; not converted. |
+| `ZYXEL_NAT_ORDER` | I | Source: virtual servers and 1:1 NAT are done before the security policy, whose rules name the inside address; the rules were rewritten for the address as it arrives. SNAT of policy routes is done after it. |
+| `ZYXEL_NAT_UNZONED` | I | Source: interfaces in no zone that a virtual server or a policy route names, read as zones of their own (only rules from `any` match their traffic, as on the firewall). |
+| `ZYXEL_NAT_LOOPBACK` | A | Source (on the NAT rule): `nat-loopback` also translates hosts behind the firewall that use the original address; only the translation of traffic that arrives on the interface is converted. |
+| `ZYXEL_ONE_TO_ONE_PORTS` | A | Source (on the NAT rule): `nat-1-1-map` of ports or of every original address; only the inbound translation is converted. |
+| `ZYXEL_SNAT_POOL` | I | Source (on the NAT rule): `snat pool` read as translation to the pool with port translation; the documentation does not say. |
+| `ZYXEL_ROUTE_NO_SNAT` | I | Source (on the NAT rule): a policy route without SNAT above one with SNAT, kept as a NAT rule that translates nothing (first match). |
+| `ZYXEL_DEFAULT_SNAT` | R | Source: the default SNAT of the WAN trunk is not a rule of the configuration and is not converted; give the target the source NAT it needs. |
+| `ZYXEL_POLICY6` | I | Source: IPv6 policy routes are not converted. |
+| `ZYXEL_LOAD` | R | Target: the output is a script of CLI commands (section 10); the rules are inserted before the rules the firewall has, which still decide what they do not match; virtual servers and policy routes take effect at once. |
+| `ZYXEL_DEFAULT_RULES` | I | Target: after the converted rules, rules that do what the source does with traffic no rule matches, for every pair of the zones written. |
+| `ZYXEL_NO_ZONES` | R | Target: the source names no zones; the rules are written from `any` to `any`, and the firewall's own rules and default rule decide the rest. Give the rules zones. |
+| `ZYXEL_REJECT` | I | Target (on the rule): a reset of the server, or of both ends, written as `reject`, which answers the sender. |
+| `ZYXEL_PORT_ZERO` | A | Target (on the rule): a range of ports from 0, written from 1. |
+| `ZYXEL_NAT_WRITTEN` | I | Target: virtual servers are done before the security policy; the rules were written for the inside address. |
+| `ZYXEL_NAT_INTERFACES` | R | Target: virtual servers and policy routes name the interfaces of the source's zones (after `--interface-map`); check that the firewall has them. |
+| `ZYXEL_NAT_ZONES` | A | Target (on the NAT rule): a 1:1 NAT names the outside interface only; the zones of the inside host are not a condition. |
+| `ZYXEL_SNAT_EGRESS` | A | Target (on the NAT rule): a policy route cannot name the interface traffic leaves by; the SNAT applies wherever routing sends the traffic. |
+| `ZYXEL_SNAT_POOL_PORTS` | A | Target (on the NAT rule): source NAT without port translation, or static, written as SNAT to a pool, which may translate ports. |
+| `ZYXEL_EXEMPTION` | A | Target (on the NAT rule): a NAT rule that translates nothing, written as a policy route without SNAT; it keeps the SNAT of the policy routes below it from applying, not virtual servers, 1:1 NAT or the default SNAT. |
 
 Findings and notes that only an IOS source or target raises:
 
@@ -3171,8 +3511,8 @@ The second column matters too:
   default) every pass rule comes first, then drop, then reject, then alert,
   and what no rule matches passes. With `STRICT_ORDER` the groups go by
   priority, the rules in the order written, and the default actions decide the
-  rest: `aws:drop_strict` drops a flow that no rule passed on its first
-  packet; `aws:drop_established` lets the TCP handshake through, drops a TCP
+  rest: `aws:drop_strict` drops every packet that no rule passes;
+  `aws:drop_established` lets the TCP handshake through, drops a TCP
   connection that no rule passed once it is established, and drops other
   protocols at once (the application-layer variants are read as it,
   `AWSNFW_APP_LAYER_DEFAULT`). Alert rules and alert defaults decide nothing
@@ -3194,6 +3534,20 @@ The second column matters too:
   to port 443 without `flow:to_server` also lets connections in from port 443
   outside under `aws:drop_established`, and the conversion says so; under
   `aws:drop_strict` it does not.
+* With `STRICT_ORDER` and `aws:drop_strict` the engine decides every packet on
+  its own (the FWShift lab, 0.41.7: pass rules with `flow:to_server` and
+  nothing for the replies blocked every connection). A connection passes when
+  its first packet, its first reply and, for TCP, its established packets each
+  way are all passed: for each, the first rule in order that matches decides,
+  and the default drops. A rule with `flow:to_client` matches the replies, a
+  rule without `flow:to_server` the packets in the direction of its header, a
+  rule with a `flow` keyword but no state the established packets too, and a
+  rule without any `flow` keyword is IP-only: Suricata looks at it on the first
+  packet of each direction. Connections whose first packet passes and whose
+  replies or established packets no rule passes are blocked at the top of the
+  converted policy (`strict-replies-dropped`, `AWSNFW_REPLY_DROPPED`,
+  `AWSNFW_STRICT_REPLIES`). (The documentation says a flow-wide pass for
+  action order only.)
 * `->` is one direction, `<>` (and the 5-tuple direction `ANY`) both. A
   5-tuple rule is read as the Suricata rule Network Firewall makes of it. The
   protocols `ip`, `tcp`, `udp` and `icmp` (ICMP and ICMPv6) become services;
@@ -3233,10 +3587,15 @@ The second column matters too:
   engine; it has no stateless rules. The rule group is in `STRICT_ORDER`, and
   holds the rules of the model in their order. Every rule has
   `flow:to_server`: it matches the first packet of a connection from its
-  sources, a pass passes the whole flow, replies included, and a drop drops
-  it, which is what a rule of the model says. What no rule matches is the
-  default of the source: `aws:drop_strict`, or no default action, which passes
-  it (`AWSNFW_ORDER`).
+  sources, which is what a rule of the model decides. What no rule matches is
+  the default of the source: `aws:drop_strict`, or no default action, which
+  passes it (`AWSNFW_ORDER`). With `aws:drop_strict` every packet is decided
+  on its own, the replies too, so the group begins with
+  `pass ip any any -> any any (msg:"fwshift-replies"; flow:to_client)`: the
+  packets back to the client of a flow pass, and a server answers only a
+  first packet that was passed (`AWSNFW_REPLIES`; the FWShift lab, 0.41.7). The
+  established packets from the client match the rule that passed the first
+  packet, which has no state keyword.
 * A Suricata rule names one protocol: a rule of the model becomes a rule per
   protocol, and per set of source ports. Objects become IP set variables of
   the group (`$NAME`; `HOME_NET` and `EXTERNAL_NET` are kept for Network
@@ -3259,6 +3618,93 @@ The second column matters too:
   the firewall sees.
 * Logging is not written: a drop rule sends an alert when the firewall has
   alert logging configured, a pass rule does not log.
+
+### Oracle Cloud Infrastructure
+
+**What is read**
+
+* One VCN. Security rules only allow. The rules of the security lists of a
+  VNIC's subnet and of every NSG the VNIC is in are one set, without order,
+  and what none allows is denied. A rule of OCI becomes a rule of the model
+  that allows (the blocking rules are those worked out below), the model
+  denies by default, and there are no zones.
+* A security list stands for the addresses of the subnets it is associated
+  with (any VNIC there is subject to it); an NSG for the addresses of its
+  VNICs, from `vnic get` and `private-ip list`. Without the VNICs an NSG is a
+  dynamic group: no target writes its rules (`OCI_NO_VNICS`). A rule that names
+  an NSG matches the addresses of the VNICs in it; a deleted one, none
+  (`OCI_RULE_INVALID`). A service CIDR label is a group of Oracle's published
+  ranges when they are in the input (`OCI_SERVICE_RANGES`), else it is not
+  converted (`OCI_SERVICE_LABEL`).
+* The rules are enforced at each VNIC, whether the peer is in the VCN or not.
+  An ingress rule becomes a rule from its source to the members of its list or
+  NSG. An egress rule becomes a rule from the members to its destination
+  outside the VCN: inside, the destination's ingress rules must allow the
+  connection too. Where the egress rules of an address do not allow
+  everything inside the VCN, a rule per egress rule of its lists and NSGs and
+  ingress rule of the destination's says what both allow, and a rule after
+  those blocks the rest of what it sends inside the VCN (`OCI_EGRESS_PAIRS`).
+* Stateless rules: a rule with `is-stateless` true does not track the
+  connection, and where a stateless and a stateful rule of a VNIC match the
+  same traffic in one direction, the stateless one decides. The reply then
+  needs a rule of the same VNIC in the other direction (stateless or
+  stateful) that lets it through: for TCP and UDP the addresses and the ports
+  exchanged, for an ICMP request (echo, timestamp, information, address mask)
+  its reply type with code 0; an ICMP message that is no request has no reply.
+  What a VNIC lets in or out statelessly without letting the replies through
+  fails on OCI; it is blocked at the top of the converted policy
+  (`OCI_STATELESS_REPLY`). A stateless rule for TCP port 80 with an egress rule
+  for source port 80 to ports 1024-65535 thus allows connections from client
+  ports 1024-65535 only.
+* `all` is every protocol; TCP and UDP with a destination and a source port
+  range; ICMP and ICMPv6 with a type and an optional code; other protocol
+  numbers as such. A rule that cannot be read (options of another protocol, a
+  CIDR block without its prefix, an unknown source type) is not converted,
+  never read as all.
+* The public IP address of a VNIC is a static NAT of its primary private
+  address (`OCI_PUBLIC_ADDRESSES`): the rules that name the private address name
+  the public one too. Traffic from inside to those public addresses goes
+  through the internet gateway and is not converted as OCI decides it
+  (`OCI_HAIRPIN`).
+* What security rules never filter (169.254.0.0/16: instance metadata, iSCSI,
+  the VCN's DNS and NTP) is said (`OCI_UNFILTERED`). Zero Trust Packet Routing
+  policies, which apply on top of the rules, are not read (`OCI_ZPR`).
+
+**What is written**
+
+* A shell script of OCI CLI calls (section 10) that creates new network
+  security groups in one VCN and gives them rules. Nothing that exists is
+  changed; no security list is written. A security list applies to a whole
+  subnet and cannot be cut by address, and associating one replaces the lists
+  of a subnet: an NSG, which applies to the VNICs put in it, is what a security
+  group of AWS is, and the output follows the AWS target.
+* An NSG cannot block, and its rules have no order. Each allow rule is written
+  as what it matches without what the blocking rules above it match
+  (`DENY_SUBTRACTED`), cut into pieces of sources, destinations and services;
+  a blocking rule is written as what it takes away from the rules below it.
+  That is exact. Unlike a security group, an NSG rule takes a source port
+  range. What an NSG rule cannot say is left out and reported
+  (`OCI_PART_NOT_WRITTEN`): every protocol but some, ports of SCTP.
+* A rule names one side: an ingress rule its source, an egress rule its
+  destination; the other side is the VNIC. Each piece is written as ingress
+  rules of the NSGs of its destinations and as egress rules of the NSGs of its
+  sources, one rule per CIDR block, all stateful. A connection passes when both
+  ends allow it.
+* The NSGs are cut by addresses: every address lies in one NSG per IP version,
+  which holds the pieces whose sources or destinations hold it. An NSG takes
+  120 rules; one that would hold more is split into parts, and a VNIC goes in
+  every part (`OCI_RULE_LIMIT`; a VNIC can be in five NSGs). The `# attach`
+  line before each NSG lists its addresses. Names are made as for AWS.
+* With `--inside-zone` (and from an OCI source), only the addresses inside the
+  VCN get NSGs, and their egress rules allow everything inside, where the
+  destination's ingress rules decide.
+* Zones become the networks behind them (`--zone-network`), as for AWS. What
+  the source allows by default is written as rules that allow it, less the
+  blocking rules (`OCI_DEFAULT_ALLOW`).
+* NAT is not written: the internet gateway and the NAT gateways do it. The
+  rules are written for the private addresses.
+* The security lists of the subnets keep applying (`OCI_SECURITY_LISTS`).
+* Logging is not written: VCN flow logs record the connections.
 
 ### Azure network security groups
 
@@ -4067,6 +4513,150 @@ rewrites them (its migration scripts firewall 6-to-7, 7-to-8 and 10-to-11):
   ways), only where the NAT rule names nothing else than its destination, its service and at most one source zone,
   and no exemption above it covers its address: a USG does `nat server` first. Source NAT becomes `nat-policy` rules
   (`easy-ip`, a new address pool, `no-nat`). The rules are written for the inside address.
+
+### Hillstone StoneOS
+
+**What is read**
+
+* The zones and the interfaces bound to them. A rule that names no zone, or `Any`, matches every zone. A rule may name
+  several zones on a side; they are ORed.
+* The rules, first match, in the order the configuration lists them, which is the order the firewall queries them
+  in: the id says nothing about the order (Hillstone: "the match sequence of policy is determined by its position in
+  the policy list, not its ID number"). `top`, `before ID` and `after ID` on a rule, and `move ID top|bottom|before
+  ID|after ID` (also `move name NAME ...`), are carried out. A later block with the id of a rule edits it. The
+  `rule id N` lines inside a `policy-group` are references and are not read as rules. Rules in one line (`rule id 3
+  from "a" to "b" from-zone "trust" to-zone "untrust" service "HTTP" permit`) are read as blocks.
+* In a rule: `src-addr`, `src-ip`, `src-range`, `src-host` and the same for the destination (ORed), `service`,
+  `action permit`, `deny` and `reject` (a deny that answers the client, `HILLSTONE_REJECT`), `disable`, `name`,
+  `description`, `log session-start`, `log session-end`, `log policy-deny`. `application` other than `Any`, `tunnel`,
+  `fromtunnel` and `webauth` make the rule not converted; `schedule`, `role`, `user` and `user-group` are carried as
+  such; profiles are carried as profiles. A line that is not understood makes the rule not converted.
+* What no rule matches is denied, between zones and inside a zone ("all interfaces, even in the same zone, cannot
+  communicate"); `default-action permit` permits both (`HILLSTONE_DEFAULTS`).
+* `Any` is every IPv4 address and `IPv6-any` every IPv6 address (`HILLSTONE_ANY`). This is how configurations use
+  them; Hillstone does not say it. A blocking rule that relies on `Any` in a configuration with IPv6 is flagged
+  (`HILLSTONE_ANY_IPV4`).
+* Address entries: `ip A/LEN`, `ip A MASK`, `range A B`, `host NAME` (a host name), `member ENTRY` (entries in
+  entries), `exclude ip|range` (taken out of what the entry holds), `address id N "name"` and `ipv6` entries. A
+  `wildcard`, a `country` or an exclusion from an entry with a host name make the entry not converted. Services:
+  `tcp` and `udp` with `dst-port MIN [MAX]` and `src-port MIN [MAX]`, `icmp type T [code MIN [MAX]]` (one entry per
+  code), `protocol N`; service groups (`servgroup`), nested. Predefined services are matched in any case and read
+  with the ports FWShift knows (`HILLSTONE_PREDEFINED`).
+* NAT: the `dnatrule` and `snatrule` lines of each virtual router (`ip vrouter`), each list first match in the order
+  of the configuration (`top`, `before`, `after` carried out); in the model the DNAT rules come first, then the SNAT
+  rules, and one of each applies to a connection. `from`, `to` (a name, `address-book NAME`, `ip A`, `Any`),
+  `service`, `ingress-interface` (the zone of that interface), `eif` (the zone of the egress interface),
+  `trans-to eif-ip`, `trans-to ADDRESS` with `mode static|dynamicip|dynamicport` (`HILLSTONE_SNAT_MODE` without a mode),
+  `port` (a port translation), `no-trans` (an exemption), `disable`. `load-balance` is a translation to one of several
+  addresses; NAT between IPv4 and IPv6 (`v4-mapped`), another virtual router as the egress (`evr`), server pools and
+  `bnatrule` are not converted.
+* Where the policy is looked up: DNAT marks the packet before the route is looked up, the route takes the translated
+  address (so the zone the policy sees is the one after DNAT), SNAT comes after the route and the policy after both.
+  Which destination address the policy then sees is not stated plainly: Hillstone's troubleshooting guide writes the
+  rules with the address before DNAT ("the dnat and policy keep the same"), one of its configuration examples with the
+  server's own address. FWShift reads the address before DNAT, which is the model's own convention, says so
+  (`HILLSTONE_NAT_ORDER`) and flags every rule that names an address a DNAT rule translates to
+  (`HILLSTONE_DNAT_INSIDE`). Since StoneOS 5.0 an SNAT rule also matches the destination before DNAT.
+* Lines are read by their indent and their `exit`: a line holds the lines below it that are indented deeper, up to
+  its `exit`; `end` closes every block. Blocks typed without indentation (`rule id 1`, its lines, `exit`) are read
+  too, so are the commands FWShift writes.
+
+**What is written**
+
+* The zones: `trust`, `untrust` and `dmz` as they are; other zones are created with the prefix, the name of the
+  source as the description. The `interface` / `zone` commands are in the report (`HILLSTONE_ZONES`): binding an
+  interface changes traffic at once.
+* An address entry per object of the source and IP version (an entry is of one version; the IPv6 one ends in `_v6`),
+  its addresses written out (groups flattened, ranges as ranges, host names as `host`). One address of a rule is
+  written in the rule (`src-ip`, `src-range`). Every address of a version is `Any` or `IPv6-any`. A service per
+  service or group of the source, flattened; ICMP of every type is the predefined `ICMP`, every protocol `Any`.
+* Each rule becomes rules of `policy-global` in its order: one per pair of zones (a rule names one source and one
+  destination zone; no zone line for "any zone") and per IP version it matches (`IP_VERSION_SPLIT`); a rule for
+  traffic inside its zones only, or between them only, one per zone or pair. A negation is written as the addresses
+  left (`NEGATION_EXPANDED`). Where the policy names no IPv6 address and denies what no rule matches, the rules are
+  written for IPv4 only (`HILLSTONE_IPV4_ONLY`). The ids are 10000 and up (`--policy-id-start`); new rules go after
+  the rules the firewall has.
+* A rule the target cannot say (a negated service, a user, a schedule, an ICMPv6 service, an ICMP type a service does
+  not take, a host name in a negation) is written with `disable` as its first line and `src-ip 0.0.0.0/32` for a side
+  that cannot be written. Resets are written as deny (`REJECT_AS_DENY`). Logging becomes `log session-end` (and
+  `log session-start`), or `log policy-deny` on a blocking rule.
+* The defaults: `default-action permit` where the source allows between zones (`HILLSTONE_DEFAULT_PERMIT`); rules at
+  the end for the zones in which the source decides traffic inside the zone otherwise (`INTRAZONE_RULES_ADDED`).
+* NAT in a block of the virtual router `trust-vr`: a destination translation becomes `dnatrule` (`trans-to`, `port`),
+  a source translation `snatrule` (`trans-to eif-ip` with the egress interface, which must be known: one zone with one
+  interface; or `trans-to address-book` with `mode static`, `dynamicip` or `dynamicport`), a rule of both kinds one of
+  each, an exemption `no-trans` in both lists, a static NAT for both directions an `snatrule` and a `dnatrule`. The
+  zones of a NAT rule are not written (`HILLSTONE_NAT_ZONE`). The rules are written as the model names them: the
+  policy names the destination before DNAT.
+
+### Zyxel (ZLD)
+
+**What is read**
+
+* The zones with their interfaces, IPsec and SSL VPN members. `ZyWALL` is the firewall itself: a rule to or from it
+  is not converted (`ZYXEL_DEVICE_RULE`). A zone a rule names that the configuration does not list is created without
+  interfaces (`ZYXEL_ZONE_NOT_DEFINED` unless it is one ZLD comes with: `LAN1`, `LAN2`, `DMZ`, `WAN`, `OPT`, `SSL_VPN`,
+  `IPSec_VPN`, `TUNNEL` ...). An interface in no zone is matched by `from any` and `to any` only (`ZYXEL_UNZONED`).
+* The security policy, first match, in the order of its numbers: `secure-policy N` with `from`, `to`, `sourceip`,
+  `destinationip`, `service`, `user`, `schedule`, `action`, `log` and `activate`. A field that is not given is any (the
+  `no` form of each "resets it to any"); a rule without `action` is not converted. `deny` drops, `reject` answers the
+  sender. `sourceport` keeps the rule's service to that protocol and those source ports. Security profiles are
+  carried as such; `ctmatch`, a device profile and any line FWShift does not know make the rule not converted. A rule
+  that says neither `activate` nor `no activate` is read as active (`ZYXEL_ACTIVATE_UNSAID`). `secure-policy N`,
+  `insert N` and `append` are placed as the CLI places them, so a script of commands is read as well as a
+  configuration file. The `firewall` rules of ZLD 3.x are read the same way (`ZYXEL_FIREWALL`).
+* IPv4 and IPv6 are two lists (`secure-policy6`, with `sourceip6` and `destinationip6`): a rule of the IPv4 list
+  matches IPv4 only, so its "any" is `0.0.0.0/0`. The converted policy has the IPv4 rules, then the IPv6 rules, which
+  cannot match the same packets.
+* What no rule matches: the default rule of each list (deny when it is not set; reject is read as deny,
+  `ZYXEL_DEFAULT_REJECT`). The policy's default is that of IPv4; a different IPv6 default is a rule at the end.
+  `no secure-policy activate` lets everything through (`ZYXEL_POLICY_OFF`).
+* `block` in a zone: a rule at the top that denies traffic between the zone's members, whatever the rules say
+  (`ZYXEL_BLOCK_INTRAZONE`; not confirmed on a device). Without it, traffic between interfaces of one zone meets the
+  security policy like any other.
+* Address objects: a host, a range (`A-B`), a subnet (`A/LEN` or `A MASK`), the address or subnet of an interface
+  with a static address (`ZYXEL_INTERFACE_OBJECT`); a host name (`ZYXEL_FQDN`); IPv6 objects (`address6-object`).
+  The address of an interface that gets it by DHCP, a gateway, a country and anything not understood make the object
+  not converted. Groups (`object-group address` and `address6`) nest. Service objects: TCP and UDP (`eq`, `range`;
+  `range 1 65535` is every port), ICMP and ICMPv6 types by number or name (`ZYXEL_ICMP_NAMES`), IP protocols; service
+  groups nest.
+* Virtual servers are done before the security policy, whose rules name the inside address (`ZYXEL_NAT_ORDER`; the
+  User's Guide: "applies NAT (Destination NAT) settings before applying the Security Policies"); the rules were
+  rewritten for the address as it arrives, as for the other platforms that look rules up after destination NAT.
+  A virtual server is destination NAT for traffic that arrives on its interface: `map-type any` (every port), `port`
+  (one port, maybe translated) and `ports` (a range, not shifted); `deactivate` is read. With `nat-1-1-map` and
+  `map-type any` it is a static translation both ways (1:1, or many 1:1 of two ranges of one size). `nat-loopback` is
+  not converted (`ZYXEL_NAT_LOOPBACK`).
+* Source NAT: the policy routes, first match, up to the last one with `snat` (`outgoing-interface`, or `pool OBJECT`,
+  `ZYXEL_SNAT_POOL`); a route above it without SNAT is a NAT rule that translates nothing (`ZYXEL_ROUTE_NO_SNAT`). The
+  incoming interface is the zone it is in; `next-hop interface` the zone traffic leaves by. The default SNAT of the WAN
+  trunk is not a rule and is not converted (`ZYXEL_DEFAULT_SNAT`).
+
+**What is written**
+
+* A script of commands for configuration mode, from `configure terminal` to `exit`; each block of sub-commands ends
+  with `exit`. Nothing is deleted and nothing is saved.
+* Objects with the prefix: address objects and groups per IP version (`address-object`, `address6-object`,
+  `object-group address`, `object-group address6`; a group of the source with both versions becomes one per version),
+  service objects and groups. A rule names one source, one destination and one service, so lists become groups; what
+  a negation leaves is written as the ranges left. Ports from 0 are written from 1 (`ZYXEL_PORT_ZERO`).
+* Zones: those ZLD comes with, and those `--zone-map` names, are taken to exist; every other zone is created with the
+  prefix and no member. Which interfaces go in it is a comment: adding one changes traffic at once.
+* Each rule of the source becomes `secure-policy insert N` (and `secure-policy6 insert N` where it matches IPv6), one
+  per pair of a source and a destination zone, from position 1 (`--policy-id-start`) on, each after the one before it,
+  so before the rules the firewall has. Each is written `no activate` first and activated last. A source port range
+  common to all the rule's services is written as `sourceport`. A rule the target cannot say (a user, a schedule, a host
+  name, a negated service, an ICMP code, source ports of several kinds) is written inactive, with an address no
+  forwarded packet has (`0.0.0.0`, `::`) or `protocol 255` for the side that cannot be written, and listed at the end.
+* After the rules, the source's default for every pair of the zones written, both IP versions, inside a zone as the
+  source decides it (`ZYXEL_DEFAULT_RULES`), where no rule written already decides all of the pair. The firewall's own
+  rules then decide only traffic of zones the conversion does not know; its default rule is not changed.
+* Destination NAT becomes `ip virtual-server` on each interface of the incoming zone (one address, every port, one
+  port or a range of ports that is not shifted); a static translation both ways becomes a virtual server with
+  `nat-1-1-map` on the interfaces of the outside zone. Source NAT becomes `policy insert N` with `next-hop auto` and
+  `snat outgoing-interface` or `snat pool`, one per incoming interface (`ZYXEL_SNAT_EGRESS`); a NAT rule that
+  translates nothing becomes a policy route without SNAT (`ZYXEL_EXEMPTION`). The interfaces are named as the source
+  names them (`ZYXEL_NAT_INTERFACES`; map them with `--interface-map`). The rules are written for the inside address.
 
 ### Cisco IOS and IOS XE
 
@@ -5351,6 +5941,206 @@ of the ASA does the access lists, object groups, names and routes; what a PIX
   `alias`, `shun` (`PIX_NOT_CONVERTED`), `sysopt connection permit-ipsec`
   (`VPN_BYPASS`). A PIX 6.x keeps no state for ICMP (`ICMP_STATELESS`).
 
+### F5 BIG-IP AFM
+
+As a source, the contexts of AFM are read into one first-match list:
+
+* **The order of the contexts.** A packet meets the policy of the global
+  context, then that of its route domain (by the VLAN it came in on), then that
+  of the virtual server it is for. Each policy is first match, and a rule
+  list in it stands for its rules in its place. `accept` ends the context: the
+  packet goes on to the next one. `accept-decisively` lets it through with no
+  later context. `drop` and `reject` end it (`reject` answers with a TCP reset;
+  in the model: `reset-client`). What no rule of a context decides goes on to
+  the next one; after the virtual server, the default of the virtual server
+  and self IP contexts decides: accept in ADC mode, drop or reject in
+  Firewall mode (`F5AFM_MODE`).
+* **No virtual server, no traffic.** The BIG-IP passes only traffic that a
+  virtual server takes (a forwarding virtual server, `ip-forward`, for routed
+  traffic); the rest is dropped or rejected whatever the rules say (the global
+  default; `tm.rejectunmatched`). Every allow of the model is therefore kept
+  to the traffic of a virtual server: an `accept-decisively` of the global
+  context becomes one rule for each virtual server it can reach, and what
+  reaches none falls to the default of the model, which denies. A virtual
+  server that is disabled or of type reject takes its traffic and lets none
+  of it through (`F5AFM_VIRTUAL_REFUSES`; for a disabled one, assumed).
+* **One list.** The global rules come first; then the rules of each route
+  domain, kept to its VLANs; then, for each virtual server, in the order in
+  which the BIG-IP picks one (the longest destination mask, then the longest
+  source mask, a port before any port: K14800 of F5 as F5's community quotes
+  it; a protocol before any protocol is assumed), its rules kept to its destination,
+  port, protocol, source and VLANs, and a rule with its default for the rest
+  of its traffic (`vs_web/(default)`). An `accept` of the global or a route
+  domain context becomes, in its place, the later contexts kept to what it
+  matches (rules named `global/a>rd0/b`), so that this traffic skips the rest
+  of its own context. Where what an `accept` matches cannot be worked out (a
+  country, a list not in the input), the rules of its context below it that
+  may overlap are not converted. The names say where a rule comes from:
+  `global/RULE`, `rdID/RULE`, `VS/RULE`, `.../LIST-ENTRY/RULE` for a rule list,
+  `@VS` for a rule kept to one virtual server.
+* **The trap of ADC mode.** In ADC mode an `accept` in the global context lets
+  nothing through that the default would not let through anyway; in Firewall
+  mode it lets nothing through on its own either, since the virtual server's
+  default drops what the virtual server's rules do not accept. Only
+  `accept-decisively`, or an `accept` in the virtual server context, allows.
+  The converted rules show it.
+* **Without virtual servers** in the input, every packet is read as having a
+  virtual server that lets it through, and the default of the virtual server
+  contexts is the default of the model (`F5AFM_NO_VIRTUAL_SERVERS`).
+* **Zones are VLANs** (and VLAN groups and tunnels). `source vlans` and
+  `source zones` (AFM zones, lists of VLANs) become source zones; the VLANs a
+  virtual server is enabled on too. Destination zones are read as the VLANs a
+  packet leaves on (`F5AFM_DESTINATION_ZONE`, not confirmed).
+* **Route domains.** The route domain of a packet is that of its VLAN; route
+  domain 0 holds the VLANs no other holds. An address with `%ID` is read
+  without it (`F5AFM_ROUTE_DOMAIN`), and an address without one as matching in
+  every route domain (`F5AFM_ROUTE_DOMAINS`, not confirmed).
+* **Objects.** An address list is a group of the model (nested lists are
+  groups in groups); `fqdns` are host names, `geo` an unsupported object that
+  disables the rules that use it. A port list is ports of the protocol of the
+  rule that names it: a service named after the list (`web_ports`, or
+  `web_ports-udp` for UDP). A rule has one IP protocol, or none for every
+  protocol; ICMP types are `type` or `type:code`.
+* **What a rule does besides matching.** A schedule makes a rule scheduled
+  (the targets write it disabled); an iRule on an accepting rule may drop what
+  it accepts, and the allow rules that follow from it are not converted
+  (`F5AFM_IRULE`); a service policy, a protocol inspection profile or a
+  classification policy is reported. Identity (users), IP intelligence
+  categories, subscriber groups, sending to a virtual server
+  (`virtual-server`) and any property FWShift does not know make the rule not
+  converted.
+* **Not policy for forwarded traffic:** self IP contexts, the management port
+  (`F5AFM_SELF_IP`, `F5AFM_MANAGEMENT_RULES`), and staged policies
+  (`F5AFM_STAGED`). NAT is not read (`F5AFM_NAT_NOT_READ`).
+
+As a target:
+
+* The output is a file in the syntax of `bigip.conf` for `tmsh load sys config
+  merge file` (section 10): address lists, port lists, one rule list with the
+  rules of the model in their order, and one policy that holds the rule list.
+  It enforces the policy in no context and changes no setting.
+* **The policy decides alone.** Allow rules are `accept-decisively`, so that the
+  policy's verdict is final in any context it is attached to (an `accept` in
+  the global context would hand the packet on to the route domain and the
+  virtual server, whose rules and default would decide again). The last rule,
+  `fwshift_default`, is the default of the model. Deny rules are `drop`,
+  reset rules `reject`.
+* **One protocol per rule.** A rule of the model with services of several
+  protocols becomes one rule per protocol and set of source ports, one after
+  the other (`RULE_SPLIT`). A service of one protocol with destination ports
+  only is a port list; other ports are written in the rule.
+* **Zones.** A source zone is a VLAN (`/Common/ZONE`, or `/P/NAME` for a zone
+  named `P/NAME`); `--zone-map` renames. AFM cannot name the VLAN a packet
+  leaves on: destination zones are written as the networks of
+  `--zone-network`; without them an allow rule is written disabled
+  (`ZONE_NETWORK_MISSING`) and a deny rule blocks to every zone
+  (`ZONE_WIDENED`). What the source decides inside a zone otherwise than
+  between zones is written as rules from the VLAN of each zone to its
+  networks.
+* **No negation.** A negated address list is written as the addresses that
+  are left (`NEGATION_EXPANDED`); a negated service disables the rule.
+* **NAT is not written** (`F5AFM_NAT_NOT_CONVERTED`): on a BIG-IP it belongs to
+  the virtual servers (a pool translates the destination, SNAT automap or a
+  SNAT pool the source) and to CGNAT. The rules name the addresses before NAT,
+  which is what AFM matches.
+
+### Windows Defender Firewall
+
+**What is read**
+
+* The rule strings and profile settings of the local store, the store of
+  Group Policy and, where it is there, the store of MDM, from a registry
+  export (section 3). The grammar is that of [MS-GPFAS] 2.2.2.10; a rule
+  string Windows cannot parse is not enforced, and is kept disabled
+  (`WINFW_RULE_INVALID`).
+* A host firewall filters connections to and from the host itself. The model
+  has a zone `Host` and a zone per profile, `Domain`, `Private` and `Public`:
+  the networks of the interfaces Windows put in each profile (since Windows 7
+  each interface has the profile of its network). An inbound rule is a rule
+  from its profiles to `Host`, an outbound rule one from `Host` to its
+  profiles; a rule without `Profile` is for all three. Remote addresses and
+  ports are the far end: the sources and source ports of an inbound rule, the
+  destinations and destination ports of an outbound one. Traffic between the
+  networks is not decided by the host firewall and is denied in the model.
+* Windows has no rule order. A rule with authenticated bypass decides first,
+  then any block rule, then any allow rule, then the default of the profile.
+  The converted policy says that in first-match order: the bypass rules (not
+  converted: they match IPsec-authenticated connections only), every block
+  rule, every allow rule, each part in the order of the stores (Group Policy,
+  MDM, local) and of the file, then `(default) inbound` and `(default)
+  outbound` for the profiles whose default allows.
+* The settings of each profile as Windows merges them: Group Policy's value
+  where it has one, else MDM's, else the local one, else Windows's default
+  (firewall on, inbound blocked, outbound allowed). `AllowLocalPolicyMerge` 0
+  (Group Policy or MDM) leaves the local rules out of that profile. A profile
+  whose firewall is off allows everything (two rules at the top); a shielded
+  profile (`DoNotAllowExceptions`) blocks every inbound connection (a rule at
+  the top). A rule of the same id in two stores is the one of the store that
+  wins; the other is kept disabled (`WINFW_OVERRIDDEN`).
+* Addresses: single addresses, ranges and networks (also with a mask), IPv4
+  and IPv6. Remote addresses of one IP version make the rule match that
+  version only. Address keywords (`LocalSubnet`, `DNS`, `Internet`, ...) are
+  dynamic groups (`WINFW_ADDRESS_KEYWORDS`); a keyword in `RA4` only is the
+  keyword for IPv4 (`LocalSubnet4`).
+* Protocols by number, TCP and UDP ports and ranges, ICMP types with a code or
+  `*`. Port keywords (RPC, RPC endpoint mapper, Teredo, IP-HTTPS, Play To
+  discovery, DHCP) are not converted.
+* What a rule matches beyond addresses, ports and protocols makes it not
+  converted (`WINFW_NOT_MODELLED`): a program, a service (also `Svc=*`), an app
+  package, local or remote users and computers, interfaces, interface types
+  (unless all three), IPsec, trust tuple keywords, network names, a field
+  FWShift does not know. Edge traversal and loose source mapping, which let an
+  allow rule accept more, are reported (`WINFW_EDGE_TRAVERSAL`,
+  `WINFW_LOOSE_SOURCE`); a rule limited to some Windows versions is taken as
+  applying (`WINFW_PLATFORM`).
+* Not read: connection security rules, Windows Service Hardening rules, the
+  settings of the Windows XP firewall in the Group Policy store
+  (`WINFW_LEGACY_POLICY`), logging. Windows rules do not log: logging is a
+  setting of the profile.
+
+**What is written**
+
+* A PowerShell script of `New-NetFirewallRule` calls (section 10), every rule
+  in one rule group. It changes no profile setting and deletes nothing.
+* Each rule of the model is written for every way the host can be one of its
+  ends: a rule to `Host` inbound, from `Host` outbound, a rule between two
+  other zones both (inbound for the host at the destination, outbound for the
+  host at the source). The remote zone gives the profile when it is
+  `Domain`, `Private` or `Public`; other zones become their networks
+  (`--zone-network`), as for AWS: an allow rule whose zones have no networks
+  is written disabled (`ZONE_NETWORK_MISSING`), a block rule blocks in every
+  zone (`ZONE_WIDENED`). `Host` and the profiles are read so for a Windows
+  source, and for zones `--zone-map` names so (`--zone-map dmz=Host
+  --zone-map untrust=Public`); a zone of another source that happens to be
+  called `Public` is a zone.
+* A block rule beats every allow rule on Windows. So a block rule is written
+  without what the allow rules above it match (`WINFW_BLOCK_CUT`), which is
+  the reverse of the AWS target, whose allow rules lose what the block rules
+  above them match. Part of a block rule that a rule of Windows cannot say
+  (every protocol but some, ports of SCTP, more ICMP types and codes than are
+  listed), a rule that blocks everything below allow rules (a cleanup rule)
+  and one whose cut falls apart are left to the default of the profile
+  instead (`WINFW_LEFT_TO_DEFAULT`), and the allow rules below them lose what
+  they match (`WINFW_ALLOW_CUT`). That is exact for inbound connections, which
+  the default blocks, and for outbound connections where the profile's default
+  outbound action is Block (`WINFW_DEFAULT_OUTBOUND`).
+* What is lost: the order of the source (a rule may become several, a block
+  rule loses what the rules above it allowed), and the independence from the
+  host's own rules: Windows evaluates the rules written here with all others
+  (`WINFW_HOST_RULES`).
+* What the source denies by default needs the profile's default to block:
+  inbound it does unless changed, outbound it does not
+  (`WINFW_DEFAULT_OUTBOUND`). What the source allows by default is written as
+  allow rules for every connection (`WINFW_DEFAULT_ALLOW`).
+* A rule of the model has one IP version or both: rows of IPv4 and IPv6 with
+  the same services are one rule. All the addresses of one IP version, where
+  a rule needs to say which version, are written as a range
+  (`0.0.0.0-255.255.255.255`).
+* A rule of the source that is disabled is a comment; a rule the converter
+  disables is written with `Enabled = 'False'`.
+* NAT is not written: Windows Firewall does none. The rules are written for
+  the addresses the host sees, after a translation in front of it.
+
 ### Names
 
 Names the target would reject are changed: `10.0.0.0/8` becomes `10.0.0.0_8`
@@ -5622,6 +6412,57 @@ firewall.
    packet the route tables send through the firewall, and ends in the default
    of the source (`AWSNFW_ORDER`): with `aws:drop_strict`, what no rule passes
    is dropped.
+
+### Oracle Cloud Infrastructure
+
+The output is a POSIX shell script of OCI CLI calls. It creates new network
+security groups in one VCN and adds their rules (25 a call). It changes
+nothing that exists, puts no VNIC in an NSG, and writes no security list.
+
+1. Convert with `--zone-network` for every zone the rules name, and
+   `--inside-zone` for the zones that are in the VCN (from an OCI source the
+   VCN is known):
+
+   ```sh
+   fwshift convert policy.xml --to oci -o nsgs.sh --report report.txt \
+       --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0,::/0 \
+       --inside-zone dmz
+   ```
+
+2. Look at the calls, then run it:
+
+   ```sh
+   DRY_RUN=1 sh nsgs.sh                                     # prints the calls; needs no OCI access
+   COMPARTMENT_ID=ocid1.compartment.oc1..aaaaexample VCN_ID=ocid1.vcn.oc1.eu-frankfurt-1.aaaaexample \
+       OCI_OPTS='--profile PROD' sh nsgs.sh
+   ```
+
+   It stops before creating anything when the VCN has an NSG of one of its
+   names, and at the first call OCI refuses. The NSGs it made up to then have
+   no VNICs, so traffic is not affected: delete them
+   (`oci network nsg delete --nsg-id ... --force`) and run it again.
+3. Put the VNICs in the NSGs (`OCI_ATTACH`). The line `# attach NAME: ...`
+   before each NSG lists the addresses it is for. Give each VNIC the NSGs of
+   its addresses, and no other:
+
+   ```sh
+   oci network vnic update --vnic-id ocid1.vnic... --nsg-ids '["ocid1.networksecuritygroup...", "ocid1.networksecuritygroup..."]'
+   ```
+
+   That call replaces the NSGs of the VNIC, which is why the script leaves it
+   to you. An NSG applies to the whole VNIC: the addresses of one VNIC (of one
+   IP version) should be in one NSG. A VNIC can be in five NSGs.
+4. The security lists of the subnets still apply (`OCI_SECURITY_LISTS`). For the
+   VNICs to be held to what the NSGs allow, give their subnets security lists
+   that allow no more, for example an empty one:
+
+   ```sh
+   oci network security-list create --compartment-id ... --vcn-id ... --display-name empty \
+       --ingress-security-rules '[]' --egress-security-rules '[]'
+   oci network subnet update --subnet-id ... --security-list-ids '["ocid1.securitylist..."]'
+   ```
+
+   The second call replaces the lists of the subnet, for every VNIC in it.
 
 ### Azure network security groups
 
@@ -5972,6 +6813,51 @@ The output is commands for the system view, from `system-view` to `return`. Comm
    policy.
 4. Put the interfaces in their zones, from the commented lines at the end (`firewall zone trust`, `add interface
    ...`), then check with `display security-policy rule all` and `display nat server`, and `save`.
+
+### Hillstone StoneOS
+
+The output is commands for the configuration mode, from `configure` to `end`. Commands take effect when they are
+entered; nothing is saved.
+
+1. Convert, with `--interface-map` for the interfaces of the firewall that the zones' interfaces stand for, and
+   `--policy-id-start` if the ids from 10000 are taken:
+
+   ```sh
+   fwshift convert policy.xml --to hillstone -o stoneos.txt --report report.txt \
+       --interface-map ethernet1/1=ethernet0/1
+   ```
+
+2. Check that no name the output uses is taken (`show configuration | include FWS_`) and that the rule ids and NAT
+   ids it writes are free (`show policy`, `show snat`, `show dnat`); use `--target-prefix` and `--policy-id-start`
+   otherwise. Read the rules written `disable` in the report.
+3. Paste the commands in a maintenance window, from the console. StoneOS adds a new rule after the rules it has: move
+   the new rules with `move ID top` or `move ID before OTHER` where they belong. `default-action permit` (if
+   written) applies to the whole policy.
+4. Put the interfaces in their zones (the `HILLSTONE_ZONES` note: `interface NAME`, `zone "ZONE"`), check with
+   `show policy` and `show configuration`, then `save`.
+
+### Zyxel (ZLD)
+
+The output is a script of commands for configuration mode. Commands take effect when they are entered (a block of
+sub-commands at its `exit`, as far as the documentation shows).
+
+1. Convert, with `--interface-map` for the interfaces of the firewall that the zones' interfaces stand for, and
+   `--zone-map` for zones the firewall has:
+
+   ```sh
+   fwshift convert policy.xml --to zyxel -o fwshift.zysh --report report.txt \
+       --zone-map trust=LAN1 --zone-map untrust=WAN --interface-map ethernet1/1=ge2
+   ```
+
+2. Check that no name the output uses is taken (`show running-config` and look for `FWS_`); use `--target-prefix` for
+   another prefix. Read the rules written inactive at the end of the output.
+3. Run the commands in a maintenance window: paste them into the console (SSH or the web console), or upload the file
+   as a shell script (`.zysh`) in *Maintenance > File Manager > Shell Script* and run it. Do not apply it as a
+   configuration file (`.conf`): ZLD resets to the default configuration before it applies one. The rules go in from
+   position 1 (`--policy-id-start`), before the rules the firewall has; move them with `secure-policy move N to M`
+   where they belong. The firewall's default rule is not changed.
+4. Put the interfaces in their zones, from the commented lines at the end (`zone NAME`, `interface ...`), check with
+   `show secure-policy`, `show ip virtual-server` and `show policy-route`, and save with `write`.
 
 ### Cisco IOS and IOS XE
 
@@ -6456,6 +7342,98 @@ The anchor tags what arrives on the interfaces of the zones (`fws_...`),
 replacing a tag a rule before it set; rules of the main ruleset that use
 `tagged` for the same traffic no longer see their tag.
 
+### F5 BIG-IP AFM
+
+The output is a file for `tmsh load sys config merge file`. It creates
+address lists, port lists, the rule list `/Common/FWShift_rules` and the
+policy `/Common/FWShift` (`--target-policy`), and enforces the policy in no
+context.
+
+1. Convert, with `--zone-map` to the names of the BIG-IP's VLANs and
+   `--zone-network` for the zones that rules lead to (`F5AFM_VLANS_REQUIRED`,
+   `ZONE_NETWORK_MISSING`):
+
+   ```sh
+   fwshift convert policy.xml --to f5-afm -o fwshift.conf --report report.txt \
+       --zone-map trust=internal --zone-map untrust=external \
+       --zone-network external=0.0.0.0/0
+   ```
+
+2. Check that none of the names exists: a merge changes an object of the same
+   name (`tmsh list security firewall policy FWShift` must say it was not
+   found; the report lists every name). `--target-prefix` puts a prefix in front
+   of the lists.
+3. Copy the file to the BIG-IP and check it, then load it:
+
+   ```sh
+   tmsh load sys config merge file /var/tmp/fwshift.conf verify
+   tmsh load sys config merge file /var/tmp/fwshift.conf
+   ```
+
+   `verify` changes nothing. Save with `tmsh save sys config` once you are
+   satisfied.
+4. Attach the policy to one context: the global context, a route domain or a
+   virtual server; staged first, to watch its counters, then enforced:
+
+   ```sh
+   tmsh modify security firewall global-rules staged-policy /Common/FWShift
+   tmsh modify security firewall global-rules enforced-policy /Common/FWShift
+   tmsh modify net route-domain /Common/0 fw-enforced-policy /Common/FWShift
+   tmsh modify ltm virtual /Common/VS fw-enforced-policy /Common/FWShift
+   ```
+
+   Its allow rules are `accept-decisively`: in the global or a route domain
+   context they decide before the policies of the later contexts. ICMP rules
+   apply only in the global and route domain contexts (`F5AFM_ICMP_CONTEXT`).
+5. The BIG-IP lets through only what a virtual server takes: for routed
+   traffic, a forwarding virtual server (`ip-forward`, destination `0.0.0.0:any`,
+   mask `any`, and `::` for IPv6) on the VLANs traffic comes in on. FWShift
+   does not create it, nor the NAT (`F5AFM_NAT_NOT_CONVERTED`), nor a global
+   FQDN resolver for host names (`F5AFM_FQDN_RESOLVER`).
+6. To take a conversion away again: detach the policy (`enforced-policy none`),
+   then `tmsh delete security firewall policy FWShift`, the rule list, and the
+   lists the report names.
+
+### Windows Defender Firewall
+
+The output is a PowerShell script. It creates rules with
+`New-NetFirewallRule`, all in one rule group (`FWShift`, or `--target-prefix`),
+in the local store (`PersistentStore`) or in the store `-PolicyStore` names
+(a GPO: `-PolicyStore 'example.com\Server firewall'`). It changes no profile
+setting and deletes nothing.
+
+1. Convert with `--zone-network` for every zone that is not the host or a
+   profile, or map the zones with `--zone-map`:
+
+   ```sh
+   fwshift convert policy.xml --to windows-firewall -o rules.ps1 --report report.txt \
+       --zone-map dmz=Host --zone-map untrust=Public --zone-map trust=Domain
+   ```
+
+2. Look at what it would create, then run it as administrator:
+
+   ```bat
+   powershell -ExecutionPolicy Bypass -File rules.ps1 -DryRun
+   powershell -ExecutionPolicy Bypass -File rules.ps1
+   ```
+
+   `-DryRun` passes `-WhatIf` to every call. Without it the script stops
+   before it creates anything when the store has a rule of the group, or one
+   whose name starts with the group's; a call Windows refuses stops it where it
+   is. Take what it made away with `Remove-NetFirewallRule -Group 'FWShift'`
+   and run it again.
+3. The script warns when a profile allows inbound connections no rule
+   blocks, and when a profile in which the policy denies outbound connections
+   no rule allows has the default outbound action Allow
+   (`WINFW_DEFAULT_OUTBOUND`). Change the profile where the policy needs it:
+
+   ```powershell
+   Set-NetFirewallProfile -Name Private -DefaultOutboundAction Block
+   ```
+
+4. Check the host's own rules (`Get-NetFirewallRule -PolicyStore ActiveStore`):
+   Windows evaluates them with the new ones (`WINFW_HOST_RULES`).
+
 ### After loading
 
 Search the configuration for `FWSHIFT`: every placeholder object and every
@@ -6537,7 +7515,11 @@ the report is the list.)
 | `line N: a rule outside security-policy and nat-policy` | Huawei: a `rule name` line that belongs to no policy; the configuration was cut or edited. |
 | `line N: switch vsys inside another block ...` | Huawei: where the root system ends cannot be told; cut the configuration at the first virtual system. |
 | `--target-prefix for Huawei: ...` | Huawei target: up to 16 letters, digits, periods, underscores and hyphens, starting with a letter. |
+| `no security policy, zones or address objects: not a configuration of a Zyxel firewall (ZLD)` | Zyxel: give `startup-config.conf` or `show running-config` (section 3). |
+| `--target-prefix for Zyxel: ...` | Zyxel target: up to 12 letters, digits, underscores and hyphens, starting with a letter. |
 | `more zones than a USG has priorities for (1 to 100)` | Huawei target: map zones together with `--zone-map`. |
+| `no rule, zone, address or virtual router: not a configuration of Hillstone StoneOS` | Hillstone: give `show configuration` (section 3). |
+| `--target-prefix for Hillstone: ...` | Hillstone target: up to 16 letters, digits, periods, underscores and hyphens, starting with a letter. |
 | `no interfaces and no access lists: not the running configuration of an IOS or IOS XE router` | IOS: give `show running-config` of the router (section 3). |
 | `line N: access list ... is an IPv4 and an IPv6 list` | IOS: a configuration that holds both under one name, which IOS refuses; the input is not one configuration. |
 | `--target-prefix for IOS: ...` | IOS target: up to 16 letters, digits, periods, underscores and hyphens, starting with a letter. |
@@ -6549,6 +7531,10 @@ the report is the list.)
 | `line N: cannot read '...'; expected the output of '/export'` / `a quoted string is not closed` / `unknown escape` | RouterOS: a line that is not a command of an export. |
 | `line N: 'set' in /ip firewall filter; FWShift reads the 'add' lines of an export` | RouterOS: a script that changes rules by number; give an export. |
 | `the export says it could not export /ip/firewall/filter (timeout): export again` | RouterOS 7.11 and later write this when a menu times out; export again (`ROUTEROS_EXPORT_ERROR` for other menus). |
+| `no tmsh stanza found: not the configuration of a BIG-IP` / `no firewall policy, rule list, address list or virtual server found` | F5 BIG-IP AFM: give the output of the tmsh commands of section 3. |
+| `--policy: there is no firewall policy ... in the input` | F5 BIG-IP AFM: the name given with `--policy` (with or without `/Common/`) is not a policy of the input. |
+| `the contexts of the configuration make more than 50000 rules of one list` | F5 BIG-IP AFM: accept rules in the global context are each followed by the later contexts; read one policy with `--policy`. |
+| `zone '...' cannot be the name of a VLAN of a BIG-IP` | F5 BIG-IP AFM target: rename the zone with `--zone-map`. |
 | `line N: 'delete' belongs to a file of commands, not to a configuration` | VyOS: give the output of `show configuration commands` or `show configuration`, not a script that changes one (section 3). |
 | `line N: not a line of 'show configuration commands' (it starts with '...')` | VyOS: a set-line file with another line in it; remove it, or give the configuration in braces. |
 | `the configuration holds the firewall of VyOS 1.4 and later ... and that of VyOS 1.3 or EdgeOS ... at once` | VyOS: the configuration mixes both firewalls (an unfinished migration); give one of them. |
@@ -6730,6 +7716,19 @@ deliberate: see *IPv4 and IPv6* in section 8.
   connection, applications as their ports; `icmp` with `ip_proto`, `itype` ranges and `ip_proto:!N` are taken as
   Suricata documents them. The formats follow the Network Firewall API reference and developer guide; nothing was
   read from or sent to a real account.
+* OCI: security lists and network security groups of one VCN, from the OCI CLI. Members of an NSG are the addresses of
+  its VNICs; without the VNICs its rules cannot be written. A service CIDR label is read as Oracle's published ranges,
+  which is approximate. Traffic from inside the VCN to its own public addresses, Zero Trust Packet Routing policies and
+  VNICs in VLANs are reported, not converted. To OCI: NSGs only, cut by address, so a VNIC with several addresses of one
+  IP version needs them in one NSG; an NSG rule cannot say "every protocol but some"; the security lists of the subnets
+  keep applying. The formats follow Oracle's documentation of security rules, the API reference and the CLI reference;
+  nothing was read from or sent to a real tenancy.
+* Windows Defender Firewall: the rule strings and profile settings of the local, Group Policy and MDM stores, from a
+  registry export. Rules that name programs, services, app packages, users, interfaces or IPsec, port keywords and
+  connection security rules are not converted; address keywords survive only Windows to Windows. To Windows: rules
+  in one group, each for the host at either end; block rules lose what the allow rules above them match, and what
+  cannot be said is left to the profile's default, which outbound must be Block for an exact result. The rule grammar
+  follows [MS-GPFAS] and the cmdlets the NetSecurity documentation; nothing was read from or loaded on a Windows host.
 * Azure: network security groups, from the Azure CLI, the REST API, an ARM
   template or Resource Graph. Members of application security groups are the
   interfaces in the export; service tags are the addresses of the export, else
@@ -6780,6 +7779,27 @@ deliberate: see *IPv4 and IPv6* in section 8.
   order among the rules the firewall has left to you; IPv6 set entries in a form not confirmed. The syntax follows
   Huawei's documentation and the configurations shown in it; the command reference could not be read, and nothing was
   loaded on a firewall.
+* Hillstone StoneOS: one configuration of StoneOS 5.x (4.x zone-pair policies as far as they go); schedules,
+  application identification, users and roles, VPN actions (`tunnel`, `fromtunnel`), WebAuth, wildcard and country
+  entries, BNAT, NAT between IPv4 and IPv6, several virtual routers (one routing table), virtual systems and the XML
+  form of the configuration are not converted. The ports of the predefined services are the well-known ones, not read
+  from a firewall. Which destination address the policy sees under DNAT is read as the address before DNAT, which
+  Hillstone's documentation does not state plainly. To Hillstone: commands for the configuration mode; one zone per
+  side and one IP version per rule; the interfaces' zones and the order among the rules the firewall has left to you;
+  the zones of NAT rules not written. The syntax follows Hillstone's CLI user guides (5.5R4 to 5.5R6), its
+  configuration examples and troubleshooting guide, and configurations published by users; the `protocol N` line of a
+  service, `host` and `member` in an address entry, `no-trans` and the reading of `Any` as IPv4 are not confirmed.
+  Nothing was loaded on a firewall.
+* Zyxel (ZLD): ZLD 4.x and 5.x (and the `firewall` rules of 3.x); the uOS of the USG FLEX H series is not read.
+  Traffic to and from the firewall (`ZyWALL`), users, schedules, security profiles, `ctmatch`, countries, host names
+  (to Zyxel), MAC addresses, address objects of an interface with a dynamic address, NAT loopback, the outbound half of
+  a 1:1 NAT of ports, virtual servers of `map-type service` or a shifted range of ports, IPv6 policy routes and the
+  default SNAT of the WAN trunk are not converted. How `block` in a zone relates to the rules, which ICMP names the
+  CLI takes beyond those the guide shows, how `snat pool` translates ports and how a running configuration prints
+  `activate` are taken from the documentation as far as it goes, or assumed and said. To Zyxel: the zones' interfaces
+  and the order among the rules the firewall has are left to you; the firewall's default rule is not changed. The
+  syntax follows Zyxel's CLI Reference Guide and User's Guide (ZLD 4.x and 5.x) and Zyxel's support articles; nothing
+  was loaded on a firewall.
 * Cisco IOS and IOS XE: forwarded traffic of one router; the control plane, the `self` zone, VRFs (one routing table),
   policy routing, VPN and crypto maps, NVI NAT, outside NAT, route maps, dynamic and time-based entries, layer-7
   inspection and the applications of `match protocol` beyond their ports are not converted. Composed lists are capped
@@ -6797,6 +7817,18 @@ deliberate: see *IPv4 and IPv6* in section 8.
   reference in one expression is not seen. The output is plain HCL for one VPC or one resource group, with the limits of
   the `aws`, `azure` and `gcp` targets; attaching and associating the groups and the policy is left to you. The formats follow Terraform's documentation of its JSON output and the provider documentation and
   schemas; no state of a real deployment was read, and no output was applied with Terraform.
+* F5 BIG-IP AFM: the network firewall only, for forwarded traffic; self IP
+  contexts, the management port, staged policies, NAT, DoS, IP intelligence and
+  iRules are not converted. The order of the contexts, the actions and the
+  default actions follow F5's manuals and the tmsh reference; the order of
+  virtual servers follows K14800 as far as it could be read; that a disabled
+  virtual server takes its traffic, that an address without a route domain
+  matches in every route domain, the reading of destination zones and that the
+  global default follows `tm.rejectunmatched` are assumed. One-line output of
+  tmsh (`one-line`) is not read. That `load sys config merge` takes the
+  output (comments, nested address lists, protocol names) follows the syntax
+  of `bigip.conf` and is not confirmed. Neither input nor output has been on a
+  BIG-IP.
 * VyOS: forwarded traffic only (the forward filter and the zones), and IPv4 NAT.
   The zones are read as the nftables templates of vyos-1x write them, which the
   documentation does not describe in full; VyOS 1.3 and EdgeOS as VyOS's own

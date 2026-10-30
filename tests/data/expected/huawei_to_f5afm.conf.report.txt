@@ -1,0 +1,71 @@
+FWShift conversion report
+  source: huawei
+  target: f5-afm
+
+Summary
+  Security rules:     16   exact 2, approximated 0, needs review 13 (13 emitted disabled), skipped 1
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with display predefined-service: http, https, smtp, dns, ntp, ssh, icmp, ftp
+  [needs-review] F5AFM_LOAD: the output is a file for 'tmsh load sys config merge file' (section 10): address lists, port lists, the rule list /Common/FWShift_rules and the policy /Common/FWShift. Load it with 'verify' first. The merge changes objects of the same name that exist: check that none does. The policy is enforced in no context: attach it to the global context, a route domain or a virtual server yourself. Allow rules are accept-decisively and the list ends with the default, so the policy decides alone wherever it is attached; the BIG-IP still lets through only traffic that a virtual server takes, which FWShift does not create
+  [needs-review] F5AFM_VLANS_REQUIRED: the rules name these VLANs as the zones they come from, which must exist on the BIG-IP under these names (--zone-map renames): /Common/dmz, /Common/lab, /Common/trust, /Common/untrust
+  [info] HUAWEI_SOURCE: 4 zones (trust, untrust, dmz, lab); 15 rules of the security policy, first match. The local zone (the firewall itself) is not converted
+  [info] HUAWEI_NAT_ORDER: destination NAT (nat server) is done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT (nat-policy) is done after it
+  [info] HUAWEI_DEFAULTS: what no rule matches: between zones deny, inside a zone permit
+  [info] F5AFM_ICMP_CONTEXT: the policy has ICMP rules: the BIG-IP ignores ICMP rules in the virtual server and self IP contexts, so attach the policy to the global or a route domain context for them to apply
+
+Security rules
+  web-in  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web-tls'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  mail-in  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'mail-server' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  office-out  ->  needs-review, emitted disabled  (emitted as office-out, office-out_2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind untrust with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  office-dmz  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'dmz-servers' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  admin-ssh  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, lab, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz, lab with --zone-network.
+  dmz-syslog  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone trust, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind trust with --zone-network.
+  lab-tools  ->  needs-review, emitted disabled  (emitted as lab-tools, lab-tools_2, lab-tools_3)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone lab, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind lab with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  lab-out  ->  needs-review, emitted disabled  (emitted as lab-out, lab-out_2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind untrust with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  ping-dmz  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  ipv6-out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind untrust with --zone-network.
+  video  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone untrust; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) YouTube; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  old-ftp  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  intrazone default  ->  needs-review, emitted disabled  (emitted as intrazone_default)
+      [needs-review] RULE_TYPE: intrazone rule for every zone: a rule of AFM cannot compare the VLANs a packet comes in and leaves on.
+  manage-fw  ->  skipped
+      [info] HUAWEI_LOCAL_RULE: a rule for traffic to or from the firewall itself (the local zone): not converted
+
+NAT rules
+  nat-server-web  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  nat-server-web-tls  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  nat-server-mail  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  no-nat-vpn  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  office-pat  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  lab-easy-ip  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand

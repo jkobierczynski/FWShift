@@ -1,0 +1,105 @@
+FWShift conversion report
+  source: meraki
+  target: f5-afm
+
+Summary
+  Security rules:     20   exact 11, approximated 0, needs review 8 (6 emitted disabled), skipped 1
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside these zones that no rule matches, and blocks it between zones; without their networks (--zone-network) the converted policy blocks it: vlan10-office, vlan20-servers, vlan30-ot-cell, internet
+  [needs-review] F5AFM_LOAD: the output is a file for 'tmsh load sys config merge file' (section 10): address lists, port lists, the rule list /Common/FWShift_rules and the policy /Common/FWShift. Load it with 'verify' first. The merge changes objects of the same name that exist: check that none does. The policy is enforced in no context: attach it to the global context, a route domain or a virtual server yourself. Allow rules are accept-decisively and the list ends with the default, so the policy decides alone wherever it is attached; the BIG-IP still lets through only traffic that a virtual server takes, which FWShift does not create
+  [needs-review] F5AFM_FQDN_RESOLVER: address lists hold host names (fqdns): AFM resolves them only with a DNS resolver set as the global FQDN resolver (security firewall global-fqdn-policy); without one they match nothing
+  [needs-review] F5AFM_VLANS_REQUIRED: the rules name these VLANs as the zones they come from, which must exist on the BIG-IP under these names (--zone-map renames): /Common/internet, /Common/vlan10-office, /Common/vlan20-servers, /Common/vlan30-ot-cell
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+  [info] F5AFM_ICMP_CONTEXT: the policy has ICMP rules: the BIG-IP ignores ICMP rules in the virtual server and self IP contexts, so attach the policy to the global or a route domain context for them to apply
+
+Security rules
+  inside a VLAN  ->  needs-review, emitted disabled  (emitted as inside_a_VLAN, inside_a_VLAN_2, inside_a_VLAN_3)
+      [info] RULE_TYPE: intrazone rule: written for each pair of its zones
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan10-office, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind vlan10-office with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind vlan20-servers with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan30-ot-cell, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind vlan30-ot-cell with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  layer 7 rule 2  ->  needs-review  (emitted as layer_7_rule_2, layer_7_rule_2_2)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  layer 7 rule 3  ->  needs-review  (emitted as layer_7_rule_3)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  bad ports  ->  needs-review, emitted disabled  (emitted as bad_ports)
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+  vpn-portal  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind vlan20-servers with --zone-network.
+  mail (1)  ->  needs-review, emitted disabled  (emitted as mail__1_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind vlan20-servers with --zone-network.
+  mail (2)  ->  needs-review, emitted disabled  (emitted as mail__2_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind vlan20-servers with --zone-network.
+  scada-view  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind vlan20-servers with --zone-network.
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT vpn-portal  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  NAT mail  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  NAT scada-view  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  NAT to the uplink  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+
+Addresses
+  fqdn updates.example.com  ->  exact  (emitted as fqdn_updates.example.com)
+      [info] RENAMED: renamed to 'fqdn_updates.example.com' to fit the target's naming rules
+
+Address groups
+  zone vlan10-office  ->  exact  (emitted as zone_vlan10-office)
+      [info] RENAMED: renamed to 'zone_vlan10-office' to fit the target's naming rules
+  zone vlan20-servers  ->  exact  (emitted as zone_vlan20-servers)
+      [info] RENAMED: renamed to 'zone_vlan20-servers' to fit the target's naming rules
+  zone vlan30-ot-cell  ->  exact  (emitted as zone_vlan30-ot-cell)
+      [info] RENAMED: renamed to 'zone_vlan30-ot-cell' to fit the target's naming rules
+  zone internet  ->  exact  (emitted as zone_internet)
+      [info] RENAMED: renamed to 'zone_internet' to fit the target's naming rules
+  VLAN(10)  ->  exact  (emitted as VLAN_10_)
+      [info] RENAMED: renamed to 'VLAN_10_' to fit the target's naming rules
+  VLAN(30)  ->  exact  (emitted as VLAN_30_)
+      [info] RENAMED: renamed to 'VLAN_30_' to fit the target's naming rules
+  VLAN(20)  ->  exact  (emitted as VLAN_20_)
+      [info] RENAMED: renamed to 'VLAN_20_' to fit the target's naming rules
+
+Services
+  tcp/23  ->  exact  (emitted as tcp_23)
+      [info] RENAMED: renamed to 'tcp_23' to fit the target's naming rules
+  udp/23  ->  exact  (emitted as udp_23)
+      [info] RENAMED: renamed to 'udp_23' to fit the target's naming rules
+  tcp/80,443  ->  exact  (emitted as tcp_80_443)
+      [info] RENAMED: renamed to 'tcp_80_443' to fit the target's naming rules
+  tcp/4840  ->  exact  (emitted as tcp_4840)
+      [info] RENAMED: renamed to 'tcp_4840' to fit the target's naming rules
+  tcp/102  ->  exact  (emitted as tcp_102)
+      [info] RENAMED: renamed to 'tcp_102' to fit the target's naming rules
+  tcp/443  ->  exact  (emitted as tcp_443)
+      [info] RENAMED: renamed to 'tcp_443' to fit the target's naming rules
+  udp/53  ->  exact  (emitted as udp_53)
+      [info] RENAMED: renamed to 'udp_53' to fit the target's naming rules
+  tcp/50000-50100  ->  exact  (emitted as tcp_50000-50100)
+      [info] RENAMED: renamed to 'tcp_50000-50100' to fit the target's naming rules
+  tcp/8443  ->  exact  (emitted as tcp_8443)
+      [info] RENAMED: renamed to 'tcp_8443' to fit the target's naming rules
+  tcp/25  ->  exact  (emitted as tcp_25)
+      [info] RENAMED: renamed to 'tcp_25' to fit the target's naming rules
+  icmp type 8  ->  exact  (emitted as icmp_type_8)
+      [info] RENAMED: renamed to 'icmp_type_8' to fit the target's naming rules
+  tcp/9443  ->  exact  (emitted as tcp_9443)
+      [info] RENAMED: renamed to 'tcp_9443' to fit the target's naming rules

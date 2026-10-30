@@ -1,0 +1,98 @@
+FWShift conversion report
+  source: pfsense
+  target: oci
+
+Summary
+  Security rules:     25   exact 2, approximated 4, needs review 19 (19 emitted disabled), skipped 0
+  NAT rules:           8   exact 0, approximated 0, needs review 0, skipped 8
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] RULE_NOT_LOADED: pfSense does not load 1 rule of the configuration, which it cannot resolve; they are not converted: 'Spare network, not in use' (its interface 'opt3' is not there or not enabled)
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: pfSense drops what arrives there from addresses nobody has been given, by a list it downloads. That list is not in the configuration, and nothing is converted for it
+  [needs-review] OCI_LOAD: the output is a shell script of OCI CLI calls (section 10): DRY_RUN=1 prints them, COMPARTMENT_ID and VCN_ID create the NSGs and their rules. It creates new NSGs only, and stops if an NSG of the same name exists in the VCN. The NSGs have no VNICs when it is done: nothing changes until VNICs are put in them
+  [needs-review] OCI_ATTACH: 1 NSG: put each VNIC in the NSGs whose '# attach' line lists its addresses, and take it out of the others; a VNIC with addresses of both IP versions is in an NSG for each. An NSG applies to the whole VNIC: a VNIC with several addresses of one IP version in different NSGs gives each address the rules of all of them, so give such addresses the same NSG. 'oci network vnic update --nsg-ids' replaces the NSGs of a VNIC: it is left to you
+  [needs-review] OCI_SECURITY_LISTS: the security lists of the VNICs' subnets keep applying, and OCI allows what a rule of a security list or of an NSG allows: for the VNICs to be held to what the NSGs allow, their subnets need security lists that allow no more (the default security list of a VCN allows SSH from anywhere and every egress)
+  [info] FLOATING_LAST_MATCH: 1 floating rule is not 'quick': such a rule decides only where no rule of an interface matched, and of several the last one. In the converted policy it stands behind the rules of the interfaces, the last one first: 'Telnet unless a rule says otherwise'
+  [info] PFSENSE_AUTOMATIC_RULES: pfSense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof), packets from or to 169.254.0.0/16, and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without; and it has rules for itself (anti-lockout, DHCP, IPsec). Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; an NSG does not. VCN flow logs record the connections of the subnets or VNICs instead
+
+Security rules
+  Nothing leaves towards the sinkhole  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  SSH for the partner - pass  ->  needs-review, emitted disabled
+      [approximated] AUTOMATIC_RULE: port forward 'SSH for the partner' passes what it forwards without a rule ('Pass' as its filter rule association): pfSense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and an NSG names no zone: give the networks behind WAN with --zone-network.
+  Block private networks from WAN  ->  approximated  (emitted as taken out of the rules below it)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks and loopback addresses' set: pfSense drops what arrives there from those networks before any rule is looked at. This rule stands for that
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Ping from the inside  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, DMZ, and an NSG names no zone: give the networks behind LAN, DMZ with --zone-network.
+  DNS from the firewall  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, GUEST, and an NSG names no zone: give the networks behind LAN, GUEST with --zone-network.
+  NAT Web server HTTPS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and an NSG names no zone: give the networks behind WAN with --zone-network.
+  NAT Application ports  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and an NSG names no zone: give the networks behind WAN with --zone-network.
+  Mail in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and an NSG names no zone: give the networks behind WAN with --zone-network.
+  Web server over IPv6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and an NSG names no zone: give the networks behind WAN with --zone-network.
+  Ping and errors to the firewall  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and an NSG names no zone: give the networks behind WAN with --zone-network.
+  Administrators to the servers  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and an NSG names no zone: give the networks behind LAN with --zone-network.
+  Users to the web servers  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and an NSG names no zone: give the networks behind LAN with --zone-network.
+  Users to the web server by its outside address  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and an NSG names no zone: give the networks behind LAN with --zone-network.
+  No other private network from the LAN  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action reset-client: an NSG drops what it does not allow, without an answer
+  Default allow LAN to any rule  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and an NSG names no zone: give the networks behind LAN with --zone-network.
+  Default allow LAN IPv6 to any rule  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and an NSG names no zone: give the networks behind LAN with --zone-network.
+  Servers fetch their updates  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object mirror.example.org, updates.example.com: an NSG rule names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and an NSG names no zone: give the networks behind DMZ with --zone-network.
+  Mail out, not to the inside  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10).
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and an NSG names no zone: give the networks behind DMZ with --zone-network.
+  Syslog to the collector  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'OfficeHours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and an NSG names no zone: give the networks behind DMZ with --zone-network.
+  Nothing from the list  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocklist': a URL table: its addresses are in a file on the firewall, not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests reach nothing private  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Guests browse  ->  needs-review, emitted disabled
+      [info] POLICY_ROUTING: the rule also sends what it passes to gateway 'WANGW' (policy routing), which is not converted
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and an NSG names no zone: give the networks behind GUEST with --zone-network.
+  Phones of the guests  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches a mark set by another rule (tagged) 'VOICE'.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and an NSG names no zone: give the networks behind GUEST with --zone-network.
+
+NAT rules
+  Web server HTTPS  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  Application ports  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  SSH for the partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  Mail server - inbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  Mail server - outbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  DMZ leaves with the web address  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  No NAT towards the partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see
+  Automatic outbound NAT on WAN  ->  skipped
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: pfSense translates what leaves by an interface with a gateway and comes from the networks of its other interfaces and of its static routes. This rule stands for that
+      [needs-review] NAT_NOT_CONVERTED: not converted: on OCI the internet gateway translates public addresses and a NAT gateway translates sources, outside the NSGs. Set them up there; the rules were written for the private addresses, which is what the NSGs see

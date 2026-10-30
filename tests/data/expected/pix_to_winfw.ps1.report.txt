@@ -1,0 +1,122 @@
+FWShift conversion report
+  source: pix (PIX Version 6.3(5))
+  target: windows-firewall
+
+Summary
+  Security rules:     21   exact 6, approximated 3, needs review 12 (1 emitted disabled), skipped 0
+  NAT rules:          11   exact 0, approximated 0, needs review 0, skipped 11
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PIX_OUTBOUND: outbound lists (outbound and apply) limit what interfaces without an access list let out: partner: outbound list 10 (outgoing_src: deny 0.0.0.0 0.0.0.0 0 0; permit 10.30.0.0 255.255.255.0 80 tcp). The PIX decides them by the best match, not in order; they are not converted, and the implicit rules of those interfaces are written disabled. Write their restrictions as rules
+  [needs-review] PIX_ESTABLISHED: the established command lets connections in that belong to connections out (established tcp 6000 0 permitto tcp 6000). It is not converted: the result does not allow those connections; write rules for them if they are needed
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [approximated] ICMP_STATELESS: a PIX 6.x keeps no state for ICMP: the reply to a permitted ICMP request got through only where an access list or conduit permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: 'sysopt connection permit-ipsec' lets traffic that arrives through VPN tunnels past the access lists and conduits. The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 3 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: inside_nat0, partner_nat, unused
+  [info] PIX_CONDUIT_IGNORED: the PIX ignores conduits for interfaces with an access list: outside, dmz
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; inside=10.10.0.0/16,10.11.0.0/16; lab=10.40.0.0/24; outside=0.0.0.0/0,203.0.113.0/24; partner=10.30.0.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] EGRESS_BY_ROUTE: a PIX access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the statics that publish them and from the interface addresses and static routes in the configuration
+  [info] PIX_NO_TRANSLATION: no translation (nat with a global, static, exemption) covers traffic from inside to lab, lab to outside, lab to dmz, lab to partner: the PIX passes none of it, and no implicit rule was written for it
+  [info] PIX_FIXUP: application inspection (fixup) is not converted; the targets inspect with helpers of their own. On: dns maximum-length, ftp 21, http 80, smtp 25, sqlnet 1521. Off: sip 5060.
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; inside=10.10.0.0/16,10.11.0.0/16; lab=10.40.0.0/24; outside=0.0.0.0/0,203.0.113.0/24; partner=10.30.0.0/24. --no-source-networks takes none of them
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  outside_in-1  ->  approximated  (emitted as FWShift-outside_in-1-1, FWShift-outside_in-1-2)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.10' with post-NAT '10.20.0.10' because of NAT rule 'static-1'; check that this rule is meant to cover the translated traffic
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+  outside_in-2  ->  approximated  (emitted as FWShift-outside_in-2-1, FWShift-outside_in-2-2)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.20.0.25' because of NAT rule 'static-2'; check that this rule is meant to cover the translated traffic
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+  outside_in-3  ->  approximated  (emitted as FWShift-outside_in-3-1, FWShift-outside_in-3-2)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'outside-interface' with post-NAT '10.20.0.30' because of NAT rule 'static-3'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'static-3' also translates the port to 443: the service of this rule (tcp-8443) named the pre-NAT port only, and now names 443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+  outside_in-4  ->  needs-review  (emitted as FWShift-outside_in-4-1, FWShift-outside_in-4-2)
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers outside to inside: destinations 0.0.0.0/0; outside to dmz: destinations 0.0.0.0-203.0.113.1, 203.0.113.3-203.0.113.9, 203.0.113.11-203.0.113.24 ...; outside to lab: destinations 0.0.0.0/0; outside to partner: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written as the addresses of the networks given for it with --zone-network
+  outside_in-5  ->  needs-review  (emitted as FWShift-outside_in-5-1, FWShift-outside_in-5-2, FWShift-outside_in-5-3, FWShift-outside_in-5-4, FWShift-outside_in-5-5, FWShift-outside_in-5-6, FWShift-outside_in-5-7, FWShift-outside_in-5-8)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  outside_in-6  ->  needs-review  (emitted as FWShift-outside_in-6-1, FWShift-outside_in-6-2)
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers outside to dmz: destinations 10.20.0.10. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.10', the address NAT rule 'static-1' translates '203.0.113.10' to. The target looks rules up after that translation, so traffic sent to '203.0.113.10' now matches this rule; on the source it did not
+  outside_in-7  ->  needs-review  (emitted as FWShift-outside_in-7-1, FWShift-outside_in-7-2, FWShift-outside_in-7-3, FWShift-outside_in-7-4, FWShift-outside_in-7-5, FWShift-outside_in-7-6, FWShift-outside_in-7-7, FWShift-outside_in-7-8, FWShift-outside_in-7-9, FWShift-outside_in-7-10, FWShift-outside_in-7-11, FWShift-outside_in-7-12)
+      [info] ZONE_BY_NETWORKS: the source in zone outside is written without the networks given for the other zones with --zone-network
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  dmz_in-1  ->  needs-review  (emitted as FWShift-dmz_in-1-1, FWShift-dmz_in-1-2)
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 0.0.0.0-10.10.0.49, 10.10.0.51-255.255.255.255; dmz to lab: destinations 0.0.0.0/0; dmz to partner: sources 10.20.0.10, 10.20.0.25. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  dmz_in-2  ->  needs-review  (emitted as FWShift-dmz_in-2-1, FWShift-dmz_in-2-2)
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 0.0.0.0-10.10.0.49, 10.10.0.51-255.255.255.255; dmz to lab: destinations 0.0.0.0/0; dmz to partner: sources 10.20.0.25. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  dmz_in-4  ->  needs-review  (emitted as FWShift-dmz_in-4-1, FWShift-dmz_in-4-2)
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 10.10.0.0-10.10.0.49, 10.10.0.51-10.10.255.255. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  dmz_in-5  ->  needs-review  (emitted as FWShift-dmz_in-5-1, FWShift-dmz_in-5-2, FWShift-dmz_in-5-3, FWShift-dmz_in-5-4, FWShift-dmz_in-5-5, FWShift-dmz_in-5-6, FWShift-dmz_in-5-7, FWShift-dmz_in-5-8, FWShift-dmz_in-5-9, FWShift-dmz_in-5-10)
+      [info] ZONE_BY_NETWORKS: the source in zone dmz is written without the networks given for the other zones with --zone-network
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  implicit-inside-outside  ->  exact  (emitted as FWShift-implicit-inside-outside-1, FWShift-implicit-inside-outside-2)
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'outside' (security level 0), for every source (NAT is mandatory). This rule says so
+      [info] ZONE_BY_NETWORKS: the source in zone inside is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone outside is written as the addresses of the networks given for it with --zone-network
+  implicit-inside-dmz  ->  exact  (emitted as FWShift-implicit-inside-dmz-1, FWShift-implicit-inside-dmz-2)
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'dmz' (security level 50), for the sources a translation covers (NAT is mandatory). This rule says so
+      [info] ZONE_BY_NETWORKS: the source in zone inside is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+  implicit-inside-partner  ->  exact  (emitted as FWShift-implicit-inside-partner-1, FWShift-implicit-inside-partner-2)
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'partner' (security level 20), for the sources a translation covers (NAT is mandatory). This rule says so
+      [info] ZONE_BY_NETWORKS: the destination in zone partner is written as the addresses of the networks given for it with --zone-network
+  implicit-partner-outside  ->  needs-review, emitted disabled  (emitted as FWShift-implicit-partner-outside-1, FWShift-implicit-partner-outside-2)
+      [info] IMPLICIT_PERMIT: interface 'partner' (security level 20) has no access list: the PIX lets its traffic out to 'outside' (security level 0), for the sources a translation covers (NAT is mandatory). This rule says so
+      [info] ZONE_BY_NETWORKS: the destination in zone outside is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: outbound list 10 (outgoing_src: deny 0.0.0.0 0.0.0.0 0 0; permit 10.30.0.0 255.255.255.0 80 tcp) applied to partner, which is not converted.
+  conduit-1  ->  needs-review  (emitted as FWShift-conduit-1-1, FWShift-conduit-1-2)
+      [info] PIX_CONDUIT: from the conduit 'conduit permit tcp host terminal-srv eq 3389 10.30.0.0 255.255.255.0', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers lab to inside: destinations 10.10.0.60. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [info] ZONE_BY_NETWORKS: the source in zone lab is written as the addresses of the networks given for it with --zone-network
+  conduit-2  ->  needs-review  (emitted as FWShift-conduit-2-1, FWShift-conduit-2-2)
+      [info] PIX_CONDUIT: from the conduit 'conduit permit icmp any any echo-reply', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers lab to inside: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [info] ZONE_BY_NETWORKS: the source in zone lab is written as the addresses of the networks given for it with --zone-network
+  conduit-2-2  ->  needs-review  (emitted as FWShift-conduit-2-2-1, FWShift-conduit-2-2-2)
+      [info] PIX_CONDUIT: from the conduit 'conduit permit icmp any any echo-reply', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers partner to inside: destinations 0.0.0.0-10.9.255.255, 10.11.0.0-255.255.255.255; partner to dmz: destinations 0.0.0.0/0; partner to lab: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [info] ZONE_BY_NETWORKS: the source in zone partner is written as the addresses of the networks given for it with --zone-network
+  conduit-3  ->  exact  (emitted as FWShift-conduit-3-1, FWShift-conduit-3-2)
+      [info] PIX_CONDUIT: from the conduit 'conduit deny tcp any eq telnet any', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [info] ZONE_BY_NETWORKS: the source in zone lab is written without the networks given for the other zones with --zone-network
+  conduit-3-2  ->  exact  (emitted as FWShift-conduit-3-2-1, FWShift-conduit-3-2-2)
+      [info] PIX_CONDUIT: from the conduit 'conduit deny tcp any eq telnet any', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [info] ZONE_BY_NETWORKS: the source in zone partner is written without the networks given for the other zones with --zone-network
+
+NAT rules
+  nat0-inside-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  static-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  static-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  static-4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  static-5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  static-3  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the configuration, 203.0.113.2
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat3-inside-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat2-inside  ->  skipped
+      [approximated] PIX_PAT_FALLBACK: the PIX hands out the addresses of the pool and, when they run out, translates to the PAT address of global (outside) 2; only the pool is converted
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat1-inside-outside  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat1-inside-dmz  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat1-partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation

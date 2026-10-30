@@ -73,7 +73,7 @@ policy() {
 free_group fwshift-rules
 free_policy fwshift
 
-# Rule group 1: 12 rules, in the order of the policy.
+# Rule group 1: 13 rules, in the order of the policy.
 cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
 {
  "RuleVariables": {
@@ -120,7 +120,7 @@ cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
   }
  },
  "RulesSource": {
-  "RulesString": "pass tcp $LAN any -> 192.0.2.53/32 53 (msg:\"DNS to resolvers\"; flow:to_server; sid:1; rev:1;)\npass udp $LAN any -> 192.0.2.53/32 53 (msg:\"DNS to resolvers\"; flow:to_server; sid:2; rev:1;)\npass udp any any -> 192.0.2.123/32 123 (msg:\"NTP\"; flow:to_server; sid:3; rev:1;)\ndrop ip $Guests any -> 10.0.0.0/8 any (msg:\"Guests stay out\"; flow:to_server; sid:4; rev:1;)\npass tcp any any -> $Web_servers [443,8443] (msg:\"Inbound web\"; flow:to_server; sid:5; rev:1;)\npass tcp $Web_servers any -> $App_servers 8443 (msg:\"Web to app\"; flow:to_server; sid:6; rev:1;)\npass tcp $Admins any -> $DMZ 22 (msg:\"Admins SSH\"; flow:to_server; sid:7; rev:1;)\ndrop tcp !$Admins any -> $DMZ 22 (msg:\"Others no SSH\"; flow:to_server; sid:8; rev:1;)\npass tcp 10.10.7.15/32 any -> $OT_cell 502 (msg:\"Engineering to PLCs\"; flow:to_server; sid:9; rev:1;)\npass tcp $LAN any -> 198.51.100.40/32 21 (msg:\"FTP to partner\"; flow:to_server; sid:10; rev:1;)\npass icmp ::/0 any -> any any (msg:\"Ping over IPv6\"; flow:to_server; ip_proto:1; sid:11; rev:1;)\npass icmp ::/0 any -> any any (msg:\"Ping over IPv6\"; flow:to_server; ip_proto:58; sid:12; rev:1;)\n"
+  "RulesString": "pass ip any any -> any any (msg:\"fwshift-replies\"; flow:to_client; sid:13; rev:1;)\npass tcp $LAN any -> 192.0.2.53/32 53 (msg:\"DNS to resolvers\"; flow:to_server; sid:1; rev:1;)\npass udp $LAN any -> 192.0.2.53/32 53 (msg:\"DNS to resolvers\"; flow:to_server; sid:2; rev:1;)\npass udp any any -> 192.0.2.123/32 123 (msg:\"NTP\"; flow:to_server; sid:3; rev:1;)\ndrop ip $Guests any -> 10.0.0.0/8 any (msg:\"Guests stay out\"; flow:to_server; sid:4; rev:1;)\npass tcp any any -> $Web_servers [443,8443] (msg:\"Inbound web\"; flow:to_server; sid:5; rev:1;)\npass tcp $Web_servers any -> $App_servers 8443 (msg:\"Web to app\"; flow:to_server; sid:6; rev:1;)\npass tcp $Admins any -> $DMZ 22 (msg:\"Admins SSH\"; flow:to_server; sid:7; rev:1;)\ndrop tcp !$Admins any -> $DMZ 22 (msg:\"Others no SSH\"; flow:to_server; sid:8; rev:1;)\npass tcp 10.10.7.15/32 any -> $OT_cell 502 (msg:\"Engineering to PLCs\"; flow:to_server; sid:9; rev:1;)\npass tcp $LAN any -> 198.51.100.40/32 21 (msg:\"FTP to partner\"; flow:to_server; sid:10; rev:1;)\npass icmp ::/0 any -> any any (msg:\"Ping over IPv6\"; flow:to_server; ip_proto:1; sid:11; rev:1;)\npass icmp ::/0 any -> any any (msg:\"Ping over IPv6\"; flow:to_server; ip_proto:58; sid:12; rev:1;)\n"
  },
  "StatefulRuleOptions": {
   "RuleOrder": "STRICT_ORDER"

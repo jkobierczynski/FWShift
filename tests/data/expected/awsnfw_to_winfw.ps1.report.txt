@@ -1,0 +1,104 @@
+FWShift conversion report
+  source: aws-network-firewall (pol-inspection)
+  target: windows-firewall
+
+Summary
+  Security rules:     41   exact 25, approximated 3, needs review 11 (8 emitted disabled), skipped 2
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           21   exact 21, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWSNFW_ASYMMETRIC: one direction of some connections is passed by the stateless rules and the other forwarded to the stateful engine, which then sees half a flow and may drop it (sl-edge-8, the stateless default action aws:forward_to_sfe). The converted policy leaves those connections to the stateful rules
+  [needs-review] AWSNFW_STATELESS_NOT_WORKED_OUT: some stateless rules cannot be read (TCP flags, a rule group not in the input, a value that cannot be read): they are not converted, and what the rules after them and the replies meet was worked out as if they matched nothing
+  [needs-review] AWSNFW_GROUP_MISSING: the policy names rule groups that are not in the input: ThreatSignaturesMalwareStrictOrder. Their rules are not converted; add the answers of describe-rule-group
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] AWSNFW_FRAGMENTS: UDP fragments that no stateless rule matches are handled by aws:drop, other packets by the default for full packets; the model has no fragments, and the converted policy follows the default for full packets. Fragments of other protocols are dropped
+  [info] AWSNFW_STATELESS_FORWARD: these stateless rules forward what they match to the stateful engine, so the stateless rules below them do not see it: sl-edge-10
+  [info] AWSNFW_ALERT_RULES: 1 alert rule decides nothing (an alert only logs) and was left out
+  [info] AWSNFW_CUSTOM_ACTIONS: custom actions publish metrics to CloudWatch; they decide nothing and are not converted
+  [info] AWSNFW_HOME_NET: HOME_NET is 10.20.0.0/16, 2001:db8:20::/56 (the CIDR blocks of VPC vpc-0a1b2c3d4e5f60789); EXTERNAL_NET is everything else, unless a rule group sets it
+  [info] AWSNFW_NO_ZONES: the firewall sits in a route path and names no zones or interfaces: the converted policy has none. A target with zones needs the networks behind them (--zone-network)
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  sl-edge-1-replies  ->  exact  (emitted as FWShift-sl-edge-1-replies-1, FWShift-sl-edge-1-replies-2)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-1, which drops them, so the connections are blocked whatever else would allow them
+  sl-edge-20-replies  ->  needs-review
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [needs-review] WINFW_LEFT_TO_DEFAULT: all of it is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  sl-edge-20-replies-2  ->  exact  (emitted as FWShift-sl-edge-20-replies-2-1, FWShift-sl-edge-20-replies-2-2)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+  sl-edge-12  ->  needs-review, emitted disabled  (emitted as FWShift-sl-edge-12-1, FWShift-sl-edge-12-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: TCP flags: the rule matches some packets of a connection and not others. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ThreatSignaturesMalwareStrictOrder-1  ->  needs-review, emitted disabled  (emitted as FWShift-ThreatSignaturesMalwareStrictOrder-1-1, FWShift-ThreatSignaturesMalwareStrictOrder-1-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule group ThreatSignaturesMalwareStrictOrder is not in the input; add the answer of describe-rule-group for arn:aws:network-firewall:eu-west-1:aws-managed:stateful-rulegroup/ThreatSignaturesMalwareStrictOrder (an AWS managed rule group, whose rules AWS may not show). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-100  ->  exact  (emitted as FWShift-sf-baseline-100-1, FWShift-sf-baseline-100-2)
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+  sf-baseline-101  ->  exact  (emitted as FWShift-sf-baseline-101-1, FWShift-sf-baseline-101-2)
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+  sf-baseline-102-rev  ->  exact  (emitted as FWShift-sf-baseline-102-rev-1, FWShift-sf-baseline-102-rev-2)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  sf-baseline-103  ->  exact  (emitted as FWShift-sf-baseline-103-1, FWShift-sf-baseline-103-2)
+      [info] ACTION_DROP: action reset-client: a block rule of Windows Firewall drops without an answer
+  sf-baseline-105  ->  exact  (emitted as FWShift-sf-baseline-105-1, FWShift-sf-baseline-105-2, FWShift-sf-baseline-105-3, FWShift-sf-baseline-105-4)
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+  sf-app-1003  ->  approximated  (emitted as FWShift-sf-app-1003-1, FWShift-sf-app-1003-2, FWShift-sf-app-1003-3, FWShift-sf-app-1003-4)
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+  sf-app-1004  ->  exact  (emitted as FWShift-sf-app-1004-1, FWShift-sf-app-1004-2, FWShift-sf-app-1004-3, FWShift-sf-app-1004-4)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  sf-app-1005  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+  sf-app-1005-rev  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+  sf-app-1011  ->  exact  (emitted as FWShift-sf-app-1011-1, FWShift-sf-app-1011-2)
+      [info] AWSNFW_REJECT_NOT_TCP: reject sends a TCP reset, and is for TCP only; the rule, which matches other protocols too, is read as drop
+  sf-app-1013  ->  needs-review  (emitted as FWShift-sf-app-1013-1, FWShift-sf-app-1013-2, FWShift-sf-app-1013-3, FWShift-sf-app-1013-4, FWShift-sf-app-1013-5, FWShift-sf-app-1013-6, FWShift-sf-app-1013-7, FWShift-sf-app-1013-8, FWShift-sf-app-1013-9, FWShift-sf-app-1013-10, FWShift-sf-app-1013-11, FWShift-sf-app-1013-12, FWShift-sf-app-1013-13, FWShift-sf-app-1013-14, FWShift-sf-app-1013-15, FWShift-sf-app-1013-16, FWShift-sf-app-1013-17, FWShift-sf-app-1013-18, FWShift-sf-app-1013-19, FWShift-sf-app-1013-20)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  stateful-default-not-tcp  ->  needs-review  (emitted as FWShift-stateful-default-not-tcp-1, FWShift-stateful-default-not-tcp-2, FWShift-stateful-default-not-tcp-3, FWShift-stateful-default-not-tcp-4, FWShift-stateful-default-not-tcp-5, FWShift-stateful-default-not-tcp-6)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  sf-baseline-100-reply  ->  exact  (emitted as FWShift-sf-baseline-100-reply-1, FWShift-sf-baseline-100-reply-2)
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-100 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+  sf-baseline-103-reply  ->  exact  (emitted as FWShift-sf-baseline-103-reply-1, FWShift-sf-baseline-103-reply-2, FWShift-sf-baseline-103-reply-3, FWShift-sf-baseline-103-reply-4)
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-103 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [info] ACTION_DROP: action reset-server: a block rule of Windows Firewall drops without an answer
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  sf-app-1003-reply  ->  approximated  (emitted as FWShift-sf-app-1003-reply-1, FWShift-sf-app-1003-reply-2, FWShift-sf-app-1003-reply-3, FWShift-sf-app-1003-reply-4, FWShift-sf-app-1003-reply-5, FWShift-sf-app-1003-reply-6, FWShift-sf-app-1003-reply-7, FWShift-sf-app-1003-reply-8, FWShift-sf-app-1003-reply-9, FWShift-sf-app-1003-reply-10, FWShift-sf-app-1003-reply-11, FWShift-sf-app-1003-reply-12)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1003 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+  sf-app-1009-reply  ->  exact  (emitted as FWShift-sf-app-1009-reply-1, FWShift-sf-app-1009-reply-2)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1009 matches packets in the direction of its header, so also the first reply of a connection opened the other way; this rule is what it decides then
+  sf-app-1002  ->  approximated  (emitted as FWShift-sf-app-1002-1, FWShift-sf-app-1002-2)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+  sf-app-1006  ->  needs-review, emitted disabled  (emitted as FWShift-sf-app-1006-1, FWShift-sf-app-1006-2)
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword http.uri. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword content:"/admin". This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-block-1  ->  needs-review, emitted disabled  (emitted as FWShift-dl-block-1-1, FWShift-dl-block-1-2)
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-egress-1  ->  needs-review, emitted disabled  (emitted as FWShift-dl-egress-1-1, FWShift-dl-egress-1-2)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address.
+  dl-egress-2  ->  skipped
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [info] WINFW_SHADOWED_BY_ALLOW: the allow rules above it allow everything it blocks; there is nothing to write
+  dl-egress-3  ->  needs-review, emitted disabled  (emitted as FWShift-dl-egress-3-1, FWShift-dl-egress-3-2)
+      [approximated] APP_TO_PORTS: applications web-browsing reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: http.host: the rule matches by domain name, which is not an address.
+  dl-egress-4  ->  skipped
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [info] WINFW_SHADOWED_BY_ALLOW: the allow rules above it allow everything it blocks; there is nothing to write
+  sf-app-1010  ->  exact
+      [info] AWSNFW_NEVER_MATCHES: with aws:drop_established a flow that no rule passed is dropped before this rule can match; the rule is disabled in the converted policy: pass tcp any any -> $HOME_NET any (msg:"established to clients"; flow:established,to_client; sid:1010;)

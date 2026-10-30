@@ -1,0 +1,42 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: zyxel
+
+Summary
+  Security rules:     18   exact 16, approximated 0, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 1, approximated 4, needs review 0, skipped 0
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZYXEL_LOAD: the output is a script of CLI commands (section 10): new objects, zones without members, rules inserted from position 1 of the security policy on (before the rules the firewall has, which still decide what these do not match), virtual servers and policy routes, which take effect at once. Check, then save with write
+  [needs-review] ZYXEL_NAT_INTERFACES: virtual servers and policy routes name the interfaces of the zones as the source names them (after --interface-map): check that the firewall has them (ge1, wan1 ...): GigabitEthernet0/0, GigabitEthernet0/1, GigabitEthernet0/3
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them. Behind interfaces that are in no zone of the policy, so behind none of its zones (an allow for the zone of the default route does not reach them): mgmt=192.168.1.0/24
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] ZYXEL_DEFAULT_RULES: after the converted rules, 22 rules that do what the source does with traffic no rule matches, for every pair of the zones written (inside a zone as the source decides it): the rules the firewall already has decide only traffic of zones the conversion does not know
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log
+  [info] ZYXEL_NAT_WRITTEN: virtual servers are done before the security policy, whose rules name the inside address: the rules were written for it
+
+Security rules
+  inside_access_in-4  ->  needs-review, emitted disabled  (emitted as 3 rules of the security policy)
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: the form of an address object of a host name is not in the documentation FWShift could read.
+  inside_access_in-7  ->  needs-review, emitted disabled  (emitted as 3 rules of the security policy)
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+  implicit-guest  ->  exact  (emitted as 2 rules of the security policy)
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+
+NAT rules
+  nat-1  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_EXEMPTION: a rule that translates nothing, written as a policy route without SNAT: it keeps the source NAT of the policy routes below it from applying, not virtual servers, 1:1 NAT or the default SNAT of a WAN trunk
+  nat-mail-srv  ->  approximated  (emitted as virtual server)
+      [approximated] ZYXEL_NAT_ZONES: a 1:1 NAT of ZLD names the outside interface only: the zones of the inside host are not a condition
+  nat-inside-net  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  nat-after-auto-1  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches

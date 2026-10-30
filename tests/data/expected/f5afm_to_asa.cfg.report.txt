@@ -1,0 +1,43 @@
+FWShift conversion report
+  source: f5-afm
+  target: asa
+
+Summary
+  Security rules:     42   exact 36, approximated 0, needs review 6 (6 emitted disabled), skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: external, internal, dmz. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+  [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
+
+Security rules
+  global/reject_telnet  ->  exact  (emitted as global_access)
+      [info] RESET_ACTION: action reset-client becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled  (emitted as internal_access_in)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled  (emitted as external_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_web  ->  needs-review, emitted disabled  (emitted as external_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled  (emitted as external_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled  (emitted as dmz_access_in, external_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as dmz_access_in, internal_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+
+Addresses
+  geo:NL  ->  exact  (emitted as geo_NL)
+      [info] RENAMED: renamed to 'geo_NL' to fit the target's naming rules

@@ -1,0 +1,37 @@
+FWShift conversion report
+  source: nftables
+  target: zyxel
+
+Summary
+  Security rules:     16   exact 13, approximated 0, needs review 3 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 2, approximated 3, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] ZYXEL_LOAD: the output is a script of CLI commands (section 10): new objects, zones without members, rules inserted from position 1 of the security policy on (before the rules the firewall has, which still decide what these do not match), virtual servers and policy routes, which take effect at once. Check, then save with write
+  [needs-review] ZYXEL_NAT_INTERFACES: virtual servers and policy routes name the interfaces of the zones as the source names them (after --interface-map): check that the firewall has them (ge1, wan1 ...): eth0
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+  [info] ZYXEL_DEFAULT_RULES: after the converted rules, 30 rules that do what the source does with traffic no rule matches, for every pair of the zones written (inside a zone as the source decides it): the rules the firewall already has decide only traffic of zones the conversion does not know
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log
+  [info] ZYXEL_NAT_WRITTEN: virtual servers are done before the security policy, whose rules name the inside address: the rules were written for it
+
+Security rules
+  Banned by fail2ban  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  needs-review  (emitted as 1 rules of the security policy)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Rate limited mail  ->  needs-review, emitted disabled  (emitted as 2 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.
+
+NAT rules
+  No NAT to partner  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_EXEMPTION: a rule that translates nothing, written as a policy route without SNAT: it keeps the source NAT of the policy routes below it from applying, not virtual servers, 1:1 NAT or the default SNAT of a WAN trunk
+  DMZ out  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  LAN out  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches

@@ -102,6 +102,21 @@ VYOS = NameRules(63, re.compile(r"[^A-Za-z0-9_.-]"), True)
 # (the emitter makes those itself).
 AWSNFW_VARIABLE = NameRules(32, re.compile(r"[^A-Za-z0-9_]"), True, True)
 
+# Oracle Cloud Infrastructure: the display name of an NSG is free text and need not be unique (the API reference); the
+# names written are kept to letters, digits, ".", "_" and "-", and to 100 characters.
+OCI = NameRules(100, re.compile(r"[^A-Za-z0-9._-]"), True)
+
+# Windows Defender Firewall: the Name of a rule acts as a file name in its store, and no character set or length is
+# published. Names written are kept to letters, digits, ".", "_" and "-", and to 200 characters; the DisplayName is free
+# text without control characters (it may not be "All").
+WINFW = NameRules(200, re.compile(r"[^A-Za-z0-9._-]"), True)
+WINFW_TEXT = NameRules(255, re.compile(r"[\x00-\x1f\x7f]"), False)
+
+# Hillstone StoneOS: Hillstone advises letters and digits in names and none of , ' " tab space ; \ / < > & # (CLI User Guide,
+# System Management, naming rules) and publishes no length. Names written are kept to letters, digits, "_", "-" and ".", and to
+# 63 characters.
+HILLSTONE = NameRules(63, re.compile(r"[^A-Za-z0-9_.-]"), True)
+
 
 def clean(name: str, rules: NameRules) -> str:
     out = rules.invalid.sub("_", name).strip()
@@ -123,3 +138,9 @@ def unique(name: str, taken: Set[str], rules: NameRules) -> str:
         counter += 1
     taken.add(candidate)
     return candidate
+
+# F5 BIG-IP AFM: names of objects of letters, digits, "_", "-" and ".", a letter first (names that start with "_sys_" are
+# the BIG-IP's own); F5 publishes no limit of the length that holds for every kind of object, and names are kept to 128
+# characters. Rules of a rule list are kept to the same.
+F5AFM = NameRules(128, re.compile(r"[^A-Za-z0-9_.-]"), True, True)
+F5AFM_RULE = F5AFM

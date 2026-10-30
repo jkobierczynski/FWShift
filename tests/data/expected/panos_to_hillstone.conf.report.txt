@@ -1,0 +1,71 @@
+FWShift conversion report
+  source: panos (vsys1)
+  target: hillstone
+
+Summary
+  Security rules:     14   exact 3, approximated 6, needs review 5 (5 emitted disabled), skipped 0
+  NAT rules:           5   exact 1, approximated 4, needs review 0, skipped 0
+  Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:            5   exact 5, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10023 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] INTRAZONE_RULES_ADDED: StoneOS decides traffic inside a zone as it decides traffic between zones; the source does not: rules for it were added at the end for trust, untrust, ot
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface ethernet1/2 / zone "trust"; interface ethernet1/1 / zone "untrust"; interface ethernet1/3 / zone "dmz"; interface ethernet1/4 / zone "FWS_ot"
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  Allow-Web-Out  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (group=default-profiles); attach equivalent inspection on the target
+      [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Allow-DNS  ->  approximated  (emitted as 2 rules of policy-global)
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Inbound-Web  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
+  Inbound-Mail  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] APP_TO_PORTS: applications smtp reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Admin-SSH  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] USER_MATCH: source user match example\netadmins is not converted.
+  Engineering to PLCs  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] APP_TO_PORTS: applications modbus, siemens-s7 reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Block-OT-Outbound  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Block-Torrents  ->  needs-review, emitted disabled  (emitted as 2 rules of policy-global)
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Block-Region  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'KP': not defined in the input. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'KP' holds members only its platform knows. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Tagged-Servers-Updates  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tagged-servers': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'tagged-servers' holds members only its platform knows.
+      [approximated] HILLSTONE_FQDN: a host name is written into an IPv4 address entry: the rule matches the IPv4 addresses it resolves to, not its IPv6 ones
+  Not-From-Guests  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] APP_TO_PORTS: applications ping reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [info] NEGATION_EXPANDED: a rule of StoneOS cannot negate: written as an address entry of the addresses that are left
+  DMZ-Intrazone  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Old-Rule  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'odd-hosts': wildcard mask 10.20.1.2/0.0.254.0.
+      [needs-review] ZONE_DYNAMIC: 'odd-hosts' holds members only its platform knows.
+
+NAT rules
+  No-NAT-Partner  ->  approximated  (emitted as dnatrule and snatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from trust; the rule written applies to traffic from every zone
+  Inbound-Web-DNAT  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from untrust; the rule written applies to traffic from every zone
+      [approximated] HILLSTONE_NAT_ZONE: the destination zones of the rule are not written: a dnatrule names none
+  DMZ-Out-Pool  ->  approximated  (emitted as snatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from dmz; the rule written applies to traffic from every zone
+  Outbound-PAT  ->  approximated  (emitted as snatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from trust; the rule written applies to traffic from every zone
+
+Addresses
+  odd-hosts  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
+  KP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'Block-Region' but not an address object in the input (a region, an external list or a missing object); emitted as a placeholder that matches nothing

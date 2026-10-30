@@ -1,0 +1,69 @@
+FWShift conversion report
+  source: oci (ocid1.vcn.oc1.eu-frankfurt-1.exampleshopvcn)
+  target: windows-firewall
+
+Summary
+  Security rules:     37   exact 30, approximated 2, needs review 5 (2 emitted disabled), skipped 0
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Address groups:     21   exact 21, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OCI_HAIRPIN: connections from inside the VCN to its own public addresses are not converted as OCI decides them: they go through the internet gateway, and the rules see public addresses at both ends (a rule that names an NSG does not match them). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] OCI_REMOTE_NSG: rules name NSGs that are not in the input: ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplemonitoringnsgotherteam. No VNIC of the input is in them, so those rules allow nothing (an NSG names NSGs of its own VCN; if VNICs are missing from the input, add them)
+  [needs-review] OCI_SERVICE_LABEL: rules name service CIDR labels whose addresses are not in the input: oci-ams-objectstorage. Those rules are not converted; add Oracle's public_ip_ranges.json and 'oci iam region list'
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] OCI_STATELESS_REPLY: stateless rules let traffic through without tracking the connection, and some of their replies are not allowed in the other direction (a stateless rule decides over a stateful one that matches the same traffic). Those connections fail on OCI and are blocked first in the converted policy ('...-stateless-in', '...-stateless-out')
+  [info] OCI_EGRESS_PAIRS: inside the VCN a connection needs an egress rule of the sender's lists and NSGs and an ingress rule of the receiver's. Where the egress rules do not allow everything, 3 rules allow what both allow, and a rule after them blocks the rest of what those addresses send inside the VCN
+  [info] OCI_RULE_INVALID: ingress rule 3 of NSG web-nsg names NSG ocid1.networksecuritygroup.oc1.eu-frankfurt-1.exampledeletednsg, which was deleted (is-valid false): OCI ignores the rule, and so does the converted policy
+  [info] OCI_PUBLIC_ADDRESSES: the public IP addresses of the VNICs are static NAT of their primary private addresses: the internet gateway translates what comes from outside, and the rules see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] OCI_UNFILTERED: security rules are never enforced for traffic to or from 169.254.0.0/16 (instance metadata, iSCSI boot volumes, the VCN's DNS and NTP); neither does the converted policy say anything about it
+  [info] OCI_UNUSED: these security lists are associated with no subnet, or no VNIC is in these NSGs, so their rules allow nothing and were left out: spare-sl, legacy-nsg
+  [info] OCI_DEFAULT_SECURITY_LIST: these subnets use the default security list of the VCN, whose rules (as created: SSH from anywhere, ICMP type 3, every egress) are converted as they are now: web-subnet, mgmt-subnet
+  [info] OCI_UDP_FRAGMENTS: rules allow UDP to or from certain ports: OCI drops the fragments after the first of a fragmented UDP packet that such a rule allows (they carry no ports). The model has no fragments
+  [info] OCI_TERMINATED: 1 objects that are terminated or being terminated were left out
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+
+Security rules
+  app-subnet-egress-rest  ->  needs-review  (emitted as FWShift-app-subnet-egress-rest-1, FWShift-app-subnet-egress-rest-2, FWShift-app-subnet-egress-rest-3, FWShift-app-subnet-egress-rest-4)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  app-subnet+app-nsg-egress-rest  ->  needs-review  (emitted as FWShift-app-subnet_app-nsg-egress-rest-1, FWShift-app-subnet_app-nsg-egress-rest-2, FWShift-app-subnet_app-nsg-egress-rest-3, FWShift-app-subnet_app-nsg-egress-rest-4)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  db-subnet-egress-rest  ->  needs-review  (emitted as FWShift-db-subnet-egress-rest-1, FWShift-db-subnet-egress-rest-2, FWShift-db-subnet-egress-rest-3, FWShift-db-subnet-egress-rest-4)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  Default Security List for shop-vcn-in-2  ->  exact  (emitted as FWShift-Default_Security_List_for_shop-vcn-in-2-1, FWShift-Default_Security_List_for_shop-vcn-in-2-2, FWShift-Default_Security_List_for_shop-vcn-in-2-3, FWShift-Default_Security_List_for_shop-vcn-in-2-4)
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+  Default Security List for shop-vcn-in-3  ->  exact  (emitted as FWShift-Default_Security_List_for_shop-vcn-in-3-1, FWShift-Default_Security_List_for_shop-vcn-in-3-2, FWShift-Default_Security_List_for_shop-vcn-in-3-3, FWShift-Default_Security_List_for_shop-vcn-in-3-4)
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+  db-sl-in-1  ->  exact  (emitted as FWShift-db-sl-in-1-1, FWShift-db-sl-in-1-2)
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+  db-sl-in-2  ->  exact  (emitted as FWShift-db-sl-in-2-1, FWShift-db-sl-in-2-2)
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+  db-sl-in-3  ->  exact  (emitted as FWShift-db-sl-in-3-1, FWShift-db-sl-in-3-2)
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+  db-sl-in-4  ->  exact  (emitted as FWShift-db-sl-in-4-1, FWShift-db-sl-in-4-2)
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+  db-sl-in-5  ->  exact  (emitted as FWShift-db-sl-in-5-1, FWShift-db-sl-in-5-2)
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+  db-sl-in-6  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: ICMPv6 with an address of the other IP version (10.30.0.0/16), which matches no packet.
+  app-sl-out-2  ->  approximated  (emitted as FWShift-app-sl-out-2-1, FWShift-app-sl-out-2-2)
+      [approximated] OCI_SERVICE_RANGES: service CIDR label all-fra-services-in-oracle-services-network is read as the ranges Oracle publishes for it; on OCI the rule matches that traffic only through a service gateway, and the published ranges change
+  app-sl-out-4  ->  approximated  (emitted as FWShift-app-sl-out-4-1, FWShift-app-sl-out-4-2)
+      [approximated] OCI_SERVICE_RANGES: service CIDR label oci-fra-objectstorage is read as the ranges Oracle publishes for it; on OCI the rule matches that traffic only through a service gateway, and the published ranges change
+  app-sl-out-5  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'oci-ams-objectstorage': the addresses of the Oracle services of oci-ams-objectstorage are not in the input (add Oracle's public_ip_ranges.json and the answer of 'oci iam region list').
+
+NAT rules
+  public-203.0.113.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  public-203.0.113.11  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  public-203.0.113.50  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation

@@ -1,0 +1,48 @@
+FWShift conversion report
+  source: meraki
+  target: hillstone
+
+Summary
+  Security rules:     20   exact 15, approximated 0, needs review 4 (1 emitted disabled), skipped 1
+  NAT rules:           4   exact 1, approximated 3, needs review 0, skipped 0
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10059 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+  [info] INTRAZONE_RULES_ADDED: StoneOS decides traffic inside a zone as it decides traffic between zones; the source does not: rules for it were added at the end for internet
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface VLAN 10 / zone "FWS_vlan10-office"; interface VLAN 20 / zone "FWS_vlan20-servers"; interface VLAN 30 / zone "FWS_vlan30-ot-cell"; interface wan / zone "FWS_internet"
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  inside a VLAN  ->  exact  (emitted as 6 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  layer 7 rule 2  ->  needs-review  (emitted as 6 rules of policy-global)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  layer 7 rule 3  ->  needs-review  (emitted as 3 rules of policy-global)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  block update site  ->  needs-review  (emitted as 3 rules of policy-global)
+      [needs-review] HILLSTONE_FQDN: a host name is written into an IPv4 address entry: the rule matches the IPv4 addresses it resolves to, not its IPv6 ones, and so blocks less
+  bad ports  ->  needs-review, emitted disabled  (emitted as 3 rules of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+  Default rule  ->  exact  (emitted as 6 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT vpn-portal  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from internet; the rule written applies to traffic from every zone
+  NAT scada-view  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from internet; the rule written applies to traffic from every zone
+  NAT to the uplink  ->  approximated  (emitted as snatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from vlan10-office, vlan20-servers, vlan30-ot-cell; the rule written applies to traffic from every zone

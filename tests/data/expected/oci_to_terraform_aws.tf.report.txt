@@ -1,0 +1,80 @@
+FWShift conversion report
+  source: oci (ocid1.vcn.oc1.eu-frankfurt-1.exampleshopvcn)
+  target: terraform-aws
+
+Summary
+  Security rules:     37   exact 24, approximated 4, needs review 3 (3 emitted disabled), skipped 6
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Address groups:     21   exact 21, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OCI_HAIRPIN: connections from inside the VCN to its own public addresses are not converted as OCI decides them: they go through the internet gateway, and the rules see public addresses at both ends (a rule that names an NSG does not match them). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] OCI_REMOTE_NSG: rules name NSGs that are not in the input: ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplemonitoringnsgotherteam. No VNIC of the input is in them, so those rules allow nothing (an NSG names NSGs of its own VCN; if VNICs are missing from the input, add them)
+  [needs-review] OCI_SERVICE_LABEL: rules name service CIDR labels whose addresses are not in the input: oci-ams-objectstorage. Those rules are not converted; add Oracle's public_ip_ranges.json and 'oci iam region list'
+  [needs-review] AWS_RULE_QUOTA: these groups have more rules than the default quota of 60 per direction and IP version; AWS refuses the call that goes over it unless the quota was raised (a group whose addresses are not in the VPC is never attached, and its call can be taken out of the script): fwshift-addresses-3 (83 inbound IPv4), fwshift-web-nsg (83 inbound IPv4)
+  [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var vpc_id=... shows what it creates, terraform apply creates new security groups and their rules; a group of the same name in the VPC makes it fail. The groups have no members when it is done: nothing changes until they are attached
+  [needs-review] TERRAFORM_ATTACH: 13 groups: attach each to the network interfaces whose private addresses its '# attach' comment (and the output fwshift_attach) lists, and take the other groups off those interfaces: vpc_security_group_ids of the instances, security_groups of the network interfaces, or aws_network_interface_sg_attachment. A group applies to the whole interface: give the addresses of one interface the same group
+  [info] OCI_STATELESS_REPLY: stateless rules let traffic through without tracking the connection, and some of their replies are not allowed in the other direction (a stateless rule decides over a stateful one that matches the same traffic). Those connections fail on OCI and are blocked first in the converted policy ('...-stateless-in', '...-stateless-out')
+  [info] OCI_EGRESS_PAIRS: inside the VCN a connection needs an egress rule of the sender's lists and NSGs and an ingress rule of the receiver's. Where the egress rules do not allow everything, 3 rules allow what both allow, and a rule after them blocks the rest of what those addresses send inside the VCN
+  [info] OCI_RULE_INVALID: ingress rule 3 of NSG web-nsg names NSG ocid1.networksecuritygroup.oc1.eu-frankfurt-1.exampledeletednsg, which was deleted (is-valid false): OCI ignores the rule, and so does the converted policy
+  [info] OCI_PUBLIC_ADDRESSES: the public IP addresses of the VNICs are static NAT of their primary private addresses: the internet gateway translates what comes from outside, and the rules see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] OCI_UNFILTERED: security rules are never enforced for traffic to or from 169.254.0.0/16 (instance metadata, iSCSI boot volumes, the VCN's DNS and NTP); neither does the converted policy say anything about it
+  [info] OCI_UNUSED: these security lists are associated with no subnet, or no VNIC is in these NSGs, so their rules allow nothing and were left out: spare-sl, legacy-nsg
+  [info] OCI_DEFAULT_SECURITY_LIST: these subnets use the default security list of the VCN, whose rules (as created: SSH from anywhere, ICMP type 3, every egress) are converted as they are now: web-subnet, mgmt-subnet
+  [info] OCI_UDP_FRAGMENTS: rules allow UDP to or from certain ports: OCI drops the fragments after the first of a fragmented UDP packet that such a rule allows (they carry no ports). The model has no fragments
+  [info] OCI_TERMINATED: 1 objects that are terminated or being terminated were left out
+
+Security rules
+  db-subnet-stateless-in  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] SOURCE_PORTS_WIDENED: the rule blocks certain source ports only; it is written for every source port, which blocks more
+  db-subnet-stateless-in-2  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] SOURCE_PORTS_WIDENED: the rule blocks certain source ports only; it is written for every source port, which blocks more
+  app-subnet-to-db-sl  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  app-subnet+app-nsg-to-db-sl  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  Default Security List for shop-vcn-in-1  ->  exact  (emitted as security groups fwshift-addresses, fwshift-addresses-2, fwshift-addresses-3, fwshift-web-nsg, fwshift-addresses-4, fwshift-addresses-5, fwshift-all-fra-services-in-oracle-services-network)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  Default Security List for shop-vcn-in-2  ->  exact  (emitted as security groups fwshift-addresses, fwshift-addresses-2, fwshift-addresses-3, fwshift-web-nsg, fwshift-addresses-4, fwshift-addresses-5, fwshift-all-fra-services-in-oracle-services-network)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  Default Security List for shop-vcn-in-3  ->  exact  (emitted as security groups fwshift-addresses-2, fwshift-addresses-3, fwshift-web-nsg, fwshift-addresses-4, fwshift-addresses-5)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  web-sl-in-1  ->  exact  (emitted as security groups fwshift-addresses, fwshift-addresses-2, fwshift-addresses-3, fwshift-web-nsg, fwshift-addresses-4, fwshift-addresses-5, fwshift-all-fra-services-in-oracle-services-network)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  web-sl-in-3  ->  exact  (emitted as security groups fwshift-addresses-2, fwshift-addresses-3, fwshift-web-nsg, fwshift-addresses-4, fwshift-addresses-5)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  db-sl-in-1  ->  skipped
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  db-sl-in-2  ->  exact  (emitted as security groups fwshift-db-sl, fwshift-addresses-4)
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  db-sl-in-3  ->  skipped
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  db-sl-in-4  ->  skipped
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  db-sl-in-5  ->  exact  (emitted as security groups fwshift-addresses-2, fwshift-addresses-3, fwshift-web-nsg, fwshift-db-sl, fwshift-addresses-4, fwshift-addresses-5)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  db-sl-in-6  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: ICMPv6 with an address of the other IP version (10.30.0.0/16), which matches no packet.
+  app-nsg-in-2  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  app-sl-out-2  ->  approximated  (emitted as security groups fwshift-app-subnet-members, fwshift-app-nsg, fwshift-all-fra-services-in-oracle-services-network)
+      [approximated] OCI_SERVICE_RANGES: service CIDR label all-fra-services-in-oracle-services-network is read as the ranges Oracle publishes for it; on OCI the rule matches that traffic only through a service gateway, and the published ranges change
+  app-sl-out-3  ->  needs-review, emitted disabled
+      [needs-review] SOURCE_PORTS: source ports: a security group rule matches destination ports only.
+  app-sl-out-4  ->  approximated  (emitted as security groups fwshift-app-subnet-members, fwshift-app-nsg, fwshift-all-fra-services-in-oracle-services-network)
+      [approximated] OCI_SERVICE_RANGES: service CIDR label oci-fra-objectstorage is read as the ranges Oracle publishes for it; on OCI the rule matches that traffic only through a service gateway, and the published ranges change
+  app-sl-out-5  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'oci-ams-objectstorage': the addresses of the Oracle services of oci-ams-objectstorage are not in the input (add Oracle's public_ip_ranges.json and the answer of 'oci iam region list').
+
+NAT rules
+  public-203.0.113.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  public-203.0.113.11  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  public-203.0.113.50  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see

@@ -1,0 +1,53 @@
+FWShift conversion report
+  source: nftables
+  target: hillstone
+
+Summary
+  Security rules:     16   exact 10, approximated 1, needs review 5 (3 emitted disabled), skipped 0
+  NAT rules:           5   exact 3, approximated 2, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10020 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface eth1 / zone "FWS_eth1"; interface eth0 / zone "FWS_eth0"; interface eth2 / zone "FWS_eth2"; interface eth3 / zone "FWS_eth3"
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  Banned by fail2ban  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  needs-review  (emitted as 1 rule of policy-global)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  LAN web  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  LAN DNS  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Rate limited mail  ->  needs-review, emitted disabled  (emitted as 2 rules of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Partner tunnel  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  OT no internet  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Inbound web  ->  needs-review  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.0.10' because of NAT rule 'Web DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Web DNAT' also translates the port to 8443; the service of this rule still names the post-NAT port and must be adjusted
+  Inbound mail  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to '10.20.0.25' because of NAT rule 'Mail DNAT'; check that this rule is meant to cover the translated traffic
+  DMZ updates  ->  exact  (emitted as 1 rule of policy-global)
+      [info] NEGATION_EXPANDED: a rule of StoneOS cannot negate: written as an address entry of the addresses that are left
+  ICMPv6 basics  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp6-128+icmp6-135+icmp6-136' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0.
+
+NAT rules
+  Web DNAT  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from eth0; the rule written applies to traffic from every zone
+      [approximated] HILLSTONE_NAT_ZONE: the destination zones of the rule are not written: a dnatrule names none
+  Mail DNAT  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from eth0; the rule written applies to traffic from every zone
+      [approximated] HILLSTONE_NAT_ZONE: the destination zones of the rule are not written: a dnatrule names none

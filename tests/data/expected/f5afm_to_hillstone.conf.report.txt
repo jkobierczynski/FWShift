@@ -1,0 +1,52 @@
+FWShift conversion report
+  source: f5-afm
+  target: hillstone
+
+Summary
+  Security rules:     42   exact 36, approximated 0, needs review 6 (6 emitted disabled), skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10055 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface external / zone "FWS_external"; interface internal / zone "FWS_internal"; interface dmz / zone "dmz"
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  global/admins_continue>rd0/dmz_no_inside  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  global/reject_telnet  ->  exact  (emitted as 2 rules of policy-global)
+      [info] REJECT_AS_DENY: action reset-client: written as deny
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  global/old_rule  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] ZONE_DYNAMIC: 'partners' holds members only its platform knows.
+  global/partners_in@vs_web  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] ZONE_DYNAMIC: 'partners' holds members only its platform knows.
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'partners' holds members only its platform knows. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled  (emitted as 2 rules of policy-global)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] ZONE_DYNAMIC: 'partners' holds members only its platform knows.
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as 2 rules of policy-global)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] ZONE_DYNAMIC: 'partners' holds members only its platform knows.
+  global/inspect_irule>rd0/dmz_no_inside  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  rd0/dmz_no_inside  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule

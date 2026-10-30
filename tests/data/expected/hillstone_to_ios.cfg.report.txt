@@ -1,0 +1,74 @@
+FWShift conversion report
+  source: hillstone
+  target: ios
+
+Summary
+  Security rules:     14   exact 3, approximated 2, needs review 9 (7 emitted disabled), skipped 0
+  NAT rules:           9   exact 3, approximated 0, needs review 0, skipped 6
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_NAT_ORDER: DNAT is looked up before the route and the policy, SNAT after the route; the rules were read as naming the destination before DNAT and the zone after it, which is what Hillstone's troubleshooting guide shows (one of its configuration examples names the translated address instead): check the rules for translated traffic on the firewall
+  [needs-review] HILLSTONE_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with show service predefined: HTTP, HTTPS, SSH, PING, DNS
+  [needs-review] IOS_LOAD: the output is configuration commands for the zone-based firewall (section 10): paste them in configuration mode; nothing changes until interfaces are put in the zones (zone-member security, commented at the end). Names start with FWS-: IOS adds to an access list or class map that exists
+  [needs-review] IOS_ZONE_MEMBERS: an interface in a zone passes only what the zone pairs let through, and nothing to an interface in no zone; traffic to and from the router itself (the self zone) is not written. Put every interface that forwards traffic in a zone
+  [needs-review] IOS_ZBFW_NAT: the class maps were written for the inside address of a static translation (the destination after translation), as the zone-based firewall is read to see it. Cisco does not document this; check one translated connection on the router
+  [info] HILLSTONE_SOURCE: 4 zones (trust, untrust, dmz, lab); 14 rules of the policy, first match in the order of the configuration (not by id)
+  [info] HILLSTONE_ANY: the address Any is read as every IPv4 address and IPv6-any as every IPv6 address
+  [info] HILLSTONE_REJECT: action reject: read as a deny that answers the client: lab-to-inside
+  [info] HILLSTONE_SCHEDULE: rules with a schedule: schedules are not converted, a target writes these rules disabled: app-clients: office-hours
+  [info] HILLSTONE_DEFAULTS: what no rule matches, between zones and inside a zone (default-action): deny
+  [info] IOS_INTRAZONE: zone pairs from a zone to itself decide traffic inside a zone (IOS 15.0(1)M and IOS XE); IOS passes it otherwise
+  [info] LOGGING_CONVERTED: rules of the source log; their drop and pass actions log
+
+Security rules
+  inside-to-web  ->  exact
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  publish-web  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'pub-web' with post-NAT 'web-srv' because of NAT rule 'dnatrule 1'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'dnatrule 1' also translates the port to 8080: the service of this rule (HTTP) named the pre-NAT port only, and now names 8080, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+  block-country  ->  needs-review, emitted disabled
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-country': address entry blocked-country: country XX, which the configuration does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: the destination 'blocked-country' holds members only its platform knows; an access list names addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  lab-to-inside  ->  needs-review
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [info] REJECT_AS_DENY: action reset-client: the zone-based firewall drops without an answer
+  inside-to-servers  ->  needs-review
+      [needs-review] HILLSTONE_DNAT_INSIDE: names servers, which holds an address that dnatrule 1, dnatrule 2, dnatrule 3 translate(s) to: read as the address a packet has before DNAT; if the firewall matches rules after DNAT, the rule also matches the connections translated to it
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-srv', the address NAT rule 'dnatrule 1' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+  lab-updates  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object update-site: an access list of IOS names addresses.
+  app-clients  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule office-hours is not converted.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object files.example.org: an access list of IOS names addresses.
+  p2p  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: application BitTorrent: application identification narrows the match.
+  tunnels-to-partners  ->  needs-review, emitted disabled
+      [needs-review] ZONE_DYNAMIC: the destination 'partners' holds members only its platform knows; an access list names addresses.
+  to-branch-vpn  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action tunnel vpn-to-branch: traffic of a VPN tunnel only.
+  contractors-out  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'wild-hosts': address entry wild-hosts: wildcard address '10.10.0.5 0.0.255.0'.
+      [needs-review] USER_MATCH: source user match role contractors is not converted.
+      [needs-review] ZONE_DYNAMIC: the source 'wild-hosts' holds members only its platform knows; an access list names addresses.
+  rule 13  ->  approximated
+      [approximated] IOS_PASS: protocols other than TCP, UDP and ICMP are let through with pass, which is one way: their replies need a pass from the other zone, which is not written, so the converted rule allows less
+
+NAT rules
+  bnatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations
+  dnatrule 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations
+  dnatrule 3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations
+  dnatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations
+  snatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations
+  snatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations

@@ -1,0 +1,547 @@
+configure terminal
+address-object ipv4 "DNS" host 192.0.0.8 zone Domain
+address-object ipv4 "LocalSubnet" host 192.0.0.8 zone Domain
+address-object ipv4 "LocalSubnet6" host 192.0.0.8 zone Domain
+address-object ipv4 "LocalSubnet4" host 192.0.0.8 zone Domain
+address-object ipv4 "h 192.0.2.66" host 192.0.2.66 zone Domain
+address-object ipv6 "h 2001:db8:66::1" host 2001:db8:66::1 zone Domain
+address-object ipv4 "n 192.0.2.128_25" network 192.0.2.128 255.255.255.128 zone Domain
+address-object ipv4 "n 203.0.113.0_24" network 203.0.113.0 255.255.255.0 zone Domain
+address-object ipv4 "r 198.51.100.10-198.51.100.20" range 198.51.100.10 198.51.100.20 zone Domain
+address-object ipv4 "n 10.0.0.0_8" network 10.0.0.0 255.0.0.0 zone Domain
+address-object ipv6 "n 2001:db8:abcd::_48" network 2001:db8:abcd:: /48 zone Domain
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone Domain
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone Domain
+address-object ipv4 "n 192.0.2.0_24" network 192.0.2.0 255.255.255.0 zone Domain
+address-object ipv4 "n 10.20.0.0_16" network 10.20.0.0 255.255.0.0 zone Domain
+address-object ipv6 "n 2001:db8:20::_48" network 2001:db8:20:: /48 zone Domain
+address-object ipv4 "h 10.10.0.5" host 10.10.0.5 zone Domain
+address-object ipv6 "h 2001:db8:10::5" host 2001:db8:10::5 zone Domain
+address-object ipv4 "n 10.10.0.0_16" network 10.10.0.0 255.255.0.0 zone Domain
+address-object ipv4 "h 198.51.100.1" host 198.51.100.1 zone Domain
+address-object ipv6 "n ::_1" network :: /1 zone Domain
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone Domain
+address-object ipv4 "h 10.30.0.20" host 10.30.0.20 zone Domain
+address-group ipv4 "src Block the scanner networks"
+    address-object ipv4 "n 203.0.113.0_24"
+    address-object ipv4 "r 198.51.100.10-198.51.100.20"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv4 "src Remote Desktop from the admi"
+    address-object ipv4 "n 192.0.2.0_24"
+    address-object ipv4 "n 10.20.0.0_16"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
+service-object "tcp-5986" TCP 5986 5986
+service-object "tcp-3389" TCP 3389 3389
+service-object "tcp-23" TCP 23 23
+service-object "tcp-445_139 tcp 445" TCP 445 445
+service-object "tcp-445_139 tcp 139" TCP 139 139
+service-group "tcp-445_139"
+    service-object "tcp-445_139 tcp 445"
+    service-object "tcp-445_139 tcp 139"
+    exit
+service-object "tcp-5985" TCP 5985 5985
+service-object "tcp-443_80 tcp 443" TCP 443 443
+service-object "tcp-443_80 tcp 80" TCP 80 80
+service-group "tcp-443_80"
+    service-object "tcp-443_80 tcp 443"
+    service-object "tcp-443_80 tcp 80"
+    exit
+service-object "udp-53" UDP 53 53
+service-object "tcp-445" TCP 445 445
+service-object "tcp-22" TCP 22 22
+service-object "tcp-80_443 tcp 80" TCP 80 80
+service-object "tcp-80_443 tcp 443" TCP 443 443
+service-group "tcp-80_443"
+    service-object "tcp-80_443 tcp 80"
+    service-object "tcp-80_443 tcp 443"
+    exit
+service-object "tcp-50000-50100" TCP 50000 50100
+service-object "tcp-8443" TCP 8443 8443
+service-object "tcp-all" TCP 1 65535
+service-object "udp-5353" UDP 5353 5353
+service-object "udp-3544" UDP 3544 3544
+service-object "tcp-9100" TCP 9100 9100
+service-object "udp-1900" UDP 1900 1900
+service-object "tcp-10000-10010" TCP 10000 10010
+access-rule ipv4 from Private to Host action allow source address any service name "tcp-5986" destination address any
+    name "Management over IPsec, overridin"
+    priority manual 1
+    no enable
+    exit
+access-rule ipv4 from Public to Host action allow source address any service name "tcp-5986" destination address any
+    name "Management over IPsec, overrid 3"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from Host to Domain action discard source address any service any destination address name "h 192.0.2.66"
+    name "Block a known bad host"
+    priority manual 3
+    exit
+access-rule ipv4 from Host to Private action discard source address any service any destination address name "h 192.0.2.66"
+    name "Block a known bad host 3"
+    priority manual 4
+    exit
+access-rule ipv4 from Host to Public action discard source address any service any destination address name "h 192.0.2.66"
+    name "Block a known bad host 5"
+    priority manual 5
+    exit
+access-rule ipv4 from Domain to Host action discard source address name "n 192.0.2.128_25" service name "tcp-3389" destination address any
+    name "Block RDP from the guest half of"
+    priority manual 6
+    exit
+access-rule ipv4 from Private to Host action discard source address name "n 192.0.2.128_25" service name "tcp-3389" destination address any
+    name "Block RDP from the guest half 2"
+    priority manual 7
+    exit
+access-rule ipv4 from Public to Host action discard source address name "n 192.0.2.128_25" service name "tcp-3389" destination address any
+    name "Block RDP from the guest half 3"
+    priority manual 8
+    exit
+access-rule ipv4 from Host to Private action discard source address any service name "tcp-23" destination address any
+    name "Block telnet out"
+    priority manual 9
+    exit
+access-rule ipv4 from Host to Public action discard source address any service name "tcp-23" destination address any
+    name "Block telnet out 3"
+    priority manual 10
+    exit
+access-rule ipv4 from Private to Host action discard source address group "src Block the scanner networks" service any destination address any
+    name "Block the scanner networks"
+    priority manual 11
+    exit
+access-rule ipv4 from Public to Host action discard source address group "src Block the scanner networks" service any destination address any
+    name "Block the scanner networks 2"
+    priority manual 12
+    exit
+access-rule ipv4 from Public to Host action discard source address any service group "tcp-445_139" destination address any
+    name "Block SMB on public networks"
+    priority manual 13
+    exit
+access-rule ipv4 from Domain to Host action allow source address name "n 10.0.0.0_8" service name "tcp-5985" destination address any
+    name "Allow WinRM from management"
+    priority manual 14
+    exit
+access-rule ipv4 from Host to Private action allow source address any service group "tcp-443_80" destination address any
+    name "Web out on private networks"
+    priority manual 15
+    exit
+access-rule ipv4 from Host to Private action allow source address any service name "udp-53" destination address group "DNS"
+    name "DNS out on private networks"
+    priority manual 16
+    no enable
+    exit
+access-rule ipv4 from Domain to Host action allow source address group "LocalSubnet" service name "tcp-445" destination address any
+    name "SMB from the local subnet"
+    priority manual 17
+    no enable
+    exit
+access-rule ipv4 from Private to Host action allow source address group "LocalSubnet" service name "tcp-445" destination address any
+    name "SMB from the local subnet 2"
+    priority manual 18
+    no enable
+    exit
+access-rule ipv4 from Domain to Host action allow source address name "n 10.0.0.0_8" service name "udp-53" destination address any
+    name "DNS server"
+    priority manual 19
+    exit
+access-rule ipv4 from Private to Host action allow source address any service name "Ping" destination address any
+    name "Echo request (ICMPv4-In)"
+    priority manual 20
+    exit
+access-rule ipv4 from Public to Host action allow source address any service name "Ping" destination address any
+    name "Echo request (ICMPv4-In) 2"
+    priority manual 21
+    exit
+access-rule ipv4 from Private to Host action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Fragmentation needed and time ex"
+    priority manual 22
+    no enable
+    exit
+access-rule ipv4 from Public to Host action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Fragmentation needed and time 2"
+    priority manual 23
+    no enable
+    exit
+access-rule ipv4 from Private to Host action allow source address group "src Remote Desktop from the admi" service name "tcp-3389" destination address any
+    name "Remote Desktop from the admin ne"
+    priority manual 24
+    exit
+access-rule ipv4 from Private to Host action allow source address any service group "tcp-80_443" destination address name "h 10.10.0.5"
+    name "Web server"
+    priority manual 25
+    exit
+access-rule ipv4 from Public to Host action allow source address any service group "tcp-80_443" destination address name "h 10.10.0.5"
+    name "Web server 3"
+    priority manual 26
+    exit
+access-rule ipv4 from Private to Host action allow source address name "n 10.10.0.0_16" service name "tcp-50000-50100" destination address any
+    name "FTP passive ports"
+    priority manual 27
+    exit
+access-rule ipv4 from Private to Host action allow source address group "LocalSubnet4" service any destination address any
+    name "SNMP from the local subnet"
+    priority manual 28
+    no enable
+    exit
+access-rule ipv4 from Public to Host action allow source address group "LocalSubnet4" service any destination address any
+    name "SNMP from the local subnet 2"
+    priority manual 29
+    no enable
+    exit
+access-rule ipv4 from Private to Host action allow source address name "h 198.51.100.1" service any destination address any
+    name "GRE from the tunnel peer"
+    priority manual 30
+    no enable
+    exit
+access-rule ipv4 from Public to Host action allow source address name "h 198.51.100.1" service any destination address any
+    name "GRE from the tunnel peer 2"
+    priority manual 31
+    no enable
+    exit
+access-rule ipv4 from Private to Host action allow source address any service name "tcp-8443" destination address any
+    name "Example application server"
+    priority manual 32
+    no enable
+    exit
+access-rule ipv4 from Public to Host action allow source address any service name "tcp-8443" destination address any
+    name "Example application server 3"
+    priority manual 33
+    no enable
+    exit
+access-rule ipv4 from Private to Host action allow source address any service name "tcp-all" destination address any
+    name "Print spooler (RPC)"
+    priority manual 34
+    no enable
+    exit
+access-rule ipv4 from Public to Host action allow source address any service name "tcp-all" destination address any
+    name "Print spooler (RPC) 3"
+    priority manual 35
+    no enable
+    exit
+access-rule ipv4 from Domain to Host action allow source address any service name "tcp-22" destination address any
+    name "OpenSSH server"
+    priority manual 36
+    no enable
+    exit
+access-rule ipv4 from Private to Host action allow source address any service name "tcp-22" destination address any
+    name "OpenSSH server 3"
+    priority manual 37
+    no enable
+    exit
+access-rule ipv4 from Public to Host action allow source address any service name "tcp-22" destination address any
+    name "OpenSSH server 5"
+    priority manual 38
+    no enable
+    exit
+access-rule ipv4 from Private to Host action allow source address any service name "udp-5353" destination address any
+    name "mDNS on wireless"
+    priority manual 39
+    no enable
+    exit
+access-rule ipv4 from Public to Host action allow source address any service name "udp-5353" destination address any
+    name "mDNS on wireless 3"
+    priority manual 40
+    no enable
+    exit
+access-rule ipv4 from Public to Host action allow source address any service name "udp-3544" destination address any
+    name "Game server through edge travers"
+    priority manual 41
+    exit
+access-rule ipv4 from Private to Host action allow source address any service name "tcp-9100" destination address any
+    name "Printer port"
+    priority manual 42
+    no enable
+    exit
+access-rule ipv4 from Public to Host action allow source address any service name "tcp-9100" destination address any
+    name "Printer port 3"
+    priority manual 43
+    no enable
+    exit
+access-rule ipv4 from Domain to Host action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "A rule Windows cannot parse"
+    priority manual 44
+    no enable
+    exit
+access-rule ipv4 from Private to Host action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "A rule Windows cannot parse 3"
+    priority manual 45
+    no enable
+    exit
+access-rule ipv4 from Public to Host action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "A rule Windows cannot parse 5"
+    priority manual 46
+    no enable
+    exit
+access-rule ipv4 from Private to Host action allow source address group "LocalSubnet" service name "udp-1900" destination address any
+    name "SSDP discovery"
+    priority manual 47
+    no enable
+    exit
+access-rule ipv4 from Public to Host action allow source address group "LocalSubnet" service name "udp-1900" destination address any
+    name "SSDP discovery 2"
+    priority manual 48
+    no enable
+    exit
+access-rule ipv4 from Domain to Host action allow source address any service name "udp-53" destination address any
+    name "DNS server (local copy)"
+    priority manual 49
+    no enable
+    exit
+access-rule ipv4 from Private to Host action allow source address any service name "udp-53" destination address any
+    name "DNS server (local copy) 3"
+    priority manual 50
+    no enable
+    exit
+access-rule ipv4 from Public to Host action allow source address any service name "udp-53" destination address any
+    name "DNS server (local copy) 5"
+    priority manual 51
+    no enable
+    exit
+access-rule ipv4 from Host to Private action allow source address any service name "tcp-10000-10010" destination address name "h 10.30.0.20"
+    name "Backup agent to the backup serve"
+    priority manual 52
+    exit
+access-rule ipv4 from Host to Public action allow source address any service name "tcp-10000-10010" destination address name "h 10.30.0.20"
+    name "Backup agent to the backup ser 2"
+    priority manual 53
+    exit
+access-rule ipv4 from Host to Domain action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "x(default) outbound"
+    priority manual 54
+    exit
+access-rule ipv4 from Host to Public action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "x(default) outbound 3"
+    priority manual 55
+    exit
+access-rule ipv4 from Domain to Domain action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Domain to Domain"
+    priority manual 56
+    exit
+access-rule ipv4 from Domain to Host action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Domain to Host"
+    priority manual 57
+    exit
+access-rule ipv4 from Domain to Private action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Domain to Private"
+    priority manual 58
+    exit
+access-rule ipv4 from Domain to Public action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Domain to Public"
+    priority manual 59
+    exit
+access-rule ipv4 from Host to Host action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Host to Host"
+    priority manual 60
+    exit
+access-rule ipv4 from Host to Private action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Host to Private"
+    priority manual 61
+    exit
+access-rule ipv4 from Private to Domain action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Private to Domain"
+    priority manual 62
+    exit
+access-rule ipv4 from Private to Host action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Private to Host"
+    priority manual 63
+    exit
+access-rule ipv4 from Private to Private action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Private to Private"
+    priority manual 64
+    exit
+access-rule ipv4 from Private to Public action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Private to Public"
+    priority manual 65
+    exit
+access-rule ipv4 from Public to Domain action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Public to Domain"
+    priority manual 66
+    exit
+access-rule ipv4 from Public to Host action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Public to Host"
+    priority manual 67
+    exit
+access-rule ipv4 from Public to Private action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Public to Private"
+    priority manual 68
+    exit
+access-rule ipv4 from Public to Public action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Public to Public"
+    priority manual 69
+    exit
+access-rule ipv6 from Private to Host action allow source address any service name "tcp-5986" destination address any
+    name "Management over IPsec, overrid 2"
+    no enable
+    exit
+access-rule ipv6 from Public to Host action allow source address any service name "tcp-5986" destination address any
+    name "Management over IPsec, overrid 4"
+    no enable
+    exit
+access-rule ipv6 from Host to Domain action discard source address any service any destination address name "h 2001:db8:66::1"
+    name "Block a known bad host 2"
+    exit
+access-rule ipv6 from Host to Private action discard source address any service any destination address name "h 2001:db8:66::1"
+    name "Block a known bad host 4"
+    exit
+access-rule ipv6 from Host to Public action discard source address any service any destination address name "h 2001:db8:66::1"
+    name "Block a known bad host 6"
+    exit
+access-rule ipv6 from Host to Private action discard source address any service name "tcp-23" destination address any
+    name "Block telnet out 2"
+    exit
+access-rule ipv6 from Host to Public action discard source address any service name "tcp-23" destination address any
+    name "Block telnet out 4"
+    exit
+access-rule ipv6 from Public to Host action discard source address any service group "tcp-445_139" destination address any
+    name "Block SMB on public networks 2"
+    exit
+access-rule ipv6 from Host to Private action allow source address any service group "tcp-443_80" destination address any
+    name "Web out on private networks 2"
+    exit
+access-rule ipv6 from Domain to Host action allow source address name "n 2001:db8:abcd::_48" service name "tcp-22" destination address any
+    name "SSH from the IPv6 jump hosts"
+    exit
+access-rule ipv6 from Private to Host action allow source address name "n 2001:db8:abcd::_48" service name "tcp-22" destination address any
+    name "SSH from the IPv6 jump hosts 2"
+    exit
+access-rule ipv6 from Public to Host action allow source address name "n 2001:db8:abcd::_48" service name "tcp-22" destination address any
+    name "SSH from the IPv6 jump hosts 3"
+    exit
+access-rule ipv6 from Private to Host action allow source address name "n 2001:db8:20::_48" service name "tcp-3389" destination address any
+    name "Remote Desktop from the admin 2"
+    exit
+access-rule ipv6 from Private to Host action allow source address any service group "tcp-80_443" destination address name "h 2001:db8:10::5"
+    name "Web server 2"
+    exit
+access-rule ipv6 from Public to Host action allow source address any service group "tcp-80_443" destination address name "h 2001:db8:10::5"
+    name "Web server 4"
+    exit
+access-rule ipv6 from Private to Host action allow source address any service name "tcp-8443" destination address any
+    name "Example application server 2"
+    no enable
+    exit
+access-rule ipv6 from Public to Host action allow source address any service name "tcp-8443" destination address any
+    name "Example application server 4"
+    no enable
+    exit
+access-rule ipv6 from Private to Host action allow source address any service name "tcp-all" destination address any
+    name "Print spooler (RPC) 2"
+    no enable
+    exit
+access-rule ipv6 from Public to Host action allow source address any service name "tcp-all" destination address any
+    name "Print spooler (RPC) 4"
+    no enable
+    exit
+access-rule ipv6 from Domain to Host action allow source address any service name "tcp-22" destination address any
+    name "OpenSSH server 2"
+    no enable
+    exit
+access-rule ipv6 from Private to Host action allow source address any service name "tcp-22" destination address any
+    name "OpenSSH server 4"
+    no enable
+    exit
+access-rule ipv6 from Public to Host action allow source address any service name "tcp-22" destination address any
+    name "OpenSSH server 6"
+    no enable
+    exit
+access-rule ipv6 from Private to Host action allow source address any service name "udp-5353" destination address any
+    name "mDNS on wireless 2"
+    no enable
+    exit
+access-rule ipv6 from Public to Host action allow source address any service name "udp-5353" destination address any
+    name "mDNS on wireless 4"
+    no enable
+    exit
+access-rule ipv6 from Public to Host action allow source address any service name "udp-3544" destination address any
+    name "Game server through edge trave 2"
+    exit
+access-rule ipv6 from Private to Host action allow source address any service name "tcp-9100" destination address any
+    name "Printer port 2"
+    no enable
+    exit
+access-rule ipv6 from Public to Host action allow source address any service name "tcp-9100" destination address any
+    name "Printer port 4"
+    no enable
+    exit
+access-rule ipv6 from Domain to Host action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "A rule Windows cannot parse 2"
+    no enable
+    exit
+access-rule ipv6 from Private to Host action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "A rule Windows cannot parse 4"
+    no enable
+    exit
+access-rule ipv6 from Public to Host action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "A rule Windows cannot parse 6"
+    no enable
+    exit
+access-rule ipv6 from Domain to Host action allow source address any service name "udp-53" destination address any
+    name "DNS server (local copy) 2"
+    no enable
+    exit
+access-rule ipv6 from Private to Host action allow source address any service name "udp-53" destination address any
+    name "DNS server (local copy) 4"
+    no enable
+    exit
+access-rule ipv6 from Public to Host action allow source address any service name "udp-53" destination address any
+    name "DNS server (local copy) 6"
+    no enable
+    exit
+access-rule ipv6 from Host to Domain action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "x(default) outbound 2"
+    exit
+access-rule ipv6 from Host to Public action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "x(default) outbound 4"
+    exit
+access-rule ipv6 from Domain to Domain action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Domain to Domain v6"
+    exit
+access-rule ipv6 from Domain to Host action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Domain to Host v6"
+    exit
+access-rule ipv6 from Domain to Private action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Domain to Private v6"
+    exit
+access-rule ipv6 from Domain to Public action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Domain to Public v6"
+    exit
+access-rule ipv6 from Host to Host action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Host to Host v6"
+    exit
+access-rule ipv6 from Host to Private action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Host to Private v6"
+    exit
+access-rule ipv6 from Private to Domain action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Private to Domain v6"
+    exit
+access-rule ipv6 from Private to Host action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Private to Host v6"
+    exit
+access-rule ipv6 from Private to Private action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Private to Private v6"
+    exit
+access-rule ipv6 from Private to Public action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Private to Public v6"
+    exit
+access-rule ipv6 from Public to Domain action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Public to Domain v6"
+    exit
+access-rule ipv6 from Public to Host action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Public to Host v6"
+    exit
+access-rule ipv6 from Public to Private action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Public to Private v6"
+    exit
+access-rule ipv6 from Public to Public action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Public to Public v6"
+    exit
+commit
+exit

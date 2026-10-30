@@ -1,0 +1,458 @@
+FWShift conversion report
+  source: ios
+  target: f5-afm
+
+Summary
+  Security rules:    204   exact 0, approximated 137, needs review 67 (67 emitted disabled), skipped 0
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] F5AFM_LOAD: the output is a file for 'tmsh load sys config merge file' (section 10): address lists, port lists, the rule list /Common/FWShift_rules and the policy /Common/FWShift. Load it with 'verify' first. The merge changes objects of the same name that exist: check that none does. The policy is enforced in no context: attach it to the global context, a route domain or a virtual server yourself. Allow rules are accept-decisively and the list ends with the default, so the policy decides alone wherever it is attached; the BIG-IP still lets through only traffic that a virtual server takes, which FWShift does not create
+  [needs-review] F5AFM_VLANS_REQUIRED: the rules name these VLANs as the zones they come from, which must exist on the BIG-IP under these names (--zone-map renames): /Common/DMZ, /Common/INSIDE, /Common/LAB, /Common/MGMT, /Common/OUTSIDE
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] F5AFM_ICMP_CONTEXT: the policy has ICMP rules: the BIG-IP ignores ICMP rules in the virtual server and self IP contexts, so attach the policy to the global or a route domain context for them to apply
+
+Security rules
+  WAN-IN-10 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as WAN-IN-10__OUTSIDE_to_OUTSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone OUTSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-20 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as WAN-IN-20__OUTSIDE_to_OUTSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone OUTSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-40 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-40__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-50 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-50__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-60 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-60__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-70 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-70__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-80 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-80__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-90 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-90__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-100 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-100__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-110 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-110__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-120 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-120__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130__OUTSIDE_to_OUTSIDE_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN-140 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-140__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN-IN implicit deny (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as WAN-IN_implicit_deny__OUTSIDE_to_OUTSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone OUTSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-10 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-10__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN6-IN-20 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-20__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN6-IN-30 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-30__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN6-IN-40 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-40__OUTSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  WAN6-IN-50 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as WAN6-IN-50__OUTSIDE_to_OUTSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone OUTSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN implicit deny (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as WAN6-IN_implicit_deny__OUTSIDE_to_OUTSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone OUTSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-10 (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-10__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-20 (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-20__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-40___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-50___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-60___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-70___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as WAN-IN-70___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-80___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as WAN-IN-80___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-90___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as WAN-IN-90___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-100___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-110___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as WAN-IN-110___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-120___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as WAN-IN-120___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130__OUTSIDE_to_INSIDE_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone INSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind INSIDE with --zone-network.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-140___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-140___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] SERVICE_NEGATE: a negated service cannot be written: a rule of AFM has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-3  ->  approximated  (emitted as WAN-IN-140___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_-3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN implicit deny (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN_implicit_deny__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN6-IN-10___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN6-IN-20___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN6-IN-30___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN6-IN-40___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_INSIDE__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-50 (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN6-IN-50__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN implicit deny (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN6-IN_implicit_deny__OUTSIDE_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-10 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-10__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-20 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-20__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-40 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN-IN-40___DMZ-OUT-10___ZP-OUT-DMZ_CM-TO-SERVERS__OUTSIDE_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  WAN-IN-50 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN-IN-50___DMZ-OUT-10___ZP-OUT-DMZ_CM-TO-SERVERS__OUTSIDE_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  WAN-IN-60 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN-IN-60___DMZ-OUT-20___ZP-OUT-DMZ_CM-TO-SERVERS__OUTSIDE_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-70___DMZ-OUT-50__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as WAN-IN-70___DMZ-OUT-50__OUTSIDE_to_DMZ_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-80___DMZ-OUT-50__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as WAN-IN-80___DMZ-OUT-50__OUTSIDE_to_DMZ_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-90___DMZ-OUT-50__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as WAN-IN-90___DMZ-OUT-50__OUTSIDE_to_DMZ_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-100 + DMZ-OUT-30 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-100___DMZ-OUT-30___ZP-OUT-DMZ_class-default__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-100 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-100___DMZ-OUT-50__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-110___DMZ-OUT-50__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as WAN-IN-110___DMZ-OUT-50__OUTSIDE_to_DMZ_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-120 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-120___DMZ-OUT-50__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-120 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as WAN-IN-120___DMZ-OUT-50__OUTSIDE_to_DMZ_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130__OUTSIDE_to_DMZ_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  WAN-IN-140 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN-IN-140___DMZ-OUT-10___ZP-OUT-DMZ_CM-TO-SERVERS__OUTSIDE_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN-IN-140___DMZ-OUT-20___ZP-OUT-DMZ_CM-TO-SERVERS__OUTSIDE_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-140___DMZ-OUT-20___ZP-OUT-DMZ_CM-TO-SERVERS__OUTSIDE_to_DMZ_-2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  WAN-IN-140 + DMZ-OUT-30 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-140___DMZ-OUT-30___ZP-OUT-DMZ_class-default__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN-IN-140___DMZ-OUT-40___ZP-OUT-DMZ_CM-TO-SERVERS__OUTSIDE_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-140___DMZ-OUT-40___ZP-OUT-DMZ_class-default__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)-2  ->  approximated  (emitted as WAN-IN-140___DMZ-OUT-40___ZP-OUT-DMZ_class-default__OUTSIDE_to_DMZ_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-140___DMZ-OUT-50__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-140___DMZ-OUT-50__OUTSIDE_to_DMZ_-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] SERVICE_NEGATE: a negated service cannot be written: a rule of AFM has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-3  ->  approximated  (emitted as WAN-IN-140___DMZ-OUT-50__OUTSIDE_to_DMZ_-3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN implicit deny (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN_implicit_deny__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-10 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-10___no_outbound_access_list___ZP-OUT-DMZ_CM-TO-SERVERS__OUTSIDE_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  WAN6-IN-20 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-20___no_outbound_access_list___ZP-OUT-DMZ_CM-TO-SERVERS__OUTSIDE_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  WAN6-IN-30 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN6-IN-30___no_outbound_access_list___ZP-OUT-DMZ_class-default__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-40 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN6-IN-40___no_outbound_access_list___ZP-OUT-DMZ_class-default__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN6-IN-50__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN implicit deny (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN6-IN_implicit_deny__OUTSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-10 (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-10__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-20 (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-20__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-40___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-50___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-60___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-70___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-80___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-90___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-100___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-110___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-120___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-130 (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130__OUTSIDE_to_LAB_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAB, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind LAB with --zone-network.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-140___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN implicit deny (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN_implicit_deny__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN6-IN-10___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN6-IN-20___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN6-IN-30___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN6-IN-40___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_LAB__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-50 (OUTSIDE to LAB)  ->  approximated  (emitted as WAN6-IN-50__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN implicit deny (OUTSIDE to LAB)  ->  approximated  (emitted as WAN6-IN_implicit_deny__OUTSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-10 (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-10__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-20 (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-20__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-40___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-50___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-60___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-70___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-80___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-90___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-100___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-110___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-120___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130__OUTSIDE_to_MGMT_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone MGMT, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind MGMT with --zone-network.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-140___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN-IN implicit deny (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN_implicit_deny__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN6-IN-10___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN6-IN-20___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN6-IN-30___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN6-IN-40___no_outbound_access_list___no_zone_pair_from_OUTSIDE_to_MGMT__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN-50 (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN6-IN-50__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  WAN6-IN implicit deny (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN6-IN_implicit_deny__OUTSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as INSIDE__in___no_access_list___no_outbound_access_list___ZP-IN-OUT_CM-WEB__INSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)-2  ->  needs-review, emitted disabled  (emitted as INSIDE__in___no_access_list___no_outbound_access_list___ZP-IN-OUT_CM-WEB__INSIDE_to_OUTSIDE_-2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-DNS (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as INSIDE__in___no_access_list___no_outbound_access_list___ZP-IN-OUT_CM-DNS__INSIDE_to_OUTSIDE_, INSIDE__in___no_access_list___no_outbound_access_list___ZP-IN-OUT_CM-DNS__INSIDE_to_OUTSIDE__2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-MAIL-SUB (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as INSIDE__in___no_access_list___no_outbound_access_list___ZP-IN-OUT_CM-MAIL-SUB__INSIDE_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as INSIDE__in___no_access_list___no_outbound_access_list___ZP-IN-OUT_CM-VPN__INSIDE_to_OUTSIDE_)
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-PING (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as INSIDE__in___no_access_list___no_outbound_access_list___ZP-IN-OUT_CM-PING__INSIDE_to_OUTSIDE_, INSIDE__in___no_access_list___no_outbound_access_list___ZP-IN-OUT_CM-PING__INSIDE_to_OUTSIDE__2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT class-default (INSIDE to OUTSIDE)  ->  approximated  (emitted as INSIDE__in___no_access_list___no_outbound_access_list___ZP-IN-OUT_class-default__INSIDE_to_OUTSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone OUTSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  INSIDE (in): no access list (INSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as INSIDE__in___no_access_list__INSIDE_to_INSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone INSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind INSIDE with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-10 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as INSIDE__in___no_access_list___DMZ-OUT-10___ZP-IN-DMZ_CM-TO-SERVERS__INSIDE_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-20 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as INSIDE__in___no_access_list___DMZ-OUT-20___ZP-IN-DMZ_CM-TO-SERVERS__INSIDE_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-30 + ZP-IN-DMZ CM-ADMIN (INSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as INSIDE__in___no_access_list___DMZ-OUT-30___ZP-IN-DMZ_CM-ADMIN__INSIDE_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as INSIDE__in___no_access_list___DMZ-OUT-40___ZP-IN-DMZ_CM-TO-SERVERS__INSIDE_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  approximated  (emitted as INSIDE__in___no_access_list___DMZ-OUT-40___ZP-IN-DMZ_class-default__INSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  INSIDE (in): no access list + DMZ-OUT-50 (INSIDE to DMZ)  ->  approximated  (emitted as INSIDE__in___no_access_list___DMZ-OUT-50__INSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as INSIDE__in___no_access_list___no_outbound_access_list___ZP-IN-DMZ_CM-TO-SERVERS__INSIDE_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as INSIDE__in___no_access_list___no_outbound_access_list___ZP-IN-DMZ_CM-TO-SERVERS__INSIDE_to_DMZ_-2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  approximated  (emitted as INSIDE__in___no_access_list___no_outbound_access_list___ZP-IN-DMZ_class-default__INSIDE_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to LAB (INSIDE to LAB)  ->  approximated  (emitted as INSIDE__in___no_access_list___no_outbound_access_list___no_zone_pair_from_INSIDE_to_LAB__INSIDE_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to MGMT (INSIDE to MGMT)  ->  approximated  (emitted as INSIDE__in___no_access_list___no_outbound_access_list___no_zone_pair_from_INSIDE_to_MGMT__INSIDE_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-DNS (DMZ to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as DMZ__in___no_access_list___no_outbound_access_list___ZP-DMZ-OUT_CM-DNS__DMZ_to_OUTSIDE_, DMZ__in___no_access_list___no_outbound_access_list___ZP-DMZ-OUT_CM-DNS__DMZ_to_OUTSIDE__2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as DMZ__in___no_access_list___no_outbound_access_list___ZP-DMZ-OUT_CM-WEB__DMZ_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)-2  ->  needs-review, emitted disabled  (emitted as DMZ__in___no_access_list___no_outbound_access_list___ZP-DMZ-OUT_CM-WEB__DMZ_to_OUTSIDE_-2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT class-default (DMZ to OUTSIDE)  ->  approximated  (emitted as DMZ__in___no_access_list___no_outbound_access_list___ZP-DMZ-OUT_class-default__DMZ_to_OUTSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone OUTSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to INSIDE (DMZ to INSIDE)  ->  approximated  (emitted as DMZ__in___no_access_list___no_outbound_access_list___no_zone_pair_from_DMZ_to_INSIDE__DMZ_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  DMZ (in): no access list + DMZ-OUT-10 (DMZ to DMZ)  ->  needs-review, emitted disabled  (emitted as DMZ__in___no_access_list___DMZ-OUT-10__DMZ_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  DMZ (in): no access list + DMZ-OUT-20 (DMZ to DMZ)  ->  needs-review, emitted disabled  (emitted as DMZ__in___no_access_list___DMZ-OUT-20__DMZ_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  DMZ (in): no access list + DMZ-OUT-30 (DMZ to DMZ)  ->  needs-review, emitted disabled  (emitted as DMZ__in___no_access_list___DMZ-OUT-30__DMZ_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  DMZ (in): no access list + DMZ-OUT-40 (DMZ to DMZ)  ->  needs-review, emitted disabled  (emitted as DMZ__in___no_access_list___DMZ-OUT-40__DMZ_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  DMZ (in): no access list + DMZ-OUT-50 (DMZ to DMZ)  ->  approximated  (emitted as DMZ__in___no_access_list___DMZ-OUT-50__DMZ_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  DMZ (in): no access list + no outbound access list (DMZ to DMZ)  ->  needs-review, emitted disabled  (emitted as DMZ__in___no_access_list___no_outbound_access_list__DMZ_to_DMZ_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind DMZ with --zone-network.
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to LAB (DMZ to LAB)  ->  approximated  (emitted as DMZ__in___no_access_list___no_outbound_access_list___no_zone_pair_from_DMZ_to_LAB__DMZ_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to MGMT (DMZ to MGMT)  ->  approximated  (emitted as DMZ__in___no_access_list___no_outbound_access_list___no_zone_pair_from_DMZ_to_MGMT__DMZ_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-10 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as x110-10___no_outbound_access_list___ZP-LAB-OUT_CM-WEB__LAB_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  110-20 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as x110-20___no_outbound_access_list___ZP-LAB-OUT_CM-WEB__LAB_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  110-30 + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as x110-30___no_outbound_access_list___ZP-LAB-OUT_CM-DNS__LAB_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as x110-40__LAB_to_OUTSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone OUTSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to OUTSIDE)  ->  approximated  (emitted as x110-50__LAB_to_OUTSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone OUTSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110 implicit deny (LAB to OUTSIDE)  ->  approximated  (emitted as x110_implicit_deny__LAB_to_OUTSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone OUTSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as LAB__in___no_access_list___no_outbound_access_list___ZP-LAB-OUT_CM-DNS__LAB_to_OUTSIDE_, LAB__in___no_access_list___no_outbound_access_list___ZP-LAB-OUT_CM-DNS__LAB_to_OUTSIDE__2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as LAB__in___no_access_list___no_outbound_access_list___ZP-LAB-OUT_CM-WEB__LAB_to_OUTSIDE_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)-2  ->  needs-review, emitted disabled  (emitted as LAB__in___no_access_list___no_outbound_access_list___ZP-LAB-OUT_CM-WEB__LAB_to_OUTSIDE_-2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OUTSIDE, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind OUTSIDE with --zone-network.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT class-default (LAB to OUTSIDE)  ->  approximated  (emitted as LAB__in___no_access_list___no_outbound_access_list___ZP-LAB-OUT_class-default__LAB_to_OUTSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone OUTSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-10 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  approximated  (emitted as x110-10___no_outbound_access_list___no_zone_pair_from_LAB_to_INSIDE__LAB_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-20 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  approximated  (emitted as x110-20___no_outbound_access_list___no_zone_pair_from_LAB_to_INSIDE__LAB_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-30 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  approximated  (emitted as x110-30___no_outbound_access_list___no_zone_pair_from_LAB_to_INSIDE__LAB_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as x110-40__LAB_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to INSIDE)  ->  approximated  (emitted as x110-50__LAB_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110 implicit deny (LAB to INSIDE)  ->  approximated  (emitted as x110_implicit_deny__LAB_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  approximated  (emitted as LAB__in___no_access_list___no_outbound_access_list___no_zone_pair_from_LAB_to_INSIDE__LAB_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-10 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  approximated  (emitted as x110-10___DMZ-OUT-10___no_zone_pair_from_LAB_to_DMZ__LAB_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-10 + DMZ-OUT-50 (LAB to DMZ)  ->  approximated  (emitted as x110-10___DMZ-OUT-50__LAB_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-20 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  approximated  (emitted as x110-20___DMZ-OUT-10___no_zone_pair_from_LAB_to_DMZ__LAB_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-20 + DMZ-OUT-50 (LAB to DMZ)  ->  approximated  (emitted as x110-20___DMZ-OUT-50__LAB_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-30 + DMZ-OUT-50 (LAB to DMZ)  ->  approximated  (emitted as x110-30___DMZ-OUT-50__LAB_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as x110-40__LAB_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to DMZ)  ->  approximated  (emitted as x110-50__LAB_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110 implicit deny (LAB to DMZ)  ->  approximated  (emitted as x110_implicit_deny__LAB_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to DMZ (LAB to DMZ)  ->  approximated  (emitted as LAB__in___no_access_list___no_outbound_access_list___no_zone_pair_from_LAB_to_DMZ__LAB_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-10 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as x110-10__LAB_to_LAB_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAB, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind LAB with --zone-network.
+  110-20 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as x110-20__LAB_to_LAB_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAB, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind LAB with --zone-network.
+  110-30 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as x110-30__LAB_to_LAB_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAB, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind LAB with --zone-network.
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as x110-40__LAB_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to LAB)  ->  approximated  (emitted as x110-50__LAB_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110 implicit deny (LAB to LAB)  ->  approximated  (emitted as x110_implicit_deny__LAB_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAB (in): no access list (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as LAB__in___no_access_list__LAB_to_LAB_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAB, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind LAB with --zone-network.
+  110-10 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  approximated  (emitted as x110-10___no_outbound_access_list___no_zone_pair_from_LAB_to_MGMT__LAB_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-20 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  approximated  (emitted as x110-20___no_outbound_access_list___no_zone_pair_from_LAB_to_MGMT__LAB_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-30 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  approximated  (emitted as x110-30___no_outbound_access_list___no_zone_pair_from_LAB_to_MGMT__LAB_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as x110-40__LAB_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to MGMT)  ->  approximated  (emitted as x110-50__LAB_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  110 implicit deny (LAB to MGMT)  ->  approximated  (emitted as x110_implicit_deny__LAB_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  approximated  (emitted as LAB__in___no_access_list___no_outbound_access_list___no_zone_pair_from_LAB_to_MGMT__LAB_to_MGMT_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone MGMT; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to OUTSIDE (MGMT to OUTSIDE)  ->  approximated  (emitted as MGMT__in___no_access_list___no_outbound_access_list___no_zone_pair_from_MGMT_to_OUTSIDE__MGMT_to_OUTSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone OUTSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to INSIDE (MGMT to INSIDE)  ->  approximated  (emitted as MGMT__in___no_access_list___no_outbound_access_list___no_zone_pair_from_MGMT_to_INSIDE__MGMT_to_INSIDE_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone INSIDE; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + DMZ-OUT-10 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as MGMT__in___no_access_list___DMZ-OUT-10___no_zone_pair_from_MGMT_to_DMZ__MGMT_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + DMZ-OUT-20 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as MGMT__in___no_access_list___DMZ-OUT-20___no_zone_pair_from_MGMT_to_DMZ__MGMT_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + DMZ-OUT-30 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as MGMT__in___no_access_list___DMZ-OUT-30___no_zone_pair_from_MGMT_to_DMZ__MGMT_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + DMZ-OUT-40 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as MGMT__in___no_access_list___DMZ-OUT-40___no_zone_pair_from_MGMT_to_DMZ__MGMT_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + DMZ-OUT-50 (MGMT to DMZ)  ->  approximated  (emitted as MGMT__in___no_access_list___DMZ-OUT-50__MGMT_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as MGMT__in___no_access_list___no_outbound_access_list___no_zone_pair_from_MGMT_to_DMZ__MGMT_to_DMZ_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone DMZ; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to LAB (MGMT to LAB)  ->  approximated  (emitted as MGMT__in___no_access_list___no_outbound_access_list___no_zone_pair_from_MGMT_to_LAB__MGMT_to_LAB_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone LAB; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  MGMT (in): no access list (MGMT to MGMT)  ->  needs-review, emitted disabled  (emitted as MGMT__in___no_access_list__MGMT_to_MGMT_)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone MGMT, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind MGMT with --zone-network.
+
+NAT rules
+  nat-176  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  nat-177  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  nat-178  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand

@@ -1,0 +1,59 @@
+FWShift conversion report
+  source: terraform-google (vpc-shop)
+  target: f5-afm
+
+Summary
+  Security rules:     28   exact 27, approximated 0, needs review 1 (1 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] TERRAFORM_MEMBERS: the instances a rule applies to, and that its source tags and service accounts stand for, are those of this state: instances made elsewhere (another state, by hand, a managed instance group) are not known to the converted policy
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: google_compute_security_policy. The converted policy does not hold what they do
+  [needs-review] F5AFM_LOAD: the output is a file for 'tmsh load sys config merge file' (section 10): address lists, port lists, the rule list /Common/FWShift_rules and the policy /Common/FWShift. Load it with 'verify' first. The merge changes objects of the same name that exist: check that none does. The policy is enforced in no context: attach it to the global context, a route domain or a virtual server yourself. Allow rules are accept-decisively and the list ends with the default, so the policy decides alone wherever it is attached; the BIG-IP still lets through only traffic that a virtual server takes, which FWShift does not create
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Google Cloud command line for the same resources: 11 google_compute_firewall, 5 google_compute_instance, 1 google_compute_network, 1 google_compute_network_firewall_policy, 1 google_compute_network_firewall_policy_association, 6 google_compute_network_firewall_policy_rule, 1 google_compute_region_network_firewall_policy, 1 google_compute_region_network_firewall_policy_association, 1 google_compute_region_network_firewall_policy_rule. Resources outside this state (made by hand, or by another state) are not in it
+  [info] F5AFM_ICMP_CONTEXT: the policy has ICMP rules: the BIG-IP ignores ICMP rules in the virtual server and self IP contexts, so attach the policy to the global or a route domain context for them to apply
+
+Security rules
+  implied allow egress+allow-app-from-web  ->  exact  (emitted as implied_allow_egress_allow-app-from-web, implied_allow_egress_allow-app-from-web_2)
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  allow-app-from-web  ->  exact  (emitted as allow-app-from-web, allow-app-from-web_2)
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  allow-mgmt-v6  ->  exact  (emitted as allow-mgmt-v6, allow-mgmt-v6_2)
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  pol-shop:geo-and-fqdn (in)  ->  needs-review, emitted disabled  (emitted as pol-shop_geo-and-fqdn__in_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: matches srcFqdns, srcRegionCodes, which the export does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  pol-shop:allow-dns-out (out)  ->  exact  (emitted as pol-shop_allow-dns-out__out_, pol-shop_allow-dns-out__out__2)
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+
+NAT rules
+  external-192.0.2.10  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  external-192.0.2.5  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+
+Address groups
+  targets every instance  ->  exact  (emitted as targets_every_instance)
+      [info] RENAMED: renamed to 'targets_every_instance' to fit the target's naming rules
+  targets tag:db  ->  exact  (emitted as targets_tag_db)
+      [info] RENAMED: renamed to 'targets_tag_db' to fit the target's naming rules
+  targets tag:app  ->  exact  (emitted as targets_tag_app)
+      [info] RENAMED: renamed to 'targets_tag_app' to fit the target's naming rules
+  sources tag:web  ->  exact  (emitted as sources_tag_web)
+      [info] RENAMED: renamed to 'sources_tag_web' to fit the target's naming rules
+  sources account:app@example-shop.iam.gserviceaccount.com  ->  exact  (emitted as sources_account_app_example-shop.iam.gserviceaccount.com)
+      [info] RENAMED: renamed to 'sources_account_app_example-shop.iam.gserviceaccount.com' to fit the target's naming rules
+  targets every instance in europe-west1  ->  exact  (emitted as targets_every_instance_in_europe-west1)
+      [info] RENAMED: renamed to 'targets_every_instance_in_europe-west1' to fit the target's naming rules
+
+Services
+  tcp-443,8443-8444  ->  exact  (emitted as tcp-443_8443-8444)
+      [info] RENAMED: renamed to 'tcp-443_8443-8444' to fit the target's naming rules

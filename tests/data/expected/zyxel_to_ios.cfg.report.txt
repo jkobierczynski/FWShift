@@ -1,0 +1,73 @@
+FWShift conversion report
+  source: zyxel
+  target: ios
+
+Summary
+  Security rules:     19   exact 8, approximated 5, needs review 4 (4 emitted disabled), skipped 2
+  NAT rules:           9   exact 4, approximated 1, needs review 0, skipped 4
+  Addresses:          17   exact 17, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           16   exact 16, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZYXEL_DEFAULT_SNAT: the default SNAT of the WAN trunk (connections from internal interfaces leave with the address of the WAN interface) is not a rule of the configuration and is not converted: give the target the source NAT it needs
+  [needs-review] ZYXEL_BLOCK_INTRAZONE: zones that block traffic between their members: read as a rule at the top that denies inside the zone, whatever the rules say (not confirmed on a device): DMZ
+  [needs-review] ZYXEL_FQDN: address objects of a host name (fqdn), read as names resolved for IPv4; the form is not in the CLI Reference Guide FWShift could read: PORTAL
+  [needs-review] IOS_LOAD: the output is configuration commands for the zone-based firewall (section 10): paste them in configuration mode; nothing changes until interfaces are put in the zones (zone-member security, commented at the end). Names start with FWS-: IOS adds to an access list or class map that exists
+  [needs-review] IOS_ZONE_MEMBERS: an interface in a zone passes only what the zone pairs let through, and nothing to an interface in no zone; traffic to and from the router itself (the self zone) is not written. Put every interface that forwards traffic in a zone
+  [needs-review] IOS_ZBFW_NAT: the class maps were written for the inside address of a static translation (the destination after translation), as the zone-based firewall is read to see it. Cisco does not document this; check one translated connection on the router
+  [info] ZYXEL_SOURCE: 4 zones (WAN, LAN1, DMZ, LAB); 18 rules of the security policy, first match, IPv4 and IPv6 lists one after the other. Rules to and from the firewall itself (ZyWALL) are not converted
+  [info] ZYXEL_NAT_ORDER: virtual servers and 1:1 NAT are done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT of policy routes is done after it
+  [info] ZYXEL_UNZONED: interfaces in no zone, which only rules from any or to any match: ge7
+  [info] ZYXEL_INTERFACE_OBJECT: address objects of an interface, read with the static address the configuration gives the interface: interface-subnet ge3, interface-subnet ge4, interface-ip ge1
+  [info] ZYXEL_ICMP_NAMES: ICMP types by name, read with the numbers of the IANA registry: echo, echo-request
+  [info] ZYXEL_DEFAULTS: what no rule matches (secure-policy default-rule): IPv4 deny, IPv6 deny
+  [info] IOS_INTRAZONE: zone pairs from a zone to itself decide traffic inside a zone (IOS 15.0(1)M and IOS XE); IOS passes it otherwise
+  [info] LOGGING_CONVERTED: rules of the source log; their drop and pass actions log
+
+Security rules
+  LAN1_Outgoing  ->  approximated
+      [approximated] IOS_PASS: protocols other than TCP, UDP and ICMP are let through with pass, which is one way: their replies need a pass from the other zone, which is not written, so the converted rule allows less
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  WAN_to_Mail  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to 'MAIL_SRV' because of NAT rule 'virtual-server MAIL_VS'; check that this rule is meant to cover the translated traffic
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Admin_Mgmt  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default_av); attach equivalent inspection on the target
+  LAN1_to_DMZ_Reject  ->  exact
+      [info] REJECT_AS_DENY: action reset-client: the zone-based firewall drops without an answer
+  Old_Rule  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a zone-based firewall has no disabled class: not written
+  Alice_Workhours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'WORKHOURS' is not converted; the rule would apply at all times.
+      [needs-review] USER_MATCH: source user match alice is not converted.
+      [needs-review] SCHEDULE: schedule WORKHOURS is not converted.
+  Country_Block  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'COUNTRY_X': geography XX: not an address FWShift can read. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: the source 'COUNTRY_X' holds members only its platform knows; an access list names addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Portal_Access  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object PORTAL: an access list of IOS names addresses.
+  VS_Only  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: ctmatch dnat: matches only connections that a virtual server translated.
+  ESP_Out  ->  approximated
+      [approximated] IOS_PASS: protocols other than TCP, UDP and ICMP are let through with pass, which is one way: their replies need a pass from the other zone, which is not written, so the converted rule allows less
+  V6_LAN_Out  ->  approximated
+      [approximated] IOS_PASS: protocols other than TCP, UDP and ICMP are let through with pass, which is one way: their replies need a pass from the other zone, which is not written, so the converted rule allows less
+  LAN1_to_Device  ->  skipped
+      [info] ZYXEL_DEVICE_RULE: a rule for traffic to the firewall itself (LAN1 to ZyWALL): not converted
+
+NAT rules
+  virtual-server WEB_VS  ->  approximated  (emitted as ip nat inside source)
+      [approximated] ZYXEL_NAT_LOOPBACK: nat-loopback: hosts behind the firewall that use the original address are translated as well (and their source is translated to the firewall); only the translation for traffic that arrives on the interface is converted
+  virtual-server MAIL_VS  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations
+  virtual-server ALT_VS  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations
+  virtual-server OLD_VS  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations
+  policy-route 1  ->  skipped
+      [info] ZYXEL_ROUTE_NO_SNAT: a policy route without SNAT above one with SNAT: kept as a rule that translates nothing, so that the SNAT of the routes below it does not apply to its traffic
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations
+  policy-route 3  ->  exact  (emitted as ip nat inside source)
+      [info] ZYXEL_SNAT_POOL: SNAT to the addresses of PUBLIC_RANGE, read as translation with port translation (the documentation does not say)

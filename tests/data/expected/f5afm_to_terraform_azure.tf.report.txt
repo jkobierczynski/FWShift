@@ -1,0 +1,105 @@
+FWShift conversion report
+  source: f5-afm
+  target: terraform-azure
+
+Summary
+  Security rules:     42   exact 9, approximated 15, needs review 18 (18 emitted disabled), skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] AZURE_ONE_GROUP: no zone has networks (--zone-network): one group holds every rule, inbound and outbound; associate it with every subnet the policy is for
+  [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var resource_group_name=... shows what it creates, terraform apply creates new network security groups with their rules; a group of the same name in the resource group makes it fail (it is not in the state). Then associate each group with the subnets of its networks (the comments and the output fwshift_networks), with azurerm_subnet_network_security_group_association
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
+
+Security rules
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone internal, and a security rule names no zone: give the networks behind it with --zone-network.
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone internal, and a security rule names no zone: give the networks behind it with --zone-network.
+  global/admins_continue>rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone internal, and a security rule names no zone: give the networks behind it with --zone-network.
+  global/admins_continue>rd0/dmz_no_inside  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone dmz; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  global/admins_continue>vs_web6/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone external, and a security rule names no zone: give the networks behind it with --zone-network.
+  global/admins_continue>vs_web6/(default)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone external; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  global/admins_continue>vs_web/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone external, and a security rule names no zone: give the networks behind it with --zone-network.
+  global/admins_continue>vs_web/(default)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone external; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  global/admins_continue>vs_web_http/(refused)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone external; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  global/admins_continue>vs_inbound_dmz/(default)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone dmz, external; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  global/admins_continue>vs_outbound/(default)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone dmz, internal; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  global/reject_telnet  ->  exact  (emitted as security rules of FWShift)
+      [info] RESET_ACTION: action reset-client becomes Deny: a security group has no reject
+  global/ping_in@vs_outbound  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone dmz, internal, and a security rule names no zone: give the networks behind it with --zone-network.
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone internal, and a security rule names no zone: give the networks behind it with --zone-network.
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a security rule names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone external, and a security rule names no zone: give the networks behind it with --zone-network.
+  global/partners_in@vs_web  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a security rule names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone external, and a security rule names no zone: give the networks behind it with --zone-network.
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone external; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a security rule names addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a security rule names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone dmz, external, and a security rule names no zone: give the networks behind it with --zone-network.
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a security rule names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone dmz, internal, and a security rule names no zone: give the networks behind it with --zone-network.
+  global/inspect_irule>rd0/dmz_no_inside  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone dmz; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  global/inspect_irule>vs_inbound_dmz/(default)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone dmz, external; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  global/inspect_irule>vs_outbound/(default)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone dmz, internal; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone internal, and a security rule names no zone: give the networks behind it with --zone-network.
+  rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone internal, and a security rule names no zone: give the networks behind it with --zone-network.
+  rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone internal, and a security rule names no zone: give the networks behind it with --zone-network.
+  rd0/dmz_no_inside  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone dmz; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  vs_web6/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone external, and a security rule names no zone: give the networks behind it with --zone-network.
+  vs_web6/web6_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone external, and a security rule names no zone: give the networks behind it with --zone-network.
+  vs_web6/(default)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone external; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  vs_web/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone external, and a security rule names no zone: give the networks behind it with --zone-network.
+  vs_web/(default)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone external; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  vs_web_http/(refused)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone external; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  vs_inbound_dmz/(default)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone dmz, external; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  vs_outbound/(default)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone dmz, internal; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more

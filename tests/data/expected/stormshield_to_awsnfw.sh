@@ -73,7 +73,7 @@ policy() {
 free_group fwshift-rules
 free_policy fwshift
 
-# Rule group 1: 8 rules, in the order of the policy.
+# Rule group 1: 9 rules, in the order of the policy.
 cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
 {
  "RuleVariables": {
@@ -116,7 +116,7 @@ cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
   }
  },
  "RulesSource": {
-  "RulesString": "drop ip $global_bad any -> any any (msg:\"global 1\"; flow:to_server; sid:1; rev:1;)\npass icmp $Network_internals any -> $firewall_all any (msg:\"local 2\"; flow:to_server; ip_proto:1; sid:2; rev:1;)\ndrop ip any any -> $blocked any (msg:\"local 3\"; flow:to_server; sid:3; rev:1;)\npass tcp $Network_internals any -> !$Network_internals [80,443,8080:8090] (msg:\"local 4\"; flow:to_server; sid:4; rev:1;)\nreject tcp $Network_internals any -> any 113 (msg:\"local 6\"; flow:to_server; sid:5; rev:1;)\npass ip $lab_net any -> any any (msg:\"local 12\"; flow:to_server; ip_proto:200; sid:6; rev:1;)\npass ip $lan6 any -> any any (msg:\"local 14\"; flow:to_server; sid:7; rev:1;)\ndrop ip any any -> any any (msg:\"local 16\"; flow:to_server; sid:8; rev:1;)\n"
+  "RulesString": "pass ip any any -> any any (msg:\"fwshift-replies\"; flow:to_client; sid:9; rev:1;)\ndrop ip $global_bad any -> any any (msg:\"global 1\"; flow:to_server; sid:1; rev:1;)\npass icmp $Network_internals any -> $firewall_all any (msg:\"local 2\"; flow:to_server; ip_proto:1; sid:2; rev:1;)\ndrop ip any any -> $blocked any (msg:\"local 3\"; flow:to_server; sid:3; rev:1;)\npass tcp $Network_internals any -> !$Network_internals [80,443,8080:8090] (msg:\"local 4\"; flow:to_server; sid:4; rev:1;)\nreject tcp $Network_internals any -> any 113 (msg:\"local 6\"; flow:to_server; sid:5; rev:1;)\npass ip $lab_net any -> any any (msg:\"local 12\"; flow:to_server; ip_proto:200; sid:6; rev:1;)\npass ip $lan6 any -> any any (msg:\"local 14\"; flow:to_server; sid:7; rev:1;)\ndrop ip any any -> any any (msg:\"local 16\"; flow:to_server; sid:8; rev:1;)\n"
  },
  "StatefulRuleOptions": {
   "RuleOrder": "STRICT_ORDER"

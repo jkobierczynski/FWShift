@@ -789,3 +789,58 @@ def test_azure_firewall_dnat_allows_before_the_network_rules() -> None:
     out = Report()
     assert "translatedAddress" not in cli.convert(policy, "azure-firewall", out)
     assert out.item("nat", "pub/web").findings[0].code == "AZFW_DNAT_NOT_ALLOWED"
+
+
+def test_f5_afm_accept_in_the_global_context_is_not_an_allow() -> None:
+    """On a BIG-IP in Firewall mode an accept in the global context only hands the packet on: the virtual server's
+    default still drops it. Read as an allow it would open what the BIG-IP blocks; an accept-decisively does allow."""
+    tmsh = """sys db tm.fw.defaultaction {
+    value "drop"
+}
+security firewall policy /Common/g {
+    rules {
+        web {
+            action accept
+            ip-protocol tcp
+        }
+        dns {
+            action accept-decisively
+            ip-protocol udp
+        }
+    }
+}
+security firewall global-rules {
+    enforced-policy /Common/g
+}
+ltm virtual /Common/fwd {
+    destination /Common/0.0.0.0:any
+    ip-forward
+    mask any
+    source 0.0.0.0/0
+}
+"""
+    report = Report()
+    policy = cli.load(tmsh.encode(), cli.detect_format(tmsh.encode()), report)
+    verdicts = {r.name: (r.action.value, r.services) for r in policy.rules}
+    assert verdicts["global/web>fwd/(default)"] == ("drop", ["tcp-any"])
+    assert verdicts["global/dns@fwd"] == ("allow", ["udp-any"])
+    # A PAN-OS target gets the drop, not an allow.
+    text = cli.convert(policy, "panos", Report())
+    assert "global_web_fwd__default_ action drop" in text and "global_dns_fwd action allow" in text
+
+
+def test_oci_stateless_rule_decides_over_a_stateful_one_and_needs_its_reply() -> None:
+    """OCI: when a stateless and a stateful rule of a VNIC match the same traffic, the stateless one decides and the
+    connection is not tracked, so the reply needs a rule in the other direction. Read as two allow rules, the stateful
+    one would let it through; the model blocks it first, and a PAN-OS target does not allow it."""
+    rules = [{"protocol": "6", "source": "198.51.100.0/24", "source-type": "CIDR_BLOCK", "is-stateless": stateless,
+              "tcp-options": {"destination-port-range": {"min": 443, "max": 443}}} for stateless in (True, False)]  # fmt: skip
+    answers = [{"data": [{"id": "ocid1.subnet.oc1.x.a", "display-name": "a", "vcn-id": "ocid1.vcn.oc1.x.v", "cidr-block": "10.0.1.0/24",
+                          "security-list-ids": ["ocid1.securitylist.oc1.x.l"]}]},
+               {"data": [{"id": "ocid1.securitylist.oc1.x.l", "display-name": "l", "vcn-id": "ocid1.vcn.oc1.x.v",
+                          "ingress-security-rules": rules, "egress-security-rules": []}]}]  # fmt: skip
+    policy = cli.load("\n".join(json.dumps(a) for a in answers).encode(), "oci", Report())
+    names = [r.name for r in policy.rules]
+    assert policy.rules[0].name == "a-stateless-in" and policy.rules[0].action.value == "drop" and names.index("l-in-2") > 0
+    text = cli.convert(policy, "panos", Report())
+    assert "rules a-stateless-in action drop" in text and text.index("rules a-stateless-in ") < text.index("rules l-in-2 ")

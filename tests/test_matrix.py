@@ -535,7 +535,9 @@ SAMPLES = ["asa_sample.cfg", "checkpoint_sample.json", "fortios_sample.conf", "i
            "routeros_sample.rsc", "opnsense_sample.xml", "forcepoint_sample.json",
            "terraform_aws_sample.json", "terraform_azure_sample.json", "gcp_sample.json", "ios_sample.cfg",
            "terraform_google_sample.json", "huawei_sample.cfg", "stormshield_sample.tgz",
-           "meraki_sample.json", "azurefw_sample.json", "pf_sample.conf", "screenos_sample.conf", "pix_sample.cfg", "vyos_sample.conf", "edgeos_sample.conf", "awsnfw_sample.json"]  # fmt: skip
+           "meraki_sample.json", "azurefw_sample.json", "pf_sample.conf", "screenos_sample.conf", "pix_sample.cfg", "vyos_sample.conf", "edgeos_sample.conf", "awsnfw_sample.json", "f5afm_sample.conf",
+           "oci_sample.json",
+           "winfw_sample.reg", "hillstone_sample.conf", "zyxel_sample.conf"]  # fmt: skip
 
 
 @pytest.mark.parametrize("sample", SAMPLES)
@@ -558,6 +560,8 @@ def test_matrix_of_the_samples(sample: str, tmp_path: Path) -> None:
     vendor = {"azurefw": "azure-firewall"}.get(vendor, vendor)
     vendor = {"edgeos": "vyos"}.get(vendor, vendor)  # EdgeOS is read by the VyOS reader
     vendor = {"awsnfw": "aws-network-firewall"}.get(vendor, vendor)  # (the sample is named by the module)
+    vendor = {"f5afm": "f5-afm"}.get(vendor, vendor)
+    vendor = {"winfw": "windows-firewall"}.get(vendor, vendor)
     assert data["zones_are"] == "the zones of the policy" and data["source"] == vendor
     text = out.read_text(encoding="utf-8")
     assert all(f"{conduit['from']} -> {conduit['to']}" in text for conduit in data["conduits"])

@@ -1,0 +1,65 @@
+FWShift conversion report
+  source: oci (ocid1.vcn.oc1.eu-frankfurt-1.exampleshopvcn)
+  target: forcepoint
+
+Summary
+  Security rules:     37   exact 33, approximated 2, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:     21   exact 21, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OCI_HAIRPIN: connections from inside the VCN to its own public addresses are not converted as OCI decides them: they go through the internet gateway, and the rules see public addresses at both ends (a rule that names an NSG does not match them). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] OCI_REMOTE_NSG: rules name NSGs that are not in the input: ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplemonitoringnsgotherteam. No VNIC of the input is in them, so those rules allow nothing (an NSG names NSGs of its own VCN; if VNICs are missing from the input, add them)
+  [needs-review] OCI_SERVICE_LABEL: rules name service CIDR labels whose addresses are not in the input: oci-ams-objectstorage. Those rules are not converted; add Oracle's public_ip_ranges.json and 'oci iam region list'
+  [needs-review] SMC_LOADER: the output is a Python program that loads the policy into a Security Management Center through its REST API (python3 FILE --help). It creates the elements and a new firewall policy 'FWShift' on template 'Firewall Template', checks first that every name is free, and uploads the policy to no engine: review it in the Management Client, then install it yourself. --undo deletes what a run created
+  [needs-review] TEMPLATE_RULES: the rules are written at the insert point of template 'Firewall Template': its rules above the insert point (the traffic of the engine with the SMC) come first, and its rules below come after the rules of the policy (the predefined templates refuse Ident and discard and log the rest)
+  [needs-review] SMC_NAT: NAT rules are written in order to the policy, used on every engine. Element-based NAT and the default NAT of an engine apply after them, to what they do not translate: check those on the engines
+  [info] OCI_STATELESS_REPLY: stateless rules let traffic through without tracking the connection, and some of their replies are not allowed in the other direction (a stateless rule decides over a stateful one that matches the same traffic). Those connections fail on OCI and are blocked first in the converted policy ('...-stateless-in', '...-stateless-out')
+  [info] OCI_EGRESS_PAIRS: inside the VCN a connection needs an egress rule of the sender's lists and NSGs and an ingress rule of the receiver's. Where the egress rules do not allow everything, 3 rules allow what both allow, and a rule after them blocks the rest of what those addresses send inside the VCN
+  [info] OCI_RULE_INVALID: ingress rule 3 of NSG web-nsg names NSG ocid1.networksecuritygroup.oc1.eu-frankfurt-1.exampledeletednsg, which was deleted (is-valid false): OCI ignores the rule, and so does the converted policy
+  [info] OCI_PUBLIC_ADDRESSES: the public IP addresses of the VNICs are static NAT of their primary private addresses: the internet gateway translates what comes from outside, and the rules see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] OCI_UNFILTERED: security rules are never enforced for traffic to or from 169.254.0.0/16 (instance metadata, iSCSI boot volumes, the VCN's DNS and NTP); neither does the converted policy say anything about it
+  [info] OCI_UNUSED: these security lists are associated with no subnet, or no VNIC is in these NSGs, so their rules allow nothing and were left out: spare-sl, legacy-nsg
+  [info] OCI_DEFAULT_SECURITY_LIST: these subnets use the default security list of the VCN, whose rules (as created: SSH from anywhere, ICMP type 3, every egress) are converted as they are now: web-subnet, mgmt-subnet
+  [info] OCI_UDP_FRAGMENTS: rules allow UDP to or from certain ports: OCI drops the fragments after the first of a fragmented UDP packet that such a rule allows (they carry no ports). The model has no fragments
+  [info] OCI_TERMINATED: 1 objects that are terminated or being terminated were left out
+  [info] NAME_COLLISIONS: an SMC predefines many elements (HTTPS, SSH, ...). An element of the same name that says the same is used by the loader; one that says something else stops it: convert again with --target-prefix
+
+Security rules
+  db-sl-in-1  ->  exact
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+  db-sl-in-2  ->  exact
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+  db-sl-in-3  ->  exact
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+  db-sl-in-4  ->  exact
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+  db-sl-in-6  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: ICMPv6 with an address of the other IP version (10.30.0.0/16), which matches no packet.
+  app-sl-out-2  ->  approximated
+      [approximated] OCI_SERVICE_RANGES: service CIDR label all-fra-services-in-oracle-services-network is read as the ranges Oracle publishes for it; on OCI the rule matches that traffic only through a service gateway, and the published ranges change
+  app-sl-out-4  ->  approximated
+      [approximated] OCI_SERVICE_RANGES: service CIDR label oci-fra-objectstorage is read as the ranges Oracle publishes for it; on OCI the rule matches that traffic only through a service gateway, and the published ranges change
+  app-sl-out-5  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'oci-ams-objectstorage': the addresses of the Oracle services of oci-ams-objectstorage are not in the input (add Oracle's public_ip_ranges.json and the answer of 'oci iam region list').
+
+NAT rules
+  public-203.0.113.10  ->  exact
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two NAT rules, one for each direction
+  public-203.0.113.11  ->  exact
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two NAT rules, one for each direction
+  public-203.0.113.50  ->  exact
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two NAT rules, one for each direction
+
+Address groups
+  spare-sl  ->  exact
+      [info] NOT_CREATED: not created (empty address group); rules that use it are written disabled
+  legacy-nsg  ->  exact
+      [info] NOT_CREATED: not created (empty address group); rules that use it are written disabled
+  ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplemonitoringnsgotherteam  ->  exact
+      [info] NOT_CREATED: not created (empty address group); rules that use it are written disabled
+  app-subnet+app-nsg members  ->  exact  (emitted as app-subnet_app-nsg members)
+      [info] RENAMED: renamed to 'app-subnet_app-nsg members' to fit the target's naming rules
+  oci-ams-objectstorage  ->  exact
+      [info] NOT_CREATED: not created (the addresses of the Oracle services of oci-ams-objectstorage are not in the input (add Oracle's public_ip_ranges.json and the answer of 'oci iam region list')); rules that use it are written disabled

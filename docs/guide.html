@@ -224,6 +224,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#azurefw">Azure Firewall</a></li>
       <li><a href="#awsnfw">AWS Network Firewall</a></li>
       <li><a href="#pf">pf</a></li>
+      <li><a href="#f5afm">F5 BIG-IP AFM</a></li>
+      <li><a href="#oci">Oracle Cloud (OCI)</a></li>
+      <li><a href="#hillstone">Hillstone StoneOS</a></li>
+      <li><a href="#zyxel">Zyxel ZLD</a></li>
+      <li><a href="#winfw">Windows Defender Firewall</a></li>
       <li><a href="#vyos">VyOS</a></li>
       <li><a href="#screenos">Juniper ScreenOS</a></li>
       <li><a href="#pix">Cisco PIX</a></li>
@@ -244,7 +249,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.41</div>
+  <div class="eyebrow">Field guide · version 0.42</div>
   <h1>FWShift, feature by feature</h1>
   <p class="lead">FWShift converts firewall policies between thirty-one platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
@@ -334,6 +339,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>Azure Firewall</td><td><code>azure-firewall</code></td><td>Azure CLI, REST or template JSON: a policy and its rule collection groups, or classic rules</td><td>ARM template for a new firewall policy</td></tr>
       <tr><td>AWS Network Firewall</td><td><code>aws-network-firewall</code></td><td>AWS CLI JSON of one firewall policy and its rule groups</td><td>script of AWS CLI calls</td></tr>
       <tr><td>pf (OpenBSD, FreeBSD)</td><td><code>pf</code></td><td><code>pf.conf</code>, or <code>pfctl -sr</code></td><td>ruleset for the anchor <code>fwshift</code></td></tr>
+      <tr><td>F5 BIG-IP AFM</td><td><code>f5-afm</code></td><td><code>tmsh list</code> of the firewall and its contexts</td><td>file for <code>tmsh load sys config merge</code></td></tr>
+      <tr><td>Oracle Cloud Infrastructure security lists and NSGs</td><td><code>oci</code></td><td>OCI CLI JSON of one VCN</td><td>script of OCI CLI calls</td></tr>
+      <tr><td>Hillstone StoneOS</td><td><code>hillstone</code></td><td><code>show configuration</code></td><td>configuration-mode commands</td></tr>
+      <tr><td>Zyxel ZLD (USG FLEX, ATP, VPN)</td><td><code>zyxel</code></td><td><code>startup-config.conf</code></td><td>shell script (<code>.zysh</code>) of CLI commands</td></tr>
+      <tr><td>Windows Defender Firewall</td><td><code>windows-firewall</code></td><td><code>reg export</code> of the firewall's registry keys</td><td>PowerShell script of <code>New-NetFirewallRule</code></td></tr>
       <tr><td>VyOS 1.4+ (read also VyOS 1.3, Vyatta, EdgeOS)</td><td><code>vyos</code></td><td><code>show configuration commands</code> or <code>config.boot</code></td><td><code>set</code> commands</td></tr>
       <tr><td>Juniper ScreenOS 5.x, 6.x</td><td><code>screenos</code> (source only)</td><td><code>get config</code></td><td>—</td></tr>
       <tr><td>Cisco PIX 6.x</td><td><code>pix</code> (source only)</td><td><code>write terminal</code></td><td>—</td></tr>
@@ -349,8 +359,8 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>FWShift is on PyPI: <code>pip install fwshift</code>. Each release also has the project as a zip and a single file that runs with any Python 3.9 or newer. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.41.7.pyz --version
-python3 fwshift-0.41.7.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.42.0.pyz --version
+python3 fwshift-0.42.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip, from PyPI</span>
 pip install fwshift
@@ -417,19 +427,19 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa ios huawei stormshield meraki fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure gcp terraform-aws terraform-azure terraform-google routeros forcepoint azure-firewall aws-network-firewall pf vyos json</code>.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa ios huawei stormshield meraki fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure gcp terraform-aws terraform-azure terraform-google routeros forcepoint azure-firewall aws-network-firewall pf vyos f5-afm oci hillstone zyxel windows-firewall json</code>.</td></tr>
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
-      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Azure Firewall, AWS Network Firewall, Google Cloud, Terraform, Meraki; SonicWall object zones).</td></tr>
-      <tr><td><code>--compare[=FILE]</code></td><td>Reads the output back (seventeen targets) and reports every connection it decides differently from the source (section 13).</td></tr>
+      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Azure Firewall, AWS Network Firewall, Google Cloud, Terraform, Meraki, OCI, Windows Defender Firewall; SonicWall object zones).</td></tr>
+      <tr><td><code>--compare[=FILE]</code></td><td>Reads the output back (twenty targets) and reports every connection it decides differently from the source (section 13).</td></tr>
       <tr><td><code>--inside-zone ZONE</code></td><td>AWS, Azure and Terraform: a zone inside the VPC or the virtual network; only its addresses get security groups. Meraki: a zone of the LAN of the MX.</td></tr>
       <tr><td><code>--app-map FILE</code></td><td>JSON of extra application-to-port mappings.</td></tr>
       <tr><td><code>--target-vsys</code>, <code>--target-device-group</code>, <code>--target-shared</code></td><td>Where PAN-OS output goes.</td></tr>
       <tr><td><code>--target-version SERIES</code></td><td>OPNsense: the series to write for, <code>24.7</code>, <code>25.1</code>, <code>25.7</code>, <code>26.1</code> or <code>26.7</code> (default).</td></tr>
-      <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick). VyOS: the forward filter rule that jumps, and the first NAT rule (default 10000).</td></tr>
+      <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick). VyOS: the forward filter rule that jumps, and the first NAT rule (default 10000). Hillstone: the first rule id and NAT rule id (default 10000). Zyxel: the position the rules are inserted from (default 1).</td></tr>
       <tr><td><code>--target-layer</code>, <code>--target-package</code>, <code>--target-gateway</code></td><td>Check Point layer (default <code>Network</code>), package (default <code>Standard</code>), hide-NAT gateway.</td></tr>
       <tr><td><code>--target-nat-zone ZONE</code></td><td>Destination zone for NAT rules of a source that names none; ASA interface for "NAT to the outgoing interface".</td></tr>
-      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, IOS, Huawei, Stormshield, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, NSX, AWS, Azure, Azure Firewall, AWS Network Firewall, Google Cloud, RouterOS, Forcepoint, pf, VyOS).</td></tr>
+      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, IOS, Huawei, Stormshield, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, NSX, AWS, Azure, Azure Firewall, AWS Network Firewall, Google Cloud, RouterOS, Forcepoint, pf, VyOS, F5 BIG-IP AFM, OCI, Hillstone, Zyxel, Windows Defender Firewall).</td></tr>
       <tr><td><code>--target-policy NAME</code></td><td>Name of the FMC access and NAT policy created, of the NSX security policy, of the Forcepoint firewall policy, of the Google Cloud network firewall policy, of the Azure Firewall policy, of the AWS Network Firewall policy and its rule group (default <code>FWShift</code>; <code>fwshift</code> for Google Cloud and AWS Network Firewall).</td></tr>
       <tr><td><code>--target-template NAME</code></td><td>Forcepoint: the template the new policy is based on (default <code>Firewall Template</code>).</td></tr>
       <tr><td><code>--prune-unused</code></td><td>Leave out objects no rule uses.</td></tr>
@@ -611,6 +621,11 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#azurefw"><b>Azure Firewall</b><span>policy JSON → ARM template</span></a>
     <a href="#awsnfw"><b>AWS Network Firewall</b><span>AWS CLI → script</span></a>
     <a href="#pf"><b>pf</b><span>pf.conf → anchor ruleset</span></a>
+    <a href="#f5afm"><b>F5 BIG-IP AFM</b><span>tmsh → merge file</span></a>
+    <a href="#oci"><b>Oracle Cloud (OCI)</b><span>OCI CLI → script</span></a>
+    <a href="#hillstone"><b>Hillstone StoneOS</b><span>configuration → commands</span></a>
+    <a href="#zyxel"><b>Zyxel ZLD</b><span>configuration → shell script</span></a>
+    <a href="#winfw"><b>Windows Defender Firewall</b><span>reg export → PowerShell</span></a>
     <a href="#vyos"><b>VyOS</b><span>set commands, both ways</span></a>
     <a href="#screenos"><b>Juniper ScreenOS</b><span>get config, read only</span></a>
     <a href="#pix"><b>Cisco PIX</b><span>write terminal, read only</span></a>
@@ -1399,17 +1414,128 @@ az network firewall update -g rg-hub -n fw-hub --firewall-policy FWShift   <span
 DRY_RUN=1 sh nfw.sh                                  <span class="c"># prints the calls; needs no AWS access</span>
 CHECK=1 AWS_OPTS='--region eu-west-1' sh nfw.sh      <span class="c"># every call with --dry-run</span>
 AWS_OPTS='--region eu-west-1' sh nfw.sh</pre></div>
-    <div class="callout"><b>Nothing is associated.</b> The script creates one stateful rule group of Suricata rules in strict order and one policy that forwards every packet to it, and stops before creating anything when a name exists. Every rule is for the first packet of a connection (<code>flow:to_server</code>); the policy ends in the default of the source, <code>aws:drop_strict</code> or none (<code>AWSNFW_ORDER</code>). <code>associate-firewall-policy</code> replaces a firewall's policy at once (<code>AWSNFW_LOAD</code>).</div>
+    <div class="callout"><b>Nothing is associated.</b> The script creates one stateful rule group of Suricata rules in strict order and one policy that forwards every packet to it, and stops before creating anything when a name exists. Every rule is for the first packet of a connection (<code>flow:to_server</code>); the policy ends in the default of the source, <code>aws:drop_strict</code> or none (<code>AWSNFW_ORDER</code>). With <code>aws:drop_strict</code> every packet is decided on its own, so the first rule passes the replies (<code>flow:to_client</code>, <code>AWSNFW_REPLIES</code>). <code>associate-firewall-policy</code> replaces a firewall's policy at once (<code>AWSNFW_LOAD</code>).</div>
     <h4 class="sub">Watch for</h4>
     <ul class="watch">
       <li>Stateless rules see packets: a pass rule allows where the replies pass too (<code>AWSNFW_STATELESS_REPLY</code> where they do not); connections whose replies a stateless rule drops are blocked at the top (<code>AWSNFW_REPLY_DROPPED</code>); one direction passed and the other forwarded is said (<code>AWSNFW_ASYMMETRIC</code>).</li>
       <li>A stateful rule without <code>flow:to_server</code> also matches the first reply of a flow opened the other way. The rules are read for each moment a flow can be decided, and a rule that can then decide nothing is disabled (<code>AWSNFW_NEVER_MATCHES</code>).</li>
+      <li>Strict order with <code>aws:drop_strict</code> decides every packet on its own: connections whose replies (or, for TCP, established packets) no rule passes are blocked at the top (<code>AWSNFW_STRICT_REPLIES</code>, <code>AWSNFW_REPLY_DROPPED</code>).</li>
       <li>Without <code>describe-vpcs</code> (or a <code>HOME_NET</code> of the policy), rules that name <code>HOME_NET</code> or <code>EXTERNAL_NET</code> are not converted (<code>AWSNFW_HOME_NET_UNKNOWN</code>); a rule group missing from the file is not converted (<code>AWSNFW_GROUP_MISSING</code>).</li>
       <li>Payload keywords, domain names, TCP flags, <code>flowbits</code> and <code>geoip</code> make a rule not converted; alert rules decide nothing (<code>AWSNFW_ALERT_RULES</code>).</li>
       <li>To Network Firewall: applications become their ports (<code>APP_TO_PORTS</code>); no NAT and no logging are written, and the rules are for the private addresses the firewall sees.</li>
     </ul>
     <div class="codebox"><span class="label">output · aws-network-firewall (two rules of the group)</span><button class="copy" type="button">Copy</button><pre>pass tcp [10.10.0.0/16,10.20.0.0/24] any -> [192.0.2.53/32,192.0.2.54/32] 53 (msg:"Allow-DNS"; flow:to_server; sid:2; rev:1;)
 pass udp [10.10.0.0/16,10.20.0.0/24] any -> [192.0.2.53/32,192.0.2.54/32] 53 (msg:"Allow-DNS"; flow:to_server; sid:3; rev:1;)</pre></div>
+  </article>
+  <!-- f5afm -->
+  <article class="brand" id="f5afm">
+    <h3>F5 BIG-IP AFM</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>tmsh list of the network firewall and its contexts (global, route domain, virtual server), VLANs, virtual servers, tm.fw.defaultaction</span></span><span class="port"><i>OUT</i><span>file for tmsh load sys config merge: address lists, port lists, one rule list and one policy, attached to no context</span></span><span class="port"><i>ID</i><span>f5-afm</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>In a bash shell of the BIG-IP, the <code>tmsh -q -c "cd /; list ... recursive"</code> commands of section 3 of the manual: the firewall lists and policies, <code>security zone</code>, VLANs, route domains, self IPs, virtual servers, the global and management rules, and the two <code>sys db</code> values <code>tm.fw.defaultaction</code> and <code>tm.rejectunmatched</code>. <code>bigip_base.conf</code> and <code>bigip.conf</code> together are read too, with those two lines added.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to f5-afm -o fwshift.conf --report report.txt --zone-map trust=internal --zone-map untrust=external --zone-network external=0.0.0.0/0
+tmsh load sys config merge file /var/tmp/fwshift.conf verify   <span class="c"># check it</span>
+tmsh load sys config merge file /var/tmp/fwshift.conf          <span class="c"># creates the lists and the policy, enforces it nowhere</span></pre></div>
+    <div class="callout"><b>One first-match list from three contexts.</b> AFM's contexts are read as one list: <code>accept</code> hands a packet on to the route domain and virtual server contexts, <code>accept-decisively</code> ends it, and nothing passes that no virtual server takes, so the default of ADC mode (accept) or Firewall mode (drop) is decided per virtual server. The output decides alone wherever it is attached: allow is <code>accept-decisively</code> and the last rule is the default. NAT stays with the virtual servers.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>ADC mode is assumed when <code>tm.fw.defaultaction</code> is missing (<code>F5AFM_MODE</code>); without virtual servers nothing passes (<code>F5AFM_NO_VIRTUAL_SERVERS</code>).</li>
+      <li>Self IP and management-port rules, staged policies, iRules and NAT are reported, not converted (<code>F5AFM_NAT_NOT_READ</code>).</li>
+      <li>To AFM: destination zones need <code>--zone-network</code>; rules need VLANs for zones (<code>F5AFM_VLANS_REQUIRED</code>); FQDNs need a resolver (<code>F5AFM_FQDN_RESOLVER</code>). Nothing was loaded on a BIG-IP.</li>
+    </ul>
+  </article>
+  <!-- oci -->
+  <article class="brand" id="oci">
+    <h3>Oracle Cloud Infrastructure</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>OCI CLI JSON of one VCN (security lists, NSGs, subnets, VNICs)</span></span><span class="port"><i>OUT</i><span>script of OCI CLI calls (new NSGs, attached to nothing)</span></span><span class="port"><i>ID</i><span>oci</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>The <code>oci network ...</code> answers of section 3 of the manual, one after the other in one file: <code>vcn get</code>, <code>subnet list</code>, <code>security-list list</code>, <code>nsg list</code>, <code>nsg rules list</code> for each NSG (wrapped with <code>--query "{nsgId: '...', data: data}"</code>, since a rule does not name its NSG), <code>private-ip list</code> and <code>vnic get</code>; optionally <code>oci iam region list</code> and Oracle's <code>public_ip_ranges.json</code> for service CIDR labels. <code>--policy</code> picks the VCN.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to oci -o nsgs.sh --report report.txt --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0,::/0 --inside-zone dmz
+DRY_RUN=1 sh nsgs.sh                                  <span class="c"># prints the calls</span>
+COMPARTMENT_ID=ocid1.compartment... VCN_ID=ocid1.vcn... sh nsgs.sh</pre></div>
+    <div class="callout"><b>A union of allow rules per VNIC.</b> Security lists and NSGs are one union of allow rules per VNIC; stateless rules count only where the VNIC also lets their replies through, and the stateless rule wins over a stateful one. The script creates NSGs cut by address, with the deny rules of the source subtracted, for you to put the VNICs in; the subnets' security lists keep applying.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>A connection inside the VCN needs the sender's egress rule and the receiver's ingress rule; connections whose stateless rules let no reply back are blocked at the top.</li>
+      <li>Service CIDR labels become Oracle's published ranges only where they are in the input (<code>OCI_SERVICE_RANGES</code>, approximated); public IPs are read as static NAT.</li>
+      <li>To OCI: at most 120 rules per NSG (larger ones are split); the existing security lists still allow what they allow (<code>OCI_SECURITY_LISTS</code>). The OCI CLI has no dry run, so the script's <code>DRY_RUN</code> only prints.</li>
+    </ul>
+  </article>
+  <!-- hillstone -->
+  <article class="brand" id="hillstone">
+    <h3>Hillstone StoneOS</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>show configuration (StoneOS 5.x)</span></span><span class="port"><i>OUT</i><span>configuration-mode commands</span></span><span class="port"><i>ID</i><span>hillstone</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><code>show configuration</code> saved to a file (a saved configuration is the same text). The XML form is not read.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to hillstone -o stoneos.txt --report report.txt --interface-map ethernet1/1=ethernet0/1</pre></div>
+    <div class="callout"><b>Rules added after the ones there.</b> Zones, address and service books, rules in query order and SNAT/DNAT rules are read; the policy is written as new zones, entries, services and <code>policy-global</code> rules with ids from 10000 (<code>--policy-id-start</code>), placed after the existing rules, one per pair of zones and IP version, because a StoneOS rule names one of each. Nothing is deleted or saved; move the rules where they belong.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Hillstone's documentation does not say plainly which destination address a rule names under DNAT; FWShift reads the address before DNAT and flags every rule that names a translated address (<code>HILLSTONE_DNAT_INSIDE</code>).</li>
+      <li>What no rule matches is denied, inside a zone too, unless <code>default-action permit</code>.</li>
+      <li>Schedules, applications, users and VPN actions are not converted. Much of the object syntax is assumed; nothing was run on a firewall.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · hillstone (one rule)</span><button class="copy" type="button">Copy</button><pre>policy-global
+  rule id 10000
+    name "FWS_Allow-Web-Out"
+    action permit
+    src-zone "trust"
+    dst-zone "untrust"
+    src-addr "FWS_lan-net"
+    dst-addr "Any"
+    service "FWS_apps-web-browsing-ssl"
+    log session-end
+  exit</pre></div>
+  </article>
+  <!-- zyxel -->
+  <article class="brand" id="zyxel">
+    <h3>Zyxel ZLD (USG FLEX, ATP, VPN)</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>startup-config.conf / show running-config (ZLD 4.x, 5.x)</span></span><span class="port"><i>OUT</i><span>shell script (.zysh) of CLI commands</span></span><span class="port"><i>ID</i><span>zyxel</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><code>startup-config.conf</code> from <i>Maintenance &gt; File Manager &gt; Configuration File</i>, or <code>show running-config</code>. The uOS of the USG FLEX H series is not read.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to zyxel -o fwshift.zysh --report report.txt --zone-map trust=LAN1 --zone-map untrust=WAN --interface-map ethernet1/1=ge2</pre></div>
+    <div class="callout"><b>A shell script, never a configuration file.</b> Upload it as a shell script in <i>Maintenance &gt; File Manager &gt; Shell Script</i> and run it; a <code>.conf</code> resets the firewall first. The rules go in from position 1 (<code>--policy-id-start</code>), before the firewall's own, each written inactive first and activated last, followed by the source's default for every pair of zones written; nothing is deleted or saved (<code>ZYXEL_LOAD</code>).</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Virtual servers come before the policy, so the rules name the inside address, as for FortiOS and Huawei.</li>
+      <li>What <code>block</code> in a zone does next to the rules is assumed (<code>ZYXEL_BLOCK_INTRAZONE</code>); whether <code>snat pool</code> translates ports is not documented (<code>ZYXEL_SNAT_POOL_PORTS</code>).</li>
+      <li>The default rules written per pair of zones can be many: up to twice the number of zones squared. Nothing was loaded on a firewall.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · zyxel (one rule)</span><button class="copy" type="button">Copy</button><pre>secure-policy insert 1
+ name FWS_Allow-Web-Out
+ no activate
+ from FWS_trust
+ to FWS_untrust
+ sourceip FWS_lan-net
+ service FWS_apps_web-browsing_ssl
+ action allow
+ log
+ activate
+exit</pre></div>
+  </article>
+  <!-- winfw -->
+  <article class="brand" id="winfw">
+    <h3>Windows Defender Firewall</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>reg export of the local and Group Policy stores, joined</span></span><span class="port"><i>OUT</i><span>PowerShell script of New-NetFirewallRule calls in the rule group FWShift</span></span><span class="port"><i>ID</i><span>windows-firewall</span></span></div>
+    <h4 class="sub">Export</h4>
+    <div class="codebox"><span class="label">cmd (elevated)</span><button class="copy" type="button">Copy</button><pre>reg export "HKLM\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy" local.reg /y
+reg export "HKLM\SOFTWARE\Policies\Microsoft\WindowsFirewall" gpo.reg /y
+copy /b local.reg + gpo.reg winfw.reg</pre></div>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to windows-firewall -o rules.ps1 --report report.txt --zone-map dmz=Host --zone-map untrust=Public --zone-map trust=Domain
+powershell -ExecutionPolicy Bypass -File rules.ps1 -DryRun
+powershell -ExecutionPolicy Bypass -File rules.ps1</pre></div>
+    <div class="callout"><b>Block beats allow.</b> Windows has no rule order: a block rule beats every allow rule, and what none matches gets the profile's default. FWShift reads the host as zone <code>Host</code> and the profiles as zones, and writes block rules without what the allow rules above them allowed, leaving cleanup rules to the profile default. The script changes no profile setting and deletes nothing.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Outbound is exact only where the profile's default outbound action is Block; stock Windows allows outbound, and the report and the script say so.</li>
+      <li>The host's own rules are evaluated with the new ones.</li>
+      <li>Rules that name a program, service, user, interface or IPsec are reported and written disabled. Nothing was read from or loaded on a Windows host.</li>
+    </ul>
   </article>
   <!-- pf -->
   <article class="brand" id="pf">
@@ -1781,6 +1907,11 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
       <tr><td>AWS Network Firewall</td><td>Nothing: a new rule group and policy, associated with nothing; stops if a name exists</td><td><code>DRY_RUN=1</code>, then <code>CHECK=1</code>; associate by hand</td></tr>
       <tr><td>pf</td><td>The rules of the anchor <code>fwshift</code> only</td><td><code>pfctl -vnf FILE -a fwshift</code>; add <code>anchor "fwshift"</code> to pf.conf</td></tr>
       <tr><td>VyOS</td><td>Nothing is deleted; a zone of the same name gets the output's interfaces and chains too</td><td><code>compare</code>, <code>commit-confirm 10</code>; no forward filter rule 10000</td></tr>
+      <tr><td>F5 BIG-IP AFM</td><td>Lists, a rule list and a policy of the same names (a merge); enforces nothing</td><td><code>tmsh load sys config merge file F verify</code>; attach by hand</td></tr>
+      <tr><td>OCI</td><td>Nothing: new NSGs, no VNICs in them; stops if a name exists</td><td><code>DRY_RUN=1</code>; put the VNICs in by hand</td></tr>
+      <tr><td>Hillstone</td><td>Nothing is deleted; rules with ids from 10000, after the existing ones</td><td>Check that the ids are free (<code>show policy</code>); nothing is saved</td></tr>
+      <tr><td>Zyxel</td><td>Nothing is deleted; rules inserted from position 1, inactive until complete</td><td>Run as a shell script, never as a <code>.conf</code>; nothing is saved</td></tr>
+      <tr><td>Windows Defender Firewall</td><td>Nothing: one new rule group; stops if the group exists; no profile setting changed</td><td><code>-DryRun</code>; <code>Remove-NetFirewallRule -Group FWShift</code> undoes it</td></tr>
       <tr><td>Terraform</td><td>Nothing: new groups or a policy, attached to nothing; the apply fails on a name that exists</td><td><code>terraform plan</code>; attach or associate by hand</td></tr>
       <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
       <tr><td>OPNsense</td><td>Each restored area (Aliases; NAT with NPt; the rules of both pages)</td><td>A full backup; <code>--target-version</code> of the firewall</td></tr>

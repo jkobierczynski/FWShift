@@ -73,7 +73,7 @@ policy() {
 free_group fwshift-rules
 free_policy fwshift
 
-# Rule group 1: 5 rules, in the order of the policy.
+# Rule group 1: 6 rules, in the order of the policy.
 cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
 {
  "RuleVariables": {
@@ -88,7 +88,7 @@ cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
   }
  },
  "RulesSource": {
-  "RulesString": "drop ip 0.0.0.0/0 any -> 203.0.113.128/25 any (msg:\"Nothing leaves towards the sinkhole\"; flow:to_server; sid:1; rev:1;)\ndrop ip [10.0.0.0/8,127.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7] any -> any any (msg:\"Block private networks from WAN\"; flow:to_server; sid:2; rev:1;)\ndrop ip 192.168.10.0/24 any -> $Private any (msg:\"No other private network from the LAN\"; flow:to_server; sid:3; rev:1;)\ndrop ip 192.168.30.0/24 any -> $Private any (msg:\"Guests reach nothing private\"; flow:to_server; sid:4; rev:1;)\ndrop tcp 0.0.0.0/0 any -> 0.0.0.0/0 23 (msg:\"Telnet unless a rule says otherwise\"; flow:to_server; sid:5; rev:1;)\n"
+  "RulesString": "pass ip any any -> any any (msg:\"fwshift-replies\"; flow:to_client; sid:6; rev:1;)\ndrop ip 0.0.0.0/0 any -> 203.0.113.128/25 any (msg:\"Nothing leaves towards the sinkhole\"; flow:to_server; sid:1; rev:1;)\ndrop ip [10.0.0.0/8,127.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7] any -> any any (msg:\"Block private networks from WAN\"; flow:to_server; sid:2; rev:1;)\ndrop ip 192.168.10.0/24 any -> $Private any (msg:\"No other private network from the LAN\"; flow:to_server; sid:3; rev:1;)\ndrop ip 192.168.30.0/24 any -> $Private any (msg:\"Guests reach nothing private\"; flow:to_server; sid:4; rev:1;)\ndrop tcp 0.0.0.0/0 any -> 0.0.0.0/0 23 (msg:\"Telnet unless a rule says otherwise\"; flow:to_server; sid:5; rev:1;)\n"
  },
  "StatefulRuleOptions": {
   "RuleOrder": "STRICT_ORDER"

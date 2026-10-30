@@ -13,6 +13,7 @@ Notes for the whole policy
   [needs-review] AWSNFW_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 sends each with --dry-run, without either it creates the stateful rule group fwshift-rules and the firewall policy fwshift, and stops if one of that name exists. The policy is attached to no firewall: nothing changes until you associate it (aws network-firewall associate-firewall-policy)
   [needs-review] AWSNFW_ORDER: the policy decides every packet the firewall sees, in strict order: no stateless rules (every packet goes to the stateful engine), the rules of the model in their order, each for the first packet of a connection (flow:to_server), then aws:drop_strict for what no rule passed. Check it against what the firewall's route tables send through it
   [info] LAYER2_NOT_CONVERTED: 1 rules of the Ethernet category (layer 2, before every layer-3 rule) are not converted
+  [info] AWSNFW_REPLIES: with aws:drop_strict every packet is decided on its own: the first rule of the group passes the packets that go back to the client of a flow (flow:to_client), the replies of the connections the rules below pass on their first packet
   [info] LOGGING_NOT_CONVERTED: rules of the source log; a pass rule of Network Firewall does not, a drop or reject rule sends an alert when the firewall has alert logging configured
 
 Security rules

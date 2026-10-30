@@ -1,0 +1,50 @@
+FWShift conversion report
+  source: f5-afm
+  target: sophos
+
+Summary
+  Security rules:     42   exact 36, approximated 0, needs review 5 (5 emitted disabled), skipped 1
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] SOPHOS_LOAD: the output is an Entities.xml. Put it in a tar archive under that name (or let FWShift do it: give -o a name that ends in .tar) and import it under Backup & firmware > Import export. Rules are added below the rules the firewall has: a firewall rule or NAT rule that is there already, such as the default source NAT rule of a new firewall, comes first. An import can stop at the first object the firewall does not take: compare the number of rules and objects with this report, on a firewall that is not in production
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): internal, dmz, external. Zones are not created: an import would overwrite the device access of a zone that exists
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] EXISTING_OBJECTS: an import overwrites what the firewall has under the same name: a host, a service or a rule that is in this output replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 5 rule(s) match IPv4 and IPv6 traffic and were written twice: Sophos Firewall keeps a rulebase per IP version. The name of the IPv6 rule ends in _v6
+  [info] SOPHOS_DROP_WEB: 14 rule(s) drop traffic that can be TCP to port 80 or 443 (global_block_bad, global_admins_continue_rd0_dmz_no_inside, global_admins_continue_vs_web6__default_, global_admins_continue_vs_web__default_, global_admins_continue_vs_web_http__refused_, ...). Sophos Firewall hands such traffic to its web proxy, which completes the connection itself and answers with a block page: the host is not reached, but the client sees a connection and a page, not a silent drop, and the firewall log shows the connection allowed (the web filter log blocked). For a silent refusal on those ports, Reject answers with a reset
+
+Security rules
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled  (emitted as global_office_ssh_vs_outbound)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  global/partners_in@vs_web6  ->  skipped
+      [needs-review] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation excludes everything; nothing to emit
+  global/partners_in@vs_web  ->  needs-review, emitted disabled  (emitted as global_partners_in_vs_web)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled  (emitted as global_partners_in_vs_web_http)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled  (emitted as global_partners_in_vs_inbound_dmz)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as global_partners_in_vs_outbound)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+
+Addresses
+  geo:NL  ->  exact  (emitted as geo_NL)
+      [info] RENAMED: renamed to 'geo_NL' to fit the target's naming rules
+
+Address groups
+  admins  ->  exact  (emitted as admins, admins_v6)
+      [info] GROUP_SPLIT: Sophos Firewall keeps IPv4 hosts, IPv6 hosts and host names in groups of their own: written as 'admins', 'admins_v6'
+  web_servers  ->  exact  (emitted as web_servers, web_servers_v6)
+      [info] GROUP_SPLIT: Sophos Firewall keeps IPv4 hosts, IPv6 hosts and host names in groups of their own: written as 'web_servers', 'web_servers_v6'
+  inside  ->  exact  (emitted as inside, inside_v6)
+      [info] GROUP_SPLIT: Sophos Firewall keeps IPv4 hosts, IPv6 hosts and host names in groups of their own: written as 'inside', 'inside_v6'

@@ -1,0 +1,52 @@
+FWShift conversion report
+  source: azure-firewall (fwpol-shop)
+  target: zyxel
+
+Summary
+  Security rules:     17   exact 10, approximated 0, needs review 7 (7 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZFW_DYNAMIC: addresses only Azure knows: IP group ipg-partners, service tag Storage.WestEurope. They are dynamic groups, which only an Azure Firewall target writes again; add the IP groups (az network ip-group list) and the service tags (az network list-service-tags) to the export to convert them for other targets
+  [needs-review] AZFW_THREAT_INTEL: threat intelligence mode Deny: it is applied before the rules and blocks traffic of known malicious addresses and names, which the converted policy does not. It is not a rule and is not converted
+  [needs-review] ZYXEL_NO_ZONES: the source names no zones: the rules are written from any to any, and what they do not match is decided by the rules the firewall has and by its default rule; give the rules zones (--zone-map)
+  [needs-review] ZYXEL_LOAD: the output is a script of CLI commands (section 10): new objects, zones without members, rules inserted from position 1 of the security policy on (before the rules the firewall has, which still decide what these do not match), virtual servers and policy routes, which take effect at once. Check, then save with write
+  [info] AZFW_ORDER: read in the order Azure Firewall takes the rules: firewall policy fwpol-base > fwpol-shop: DNAT rules, then network rules, then application rules, each by the priority of the rule collection group and of the rule collection, the groups of the base policy before those of the child. What no rule allows is denied; rules of one collection have one action and no order among themselves
+  [info] AZFW_IPV4_ONLY: Azure Firewall filters IPv4 only: '*' is read as 0.0.0.0/0, and the converted policy says nothing for IPv6
+  [info] AZFW_UNFILTERED: the firewall decides only what is routed through it (user-defined routes, a secured hub); traffic inside a virtual network that is not routed to it, and network security groups on the way, are not in this export
+  [info] AZFW_ANY_PROTOCOL: protocol Any with every port is every IP protocol, as Microsoft documents it since November 2020 (before, it meant TCP, UDP and ICMP); with ports it is TCP and UDP on them
+  [info] AZFW_ICMP_INTERNET: rules for ICMP do not apply to traffic to the internet, which the firewall cannot translate for it (a known issue Microsoft documents); between networks of Azure they do
+  [info] AZFW_IDPS: IDPS in mode Alert: it alerts and does not block; not converted
+  [info] AZFW_SNAT: Azure Firewall translates the source of what a network rule allows to its public address unless the destination is in its private ranges (IANAPrivateRanges, 198.51.100.0/24); of what an application rule allows always (to one of its private addresses); and, community sources say, of what a DNAT rule translates. None of that is a rule of the policy: no source NAT rule is in the model
+  [info] AZFW_INFRASTRUCTURE: after the application rules Azure Firewall allows the FQDNs of its built-in infrastructure rule collection (platform image repository, managed disk status, diagnostics), unless an application rule denies all; the model does not hold them
+
+Security rules
+  dnat-web/web-https (DNAT)  ->  exact  (emitted as 1 rules of the security policy)
+      [info] AZFW_DNAT_ALLOWS: Azure Firewall allows what DNAT rule fwpol-shop/DefaultDnatRuleCollectionGroup/dnat-web/web-https translates, before any network rule sees it: this rule says so, for the addresses before translation
+  dnat-web/ssh-admin (DNAT)  ->  exact  (emitted as 1 rules of the security policy)
+      [info] AZFW_DNAT_ALLOWS: Azure Firewall allows what DNAT rule fwpol-shop/DefaultDnatRuleCollectionGroup/dnat-web/ssh-admin translates, before any network rule sees it: this rule says so, for the addresses before translation
+  net-partner/v6-ssh  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: IPv6 source address '2001:db8:10::/64', which Azure Firewall does not take.
+      [needs-review] NOT_WRITTEN: the sources and the destinations have no IP version in common: the rule matches nothing.
+  net-allow-web/ntp-out  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] FQDN_NOT_SUPPORTED: host name object time.example.org: the form of an address object of a host name is not in the documentation FWShift could read.
+  net-allow-web/storage  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Storage.WestEurope': dynamic address group, members are not known statically.
+  net-allow-web/partner-sftp  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ipg-partners': dynamic address group, members are not known statically.
+  app-out/allow-updates  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: target FQDNs *.example.com, updates.example.net.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object *.example.com: the form of an address object of a host name is not in the documentation FWShift could read.
+  app-out/allow-wsus  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: FQDN tags WindowsUpdate.
+  app-deny/no-gambling  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: web categories Gambling. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+NAT rules
+  dnat-web/web-https  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  dnat-web/ssh-admin  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route

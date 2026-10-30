@@ -1,0 +1,111 @@
+FWShift conversion report
+  source: f5-afm
+  target: barracuda
+
+Summary
+  Security rules:     42   exact 9, approximated 15, needs review 18 (18 emitted disabled), skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 9, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+
+Security rules
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled  (emitted as global_admins_continue_rd0_outbo)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind internal with --zone-network.
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as global_admins_continue_rd0_out_2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind internal with --zone-network.
+  global/admins_continue>rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as global_admins_continue_rd0_out_3)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind internal with --zone-network.
+  global/admins_continue>rd0/dmz_no_inside  ->  approximated  (emitted as global_admins_continue_rd0_dmz_n, global_admins_continue_rd0_dmz_2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  global/admins_continue>vs_web6/web_in  ->  needs-review, emitted disabled  (emitted as global_admins_continue_vs_web6_w)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind external with --zone-network.
+  global/admins_continue>vs_web6/(default)  ->  approximated  (emitted as global_admins_continue_vs_web6__)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web/web_in  ->  needs-review, emitted disabled  (emitted as global_admins_continue_vs_web_we)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind external with --zone-network.
+  global/admins_continue>vs_web/(default)  ->  approximated  (emitted as global_admins_continue_vs_web__d)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web_http/(refused)  ->  approximated  (emitted as global_admins_continue_vs_web_ht)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_inbound_dmz/(default)  ->  approximated  (emitted as global_admins_continue_vs_inboun)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_outbound/(default)  ->  approximated  (emitted as global_admins_continue_vs_outbou)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  global/reject_telnet  ->  exact  (emitted as global_reject_telnet, global_reject_telnet-v6)
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  global/ping_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as global_ping_in_vs_outbound)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-8-0': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, internal, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind dmz, internal with --zone-network.
+  global/old_rule  ->  exact  (emitted as global_old_rule, global_old_rule-v6)
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled  (emitted as global_office_ssh_vs_outbound)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind internal with --zone-network.
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled  (emitted as global_partners_in_vs_web6)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind external with --zone-network.
+  global/partners_in@vs_web  ->  needs-review, emitted disabled  (emitted as global_partners_in_vs_web)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind external with --zone-network.
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled  (emitted as global_partners_in_vs_web_http)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled  (emitted as global_partners_in_vs_inbound_dm)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, external, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind dmz, external with --zone-network.
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as global_partners_in_vs_outbound)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, internal, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind dmz, internal with --zone-network.
+  global/inspect_irule>rd0/dmz_no_inside  ->  approximated  (emitted as global_inspect_irule_rd0_dmz_no_, global_inspect_irule_rd0_dmz_n_2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  global/inspect_irule>vs_inbound_dmz/(default)  ->  approximated  (emitted as global_inspect_irule_vs_inbound_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  global/inspect_irule>vs_outbound/(default)  ->  approximated  (emitted as global_inspect_irule_vs_outbound)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled  (emitted as rd0_outbound_allow_dns_out_vs_dn)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind internal with --zone-network.
+  rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as rd0_outbound_allow_dns_out_vs_ou)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind internal with --zone-network.
+  rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as rd0_outbound_allow_web_out_vs_ou)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind internal with --zone-network.
+  rd0/dmz_no_inside  ->  approximated  (emitted as rd0_dmz_no_inside, rd0_dmz_no_inside-v6)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  vs_web6/web_in  ->  needs-review, emitted disabled  (emitted as vs_web6_web_in)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind external with --zone-network.
+  vs_web6/web6_in  ->  needs-review, emitted disabled  (emitted as vs_web6_web6_in)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind external with --zone-network.
+  vs_web6/(default)  ->  approximated  (emitted as vs_web6__default_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  vs_web/web_in  ->  needs-review, emitted disabled  (emitted as vs_web_web_in)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind external with --zone-network.
+  vs_web/(default)  ->  approximated  (emitted as vs_web__default_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  vs_web_http/(refused)  ->  approximated  (emitted as vs_web_http__refused_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  vs_inbound_dmz/(default)  ->  approximated  (emitted as vs_inbound_dmz__default_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  vs_outbound/(default)  ->  approximated  (emitted as vs_outbound__default_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+
+Addresses
+  geo:NL  ->  exact  (emitted as geo_NL)
+      [info] RENAMED: renamed to 'geo_NL' to fit the target's naming rules
+
+Services
+  icmp-8-0  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated

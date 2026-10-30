@@ -1,0 +1,68 @@
+FWShift conversion report
+  source: zyxel
+  target: vyos
+
+Summary
+  Security rules:     19   exact 14, approximated 1, needs review 3 (3 emitted disabled), skipped 1
+  NAT rules:           9   exact 4, approximated 4, needs review 0, skipped 1
+  Addresses:          17   exact 17, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           16   exact 16, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZYXEL_DEFAULT_SNAT: the default SNAT of the WAN trunk (connections from internal interfaces leave with the address of the WAN interface) is not a rule of the configuration and is not converted: give the target the source NAT it needs
+  [needs-review] ZYXEL_BLOCK_INTRAZONE: zones that block traffic between their members: read as a rule at the top that denies inside the zone, whatever the rules say (not confirmed on a device): DMZ
+  [needs-review] ZYXEL_FQDN: address objects of a host name (fqdn), read as names resolved for IPv4; the form is not in the CLI Reference Guide FWShift could read: PORTAL
+  [needs-review] VYOS_LOAD: load the commands in configuration mode: 'configure', paste them, 'compare', then 'commit-confirm 10' (unless 'confirm' follows within 10 minutes, VyOS goes back to the configuration before; older releases reboot to do so) and 'save'. A commit applies all of them or none. The policy is written as the zone-based firewall: zones WAN, LAN1, DMZ, LAB, and a chain FWS-<from>-<to> for each pair of zones that needs one. Interfaces of the router in no zone: VyOS drops their traffic into a zone and leaves traffic from a zone to them to the forward filter; that traffic is decided by chain FWS-NO-ZONE (the rules for any destination and the default of the policy), jumped to from rule 10000 of the forward filter for what leaves by an interface not in interface group FWS-ZONES. Check that the forward filter has no rule 10000 (show firewall ipv4 forward filter), or give another number with --policy-id-start; its rules with lower numbers come first, and those after rule 10000 are no longer reached by what the chain decides, as it ends with the default of the policy. The forward filter of the router still applies before the zones (an accept there goes on to the zones, a drop is final). A zone of the same name that exists gets these interfaces and chains in addition to its own; a chain set for a pair that has one replaces it. NAT rules are numbered from 10000: rules of the router with lower numbers come first. To take a conversion away: delete the groups, chains, zones and NAT rules the commands name (all under FWS-, and the NAT rules from 10000 on). Assumed: names of up to 63 characters
+  [needs-review] ZONES_REQUIRED: these zones are written with the interfaces of the source: check that they are interfaces of the router (or map them with --interface-map): WAN=ge1, LAN1=ge3,ge4, DMZ=ge5, LAB=ge6
+  [needs-review] VYOS_NO_ZONE: traffic from a zone to an interface in no zone is decided by chain FWS-NO-ZONE; its replies come in from an interface in no zone, which VyOS drops at the zones unless 'firewall global-options state-policy' accepts established and related packets (the commands do not set it, as it applies to the whole router)
+  [info] ZYXEL_SOURCE: 4 zones (WAN, LAN1, DMZ, LAB); 18 rules of the security policy, first match, IPv4 and IPv6 lists one after the other. Rules to and from the firewall itself (ZyWALL) are not converted
+  [info] ZYXEL_NAT_ORDER: virtual servers and 1:1 NAT are done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT of policy routes is done after it
+  [info] ZYXEL_UNZONED: interfaces in no zone, which only rules from any or to any match: ge7
+  [info] ZYXEL_INTERFACE_OBJECT: address objects of an interface, read with the static address the configuration gives the interface: interface-subnet ge3, interface-subnet ge4, interface-ip ge1
+  [info] ZYXEL_ICMP_NAMES: ICMP types by name, read with the numbers of the IANA registry: echo, echo-request
+  [info] ZYXEL_DEFAULTS: what no rule matches (secure-policy default-rule): IPv4 deny, IPv6 deny
+  [info] VYOS_FQDN: host names are written as fqdn or domain-group, which the router resolves while it runs: portal.example.com
+
+Security rules
+  Admin_Mgmt  ->  approximated  (emitted as FWS-LAN1-DMZ rule 10)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default_av); attach equivalent inspection on the target
+  LAN1_to_DMZ_Reject  ->  exact  (emitted as FWS-LAN1-DMZ rule 20)
+      [info] RESET_ACTION: action reset-client becomes reject, which answers with an ICMP unreachable rather than a TCP reset
+  Monitor_Ping  ->  exact  (emitted as FWS-WAN-WAN rule 10, FWS-WAN-LAN1 rule 10, FWS-WAN-DMZ rule 40, FWS-WAN-LAB rule 10, FWS-LAN1-WAN rule 20, FWS-LAN1-LAN1 rule 10, FWS-LAN1-DMZ rule 30, FWS-LAN1-LAB rule 10, FWS-DMZ-WAN rule 10, FWS-DMZ-LAN1 rule 10, FWS-DMZ-DMZ rule 20, FWS-DMZ-LAB rule 10, FWS-LAB-WAN rule 10, FWS-LAB-LAN1 rule 10, FWS-LAB-DMZ rule 10, FWS-LAB-LAB rule 10, FWS-NO-ZONE rule 10)
+      [info] RULE_SPLIT: written in the chains of 16 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN1, DMZ, LAB); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  Alice_Workhours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'WORKHOURS' is not converted; the rule would apply at all times.
+      [needs-review] USER_MATCH: source user match alice is not converted.
+  Country_Block  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'COUNTRY_X': geography XX: not an address FWShift can read. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN1, DMZ, LAB); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  VS_Only  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: ctmatch dnat: matches only connections that a virtual server translated.
+  V6_Ping  ->  exact  (emitted as FWS-WAN-WAN rule 10 (IPv6), FWS-WAN-LAN1 rule 10 (IPv6), FWS-WAN-DMZ rule 10 (IPv6), FWS-WAN-LAB rule 10 (IPv6), FWS-LAN1-WAN rule 20 (IPv6), FWS-LAN1-LAN1 rule 10 (IPv6), FWS-LAN1-DMZ rule 20 (IPv6), FWS-LAN1-LAB rule 10 (IPv6), FWS-DMZ-WAN rule 10 (IPv6), FWS-DMZ-LAN1 rule 10 (IPv6), FWS-DMZ-DMZ rule 20 (IPv6), FWS-DMZ-LAB rule 10 (IPv6), FWS-LAB-WAN rule 10 (IPv6), FWS-LAB-LAN1 rule 10 (IPv6), FWS-LAB-DMZ rule 10 (IPv6), FWS-LAB-LAB rule 10 (IPv6), FWS-NO-ZONE rule 10 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 16 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (WAN, LAN1, DMZ, LAB); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  LAN1_to_Device  ->  skipped
+      [info] ZYXEL_DEVICE_RULE: a rule for traffic to the firewall itself (LAN1 to ZyWALL): not converted
+
+NAT rules
+  virtual-server WEB_VS  ->  approximated  (emitted as destination rule 10000)
+      [approximated] ZYXEL_NAT_LOOPBACK: nat-loopback: hosts behind the firewall that use the original address are translated as well (and their source is translated to the firewall); only the translation for traffic that arrives on the interface is converted
+  virtual-server ONE2ONE  ->  exact  (emitted as destination rule 10030, source rule 10000)
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as an SNAT rule plus a DNAT rule for the inbound direction
+  virtual-server MANY2ONE  ->  approximated  (emitted as destination rule 10040, source rule 10010)
+      [approximated] NAT_STATIC_RANGE: static NAT of several addresses becomes SNAT to a range, which does not promise that each host keeps the same translated address
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as an SNAT rule plus a DNAT rule for the inbound direction
+  virtual-server OLD_VS  ->  exact
+      [info] NAT_DISABLED: disabled in the source; written disabled
+  policy-route 1  ->  skipped
+      [info] ZYXEL_ROUTE_NO_SNAT: a policy route without SNAT above one with SNAT: kept as a rule that translates nothing, so that the SNAT of the routes below it does not apply to its traffic
+      [needs-review] NAT_NOT_CONVERTED: not converted: references 'LAB_SUBNET': interface-subnet ge6: interface-subnet of ge6: the interface gets its address by dhcp
+  policy-route 2  ->  approximated  (emitted as source rule 10020)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from LAN1 only; nat source cannot match the input interface, so it applies to traffic from every interface
+  policy-route 3  ->  approximated  (emitted as source rule 10030, source rule 10040)
+      [info] ZYXEL_SNAT_POOL: SNAT to the addresses of PUBLIC_RANGE, read as translation with port translation (the documentation does not say)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from DMZ only; nat source cannot match the input interface, so it applies to traffic from every interface

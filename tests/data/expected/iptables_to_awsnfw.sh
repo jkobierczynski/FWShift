@@ -73,11 +73,11 @@ policy() {
 free_group fwshift-rules
 free_policy fwshift
 
-# Rule group 1: 3 rules, in the order of the policy.
+# Rule group 1: 4 rules, in the order of the policy.
 cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
 {
  "RulesSource": {
-  "RulesString": "drop ip 198.51.100.66/32 any -> any any (msg:\"Block bad host\"; flow:to_server; sid:1; rev:1;)\ndrop ip 10.10.200.0/24 any -> any any (msg:\"Guests stay in\"; flow:to_server; sid:2; rev:1;)\ndrop ip 0.0.0.0/0 any -> any any (msg:\"OT no internet\"; flow:to_server; sid:3; rev:1;)\n"
+  "RulesString": "pass ip any any -> any any (msg:\"fwshift-replies\"; flow:to_client; sid:4; rev:1;)\ndrop ip 198.51.100.66/32 any -> any any (msg:\"Block bad host\"; flow:to_server; sid:1; rev:1;)\ndrop ip 10.10.200.0/24 any -> any any (msg:\"Guests stay in\"; flow:to_server; sid:2; rev:1;)\ndrop ip 0.0.0.0/0 any -> any any (msg:\"OT no internet\"; flow:to_server; sid:3; rev:1;)\n"
  },
  "StatefulRuleOptions": {
   "RuleOrder": "STRICT_ORDER"

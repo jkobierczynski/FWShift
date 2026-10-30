@@ -10,9 +10,11 @@ Design rules:
 * One new firewall policy, attached to no firewall: creating it changes no traffic. Its stateless default actions send
   every packet (and every fragment) to the stateful engine; it has no stateless rules.
 * One stateful rule group of Suricata rules (more when one would be too large), in ``STRICT_ORDER``: the rules of the
-  model in their order, each for the first packet of a connection (``flow:to_server``). A pass on that packet passes
-  the flow, its replies too, and a drop drops it, which is the model's connection. What no rule matches is the model's
-  default: ``aws:drop_strict``, or no default action, which passes it.
+  model in their order, each for the first packet of a connection (``flow:to_server``), and a drop drops it. What no
+  rule matches is the model's default: ``aws:drop_strict``, or no default action, which passes it. With
+  ``aws:drop_strict`` every packet is decided on its own, replies too (the FWShift lab, 0.41.7): the group's first rule
+  passes what goes back to the client of a flow (``flow:to_client``), so that a connection whose first packet passed
+  gets its replies.
 * A rule names one protocol: a rule of the model becomes a rule per protocol (and set of source ports) it holds. Objects
   become IP set variables of the rule group (``$NAME``), negation ``!``; zones become the networks behind them
   (``--zone-network``), as for NSX and Google Cloud. Applications become their ports: the application protocols of
@@ -472,6 +474,17 @@ class _Planner:
         for rule in self.p.rules:
             self._rule(rule)
         self._intrazone()
+        if self.out.default_drop and self.out.lines:
+            # With aws:drop_strict every packet is decided on its own: a pass with flow:to_server passes the first packet,
+            # not the replies, and the default drops those (the FWShift lab, 0.41.7: every connection blocked). The first
+            # rule passes what goes back to the client of a flow the firewall saw open; a flow whose first packet was dropped
+            # has no reply to pass.
+            self.sid += 1
+            self.out.lines.insert(0, _Line(f'pass ip any any -> any any (msg:"fwshift-replies"; flow:to_client; sid:{self.sid}; rev:1;)', [], []))
+            self.report.note(Severity.INFO, "AWSNFW_REPLIES",
+                             "with aws:drop_strict every packet is decided on its own: the first rule of the group passes the "
+                             "packets that go back to the client of a flow (flow:to_client), the replies of the connections the "
+                             "rules below pass on their first packet")  # fmt: skip
         for nat in self.p.nat_rules:
             self.report.skip("nat", nat.origin, "NAT_NOT_CONVERTED",
                              "not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The "

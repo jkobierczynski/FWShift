@@ -1,0 +1,54 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: f5-afm
+
+Summary
+  Security rules:     10   exact 4, approximated 0, needs review 6 (6 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] F5AFM_LOAD: the output is a file for 'tmsh load sys config merge file' (section 10): address lists, port lists, the rule list /Common/FWShift_rules and the policy /Common/FWShift. Load it with 'verify' first. The merge changes objects of the same name that exist: check that none does. The policy is enforced in no context: attach it to the global context, a route domain or a virtual server yourself. Allow rules are accept-decisively and the list ends with the default, so the policy decides alone wherever it is attached; the BIG-IP still lets through only traffic that a virtual server takes, which FWShift does not create
+  [needs-review] F5AFM_FQDN_RESOLVER: address lists hold host names (fqdns): AFM resolves them only with a DNS resolver set as the global FQDN resolver (security firewall global-fqdn-policy); without one they match nothing
+  [needs-review] F5AFM_VLANS_REQUIRED: the rules name these VLANs as the zones they come from, which must exist on the BIG-IP under these names (--zone-map renames): /Common/DMZ, /Common/External, /Common/Guests, /Common/Lab, /Common/Trusted
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] F5AFM_ICMP_CONTEXT: the policy has ICMP rules: the BIG-IP ignores ICMP rules in the virtual server and self IP contexts, so attach the policy to the global or a route domain context for them to apply
+
+Security rules
+  Admin SSH  ->  needs-review, emitted disabled  (emitted as Admin_SSH)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind External with --zone-network.
+  Web Out  ->  needs-review, emitted disabled  (emitted as Web_Out)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind External with --zone-network.
+  DMZ Updates  ->  needs-review, emitted disabled  (emitted as DMZ_Updates)
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+  Guests Out  ->  needs-review, emitted disabled  (emitted as Guests_Out, Guests_Out_2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind External with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  Staff Only  ->  needs-review, emitted disabled  (emitted as Staff_Only)
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+  Lab Tunnel  ->  needs-review, emitted disabled  (emitted as Lab_Tunnel)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind External with --zone-network.
+
+NAT rules
+  Web-Public (Web In)  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  Mail-Public (Mail In)  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+
+Addresses
+  Update-Site.1.alm updates.example.com  ->  exact  (emitted as Update-Site.1.alm_updates.example.com)
+      [info] RENAMED: renamed to 'Update-Site.1.alm_updates.example.com' to fit the target's naming rules
+
+Services
+  Block Bad  ->  exact  (emitted as Block_Bad)
+      [info] RENAMED: renamed to 'Block_Bad' to fit the target's naming rules
+  Web Out  ->  exact  (emitted as Web_Out)
+      [info] RENAMED: renamed to 'Web_Out' to fit the target's naming rules
+  Staff Only  ->  exact  (emitted as Staff_Only)
+      [info] RENAMED: renamed to 'Staff_Only' to fit the target's naming rules
+  Lab Tunnel  ->  exact  (emitted as Lab_Tunnel)
+      [info] RENAMED: renamed to 'Lab_Tunnel' to fit the target's naming rules

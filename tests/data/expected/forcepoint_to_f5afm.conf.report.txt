@@ -1,0 +1,151 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: f5-afm
+
+Summary
+  Security rules:     32   exact 19, approximated 5, needs review 8 (8 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] F5AFM_LOAD: the output is a file for 'tmsh load sys config merge file' (section 10): address lists, port lists, the rule list /Common/FWShift_rules and the policy /Common/FWShift. Load it with 'verify' first. The merge changes objects of the same name that exist: check that none does. The policy is enforced in no context: attach it to the global context, a route domain or a virtual server yourself. Allow rules are accept-decisively and the list ends with the default, so the policy decides alone wherever it is attached; the BIG-IP still lets through only traffic that a virtual server takes, which FWShift does not create
+  [needs-review] F5AFM_FQDN_RESOLVER: address lists hold host names (fqdns): AFM resolves them only with a DNS resolver set as the global FQDN resolver (security firewall global-fqdn-policy); without one they match nothing
+  [needs-review] F5AFM_VLANS_REQUIRED: the rules name these VLANs as the zones they come from, which must exist on the BIG-IP under these names (--zone-map renames): /Common/Internal
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] F5AFM_ICMP_CONTEXT: the policy has ICMP rules: the BIG-IP ignores ICMP rules in the virtual server and self IP contexts, so attach the policy to the global or a route domain context for them to apply
+
+Security rules
+  Rule @900.0  ->  needs-review, emitted disabled  (emitted as Rule__900.0)
+      [needs-review] UNSUPPORTED_MATCH: not converted: source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'x___Management_Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'x___Local_Cluster': an alias, whose value is set per engine, and the input holds no engine.
+  dns to resolver  ->  exact  (emitted as dns_to_resolver, dns_to_resolver_2)
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  admins in  ->  exact  (emitted as to_admin_sub-policy___admins_in)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  others out  ->  exact  (emitted as to_admin_sub-policy___others_out)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  refuse admins 8443  ->  approximated  (emitted as refuse_admins_8443)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  internal zone out  ->  exact  (emitted as internal_zone_out)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  not to dmz  ->  exact  (emitted as not_to_dmz)
+      [info] NEGATION_EXPANDED: a rule of AFM has no negation: 'not destination net-dmz' is written as the addresses that are left
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  zone or web host out  ->  needs-review, emitted disabled  (emitted as zone_or_web_host_out)
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind External with --zone-network.
+  zone or web host out (2)  ->  needs-review, emitted disabled  (emitted as zone_or_web_host_out__2_)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind External with --zone-network.
+  vpn only  ->  needs-review, emitted disabled  (emitted as vpn_only)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN).
+  ping out  ->  exact  (emitted as ping_out)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  no social  ->  needs-review, emitted disabled  (emitted as no_social)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) Facebook; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  helpdesk to dmz  ->  needs-review, emitted disabled  (emitted as helpdesk_to_dmz)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+      [needs-review] USER_MATCH: source user match helpdesk is not converted.
+  unfinished  ->  exact
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  office web  ->  needs-review, emitted disabled  (emitted as office_web)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times.
+  limited guests  ->  approximated  (emitted as limited_guests)
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (deep_inspection=on); attach equivalent inspection on the target
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  block list  ->  needs-review, emitted disabled  (emitted as block_list)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  gre to isp  ->  exact  (emitted as gre_to_isp)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  lan but admins  ->  exact  (emitted as lan_but_admins, lan_but_admins_2)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  Rule @1021.0  ->  exact  (emitted as Rule__1021.0)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  drop netbios  ->  exact  (emitted as drop_netbios, drop_netbios_2)
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  Rule @902.0  ->  approximated  (emitted as Rule__902.0)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  Rule @903.0  ->  exact  (emitted as Rule__903.0)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  v6 web  ->  exact  (emitted as v6_web)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  v6 mail  ->  exact  (emitted as v6_mail)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  v6 guests  ->  approximated  (emitted as v6_guests)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  Rule @952.0  ->  approximated  (emitted as Rule__952.0)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  Rule @953.0  ->  exact  (emitted as Rule__953.0)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+
+NAT rules
+  publish web  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  no nat inside  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  lan out  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  mail static  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  guests hide  ->  skipped
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+
+Addresses
+  $$ Management Servers  ->  exact  (emitted as x___Management_Servers)
+      [info] RENAMED: renamed to 'x___Management_Servers' to fit the target's naming rules
+  $$ Local Cluster  ->  exact  (emitted as x___Local_Cluster)
+      [info] RENAMED: renamed to 'x___Local_Cluster' to fit the target's naming rules
+  net-lan (in rules)  ->  exact  (emitted as net-lan__in_rules_)
+      [info] RENAMED: renamed to 'net-lan__in_rules_' to fit the target's naming rules
+
+Address groups
+  updates.example.com (names)  ->  exact  (emitted as updates.example.com__names_)
+      [info] RENAMED: renamed to 'updates.example.com__names_' to fit the target's naming rules
+  lan without admins  ->  exact  (emitted as lan_without_admins)
+      [info] RENAMED: renamed to 'lan_without_admins' to fit the target's naming rules
+  mail-01 IPv4  ->  exact  (emitted as mail-01_IPv4)
+      [info] RENAMED: renamed to 'mail-01_IPv4' to fit the target's naming rules
+  net-guest IPv4  ->  exact  (emitted as net-guest_IPv4)
+      [info] RENAMED: renamed to 'net-guest_IPv4' to fit the target's naming rules
+
+Services
+  SG Control  ->  exact  (emitted as SG_Control)
+      [info] RENAMED: renamed to 'SG_Control' to fit the target's naming rules
+  DNS (UDP)  ->  exact  (emitted as DNS__UDP_)
+      [info] RENAMED: renamed to 'DNS__UDP_' to fit the target's naming rules
+  DNS (TCP)  ->  exact  (emitted as DNS__TCP_)
+      [info] RENAMED: renamed to 'DNS__TCP_' to fit the target's naming rules
+  Echo Request  ->  exact  (emitted as Echo_Request)
+      [info] RENAMED: renamed to 'Echo_Request' to fit the target's naming rules
+  NetBIOS (UDP)  ->  exact  (emitted as NetBIOS__UDP_)
+      [info] RENAMED: renamed to 'NetBIOS__UDP_' to fit the target's naming rules
+  NetBIOS (TCP)  ->  exact  (emitted as NetBIOS__TCP_)
+      [info] RENAMED: renamed to 'NetBIOS__TCP_' to fit the target's naming rules
+  IPv6 Echo Request  ->  exact  (emitted as IPv6_Echo_Request)
+      [info] RENAMED: renamed to 'IPv6_Echo_Request' to fit the target's naming rules

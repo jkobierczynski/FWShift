@@ -1,0 +1,53 @@
+FWShift conversion report
+  source: f5-afm
+  target: fdm
+
+Summary
+  Security rules:     42   exact 35, approximated 0, needs review 0, skipped 7
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): internal, dmz, external. Zones are not written: an import would take the interfaces out of a zone that exists
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  global/reject_telnet  ->  exact  (emitted as global_reject_telnet)
+      [info] RESET_ACTION: action reset-client becomes Block, which drops without an answer: a Device Manager has no rule that resets
+  global/old_rule  ->  skipped
+      [info] DISABLED_RULE: disabled on the source: a Device Manager has no rules that are switched off, so it is left out
+  global/office_ssh@vs_outbound  ->  skipped
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times. The rule is left out: a Device Manager has no rules that are switched off.
+  global/partners_in@vs_web6  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). The rule is left out: a Device Manager has no rules that are switched off.
+  global/partners_in@vs_web  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). The rule is left out: a Device Manager has no rules that are switched off.
+  global/partners_in@vs_web_http  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). The rule is left out: a Device Manager has no rules that are switched off.
+  global/partners_in@vs_outbound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo_NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). The rule is left out: a Device Manager has no rules that are switched off.
+
+Addresses
+  geo:NL  ->  exact  (emitted as geo_NL)
+      [info] RENAMED: renamed to 'geo_NL' to fit the target's naming rules
+
+Services
+  web_ports  ->  exact  (emitted as web_ports, tcp-80, tcp-443)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'web_ports' of 'tcp-80', 'tcp-443'
+  icmp-8-0  ->  exact
+      [info] ICMP_CODE: code 0 of an ICMP type for which a Device Manager has no codes is written as the type alone: 0 is the only code that type has
+  mgmt_ports  ->  exact  (emitted as mgmt_ports, tcp-22, tcp-80, tcp-443, tcp-8443)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'mgmt_ports' of 'tcp-22', 'tcp-80', 'tcp-443', 'tcp-8443'

@@ -1,0 +1,82 @@
+FWShift conversion report
+  source: nftables
+  target: f5-afm
+
+Summary
+  Security rules:     16   exact 1, approximated 2, needs review 13 (12 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] F5AFM_LOAD: the output is a file for 'tmsh load sys config merge file' (section 10): address lists, port lists, the rule list /Common/FWShift_rules and the policy /Common/FWShift. Load it with 'verify' first. The merge changes objects of the same name that exist: check that none does. The policy is enforced in no context: attach it to the global context, a route domain or a virtual server yourself. Allow rules are accept-decisively and the list ends with the default, so the policy decides alone wherever it is attached; the BIG-IP still lets through only traffic that a virtual server takes, which FWShift does not create
+  [needs-review] F5AFM_VLANS_REQUIRED: the rules name these VLANs as the zones they come from, which must exist on the BIG-IP under these names (--zone-map renames): /Common/eth0, /Common/eth1, /Common/eth2, /Common/eth3
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+  [info] F5AFM_ICMP_CONTEXT: the policy has ICMP rules: the BIG-IP ignores ICMP rules in the virtual server and self IP contexts, so attach the policy to the global or a route domain context for them to apply
+
+Security rules
+  Banned by fail2ban  ->  needs-review, emitted disabled  (emitted as Banned_by_fail2ban)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  needs-review  (emitted as Block_bad_hosts)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Guests stay in  ->  approximated  (emitted as Guests_stay_in)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone eth0; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAN web  ->  needs-review, emitted disabled  (emitted as LAN_web)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind eth0 with --zone-network.
+  LAN DNS  ->  needs-review, emitted disabled  (emitted as LAN_DNS, LAN_DNS_2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind eth0 with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  Rate limited mail  ->  needs-review, emitted disabled  (emitted as Rate_limited_mail)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind eth0 with --zone-network.
+  Partner tunnel  ->  needs-review, emitted disabled  (emitted as Partner_tunnel)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind eth0 with --zone-network.
+  Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind eth2 with --zone-network.
+  Ping the DMZ  ->  needs-review, emitted disabled  (emitted as Ping_the_DMZ)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind eth2 with --zone-network.
+  SCADA to PLCs  ->  needs-review, emitted disabled  (emitted as SCADA_to_PLCs)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth3, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind eth3 with --zone-network.
+  OT no internet  ->  approximated  (emitted as OT_no_internet)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone eth0; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  Inbound web  ->  needs-review, emitted disabled  (emitted as Inbound_web)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.0.10' because of NAT rule 'Web DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Web DNAT' also translates the port to 8443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind eth2 with --zone-network.
+  Inbound mail  ->  needs-review, emitted disabled  (emitted as Inbound_mail)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to '10.20.0.25' because of NAT rule 'Mail DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind eth2 with --zone-network.
+  Inbound IPv6  ->  needs-review, emitted disabled  (emitted as Inbound_IPv6)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind eth2 with --zone-network.
+  DMZ updates  ->  needs-review, emitted disabled  (emitted as DMZ_updates)
+      [info] NEGATION_EXPANDED: a rule of AFM has no negation: 'not destination 10.0.0.0/8' is written as the addresses that are left
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind eth0 with --zone-network.
+
+NAT rules
+  Web DNAT  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  Mail DNAT  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  No NAT to partner  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  DMZ out  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  LAN out  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+
+Services
+  tcp-80,443  ->  exact  (emitted as tcp-80_443)
+      [info] RENAMED: renamed to 'tcp-80_443' to fit the target's naming rules
+  tcp-53+udp-53  ->  exact  (emitted as tcp-53_udp-53)
+      [info] RENAMED: renamed to 'tcp-53_udp-53' to fit the target's naming rules
+  tcp-22,3389  ->  exact  (emitted as tcp-22_3389)
+      [info] RENAMED: renamed to 'tcp-22_3389' to fit the target's naming rules
+  tcp-25,443  ->  exact  (emitted as tcp-25_443)
+      [info] RENAMED: renamed to 'tcp-25_443' to fit the target's naming rules
+  icmp6-128+icmp6-135+icmp6-136  ->  exact  (emitted as icmp6-128_icmp6-135_icmp6-136)
+      [info] RENAMED: renamed to 'icmp6-128_icmp6-135_icmp6-136' to fit the target's naming rules

@@ -1,0 +1,96 @@
+FWShift conversion report
+  source: screenos
+  target: windows-firewall
+
+Summary
+  Security rules:     23   exact 13, approximated 3, needs review 7 (3 emitted disabled), skipped 0
+  NAT rules:           9   exact 0, approximated 0, needs review 0, skipped 9
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] SCREENOS_ZONE_OBJECT: the address name 'printer' stands for different addresses in the books of zones DMZ, Trust; each is kept as 'printer (zone)'
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: DMZ=10.20.0.0/24; Lab=10.40.0.0/24; Servers=10.30.0.0/24; Trust=10.10.0.0/16,10.11.0.0/16,2001:db8:10::/64; Untrust=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] SCREENOS_PREDEFINED: predefined services are not in the configuration; FWShift took these from its table: FTP-Get, HTTP, HTTPS, PING, SMTP, SSH
+  [info] SCREENOS_POLICY_ORDER: 1 policies were placed by 'set policy move', 'top' or 'before'; the rules are in the order that results
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: DMZ=10.20.0.0/24; Lab=10.40.0.0/24; Servers=10.30.0.0/24; Trust=10.10.0.0/16,10.11.0.0/16,2001:db8:10::/64; Untrust=0.0.0.0/0,203.0.113.0/24. --no-source-networks takes none of them
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  intrazone-DMZ  ->  exact  (emitted as FWShift-intrazone-DMZ-1, FWShift-intrazone-DMZ-2)
+      [info] SCREENOS_INTRAZONE_ALLOW: zone 'DMZ' does not block traffic inside it: ScreenOS passes it without a policy. This rule, ahead of the others, says so
+      [info] ZONE_BY_NETWORKS: the source in zone DMZ is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone DMZ is written as the addresses of the networks given for it with --zone-network
+  intrazone-Lab  ->  exact  (emitted as FWShift-intrazone-Lab-1, FWShift-intrazone-Lab-2)
+      [info] SCREENOS_INTRAZONE_ALLOW: zone 'Lab' does not block traffic inside it: ScreenOS passes it without a policy. This rule, ahead of the others, says so
+      [info] ZONE_BY_NETWORKS: the source in zone Lab is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone Lab is written as the addresses of the networks given for it with --zone-network
+  intrazone-Trust  ->  exact  (emitted as FWShift-intrazone-Trust-1, FWShift-intrazone-Trust-2)
+      [info] SCREENOS_INTRAZONE_ALLOW: zone 'Trust' does not block traffic inside it: ScreenOS passes it without a policy. This rule, ahead of the others, says so
+      [info] ZONE_BY_NETWORKS: the source in zone Trust is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone Trust is written as the addresses of the networks given for it with --zone-network
+  lan-out  ->  exact  (emitted as FWShift-lan-out-1, FWShift-lan-out-2, FWShift-lan-out-3, FWShift-lan-out-4)
+      [info] ZONE_BY_NETWORKS: the destination in zone Untrust is written as the addresses of the networks given for it with --zone-network
+  policy-3  ->  exact  (emitted as FWShift-policy-3-1, FWShift-policy-3-2)
+      [info] ZONE_BY_NETWORKS: the destination in zone Untrust is written as the addresses of the networks given for it with --zone-network
+  policy-20  ->  exact  (emitted as FWShift-policy-20-1, FWShift-policy-20-2)
+      [info] ZONE_BY_NETWORKS: the destination in zone DMZ is written without the networks given for the other zones with --zone-network
+      [info] ACTION_DROP: action reset-client: a block rule of Windows Firewall drops without an answer
+  web-in  ->  approximated  (emitted as FWShift-web-in-1, FWShift-web-in-2)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'MIP(203.0.113.10)' with post-NAT '10.20.0.10' because of NAT rule 'mip-203.0.113.10'; check that this rule is meant to cover the translated traffic
+      [info] ZONE_BY_NETWORKS: the source in zone Untrust is written as the addresses of the networks given for it with --zone-network
+  policy-5  ->  needs-review  (emitted as FWShift-policy-5-1, FWShift-policy-5-2)
+      [needs-review] SCREENOS_VIP_PORT: VIP(203.0.113.20) maps port 8443 to the port of service 'HTTPS' on 10.20.0.21; whether the services of this policy are matched before or after that translation is not known. The rule keeps its services as they are
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'VIP(203.0.113.20)' with post-NAT '10.20.0.20' because of NAT rule 'vip-203.0.113.20-80'; check that this rule is meant to cover the translated traffic
+      [info] ZONE_BY_NETWORKS: the source in zone Untrust is written as the addresses of the networks given for it with --zone-network
+  policy-6  ->  approximated  (emitted as FWShift-policy-6-1, FWShift-policy-6-2)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'MIP(203.0.113.24)' with post-NAT '10.30.0.24/29' because of NAT rule 'mip-203.0.113.24'; check that this rule is meant to cover the translated traffic
+  policy-7  ->  approximated  (emitted as FWShift-policy-7-1, FWShift-policy-7-2)
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'nat-policy-7' also translates the port to 2525: the service of this rule (SMTP) named the pre-NAT port only, and now names 2525, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [info] ZONE_BY_NETWORKS: the source in zone Untrust is written as the addresses of the networks given for it with --zone-network
+  policy-9  ->  needs-review
+      [needs-review] SCREENOS_INTRAZONE_IGNORED: zone 'Trust' does not block traffic inside it ('set zone "Trust" block' is not set): ScreenOS passes that traffic without looking at policies, so this policy decides nothing. It is written disabled
+  policy-13  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'FTP-Get': the predefined service FTP-Get: FTP limited to downloads, a restriction of the FTP helper FWShift cannot write.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: a rule of Windows Firewall names addresses.
+  policy-14  ->  needs-review, emitted disabled  (emitted as FWShift-policy-14-1, FWShift-policy-14-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: a policy-based VPN (tunnel): the traffic is allowed into a VPN tunnel only.
+  policy-15  ->  needs-review, emitted disabled  (emitted as FWShift-policy-15-1, FWShift-policy-15-2)
+      [info] ZONE_BY_NETWORKS: the source in zone Lab is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone Untrust is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: user authentication ('auth'), which is not converted.
+  policy-16  ->  needs-review
+      [needs-review] SCREENOS_GLOBAL_ZONE: the policy is from zone 'DMZ' to zone 'Global': a policy between a zone and the Global zone matches no traffic (global policies are from Global to Global). It is written disabled
+  policy-19  ->  exact  (emitted as FWShift-policy-19-1, FWShift-policy-19-2)
+      [info] SCREENOS_APPLICATION: the policy hands its traffic to the application layer gateway 'IGNORE'; that is not converted (the targets choose their helpers by port)
+      [info] ZONE_BY_NETWORKS: the source in zone Trust is written as the addresses of the networks given for it with --zone-network
+  policy-18  ->  needs-review
+      [needs-review] WINFW_LEFT_TO_DEFAULT: all of it is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+
+NAT rules
+  nat-lan-out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat-lan-out-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat-policy-3  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'policy-2' above passes part of this traffic without NAT. A no-NAT rule for it would also stop the MIPs and interfaces in NAT mode from translating it: none was added, so this rule translates that traffic too
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat-policy-7  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  mip-203.0.113.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  mip-203.0.113.24  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  vip-203.0.113.20-80  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  vip-203.0.113.20-8443  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat-mode-Trust  ->  skipped
+      [info] SCREENOS_NAT_MODE: interface 'bgroup0' is in NAT mode: ScreenOS translates the source of what it receives and sends to the Untrust zone to the address of the outgoing interface, unless a policy or a MIP translates it
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation

@@ -1,0 +1,225 @@
+set address inside-net ip-netmask 10.10.0.0/24
+set address web-srv ip-netmask 10.20.0.10/32
+set address mail-srv ip-netmask 10.20.0.25/32
+set address lab-pool ip-range 10.30.0.100-10.30.0.150
+set address update-site fqdn updates.example.com
+set address partners_partner.example.net fqdn partner.example.net
+set address v6-inside ip-netmask 2001:db8:10::/64
+set address pub-web ip-netmask 203.0.113.10/32
+set address snat-pool ip-netmask 203.0.113.20/31
+set address files.example.org fqdn files.example.org
+set address n-10.20.0.40_31 ip-netmask 10.20.0.40/31
+set address-group servers static [ n-10.20.0.40_31 web-srv mail-srv ]
+set address r-10.10.0.0-10.10.0.199 ip-range 10.10.0.0-10.10.0.199
+set address r-10.10.0.210-10.10.0.255 ip-range 10.10.0.210-10.10.0.255
+set address-group inside-no-printers static [ r-10.10.0.0-10.10.0.199 r-10.10.0.210-10.10.0.255 ]
+set address n-198.51.100.0_24 ip-netmask 198.51.100.0/24
+set address-group partners static [ n-198.51.100.0_24 partners_partner.example.net ]
+set address wild-hosts ip-netmask 0.0.0.0/32
+set address wild-hosts description "FWSHIFT PLACEHOLDER, matches nothing: address entry wild-hosts: wildcard address '10.10.0.5 0.0.255.0'"
+set address blocked-country ip-netmask 0.0.0.0/32
+set address blocked-country description "FWSHIFT PLACEHOLDER, matches nothing: address entry blocked-country: country XX, which the configuration does not resolve to addresses"
+set service tcp-8080 protocol tcp port 8080
+set service app-ports-tcp protocol tcp port 8000-8010
+set service app-ports-tcp protocol tcp source-port 1024-65535
+set service app-ports-udp protocol udp port 5000-5001
+set service-group app-ports members [ app-ports-tcp app-ports-udp ]
+set service HTTP protocol tcp port 80
+set service HTTPS protocol tcp port 443
+set service SSH protocol tcp port 22
+set service DNS-tcp protocol tcp port 53
+set service DNS-udp protocol udp port 53
+set service-group DNS members [ DNS-tcp DNS-udp ]
+set service-group web-group members [ HTTP HTTPS tcp-8080 ]
+set service-group admin-group members [ web-group SSH ]
+set rulebase security rules inside-ping from trust
+set rulebase security rules inside-ping to trust
+set rulebase security rules inside-ping source 0.0.0.0/0
+set rulebase security rules inside-ping destination 0.0.0.0/0
+set rulebase security rules inside-ping source-user any
+set rulebase security rules inside-ping category any
+set rulebase security rules inside-ping application ping
+set rulebase security rules inside-ping service application-default
+set rulebase security rules inside-ping action allow
+set rulebase security rules inside-ping log-end no
+set rulebase security rules inside-to-web from trust
+set rulebase security rules inside-to-web to untrust
+set rulebase security rules inside-to-web source inside-net
+set rulebase security rules inside-to-web destination 0.0.0.0/0
+set rulebase security rules inside-to-web source-user any
+set rulebase security rules inside-to-web category any
+set rulebase security rules inside-to-web application any
+set rulebase security rules inside-to-web service [ web-group DNS ]
+set rulebase security rules inside-to-web action allow
+set rulebase security rules inside-to-web log-end yes
+set rulebase security rules publish-web from untrust
+set rulebase security rules publish-web to dmz
+set rulebase security rules publish-web source 0.0.0.0/0
+set rulebase security rules publish-web destination pub-web
+set rulebase security rules publish-web source-user any
+set rulebase security rules publish-web category any
+set rulebase security rules publish-web application any
+set rulebase security rules publish-web service HTTP
+set rulebase security rules publish-web action allow
+set rulebase security rules publish-web log-end no
+set rulebase security rules publish-web description "web server published by dnatrule 1"
+set rulebase security rules block-country from trust
+set rulebase security rules block-country to untrust
+set rulebase security rules block-country source 0.0.0.0/0
+set rulebase security rules block-country destination blocked-country
+set rulebase security rules block-country source-user any
+set rulebase security rules block-country category any
+set rulebase security rules block-country application any
+set rulebase security rules block-country service any
+set rulebase security rules block-country action deny
+set rulebase security rules block-country log-end yes
+set rulebase security rules block-country disabled yes
+set rulebase security rules block-country description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules lab-to-inside from lab
+set rulebase security rules lab-to-inside to trust
+set rulebase security rules lab-to-inside source 0.0.0.0/0
+set rulebase security rules lab-to-inside destination 0.0.0.0/0
+set rulebase security rules lab-to-inside source-user any
+set rulebase security rules lab-to-inside category any
+set rulebase security rules lab-to-inside application any
+set rulebase security rules lab-to-inside service any
+set rulebase security rules lab-to-inside action reset-client
+set rulebase security rules lab-to-inside log-end yes
+set rulebase security rules inside-to-servers from trust
+set rulebase security rules inside-to-servers to dmz
+set rulebase security rules inside-to-servers source inside-no-printers
+set rulebase security rules inside-to-servers destination servers
+set rulebase security rules inside-to-servers source-user any
+set rulebase security rules inside-to-servers category any
+set rulebase security rules inside-to-servers application any
+set rulebase security rules inside-to-servers service admin-group
+set rulebase security rules inside-to-servers action allow
+set rulebase security rules inside-to-servers log-end no
+set rulebase security rules inside-to-servers-apps from trust
+set rulebase security rules inside-to-servers-apps to dmz
+set rulebase security rules inside-to-servers-apps source inside-no-printers
+set rulebase security rules inside-to-servers-apps destination servers
+set rulebase security rules inside-to-servers-apps source-user any
+set rulebase security rules inside-to-servers-apps category any
+set rulebase security rules inside-to-servers-apps application ping
+set rulebase security rules inside-to-servers-apps service application-default
+set rulebase security rules inside-to-servers-apps action allow
+set rulebase security rules inside-to-servers-apps log-end no
+set rulebase security rules lab-updates from lab
+set rulebase security rules lab-updates to untrust
+set rulebase security rules lab-updates source lab-pool
+set rulebase security rules lab-updates destination update-site
+set rulebase security rules lab-updates source-user any
+set rulebase security rules lab-updates category any
+set rulebase security rules lab-updates application any
+set rulebase security rules lab-updates service HTTPS
+set rulebase security rules lab-updates action allow
+set rulebase security rules lab-updates log-end no
+set rulebase security rules lab-updates disabled yes
+set rulebase security rules app-clients from trust
+set rulebase security rules app-clients to untrust
+set rulebase security rules app-clients source [ 10.10.0.50 10.10.0.60-10.10.0.69 ]
+set rulebase security rules app-clients destination files.example.org
+set rulebase security rules app-clients source-user any
+set rulebase security rules app-clients category any
+set rulebase security rules app-clients application any
+set rulebase security rules app-clients service app-ports
+set rulebase security rules app-clients action allow
+set rulebase security rules app-clients log-end no
+set rulebase security rules app-clients disabled yes
+set rulebase security rules app-clients description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules p2p from trust
+set rulebase security rules p2p to untrust
+set rulebase security rules p2p source inside-net
+set rulebase security rules p2p destination 0.0.0.0/0
+set rulebase security rules p2p source-user any
+set rulebase security rules p2p category any
+set rulebase security rules p2p application any
+set rulebase security rules p2p service any
+set rulebase security rules p2p action allow
+set rulebase security rules p2p log-end no
+set rulebase security rules p2p disabled yes
+set rulebase security rules p2p description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules v6-out from trust
+set rulebase security rules v6-out to untrust
+set rulebase security rules v6-out source v6-inside
+set rulebase security rules v6-out destination ::/0
+set rulebase security rules v6-out source-user any
+set rulebase security rules v6-out category any
+set rulebase security rules v6-out application any
+set rulebase security rules v6-out service HTTPS
+set rulebase security rules v6-out action allow
+set rulebase security rules v6-out log-end no
+set rulebase security rules v6-out-apps from trust
+set rulebase security rules v6-out-apps to untrust
+set rulebase security rules v6-out-apps source v6-inside
+set rulebase security rules v6-out-apps destination ::/0
+set rulebase security rules v6-out-apps source-user any
+set rulebase security rules v6-out-apps category any
+set rulebase security rules v6-out-apps application ping
+set rulebase security rules v6-out-apps service application-default
+set rulebase security rules v6-out-apps action allow
+set rulebase security rules v6-out-apps log-end no
+set rulebase security rules tunnels-to-partners from [ lab dmz ]
+set rulebase security rules tunnels-to-partners to untrust
+set rulebase security rules tunnels-to-partners source 0.0.0.0/0
+set rulebase security rules tunnels-to-partners destination partners
+set rulebase security rules tunnels-to-partners source-user any
+set rulebase security rules tunnels-to-partners category any
+set rulebase security rules tunnels-to-partners application gre
+set rulebase security rules tunnels-to-partners service application-default
+set rulebase security rules tunnels-to-partners action allow
+set rulebase security rules tunnels-to-partners log-end no
+set rulebase security rules to-branch-vpn from trust
+set rulebase security rules to-branch-vpn to untrust
+set rulebase security rules to-branch-vpn source inside-net
+set rulebase security rules to-branch-vpn destination 0.0.0.0/0
+set rulebase security rules to-branch-vpn source-user any
+set rulebase security rules to-branch-vpn category any
+set rulebase security rules to-branch-vpn application any
+set rulebase security rules to-branch-vpn service any
+set rulebase security rules to-branch-vpn action allow
+set rulebase security rules to-branch-vpn log-end no
+set rulebase security rules to-branch-vpn disabled yes
+set rulebase security rules to-branch-vpn description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules contractors-out from trust
+set rulebase security rules contractors-out to untrust
+set rulebase security rules contractors-out source wild-hosts
+set rulebase security rules contractors-out destination 0.0.0.0/0
+set rulebase security rules contractors-out source-user "role contractors"
+set rulebase security rules contractors-out category any
+set rulebase security rules contractors-out application any
+set rulebase security rules contractors-out service any
+set rulebase security rules contractors-out action allow
+set rulebase security rules contractors-out log-end no
+set rulebase security rules contractors-out disabled yes
+set rulebase security rules contractors-out description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "rule 13" from trust
+set rulebase security rules "rule 13" to lab
+set rulebase security rules "rule 13" source inside-net
+set rulebase security rules "rule 13" destination 0.0.0.0/0
+set rulebase security rules "rule 13" source-user any
+set rulebase security rules "rule 13" category any
+set rulebase security rules "rule 13" application any
+set rulebase security rules "rule 13" service any
+set rulebase security rules "rule 13" action allow
+set rulebase security rules "rule 13" log-end no
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules "snatrule 3" from any
+set rulebase nat rules "snatrule 3" to untrust
+set rulebase nat rules "snatrule 3" source lab-pool
+set rulebase nat rules "snatrule 3" destination any
+set rulebase nat rules "snatrule 3" service any
+set rulebase nat rules "snatrule 3" source-translation dynamic-ip-and-port translated-address snat-pool
+set rulebase nat rules "snatrule 3" description "snatrule id 3 from lab-pool to Any service Any eif ethernet0/0 trans-to address-book snat-pool mode dynamicport sticky log"

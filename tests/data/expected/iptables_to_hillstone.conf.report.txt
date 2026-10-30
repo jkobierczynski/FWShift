@@ -1,0 +1,37 @@
+FWShift conversion report
+  source: iptables (IPv4)
+  target: hillstone
+
+Summary
+  Security rules:     15   exact 11, approximated 1, needs review 3 (1 emitted disabled), skipped 0
+  NAT rules:           5   exact 3, approximated 2, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain INPUT (3 rules, policy DROP) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10014 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [approximated] HILLSTONE_IPV4_ONLY: the policy names no IPv6 address: rules that match any address are written for IPv4 only (Any); IPv6 traffic meets the firewall's default, deny
+  [info] PASSIVE_TARGETS: 1 FORWARD rule with target LOG decides nothing and was left out; a LOG rule directly before a rule with the same match sets its logging
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface eth1 / zone "FWS_eth1"; interface eth0 / zone "FWS_eth0"; interface eth2 / zone "FWS_eth2"; interface eth3 / zone "FWS_eth3"
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  Block bad host  ->  needs-review  (emitted as 1 rule of policy-global)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Inbound web  ->  needs-review  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10/32' next to '10.20.0.10/32' because of NAT rule 'Web DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Web DNAT' also translates the port to 8443; the service of this rule still names the post-NAT port and must be adjusted
+  Inbound mail  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25/32' next to '10.20.0.25/32' because of NAT rule 'Mail DNAT'; check that this rule is meant to cover the translated traffic
+  DMZ updates  ->  exact  (emitted as 1 rule of policy-global)
+      [info] NEGATION_EXPANDED: a rule of StoneOS cannot negate: written as an address entry of the addresses that are left
+  Rate limited mail  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: match module 'limit'.
+
+NAT rules
+  Web DNAT  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from eth0; the rule written applies to traffic from every zone
+      [approximated] HILLSTONE_NAT_ZONE: the destination zones of the rule are not written: a dnatrule names none
+  Mail DNAT  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from eth0; the rule written applies to traffic from every zone
+      [approximated] HILLSTONE_NAT_ZONE: the destination zones of the rule are not written: a dnatrule names none

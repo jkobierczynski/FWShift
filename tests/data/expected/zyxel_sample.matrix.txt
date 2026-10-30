@@ -1,0 +1,143 @@
+FWShift zone matrix
+  source: zyxel
+  security rules: 18 (1 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 WAN               LAN1              DMZ               LAB               (other zones)
+  WAN            icmp type 8 +1    icmp type 8 +1    any~              icmp type 8 +1    icmp type 8 +1
+  LAN1           any~              icmp type 8 +1    tcp/22 tcp/80 +4  icmp type 8 +1    icmp type 8 +1
+  DMZ            icmp type 8 +2    icmp type 8 +1    -                 icmp type 8 +1    icmp type 8 +1
+  LAB            icmp type 8 +1    icmp type 8 +1    icmp type 8 +1    icmp type 8 +1    icmp type 8 +1
+  (other zones)  icmp type 8 +1    icmp type 8 +1    icmp type 8 +1    icmp type 8 +1    icmp type 8 +1
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+In every conduit
+  rule 'V6_Ping': ::/0 -> ::/0: icmp6 type 128
+
+Conduits
+WAN -> WAN (inside the zone)
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+WAN -> LAN1
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+WAN -> DMZ
+  allowed: any ~
+  rule 'WAN_to_Web': 0.0.0.0/0 -> WEB_SRV: tcp/80, tcp/443, tcp/8080-8089, tcp/8443
+  rule 'WAN_to_Mail': 0.0.0.0/0 -> MAIL_SRV: tcp/25
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  rule 'VS_Only': 0.0.0.0/0 -> 0.0.0.0/0: any (only with ctmatch dnat: matches only connections that a virtual server translated, which is not in the model) ~
+  and the 1 listed under 'In every conduit'
+WAN -> LAB
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+WAN -> (other zones)
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+LAN1 -> WAN
+  allowed: any ~
+  rule 'LAN1_Outgoing': ALL_INTERNAL -> 0.0.0.0/0: any
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  rule 'Alice_Workhours': 0.0.0.0/0 -> 0.0.0.0/0: tcp/443 (users alice; schedule WORKHOURS)
+  rule 'DNS_From_Port': 0.0.0.0/0 -> 0.0.0.0/0: udp/53 from port 1024-65535
+  rule 'Portal_Access': 0.0.0.0/0 -> PORTAL: tcp/443 ~
+  rule 'V6_LAN_Out': V6_LAN -> ::/0: any
+  and the 1 listed under 'In every conduit'
+LAN1 -> LAN1 (inside the zone)
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+LAN1 -> DMZ
+  allowed: tcp/22, tcp/80, tcp/443, tcp/8080-8089, tcp/8443, icmp6 type 128
+  rule 'Admin_Mgmt': ADMIN_PCS -> SERVERS: tcp/22, tcp/80, tcp/443, tcp/8080-8089, tcp/8443
+  rule 'V6_Admin_Web': V6_ADMINS -> V6_DMZ_WEB: tcp/22, tcp/80, tcp/443, tcp/8080-8089, tcp/8443
+  and the 1 listed under 'In every conduit'
+LAN1 -> LAB
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+LAN1 -> (other zones)
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+DMZ -> WAN
+  allowed: icmp type 8, ip/50 (esp), icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  rule 'ESP_Out': INSIDE_RANGE -> 0.0.0.0/0: ip/50 (esp)
+  and the 1 listed under 'In every conduit'
+DMZ -> LAN1
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+DMZ -> LAB
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+DMZ -> (other zones)
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+LAB -> WAN
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+LAB -> LAN1
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+LAB -> DMZ
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+LAB -> LAB (inside the zone)
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+LAB -> (other zones)
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+(other zones) -> WAN
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+(other zones) -> LAN1
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+(other zones) -> DMZ
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+(other zones) -> LAB
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+(other zones) -> (other zones)
+  allowed: icmp type 8, icmp6 type 128
+  rule 'Monitor_Ping': MONITOR -> 0.0.0.0/0: icmp type 8
+  and the 1 listed under 'In every conduit'
+
+Not in the matrix
+  1 rule(s) of the source could not be read; what they allow is not shown: 'LAN1_to_Device'
+
+From reading the configuration
+  ZYXEL_SOURCE: 4 zones (WAN, LAN1, DMZ, LAB); 18 rules of the security policy, first match, IPv4 and IPv6 lists one after the other. Rules to and from the firewall itself (ZyWALL) are not converted
+  ZYXEL_NAT_ORDER: virtual servers and 1:1 NAT are done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT of policy routes is done after it
+  ZYXEL_DEFAULT_SNAT: the default SNAT of the WAN trunk (connections from internal interfaces leave with the address of the WAN interface) is not a rule of the configuration and is not converted: give the target the source NAT it needs
+  ZYXEL_BLOCK_INTRAZONE: zones that block traffic between their members: read as a rule at the top that denies inside the zone, whatever the rules say (not confirmed on a device): DMZ
+  ZYXEL_UNZONED: interfaces in no zone, which only rules from any or to any match: ge7
+  ZYXEL_INTERFACE_OBJECT: address objects of an interface, read with the static address the configuration gives the interface: interface-subnet ge3, interface-subnet ge4, interface-ip ge1
+  ZYXEL_FQDN: address objects of a host name (fqdn), read as names resolved for IPv4; the form is not in the CLI Reference Guide FWShift could read: PORTAL
+  ZYXEL_ICMP_NAMES: ICMP types by name, read with the numbers of the IANA registry: echo, echo-request
+  ZYXEL_DEFAULTS: what no rule matches (secure-policy default-rule): IPv4 deny, IPv6 deny
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

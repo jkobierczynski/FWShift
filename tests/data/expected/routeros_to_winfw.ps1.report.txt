@@ -1,0 +1,104 @@
+FWShift conversion report
+  source: routeros
+  target: windows-firewall
+
+Summary
+  Security rules:     27   exact 4, approximated 3, needs review 20 (17 emitted disabled), skipped 0
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of /ip firewall filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] TABLE_NOT_CONVERTED: /ip firewall mangle has 1 rules and is not converted (it can mark connections and routes, which the filter rules may test)
+  [needs-review] ROUTEROS_DYNAMIC_LIST: address lists that rules fill while the router runs decide what their rules match; those rules are not converted: /ip scanners
+  [needs-review] WINFW_DEFAULT_ALLOW: the source allows what no rule matches: written as allow rules for every connection, in both directions, which the block rules beat
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] ROUTEROS_ZONES: the interface lists the rules use do not overlap: each is a zone (DMZ: vlan20-dmz, GUEST: vlan30-guest, LAN: bridge-lan, WAN: ether1); an interface in none of them is a zone of its own
+  [info] ROUTEROS_PASSIVE: 2 rules with action log, passthrough or add-*-to-address-list decide nothing and were left out. A log rule directly before a rule with the same match, or one that matches everything, sets the logging of the rules it logs for
+  [info] ROUTEROS_FQDN_LIST: address lists that hold host names, which RouterOS resolves while it runs: converted as host name objects (mirrors)
+  [info] ROUTEROS_BRIDGE: traffic between the ports of one bridge (bridge-lan) does not pass the IP firewall of the source (use-ip-firewall=no); the conversion is of routed traffic
+  [info] FORWARD_POLICY_ACCEPT: RouterOS accepts what no rule of the forward chain decides; the model records that as its default action
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  defconf: accept in ipsec policy  ->  needs-review, emitted disabled  (emitted as FWShift-defconf__accept_in_ipsec_policy-1, FWShift-defconf__accept_in_ipsec_policy-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: ipsec-policy=in,ipsec (traffic of IPsec tunnels).
+  banned scanners  ->  needs-review, emitted disabled  (emitted as FWShift-banned_scanners-1, FWShift-banned_scanners-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: address list 'scanners', which rules fill while the router runs. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ssh from the admins  ->  needs-review, emitted disabled  (emitted as FWShift-ssh_from_the_admins-1, FWShift-ssh_from_the_admins-2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Windows Firewall names no zone: give the networks behind DMZ with --zone-network (or --zone-map it to Host or a profile).
+  web for everyone  ->  needs-review, emitted disabled  (emitted as FWShift-web_for_everyone-1, FWShift-web_for_everyone-2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Windows Firewall names no zone: give the networks behind DMZ with --zone-network (or --zone-map it to Host or a profile).
+  web for everyone-2  ->  needs-review, emitted disabled  (emitted as FWShift-web_for_everyone-2-1, FWShift-web_for_everyone-2-2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Windows Firewall names no zone: give the networks behind DMZ with --zone-network (or --zone-map it to Host or a profile).
+  ping "echo" only  ->  needs-review, emitted disabled  (emitted as FWShift-ping__echo__only-1, FWShift-ping__echo__only-2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Windows Firewall names no zone: give the networks behind DMZ with --zone-network (or --zone-map it to Host or a profile).
+  ping "echo" only-2  ->  needs-review, emitted disabled  (emitted as FWShift-ping__echo__only-2-1, FWShift-ping__echo__only-2-2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a rule of Windows Firewall names no zone: give the networks behind DMZ with --zone-network (or --zone-map it to Host or a profile).
+  nothing but TCP  ->  needs-review
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+      [needs-review] WINFW_LEFT_TO_DEFAULT: all of it is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  nothing but TCP-2  ->  needs-review
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+      [needs-review] WINFW_LEFT_TO_DEFAULT: all of it is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  rest of the DMZ  ->  needs-review, emitted disabled  (emitted as FWShift-rest_of_the_DMZ-1, FWShift-rest_of_the_DMZ-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-2  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-3  ->  needs-review, emitted disabled  (emitted as FWShift-rest_of_the_DMZ-3-1, FWShift-rest_of_the_DMZ-3-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to the package mirrors  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: a rule of Windows Firewall names addresses.
+  no other web from guests  ->  approximated  (emitted as FWShift-no_other_web_from_guests-1, FWShift-no_other_web_from_guests-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action reset-client: a block rule of Windows Firewall drops without an answer
+  guest DNS, either port  ->  needs-review, emitted disabled  (emitted as FWShift-guest_DNS__either_port-1, FWShift-guest_DNS__either_port-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and a rule of Windows Firewall names no zone: give the networks behind GUEST with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  guest DNS, either port-2  ->  needs-review, emitted disabled  (emitted as FWShift-guest_DNS__either_port-2-1, FWShift-guest_DNS__either_port-2-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and a rule of Windows Firewall names no zone: give the networks behind GUEST with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  guests to the internet  ->  needs-review, emitted disabled  (emitted as FWShift-guests_to_the_internet-1, FWShift-guests_to_the_internet-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and a rule of Windows Firewall names no zone: give the networks behind GUEST with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  office hours for staff  ->  needs-review, emitted disabled  (emitted as FWShift-office_hours_for_staff-1, FWShift-office_hours_for_staff-2)
+      [needs-review] SCHEDULE: schedule 'time=8h-18h,mon,tue,wed,thu,fri' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Windows Firewall names no zone: give the networks behind LAN with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  no guests elsewhere  ->  approximated  (emitted as FWShift-no_guests_elsewhere-1, FWShift-no_guests_elsewhere-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  defconf: drop all from WAN not DSTNATed (allows publish web)  ->  needs-review, emitted disabled  (emitted as FWShift-defconf__drop_all_from_WAN_not_DSTNATed__allows_publish_web_-1, FWShift-defconf__drop_all_from_WAN_not_DSTNATed__allows_publish_web_-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  defconf: drop all from WAN not DSTNATed (allows publish mail)  ->  needs-review, emitted disabled  (emitted as FWShift-defconf__drop_all_from_WAN_not_DSTNATed__allows_publish_mail_-1, FWShift-defconf__drop_all_from_WAN_not_DSTNATed__allows_publish_mail_-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  defconf: drop all from WAN not DSTNATed  ->  approximated  (emitted as FWShift-defconf__drop_all_from_WAN_not_DSTNATed-1, FWShift-defconf__drop_all_from_WAN_not_DSTNATed-2)
+      [info] ROUTEROS_DSTNAT_EXCEPTION: connection-nat-state=!dstnat: the rule does not block connections a destination NAT rule translated. Those are allowed by 2 rules ahead of it (defconf: drop all from WAN not DSTNATed (allows publish web), defconf: drop all from WAN not DSTNATed (allows publish mail))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  drop everything else not coming from LAN  ->  needs-review
+      [needs-review] ROUTEROS_NEGATED_INTERFACE: negated input interface (on the rule or the jump to its chain): the export does not list every interface of the router, and the rule covers the zones it does show (DMZ, GUEST, WAN). On the source it also blocks traffic of interfaces the export leaves out
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] WINFW_LEFT_TO_DEFAULT: all of it is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+
+NAT rules
+  publish web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  publish mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  defconf: masquerade  ->  skipped
+      [approximated] ROUTEROS_NAT_IPSEC_EXEMPT: ipsec-policy=out,none: on the source, traffic that goes into an IPsec tunnel is not translated; the converted rule translates it unless the target exempts it
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation

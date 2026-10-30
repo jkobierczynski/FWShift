@@ -131,7 +131,7 @@ def run(runner: Runner, args: Any) -> bool:
 
 def _delete_made(runner: Runner, region: str, name: str, problems: List[str]) -> None:
     """The policy, then its rule group (a group a policy still names is not deleted: tried again for two minutes, while
-    the policy's deletion goes on)."""
+    the policy's deletion goes on), and the wait until the group is gone."""
     policy = ["aws", "network-firewall", "delete-firewall-policy", *_aws(region), "--firewall-policy-name", name]
     group = ["aws", "network-firewall", "delete-rule-group", *_aws(region), "--rule-group-name", f"{name}-rules", "--type", "STATEFUL"]
     answer = runner.run(policy, check=False, quiet=True)
@@ -141,10 +141,22 @@ def _delete_made(runner: Runner, region: str, name: str, problems: List[str]) ->
     while True:
         runner.run(group, check=False, quiet=True)
         failed = runner.last_stderr.strip()
-        if runner.dry_run or not failed or "ResourceNotFound" in failed:
+        if runner.dry_run or "ResourceNotFound" in failed:
             return
+        if not failed:
+            break
         if time.time() > deadline:
             problems.append(f"delete-rule-group {name}-rules: {failed[:200]}")
+            return
+        time.sleep(15)
+    # The deletion goes on after the answer (the group is DELETING, and listed, for a while: the run of 0.41.7 reported
+    # it as left behind): until it is gone, for five minutes at most.
+    describe = ["aws", "network-firewall", "describe-rule-group", *_aws(region), "--rule-group-name", f"{name}-rules", "--type",
+                "STATEFUL", "--query", "RuleGroupResponse.RuleGroupStatus", "--output", "text"]  # fmt: skip
+    deadline = time.time() + 300
+    while time.time() < deadline:
+        runner.run(describe, check=False, quiet=True)
+        if "ResourceNotFound" in runner.last_stderr:
             return
         time.sleep(15)
 

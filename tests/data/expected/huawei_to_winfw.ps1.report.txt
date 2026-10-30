@@ -1,0 +1,80 @@
+FWShift conversion report
+  source: huawei
+  target: windows-firewall
+
+Summary
+  Security rules:     16   exact 1, approximated 2, needs review 12 (12 emitted disabled), skipped 1
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with display predefined-service: http, https, smtp, dns, ntp, ssh, icmp, ftp
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] HUAWEI_SOURCE: 4 zones (trust, untrust, dmz, lab); 15 rules of the security policy, first match. The local zone (the firewall itself) is not converted
+  [info] HUAWEI_NAT_ORDER: destination NAT (nat server) is done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT (nat-policy) is done after it
+  [info] HUAWEI_DEFAULTS: what no rule matches: between zones deny, inside a zone permit
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  block-bad-nets  ->  approximated  (emitted as FWShift-block-bad-nets-1, FWShift-block-bad-nets-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone untrust; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  web-in  ->  needs-review, emitted disabled  (emitted as FWShift-web-in-1, FWShift-web-in-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a rule of Windows Firewall names no zone: give the networks behind untrust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Windows Firewall names no zone: give the networks behind dmz with --zone-network (or --zone-map it to Host or a profile).
+  mail-in  ->  needs-review, emitted disabled  (emitted as FWShift-mail-in-1, FWShift-mail-in-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a rule of Windows Firewall names no zone: give the networks behind untrust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Windows Firewall names no zone: give the networks behind dmz with --zone-network (or --zone-map it to Host or a profile).
+  office-out  ->  needs-review, emitted disabled  (emitted as FWShift-office-out-1, FWShift-office-out-2, FWShift-office-out-3, FWShift-office-out-4)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Windows Firewall names no zone: give the networks behind trust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of Windows Firewall names no zone: give the networks behind untrust with --zone-network (or --zone-map it to Host or a profile).
+  office-dmz  ->  needs-review, emitted disabled  (emitted as FWShift-office-dmz-1, FWShift-office-dmz-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Windows Firewall names no zone: give the networks behind trust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Windows Firewall names no zone: give the networks behind dmz with --zone-network (or --zone-map it to Host or a profile).
+  admin-ssh  ->  needs-review, emitted disabled  (emitted as FWShift-admin-ssh-1, FWShift-admin-ssh-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Windows Firewall names no zone: give the networks behind trust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Windows Firewall names no zone: give the networks behind dmz with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone lab, and a rule of Windows Firewall names no zone: give the networks behind lab with --zone-network (or --zone-map it to Host or a profile).
+  dmz-syslog  ->  needs-review, emitted disabled  (emitted as FWShift-dmz-syslog-1, FWShift-dmz-syslog-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and a rule of Windows Firewall names no zone: give the networks behind dmz with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone trust, and a rule of Windows Firewall names no zone: give the networks behind trust with --zone-network (or --zone-map it to Host or a profile).
+  lab-tools  ->  needs-review, emitted disabled  (emitted as FWShift-lab-tools-1, FWShift-lab-tools-2, FWShift-lab-tools-3, FWShift-lab-tools-4, FWShift-lab-tools-5, FWShift-lab-tools-6)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Windows Firewall names no zone: give the networks behind trust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone lab, and a rule of Windows Firewall names no zone: give the networks behind lab with --zone-network (or --zone-map it to Host or a profile).
+  lab-out  ->  needs-review, emitted disabled  (emitted as FWShift-lab-out-1, FWShift-lab-out-2, FWShift-lab-out-3, FWShift-lab-out-4)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lab, and a rule of Windows Firewall names no zone: give the networks behind lab with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of Windows Firewall names no zone: give the networks behind untrust with --zone-network (or --zone-map it to Host or a profile).
+  ping-dmz  ->  needs-review, emitted disabled  (emitted as FWShift-ping-dmz-1, FWShift-ping-dmz-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Windows Firewall names no zone: give the networks behind trust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of Windows Firewall names no zone: give the networks behind dmz with --zone-network (or --zone-map it to Host or a profile).
+  ipv6-out  ->  needs-review, emitted disabled  (emitted as FWShift-ipv6-out-1, FWShift-ipv6-out-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of Windows Firewall names no zone: give the networks behind trust with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of Windows Firewall names no zone: give the networks behind untrust with --zone-network (or --zone-map it to Host or a profile).
+  video  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) YouTube; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  lab-deny  ->  approximated  (emitted as FWShift-lab-deny-1, FWShift-lab-deny-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone lab; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  intrazone default  ->  needs-review, emitted disabled
+      [needs-review] RULE_TYPE: intrazone rule with zone any: a rule of Windows Firewall names no zones.
+  manage-fw  ->  skipped
+      [info] HUAWEI_LOCAL_RULE: a rule for traffic to or from the firewall itself (the local zone): not converted
+
+NAT rules
+  nat-server-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat-server-web-tls  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nat-server-mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  no-nat-vpn  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  office-pat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  lab-easy-ip  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation

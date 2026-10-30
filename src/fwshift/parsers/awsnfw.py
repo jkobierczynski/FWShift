@@ -58,7 +58,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
-from .. import regions
+from .. import regions, transform
 from ..errors import ParseError
 from ..model import ANY, APP_DEFAULT, Action, AddressGroup, Policy, Protocol, Rule, Service, ServiceEntry
 from ..netutil import FULL_V4, FULL_V6, Interval, interval_text, normalize, parse_literal, subtract
@@ -506,6 +506,13 @@ class _Reading:
     rule: Rule
     transports: Tuple[str, ...] = ()  # what it can match: "tcp", "other"
     key: str = ""
+    # A rule with a flow keyword but neither established nor not_established matches the established packets of a TCP
+    # connection as well (what decides them where every packet is decided on its own: aws:drop_strict). A rule without
+    # any flow keyword is evaluated on the first packet of each direction only, as Suricata does with such rules.
+    any_state: bool = False
+    # A rule of both directions (<>) without a flow direction: its readings for the first packet, of both orientations,
+    # are also what the replies match (the reader leaves its reply readings out as the same).
+    both_ways: bool = False
     findings: List[Tuple[Severity, str, str]] = field(default_factory=list)
 
 
@@ -1100,6 +1107,8 @@ class _Builder:
                                  "stateless rule forwards): the stateful rules decide nothing and are disabled in the converted policy")  # fmt: skip
             self._alert_note()
             return
+        if strict_drop:
+            self._strict_replies([reading for _, found in readings for reading in found])
         written: Set[str] = set()
         for moment in (_FIRST, _REPLY, _ESTABLISHED, _ESTABLISHED_REPLY):
             if moment == _REPLY and strict_drop:
@@ -1128,6 +1137,133 @@ class _Builder:
                        "match")  # fmt: skip
                 self._never(rule, why)
         self._alert_note()
+
+    def _strict_replies(self, readings: List[_Reading]) -> None:
+        """With STRICT_ORDER and aws:drop_strict every packet is decided on its own: a pass rule passes the packets it
+        matches, and any other packet of a connection is dropped unless a rule passes it too (the FWShift lab, 0.41.7:
+        pass rules with flow:to_server and nothing for the replies blocked every connection). For the first reply, and
+        for TCP the established packets each way, the first match in order decides (the default drops); the
+        connections one of those packets of which no rule passes are blocked at the top, and the rules for the first
+        packet follow."""
+        # (the connections that have a reply: every protocol, but of ICMP the requests only; an ICMP message that is no
+        # request is decided on its one packet)
+        requests = {number: [(request, request, 0, 65535) for request in sorted(types)] for number, types in _REPLY_TYPE.items()}
+        answered = regions.Services(requests, True)
+        tcp = regions.Services({6: [regions.WHOLE]}, False)
+        # (each in the order of the policy: the first match decides)
+        moments = (
+            (answered, [r for r in readings if r.moment == _REPLY or (r.moment == _FIRST and r.both_ways)]),
+            (tcp, [r for r in readings if r.moment == _ESTABLISHED or (r.moment == _FIRST and r.any_state)]),
+            (tcp, [r for r in readings if r.moment == _ESTABLISHED_REPLY or (r.moment == _ESTABLISHED and r.both_ways)
+                   or (r.any_state and (r.moment == _REPLY or (r.moment == _FIRST and r.both_ways)))]),
+        )
+        def passed_by(found: List[_Reading]) -> Optional[List[regions.Box]]:
+            """What the first match passes, in order (None when a rule cannot be read as sets)."""
+            earlier: List[regions.Box] = []
+            passed: List[regions.Box] = []
+            for reading in found:
+                boxes = self._rule_boxes(reading.rule)
+                first = regions.minus_all(boxes, earlier, limit=_MAX_PIECES) if boxes is not None else None
+                if boxes is None or first is None:
+                    self.report.note(Severity.REVIEW, "AWSNFW_STRICT_REPLIES",
+                                     "with aws:drop_strict every packet is decided on its own, and the replies and later packets of "
+                                     "a connection are dropped unless a rule passes them; the rules that match them could not be "
+                                     f"worked out as sets (rule {reading.rule.name}), so the connections are read as decided on their "
+                                     "first packet: check that their replies pass")  # fmt: skip
+                    return None
+                if reading.rule.action == Action.ALLOW:
+                    passed += first
+                earlier += boxes
+            return passed
+
+        def failed() -> None:
+            self.report.note(Severity.REVIEW, "AWSNFW_STRICT_REPLIES",
+                             "with aws:drop_strict the replies and later packets of a connection are dropped unless a rule passes "
+                             "them; which ones the rules pass could not be worked out as sets, so the connections are read as "
+                             "decided on their first packet: check that their replies pass")  # fmt: skip
+
+        # (only the connections the first packet passes matter: the default drops the others anyway)
+        opened = passed_by([r for r in readings if r.moment == _FIRST])
+        if opened is None:
+            return
+        blocked: List[regions.Box] = []
+        for services, found in moments:
+            scope = [(v, regions.everywhere(v), regions.everywhere(v), services) for v in (4, 6)]
+            passed = passed_by(found)
+            if passed is None:
+                return
+            left = regions.minus_all(scope, passed, limit=_MAX_PIECES)
+            if left is None:
+                failed()
+                return
+            for box in left:
+                for other in opened:
+                    both = regions.box_and(box, other)
+                    if both is not None and not regions.empty(both):
+                        blocked.append(both)
+            if len(blocked) > _MAX_PIECES:
+                failed()
+                return
+        written = self._box_rules("strict-replies-dropped", blocked, Action.DROP)
+        for rule in written:
+            rule.description = "aws:drop_strict: connections whose replies or later packets no rule passes"
+            self.report.add("rule", rule.origin, Severity.INFO, "AWSNFW_REPLY_DROPPED",
+                            "with aws:drop_strict every packet is decided on its own: the replies (or, for TCP, the established "
+                            "packets) of these connections match no rule that passes them, so the default drops them and the "
+                            "connections are blocked, whatever passes their first packet")  # fmt: skip
+        if written:
+            self.report.note(Severity.INFO, "AWSNFW_STRICT_REPLIES",
+                             "with aws:drop_strict every packet is decided on its own (strict order): a pass rule with flow:to_server "
+                             "passes the packets from the client and not the replies. Connections whose replies or later packets no "
+                             "rule passes are blocked (rules strict-replies-dropped, at the top)")  # fmt: skip
+
+    def _rule_boxes(self, rule: Rule) -> Optional[List[regions.Box]]:
+        """A rule of the model as the connections it matches, or None when that cannot be read (applications, members
+        without known addresses, more pieces than the limit)."""
+        if rule.unsupported or [a for a in rule.applications if a != ANY]:
+            return None
+        if APP_DEFAULT in rule.services:
+            return None
+        if ANY in rule.services:
+            svc: Optional[regions.Services] = regions.ALL_SERVICES
+        else:
+            entries: List[ServiceEntry] = []
+            for name in rule.services:
+                found = transform.flatten_services(self.p, name)
+                if found is None:
+                    return None
+                entries += found
+            svc = regions.service_set(entries)
+        if svc is None:
+            return None
+        boxes: List[regions.Box] = []
+        for version in (4, 6):
+            sides: List[List[Interval]] = []
+            for members, negate in ((rule.sources, rule.negate_source), (rule.destinations, rule.negate_destination)):
+                if ANY in members:
+                    found_side = list(regions.everywhere(version))
+                else:
+                    found_side = []
+                    for member in members:
+                        intervals, complete = transform.known_intervals(self.p, member)
+                        if not complete:
+                            return None
+                        found_side += intervals
+                    found_side = regions.addresses(normalize(found_side), version)
+                if negate:
+                    found_side = subtract(list(regions.everywhere(version)), found_side)
+                sides.append(found_side)
+            if not sides[0] or not sides[1]:
+                continue
+            if rule.negate_service:  # (every service but those: what is left of all of them)
+                rest = regions.minus_all([(version, sides[0], sides[1], regions.ALL_SERVICES)], [(version, sides[0], sides[1], svc)],
+                                         limit=_MAX_PIECES)  # fmt: skip
+                if rest is None:
+                    return None
+                boxes += [box for box in rest if not _meets_nothing(box)]
+            elif not _meets_nothing((version, sides[0], sides[1], svc)):
+                boxes.append((version, sides[0], sides[1], svc))
+        return boxes
 
     def _alert_note(self) -> None:
         if self.alerts:
@@ -1397,7 +1533,9 @@ class _Builder:
                     rule.description = parsed.message
                     rule.log_end = parsed.action != "pass"
                     rule.source_ids = {"awsnfw.rule_group": parsed.group.name, "awsnfw.sid": parsed.sid}
-                    reading = _Reading(moment, rule, transports, key)
+                    reading = _Reading(moment, rule, transports, key,
+                                       any_state=established is None and not later and parsed.option("flow") is not None,
+                                       both_ways=parsed.both and not flow_dir and itypes is None)  # fmt: skip
                     if mirror:
                         rule.source_ids["awsnfw.reading"] = "reply"
                         reading.findings.append((Severity.INFO, "AWSNFW_REPLY_READING",

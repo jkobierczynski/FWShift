@@ -1,0 +1,67 @@
+FWShift conversion report
+  source: zyxel
+  target: panos
+
+Summary
+  Security rules:     19   exact 8, approximated 7, needs review 3 (3 emitted disabled), skipped 1
+  NAT rules:           9   exact 2, approximated 0, needs review 0, skipped 7
+  Addresses:          17   exact 17, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           16   exact 16, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZYXEL_DEFAULT_SNAT: the default SNAT of the WAN trunk (connections from internal interfaces leave with the address of the WAN interface) is not a rule of the configuration and is not converted: give the target the source NAT it needs
+  [needs-review] ZYXEL_BLOCK_INTRAZONE: zones that block traffic between their members: read as a rule at the top that denies inside the zone, whatever the rules say (not confirmed on a device): DMZ
+  [needs-review] ZYXEL_FQDN: address objects of a host name (fqdn), read as names resolved for IPv4; the form is not in the CLI Reference Guide FWShift could read: PORTAL
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): DMZ, LAN1, WAN, LAB
+  [info] ZYXEL_SOURCE: 4 zones (WAN, LAN1, DMZ, LAB); 18 rules of the security policy, first match, IPv4 and IPv6 lists one after the other. Rules to and from the firewall itself (ZyWALL) are not converted
+  [info] ZYXEL_NAT_ORDER: virtual servers and 1:1 NAT are done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT of policy routes is done after it
+  [info] ZYXEL_UNZONED: interfaces in no zone, which only rules from any or to any match: ge7
+  [info] ZYXEL_INTERFACE_OBJECT: address objects of an interface, read with the static address the configuration gives the interface: interface-subnet ge3, interface-subnet ge4, interface-ip ge1
+  [info] ZYXEL_ICMP_NAMES: ICMP types by name, read with the numbers of the IANA registry: echo, echo-request
+  [info] ZYXEL_DEFAULTS: what no rule matches (secure-policy default-rule): IPv4 deny, IPv6 deny
+  [info] INTRAZONE_DENY_ADDED: appended 'fwshift-intrazone-deny': PAN-OS allows traffic inside a zone by default, the source denies it
+
+Security rules
+  WAN_to_Web  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'PUBLIC_WEB' next to 'WEB_SRV' because of NAT rule 'virtual-server WEB_VS'; check that this rule is meant to cover the translated traffic
+  WAN_to_Mail  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to 'MAIL_SRV' because of NAT rule 'virtual-server MAIL_VS'; check that this rule is meant to cover the translated traffic
+  Admin_Mgmt  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default_av); attach equivalent inspection on the target
+  Monitor_Ping  ->  approximated
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+  Old_Rule  ->  approximated
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: gre. Verify these names against the App-ID release in use
+  Alice_Workhours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'WORKHOURS' is not converted; the rule would apply at all times.
+  Country_Block  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'COUNTRY_X': geography XX: not an address FWShift can read. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  VS_Only  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: ctmatch dnat: matches only connections that a virtual server translated.
+  ESP_Out  ->  approximated
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipsec-esp. Verify these names against the App-ID release in use
+  V6_Ping  ->  approximated
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping6. Verify these names against the App-ID release in use
+  LAN1_to_Device  ->  skipped
+      [info] ZYXEL_DEVICE_RULE: a rule for traffic to the firewall itself (LAN1 to ZyWALL): not converted
+
+NAT rules
+  virtual-server WEB_VS  ->  skipped
+      [approximated] ZYXEL_NAT_LOOPBACK: nat-loopback: hosts behind the firewall that use the original address are translated as well (and their source is translated to the firewall); only the translation for traffic that arrives on the interface is converted
+      [needs-review] NAT_NOT_CONVERTED: not converted: a PAN-OS NAT rule needs a destination zone and the source rule names none; give the zone the traffic is routed to before translation with --target-nat-zone
+  virtual-server MAIL_VS  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a PAN-OS NAT rule needs a destination zone and the source rule names none; give the zone the traffic is routed to before translation with --target-nat-zone
+  virtual-server ALT_VS  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a PAN-OS NAT rule needs a destination zone and the source rule names none; give the zone the traffic is routed to before translation with --target-nat-zone
+  virtual-server OLD_VS  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a PAN-OS NAT rule needs a destination zone and the source rule names none; give the zone the traffic is routed to before translation with --target-nat-zone
+  policy-route 1  ->  skipped
+      [info] ZYXEL_ROUTE_NO_SNAT: a policy route without SNAT above one with SNAT: kept as a rule that translates nothing, so that the SNAT of the routes below it does not apply to its traffic
+      [needs-review] NAT_NOT_CONVERTED: not converted: references 'LAB_SUBNET': interface-subnet ge6: interface-subnet of ge6: the interface gets its address by dhcp
+  policy-route 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of WAN, which is unknown; map it with --interface-map
+  policy-route 3  ->  skipped
+      [info] ZYXEL_SNAT_POOL: SNAT to the addresses of PUBLIC_RANGE, read as translation with port translation (the documentation does not say)
+      [needs-review] NAT_NOT_CONVERTED: not converted: a PAN-OS NAT rule needs a destination zone and the source rule names none; give the zone the traffic is routed to before translation with --target-nat-zone

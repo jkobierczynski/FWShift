@@ -1,0 +1,41 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: zyxel
+
+Summary
+  Security rules:      8   exact 3, approximated 1, needs review 4 (4 emitted disabled), skipped 0
+  NAT rules:           4   exact 0, approximated 4, needs review 0, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZYXEL_LOAD: the output is a script of CLI commands (section 10): new objects, zones without members, rules inserted from position 1 of the security policy on (before the rules the firewall has, which still decide what these do not match), virtual servers and policy routes, which take effect at once. Check, then save with write
+  [needs-review] ZYXEL_NAT_INTERFACES: virtual servers and policy routes name the interfaces of the zones as the source names them (after --interface-map): check that the firewall has them (ge1, wan1 ...): inside, iot, outside
+  [info] ZYXEL_DEFAULT_RULES: after the converted rules, 18 rules that do what the source does with traffic no rule matches, for every pair of the zones written (inside a zone as the source decides it): the rules the firewall already has decide only traffic of zones the conversion does not know
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log
+  [info] ZYXEL_NAT_WRITTEN: virtual servers are done before the security policy, whose rules name the inside address: the rules were written for it
+
+Security rules
+  Inside_Outside_web  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  IoT_telemetry  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] FQDN_NOT_SUPPORTED: host name object vendor-cloud: the form of an address object of a host name is not in the documentation FWShift could read.
+  Head_office_v6  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] NOT_WRITTEN: the sources and the destinations have no IP version in common: the rule matches nothing.
+  Staff_streaming  ->  needs-review, emitted disabled  (emitted as 2 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests_by_time  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] SERVICE_NOT_WRITTEN: service port-unreachable: source ports, an ICMP code, SCTP ports or protocol 0, which a service object cannot say.
+
+NAT rules
+  NAS_published  ->  approximated  (emitted as virtual server)
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 192.0.2.2
+  nas_static  ->  approximated  (emitted as virtual server)
+      [approximated] ZYXEL_NAT_ZONES: a 1:1 NAT of ZLD names the outside interface only: the zones of the inside host are not a condition
+  InsideOutsideNatRule  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  IoT_out  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches

@@ -1,0 +1,155 @@
+FWShift conversion report
+  source: oci (ocid1.vcn.oc1.eu-frankfurt-1.exampleshopvcn)
+  target: sonicwall
+
+Summary
+  Security rules:     37   exact 0, approximated 0, needs review 0, skipped 37
+  NAT rules:           3   exact 0, approximated 3, needs review 0, skipped 0
+  Address groups:     21   exact 21, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 10, approximated 0, needs review 9, skipped 0
+
+Notes for the whole policy
+  [needs-review] OCI_HAIRPIN: connections from inside the VCN to its own public addresses are not converted as OCI decides them: they go through the internet gateway, and the rules see public addresses at both ends (a rule that names an NSG does not match them). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] OCI_REMOTE_NSG: rules name NSGs that are not in the input: ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplemonitoringnsgotherteam. No VNIC of the input is in them, so those rules allow nothing (an NSG names NSGs of its own VCN; if VNICs are missing from the input, add them)
+  [needs-review] OCI_SERVICE_LABEL: rules name service CIDR labels whose addresses are not in the input: oci-ams-objectstorage. Those rules are not converted; add Oracle's public_ip_ranges.json and 'oci iam region list'
+  [needs-review] NAT_NOTHING_ELSE: SonicOS adds NAT policies of its own (an interface in a WAN zone hides the LAN and DMZ subnets behind its address), and the source translated only what its NAT rules say. The interfaces of the zones are not known (--interface-map), so no policy that translates nothing was written: disable the policies SonicOS added (Network, NAT Policies, Default & Custom), or check that the source's translations are all it does
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: address-object ipv6, nat-policy name and comment, nat-policy priority manual
+  [info] OCI_STATELESS_REPLY: stateless rules let traffic through without tracking the connection, and some of their replies are not allowed in the other direction (a stateless rule decides over a stateful one that matches the same traffic). Those connections fail on OCI and are blocked first in the converted policy ('...-stateless-in', '...-stateless-out')
+  [info] OCI_EGRESS_PAIRS: inside the VCN a connection needs an egress rule of the sender's lists and NSGs and an ingress rule of the receiver's. Where the egress rules do not allow everything, 3 rules allow what both allow, and a rule after them blocks the rest of what those addresses send inside the VCN
+  [info] OCI_RULE_INVALID: ingress rule 3 of NSG web-nsg names NSG ocid1.networksecuritygroup.oc1.eu-frankfurt-1.exampledeletednsg, which was deleted (is-valid false): OCI ignores the rule, and so does the converted policy
+  [info] OCI_PUBLIC_ADDRESSES: the public IP addresses of the VNICs are static NAT of their primary private addresses: the internet gateway translates what comes from outside, and the rules see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] OCI_UNFILTERED: security rules are never enforced for traffic to or from 169.254.0.0/16 (instance metadata, iSCSI boot volumes, the VCN's DNS and NTP); neither does the converted policy say anything about it
+  [info] OCI_UNUSED: these security lists are associated with no subnet, or no VNIC is in these NSGs, so their rules allow nothing and were left out: spare-sl, legacy-nsg
+  [info] OCI_DEFAULT_SECURITY_LIST: these subnets use the default security list of the VCN, whose rules (as created: SSH from anywhere, ICMP type 3, every egress) are converted as they are now: web-subnet, mgmt-subnet
+  [info] OCI_UDP_FRAGMENTS: rules allow UDP to or from certain ports: OCI drops the fragments after the first of a fragmented UDP packet that such a rule allows (they carry no ports). The model has no fragments
+  [info] OCI_TERMINATED: 1 objects that are terminated or being terminated were left out
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  db-subnet-stateless-in  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-subnet-stateless-in-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-subnet-stateless-in-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  app-subnet-to-db-sl  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  app-subnet-egress-rest  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  app-subnet+app-nsg-to-db-sl  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  app-subnet+app-nsg-egress-rest  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-subnet-to-Default Security List for shop-vcn  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-subnet-egress-rest  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  Default Security List for shop-vcn-in-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  Default Security List for shop-vcn-in-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  Default Security List for shop-vcn-in-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  Default Security List for shop-vcn-in-4  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  Default Security List for shop-vcn-in-5  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  web-sl-in-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  web-sl-in-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  web-sl-in-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  app-sl-in-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  app-sl-in-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  app-sl-in-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-sl-in-1  ->  skipped
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-sl-in-2  ->  skipped
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-sl-in-3  ->  skipped
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-sl-in-4  ->  skipped
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-sl-in-5  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-sl-in-6  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  web-nsg-in-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  app-nsg-in-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  app-nsg-in-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  bastion-nsg-in-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  bastion-nsg-in-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  Default Security List for shop-vcn-out-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  Default Security List for shop-vcn-out-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  app-sl-out-2  ->  skipped
+      [approximated] OCI_SERVICE_RANGES: service CIDR label all-fra-services-in-oracle-services-network is read as the ranges Oracle publishes for it; on OCI the rule matches that traffic only through a service gateway, and the published ranges change
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  app-sl-out-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  app-sl-out-4  ->  skipped
+      [approximated] OCI_SERVICE_RANGES: service CIDR label oci-fra-objectstorage is read as the ranges Oracle publishes for it; on OCI the rule matches that traffic only through a service gateway, and the published ranges change
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  app-sl-out-5  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+
+NAT rules
+  public-203.0.113.10  ->  approximated  (emitted as public-203.0.113.10, public-203.0.113.10 in)
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT policy plus policy 'public-203.0.113.10 in' for the inbound direction
+  public-203.0.113.11  ->  approximated  (emitted as public-203.0.113.11, public-203.0.113.11 in)
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT policy plus policy 'public-203.0.113.11 in' for the inbound direction
+  public-203.0.113.50  ->  approximated  (emitted as public-203.0.113.50, public-203.0.113.50 in)
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT policy plus policy 'public-203.0.113.50 in' for the inbound direction
+
+Address groups
+  web-subnet  ->  exact  (emitted as web-subnet, web-subnet v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'web-subnet', 'web-subnet v6'
+  Default Security List for shop-vcn  ->  exact  (emitted as Default Security List for shop-v, Default Security List for sho v6)
+      [info] RENAMED: renamed to 'Default Security List for shop-v' to fit the target's naming rules
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'Default Security List for shop-v', 'Default Security List for sho v6'
+  web-sl  ->  exact  (emitted as web-sl, web-sl v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'web-sl', 'web-sl v6'
+  web-nsg  ->  exact  (emitted as web-nsg, web-nsg v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'web-nsg', 'web-nsg v6'
+  shop-vcn  ->  exact  (emitted as shop-vcn, shop-vcn v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'shop-vcn', 'shop-vcn v6'
+  ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplemonitoringnsgotherteam  ->  exact  (emitted as ocid1.networksecuritygroup.oc1.e)
+      [info] RENAMED: renamed to 'ocid1.networksecuritygroup.oc1.e' to fit the target's naming rules
+  all-fra-services-in-oracle-services-network  ->  exact  (emitted as all-fra-services-in-oracle-servi)
+      [info] RENAMED: renamed to 'all-fra-services-in-oracle-servi' to fit the target's naming rules
+
+Services
+  icmp-8  ->  exact
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that
+  icmp-3-4  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  icmpv6-128  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  tcp-1024-65535-from-5432  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  svc-tcp5432  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  svc-tcp1-65535-tcp1-65535  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  udp-123-from-123  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  icmp-3  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  icmpv6-2-0  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  ip-47  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 47, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled

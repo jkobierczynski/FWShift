@@ -1,0 +1,98 @@
+FWShift conversion report
+  source: f5-afm
+  target: gcp
+
+Summary
+  Security rules:     42   exact 9, approximated 15, needs review 18 (18 emitted disabled), skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] GCP_LOAD: the output is a shell script of gcloud commands (section 10): DRY_RUN=1 prints them, without it it creates a new global network firewall policy (fwshift) with its rules, and stops if a policy of that name exists. It is associated with no network: nothing changes until you associate it
+  [needs-review] GCP_ORDER: the policy decides every connection of the network it is associated with: it ends in the default of the source. With the network's enforcement order AFTER_CLASSIC_FIREWALL (the default) the VPC firewall rules of the network decide first; set it to BEFORE_CLASSIC_FIREWALL (gcloud compute networks update NETWORK --network-firewall-policy-enforcement-order=BEFORE_CLASSIC_FIREWALL), or remove the VPC firewall rules
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have logging enabled
+
+Security rules
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Google Cloud names no zone: give the networks behind internal with --zone-network.
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Google Cloud names no zone: give the networks behind internal with --zone-network.
+  global/admins_continue>rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Google Cloud names no zone: give the networks behind internal with --zone-network.
+  global/admins_continue>rd0/dmz_no_inside  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web6/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of Google Cloud names no zone: give the networks behind external with --zone-network.
+  global/admins_continue>vs_web6/(default)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of Google Cloud names no zone: give the networks behind external with --zone-network.
+  global/admins_continue>vs_web/(default)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web_http/(refused)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_inbound_dmz/(default)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_outbound/(default)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/reject_telnet  ->  exact  (emitted as 4 rules of the policy)
+      [info] REJECT_AS_DENY: action reset-client: a rule of Google Cloud denies without an answer
+  global/ping_in@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, internal, and a rule of Google Cloud names no zone: give the networks behind dmz, internal with --zone-network.
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Google Cloud names no zone: give the networks behind internal with --zone-network.
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] ZONE_DYNAMIC: the source 'partners' holds members only its platform knows; a rule of Google Cloud names addresses.
+  global/partners_in@vs_web  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] ZONE_DYNAMIC: the source 'partners' holds members only its platform knows; a rule of Google Cloud names addresses.
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: the source 'partners' holds members only its platform knows; a rule of Google Cloud names addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] ZONE_DYNAMIC: the source 'partners' holds members only its platform knows; a rule of Google Cloud names addresses.
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] ZONE_DYNAMIC: the source 'partners' holds members only its platform knows; a rule of Google Cloud names addresses.
+  global/inspect_irule>rd0/dmz_no_inside  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/inspect_irule>vs_inbound_dmz/(default)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/inspect_irule>vs_outbound/(default)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Google Cloud names no zone: give the networks behind internal with --zone-network.
+  rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Google Cloud names no zone: give the networks behind internal with --zone-network.
+  rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of Google Cloud names no zone: give the networks behind internal with --zone-network.
+  rd0/dmz_no_inside  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web6/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of Google Cloud names no zone: give the networks behind external with --zone-network.
+  vs_web6/web6_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of Google Cloud names no zone: give the networks behind external with --zone-network.
+  vs_web6/(default)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of Google Cloud names no zone: give the networks behind external with --zone-network.
+  vs_web/(default)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web_http/(refused)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_inbound_dmz/(default)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_outbound/(default)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones

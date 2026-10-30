@@ -1,0 +1,98 @@
+FWShift conversion report
+  source: fmc (Edge)
+  target: f5-afm
+
+Summary
+  Security rules:     22   exact 4, approximated 2, needs review 15 (15 emitted disabled), skipped 1
+  NAT rules:           7   exact 0, approximated 0, needs review 0, skipped 7
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           24   exact 24, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_LOAD: the output is a file for 'tmsh load sys config merge file' (section 10): address lists, port lists, the rule list /Common/FWShift_rules and the policy /Common/FWShift. Load it with 'verify' first. The merge changes objects of the same name that exist: check that none does. The policy is enforced in no context: attach it to the global context, a route domain or a virtual server yourself. Allow rules are accept-decisively and the list ends with the default, so the policy decides alone wherever it is attached; the BIG-IP still lets through only traffic that a virtual server takes, which FWShift does not create
+  [needs-review] F5AFM_FQDN_RESOLVER: address lists hold host names (fqdns): AFM resolves them only with a DNS resolver set as the global FQDN resolver (security firewall global-fqdn-policy); without one they match nothing
+  [needs-review] F5AFM_VLANS_REQUIRED: the rules name these VLANs as the zones they come from, which must exist on the BIG-IP under these names (--zone-map renames): /Common/dmz, /Common/inside, /Common/outside
+  [approximated] OBJECT_OVERRIDES: 1 object(s) can have another value on a device than the one that was read (they allow overrides): ot-net. The values of the manager were converted; check them against the device the policy is for
+  [info] F5AFM_ICMP_CONTEXT: the policy has ICMP rules: the BIG-IP ignores ICMP rules in the virtual server and self IP contexts, so attach the policy to the global or a route domain context for them to apply
+
+Security rules
+  pre-backup  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  pre-spoofed  ->  exact
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  pre-partner-gre  ->  needs-review, emitted disabled
+      [approximated] TUNNEL_RULE: tunnel rule of the prefilter policy: it is converted as a rule for the protocol that carries the tunnel, between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  pre-partner-gre-reverse  ->  needs-review, emitted disabled
+      [info] TUNNEL_RULE: the other direction of tunnel rule 'pre-partner-gre', which matches tunnels from source and destination
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind outside with --zone-network.
+  prefilter-default-block-tunnels  ->  exact  (emitted as prefilter-default-block-tunnels, prefilter-default-block-tunnels_2, prefilter-default-block-tunnels_3, prefilter-default-block-tunnels_4)
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 4 rules
+  Block OT outbound  ->  approximated  (emitted as Block_OT_outbound)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone outside; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAN web  ->  needs-review, emitted disabled  (emitted as LAN_web)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (file=Block Malware, intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind outside with --zone-network.
+  LAN DNS and NTP  ->  needs-review, emitted disabled  (emitted as LAN_DNS_and_NTP, LAN_DNS_and_NTP_2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind outside with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  Updates  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind outside with --zone-network.
+  Inbound web  ->  needs-review, emitted disabled  (emitted as Inbound_web)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  Inbound mail  ->  needs-review, emitted disabled  (emitted as Inbound_mail)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  Admin access  ->  needs-review, emitted disabled  (emitted as Admin_access, Admin_access_2)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  Helpdesk RDP  ->  needs-review, emitted disabled  (emitted as Helpdesk_RDP)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [needs-review] USER_MATCH: source user match CORP\helpdesk is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  Staff social media  ->  needs-review, emitted disabled  (emitted as Staff_social_media)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone outside; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Partner service  ->  needs-review, emitted disabled  (emitted as Partner_service, Partner_service_2)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  Uncategorised web  ->  approximated  (emitted as Uncategorised_web)
+      [approximated] INTERACTIVE_BLOCK: the source showed web users a page from which they could go on to the site (Interactive Block); it is converted as a rule that blocks
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone outside; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Old FTP  ->  needs-review, emitted disabled  (emitted as Old_FTP)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind outside with --zone-network.
+  DNS answers to resolver  ->  needs-review, emitted disabled  (emitted as DNS_answers_to_resolver)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  Branch IPv6  ->  needs-review, emitted disabled  (emitted as Branch_IPv6, Branch_IPv6_2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  Reset the rest from inside  ->  exact  (emitted as Reset_the_rest_from_inside)
+      [info] RESET_ACTION: action reset-both becomes reject, which answers the client only
+  Watch DMZ  ->  skipped
+      [info] MONITOR_RULE: rule with the action Monitor: it logs the traffic and leaves the decision to the rules below it. Nothing to convert
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  nat-2  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  nat-3  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 203.0.113.2
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  nat-4  ->  skipped
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: round robin, flat port range, interface (as fallback)
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  nat-mail-srv  ->  skipped
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: translate DNS replies
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  nat-dmz-net  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  nat-after-auto-1  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand

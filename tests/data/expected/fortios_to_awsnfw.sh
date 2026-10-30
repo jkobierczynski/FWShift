@@ -73,7 +73,7 @@ policy() {
 free_group fwshift-rules
 free_policy fwshift
 
-# Rule group 1: 12 rules, in the order of the policy.
+# Rule group 1: 13 rules, in the order of the policy.
 cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
 {
  "RuleVariables": {
@@ -162,7 +162,7 @@ cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
   }
  },
  "RulesSource": {
-  "RulesString": "pass tcp 10.10.0.0/15 any -> $LAN_to_Internet_DST [53,80,443] (msg:\"LAN to Internet\"; flow:to_server; sid:1; rev:1;)\npass udp 10.10.0.0/15 any -> $LAN_to_Internet_DST 53 (msg:\"LAN to Internet\"; flow:to_server; sid:2; rev:1;)\npass tcp 10.10.0.0/15 any -> $LAN_to_Internet_DST 53 (msg:\"LAN basics\"; flow:to_server; sid:3; rev:1;)\npass udp 10.10.0.0/15 any -> $LAN_to_Internet_DST 53 (msg:\"LAN basics\"; flow:to_server; sid:4; rev:1;)\npass icmp 10.10.0.0/15 any -> $LAN_to_Internet_DST any (msg:\"LAN basics\"; flow:to_server; ip_proto:1; itype:8; sid:5; rev:1;)\npass tcp $LAN_to_Internet_DST any -> 10.20.0.10/32 [8080,8443,9000:9010] (msg:\"Inbound web\"; flow:to_server; sid:6; rev:1;)\npass tcp $LAN_to_Internet_DST any -> 10.20.0.25/32 25 (msg:\"Inbound mail\"; flow:to_server; sid:7; rev:1;)\npass tcp 10.10.7.15/32 any -> 10.30.1.0/24 502 (msg:\"SCADA to PLCs\"; flow:to_server; sid:8; rev:1;)\ndrop ip 10.30.1.0/24 any -> $OT_no_internet_DST any (msg:\"OT no internet\"; flow:to_server; sid:9; rev:1;)\npass udp 10.10.0.0/15 1024:65535 -> 10.99.0.0/16 514 (msg:\"Partner tunnel\"; flow:to_server; sid:10; rev:1;)\npass ip 10.10.0.0/15 any -> 10.99.0.0/16 any (msg:\"Partner tunnel\"; flow:to_server; ip_proto:47; sid:11; rev:1;)\npass icmp [10.10.5.10/31,10.10.5.12/30,10.10.5.16/30,10.10.5.20/32] any -> [10.20.0.10/32,10.20.0.25/32] any (msg:\"Timestamp probes\"; flow:to_server; ip_proto:1; itype:13; sid:12; rev:1;)\n"
+  "RulesString": "pass ip any any -> any any (msg:\"fwshift-replies\"; flow:to_client; sid:13; rev:1;)\npass tcp 10.10.0.0/15 any -> $LAN_to_Internet_DST [53,80,443] (msg:\"LAN to Internet\"; flow:to_server; sid:1; rev:1;)\npass udp 10.10.0.0/15 any -> $LAN_to_Internet_DST 53 (msg:\"LAN to Internet\"; flow:to_server; sid:2; rev:1;)\npass tcp 10.10.0.0/15 any -> $LAN_to_Internet_DST 53 (msg:\"LAN basics\"; flow:to_server; sid:3; rev:1;)\npass udp 10.10.0.0/15 any -> $LAN_to_Internet_DST 53 (msg:\"LAN basics\"; flow:to_server; sid:4; rev:1;)\npass icmp 10.10.0.0/15 any -> $LAN_to_Internet_DST any (msg:\"LAN basics\"; flow:to_server; ip_proto:1; itype:8; sid:5; rev:1;)\npass tcp $LAN_to_Internet_DST any -> 10.20.0.10/32 [8080,8443,9000:9010] (msg:\"Inbound web\"; flow:to_server; sid:6; rev:1;)\npass tcp $LAN_to_Internet_DST any -> 10.20.0.25/32 25 (msg:\"Inbound mail\"; flow:to_server; sid:7; rev:1;)\npass tcp 10.10.7.15/32 any -> 10.30.1.0/24 502 (msg:\"SCADA to PLCs\"; flow:to_server; sid:8; rev:1;)\ndrop ip 10.30.1.0/24 any -> $OT_no_internet_DST any (msg:\"OT no internet\"; flow:to_server; sid:9; rev:1;)\npass udp 10.10.0.0/15 1024:65535 -> 10.99.0.0/16 514 (msg:\"Partner tunnel\"; flow:to_server; sid:10; rev:1;)\npass ip 10.10.0.0/15 any -> 10.99.0.0/16 any (msg:\"Partner tunnel\"; flow:to_server; ip_proto:47; sid:11; rev:1;)\npass icmp [10.10.5.10/31,10.10.5.12/30,10.10.5.16/30,10.10.5.20/32] any -> [10.20.0.10/32,10.20.0.25/32] any (msg:\"Timestamp probes\"; flow:to_server; ip_proto:1; itype:13; sid:12; rev:1;)\n"
  },
  "StatefulRuleOptions": {
   "RuleOrder": "STRICT_ORDER"

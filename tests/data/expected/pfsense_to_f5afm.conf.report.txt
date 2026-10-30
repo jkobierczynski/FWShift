@@ -1,0 +1,107 @@
+FWShift conversion report
+  source: pfsense
+  target: f5-afm
+
+Summary
+  Security rules:     25   exact 13, approximated 6, needs review 6 (4 emitted disabled), skipped 0
+  NAT rules:           8   exact 0, approximated 0, needs review 0, skipped 8
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] RULE_NOT_LOADED: pfSense does not load 1 rule of the configuration, which it cannot resolve; they are not converted: 'Spare network, not in use' (its interface 'opt3' is not there or not enabled)
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: pfSense drops what arrives there from addresses nobody has been given, by a list it downloads. That list is not in the configuration, and nothing is converted for it
+  [needs-review] F5AFM_LOAD: the output is a file for 'tmsh load sys config merge file' (section 10): address lists, port lists, the rule list /Common/FWShift_rules and the policy /Common/FWShift. Load it with 'verify' first. The merge changes objects of the same name that exist: check that none does. The policy is enforced in no context: attach it to the global context, a route domain or a virtual server yourself. Allow rules are accept-decisively and the list ends with the default, so the policy decides alone wherever it is attached; the BIG-IP still lets through only traffic that a virtual server takes, which FWShift does not create
+  [needs-review] F5AFM_FQDN_RESOLVER: address lists hold host names (fqdns): AFM resolves them only with a DNS resolver set as the global FQDN resolver (security firewall global-fqdn-policy); without one they match nothing
+  [needs-review] F5AFM_VLANS_REQUIRED: the rules name these VLANs as the zones they come from, which must exist on the BIG-IP under these names (--zone-map renames): /Common/DMZ, /Common/GUEST, /Common/LAN, /Common/WAN
+  [info] FLOATING_LAST_MATCH: 1 floating rule is not 'quick': such a rule decides only where no rule of an interface matched, and of several the last one. In the converted policy it stands behind the rules of the interfaces, the last one first: 'Telnet unless a rule says otherwise'
+  [info] PFSENSE_AUTOMATIC_RULES: pfSense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof), packets from or to 169.254.0.0/16, and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without; and it has rules for itself (anti-lockout, DHCP, IPsec). Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] F5AFM_ICMP_CONTEXT: the policy has ICMP rules: the BIG-IP ignores ICMP rules in the virtual server and self IP contexts, so attach the policy to the global or a route domain context for them to apply
+
+Security rules
+  Nothing leaves towards the sinkhole  ->  approximated  (emitted as Nothing_leaves_towards_the_sinkhole)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone WAN; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  SSH for the partner - pass  ->  needs-review  (emitted as SSH_for_the_partner_-_pass)
+      [approximated] AUTOMATIC_RULE: port forward 'SSH for the partner' passes what it forwards without a rule ('Pass' as its filter rule association): pfSense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '192.168.20.25' because of NAT rule 'SSH for the partner'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'SSH for the partner' also translates the port to 22; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+  Block private networks from WAN  ->  exact  (emitted as Block_private_networks_from_WAN)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks and loopback addresses' set: pfSense drops what arrives there from those networks before any rule is looked at. This rule stands for that
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  DNS from the firewall  ->  exact  (emitted as DNS_from_the_firewall, DNS_from_the_firewall_2)
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  NAT Web server HTTPS  ->  approximated  (emitted as NAT_Web_server_HTTPS)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to '192.168.20.10' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+  Mail in  ->  approximated  (emitted as Mail_in)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+  Administrators to the servers  ->  exact  (emitted as Administrators_to_the_servers)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  Users to the web servers  ->  approximated  (emitted as Users_to_the_web_servers)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'WebServers' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+  Users to the web server by its outside address  ->  needs-review  (emitted as Users_to_the_web_server_by_its_outside_address)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '198.51.100.10', the external address of NAT rule 'Web server HTTPS', but not '192.168.20.10' behind it. The source looks rules up after the translation and did not apply this rule to that traffic; the converted rule does
+  No other private network from the LAN  ->  approximated  (emitted as No_other_private_network_from_the_LAN)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+  Mail out, not to the inside  ->  needs-review, emitted disabled  (emitted as Mail_out__not_to_the_inside)
+      [info] NEGATION_EXPANDED: a rule of AFM has no negation: 'not destination Private' is written as the addresses that are left
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10).
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11).
+  Syslog to the collector  ->  needs-review, emitted disabled  (emitted as Syslog_to_the_collector)
+      [needs-review] SCHEDULE: schedule 'OfficeHours' is not converted; the rule would apply at all times.
+  Nothing from the list  ->  needs-review, emitted disabled  (emitted as Nothing_from_the_list)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocklist': a URL table: its addresses are in a file on the firewall, not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests reach nothing private  ->  approximated  (emitted as Guests_reach_nothing_private)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+  Guests browse  ->  exact  (emitted as Guests_browse)
+      [info] POLICY_ROUTING: the rule also sends what it passes to gateway 'WANGW' (policy routing), which is not converted
+  Phones of the guests  ->  needs-review, emitted disabled  (emitted as Phones_of_the_guests)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches a mark set by another rule (tagged) 'VOICE'.
+  Telnet unless a rule says otherwise  ->  exact  (emitted as Telnet_unless_a_rule_says_otherwise)
+      [info] F5AFM_LOG: AFM logs a rule's matches, not the start or end of a session: the rule is written with log yes
+
+NAT rules
+  Web server HTTPS  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  Application ports  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  SSH for the partner  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  Mail server - inbound  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  Mail server - outbound  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  DMZ leaves with the web address  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  No NAT towards the partner  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  Automatic outbound NAT on WAN  ->  skipped
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: pfSense translates what leaves by an interface with a gateway and comes from the networks of its other interfaces and of its static routes. This rule stands for that
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+
+Addresses
+  WAN address  ->  exact  (emitted as WAN_address)
+      [info] RENAMED: renamed to 'WAN_address' to fit the target's naming rules
+  LAN net  ->  exact  (emitted as LAN_net)
+      [info] RENAMED: renamed to 'LAN_net' to fit the target's naming rules
+  LAN net IPv6  ->  exact  (emitted as LAN_net_IPv6)
+      [info] RENAMED: renamed to 'LAN_net_IPv6' to fit the target's naming rules
+  DMZ net  ->  exact  (emitted as DMZ_net)
+      [info] RENAMED: renamed to 'DMZ_net' to fit the target's naming rules
+  GUEST net  ->  exact  (emitted as GUEST_net)
+      [info] RENAMED: renamed to 'GUEST_net' to fit the target's naming rules
+
+Address groups
+  This Firewall  ->  exact  (emitted as This_Firewall)
+      [info] RENAMED: renamed to 'This_Firewall' to fit the target's naming rules
+  This Firewall IPv6  ->  exact  (emitted as This_Firewall_IPv6)
+      [info] RENAMED: renamed to 'This_Firewall_IPv6' to fit the target's naming rules
+  DmzServers IPv4  ->  exact  (emitted as DmzServers_IPv4)
+      [info] RENAMED: renamed to 'DmzServers_IPv4' to fit the target's naming rules

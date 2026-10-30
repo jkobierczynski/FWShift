@@ -1,0 +1,106 @@
+FWShift conversion report
+  source: windows-firewall (Group Policy, local)
+  target: asa
+
+Summary
+  Security rules:     31   exact 1, approximated 2, needs review 28 (28 emitted disabled), skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           23   exact 23, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] WINFW_BYPASS: rules with authenticated bypass let IPsec-authenticated connections through block rules; they are first in the converted policy and not converted: Management over IPsec, overriding block rules
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: Host, Domain, Private, Public. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [info] WINFW_DEFAULT_ASSUMED: settings that no store of the input holds were taken as Windows's defaults (firewall on, inbound blocked, outbound allowed): Private defaultinboundaction, Public defaultinboundaction, Public defaultoutboundaction
+  [info] WINFW_HOST_POLICY: a host firewall: the zone Host is the host itself, the zones Domain, Private and Public the networks of the interfaces in each profile. Windows has no rule order: block rules decide before allow rules, then the default of the profile; the converted policy says that in first-match order (block rules, allow rules, the defaults that allow). Traffic between the networks is not the host's to decide and is denied
+  [info] WINFW_STORES: stores read: Group Policy 8 rules, local 22 rules
+  [info] WINFW_PROFILES: Domain: inbound blocked (Group Policy), outbound allowed (Group Policy), local rules not merged (Group Policy); Private: inbound blocked (default), outbound blocked (Group Policy); Public: inbound blocked (default), outbound allowed (default)
+  [info] WINFW_LOCAL_NOT_MERGED: Group Policy (or MDM) does not merge local rules in the profile Domain: the local rules are left out there (16 rules named it)
+  [info] WINFW_SETTING_NOT_CONVERTED: profile settings that decide traffic no rule names are not converted: Public: unicast responses to multicast and broadcast traffic are blocked
+  [info] WINFW_ADDRESS_KEYWORDS: rules name address keywords, whose addresses only Windows knows at run time: DNS, LocalSubnet, LocalSubnet4, LocalSubnet6. They are dynamic groups; only a Windows target writes them again
+  [info] WINFW_NOT_READ: not read: 1 connection security (IPsec) rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\ConSecRules; 1 Windows Service Hardening rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Static\System
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+
+Security rules
+  Management over IPsec, overriding block rules  ->  needs-review, emitted disabled  (emitted as Private_access_in, Public_access_in)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: remote computers; IPsec (Authenticate): only connections IPsec protects match; authenticated bypass: only IPsec-authenticated connections match, and they override block rules. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: remote computers.
+      [needs-review] UNSUPPORTED_MATCH: not converted: IPsec (Authenticate): only connections IPsec protects match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: authenticated bypass: only IPsec-authenticated connections match, and they override block rules.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host, Private with --zone-network.
+  Block RDP from the guest half of the admin network  ->  needs-review, emitted disabled  (emitted as Domain_access_in, Private_access_in, Public_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Private, Public, Host, Domain with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block telnet out  ->  needs-review, emitted disabled  (emitted as Host_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Private, Public, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Private, Public with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block the scanner networks  ->  needs-review, emitted disabled  (emitted as Private_access_in, Public_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host, Private with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block SMB on public networks  ->  needs-review, emitted disabled  (emitted as Public_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Private, Host with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Allow WinRM from management  ->  needs-review, emitted disabled  (emitted as Domain_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Private, Public, Host with --zone-network.
+  Web out on private networks  ->  needs-review, emitted disabled  (emitted as Host_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Private, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Private with --zone-network.
+  DNS out on private networks  ->  needs-review, emitted disabled  (emitted as Host_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Private. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'DNS': dynamic address group, members are not known statically.
+  SMB from the local subnet  ->  needs-review, emitted disabled  (emitted as Domain_access_in, Private_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet': dynamic address group, members are not known statically.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Private, Public, Host, Domain with --zone-network.
+  SSH from the IPv6 jump hosts  ->  needs-review, emitted disabled  (emitted as Domain_access_in, Private_access_in, Public_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Private, Public, Host, Domain with --zone-network.
+  DNS server  ->  needs-review, emitted disabled  (emitted as Domain_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Private, Public, Host with --zone-network.
+  Echo request (ICMPv4-In)  ->  needs-review, emitted disabled  (emitted as Private_access_in, Public_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host, Private with --zone-network.
+  Echo request (ICMPv6-In)  ->  needs-review, emitted disabled  (emitted as Private_access_in, Public_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet6': dynamic address group, members are not known statically.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host, Private with --zone-network.
+  Fragmentation needed and time exceeded  ->  needs-review, emitted disabled  (emitted as Private_access_in, Public_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host, Private with --zone-network.
+  Remote Desktop from the admin networks  ->  needs-review, emitted disabled  (emitted as Private_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host with --zone-network.
+  Web server  ->  approximated  (emitted as Private_access_in, Public_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Host. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  FTP passive ports  ->  needs-review, emitted disabled  (emitted as Private_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host with --zone-network.
+  SNMP from the local subnet  ->  needs-review, emitted disabled  (emitted as Private_access_in, Public_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet4': dynamic address group, members are not known statically.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host, Private with --zone-network.
+  GRE from the tunnel peer  ->  needs-review, emitted disabled  (emitted as Private_access_in, Public_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host, Private with --zone-network.
+  Example application server  ->  needs-review, emitted disabled  (emitted as Private_access_in, Public_access_in)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: program C:\Program Files\Example\server.exe. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: program C:\Program Files\Example\server.exe.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host, Private with --zone-network.
+  Print spooler (RPC)  ->  needs-review, emitted disabled  (emitted as Private_access_in, Public_access_in)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the local port keyword RPC; service Spooler. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the local port keyword RPC.
+      [needs-review] UNSUPPORTED_MATCH: not converted: service Spooler.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host, Private with --zone-network.
+  OpenSSH server  ->  needs-review, emitted disabled  (emitted as Domain_access_in, Private_access_in, Public_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Private, Public, Host, Domain with --zone-network.
+  mDNS on wireless  ->  needs-review, emitted disabled  (emitted as Private_access_in, Public_access_in)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: interface types wireless. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: interface types wireless.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host, Private with --zone-network.
+  Game server through edge traversal  ->  needs-review, emitted disabled  (emitted as Public_access_in)
+      [approximated] WINFW_EDGE_TRAVERSAL: the rule also accepts traffic that came through edge traversal (Teredo); the model has no such path: the converted rule does not let it in
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Private, Host with --zone-network.
+  Printer port  ->  needs-review, emitted disabled  (emitted as Private_access_in, Public_access_in)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the field 'newfield2_40', which FWShift does not know. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the field 'newfield2_40', which FWShift does not know.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host, Private with --zone-network.
+  A rule Windows cannot parse  ->  needs-review, emitted disabled  (emitted as Domain_access_in, Private_access_in, Public_access_in)
+      [needs-review] WINFW_RULE_INVALID: Windows does not enforce a rule it cannot parse (local ports without protocol TCP or UDP): it is kept disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Private, Public, Host, Domain with --zone-network.
+  SSDP discovery  ->  needs-review, emitted disabled  (emitted as Private_access_in, Public_access_in)
+      [info] WINFW_PLATFORM: the rule applies on Windows NT 6.2 and later; it is taken as applying on this host
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet': dynamic address group, members are not known statically.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Domain, Public, Host, Private with --zone-network.
+  DNS server (local copy)  ->  needs-review, emitted disabled  (emitted as Domain_access_in, Private_access_in, Public_access_in)
+      [info] WINFW_OVERRIDDEN: the Group Policy store has a rule of the same id ('Shared-Id'), which replaces this one: it is kept disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Host, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Private, Public, Host, Domain with --zone-network.
+  Backup agent to the backup server  ->  approximated  (emitted as Host_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Private, Public. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  (default) outbound  ->  needs-review, emitted disabled  (emitted as Host_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Domain, Public, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Private, Domain, Public with --zone-network.

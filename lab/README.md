@@ -154,7 +154,8 @@ account where you may create networks and virtual machines. Each test host has t
   external addresses or enforces OS Login stops the run: use a project without them. Terraform logs in apart from
   gcloud: `gcloud auth login` and `gcloud auth application-default login`, and the Compute Engine API enabled in the
   project (`gcloud services enable compute.googleapis.com`).
-* **AWS Network Firewall** (0.41.7, never run): a firewall of its own, not the test interfaces' groups (those let all
+* **AWS Network Firewall** (0.41.7; the first run failed, every allowed connection blocked: with strict order and
+  `aws:drop_strict` each packet is decided on its own, and 0.41.8 passes the replies with a rule of their own; not rerun yet): a firewall of its own, not the test interfaces' groups (those let all
   lab traffic through). Terraform makes the network and the hosts; FWShift's script (`--to aws-network-firewall
   --target-policy RUN_ID`) makes the policy and its rule group; a second apply makes the firewall, its endpoint in a
   subnet of its own (10.20.240.0/28), and in each zone's route table the other zones through the endpoint (routes more
@@ -162,14 +163,17 @@ account where you may create networks and virtual machines. Each test host has t
   read-back is `describe-firewall-policy` and `describe-rule-group`. Network Firewall does no NAT, so the lab policy's
   NAT is not converted and not checked; traffic inside a zone does not pass the firewall. The teardown destroys the
   firewall with the network, then deletes the policy and the rule group. The endpoint is billed by the hour while the
-  run lasts (AWS's Network Firewall pricing). The lab's user also needs the inline policy
-  `lab/tier1/awsnfw/iam-network-firewall.json` (Network Firewall for names starting `fwlab`, and the service-linked role
-  Network Firewall makes the first time).
+  run lasts (AWS's Network Firewall pricing). The lab's user also needs the policy
+  `lab/tier1/awsnfw/iam-network-firewall.json` (Network Firewall for names starting `fwlab`, the service-linked role
+  Network Firewall makes the first time, and the log-delivery calls `DeleteFirewall` makes, 0.41.8):
+  attached as a managed policy (see Sophos Firewall below for how).
 * **AWS**: a user of its own for the lab, with `AmazonEC2FullAccess` and an access key for the CLI (`aws configure`)
-  (for Sophos Firewall also the inline policy `lab/tier3/aws/iam-sophos.json`: the image reads its admin password from
+  (for Sophos Firewall also the policy `lab/tier3/aws/iam-sophos.json`: the image reads its admin password from
   Secrets Manager through an instance role, so the run makes a secret and a role, both named `fwlab...`; attach it with
-  an account that may, `aws iam put-user-policy --user-name fwlab --policy-name fwlab-sophos --policy-document
-  file://lab/tier3/aws/iam-sophos.json`),
+  an account that may, as a managed policy: `aws iam create-policy --policy-name fwlab-sophos --policy-document
+  file://lab/tier3/aws/iam-sophos.json --query Policy.Arn --output text`, then `aws iam attach-user-policy --user-name
+  fwlab --policy-arn` with the ARN it prints; the inline policies of one user share 2,048 characters, which two of
+  these files exceed, 0.41.8),
   is enough; never a key of the root user.
 
 ## Tier 2: your own Linux host

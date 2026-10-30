@@ -1,0 +1,106 @@
+FWShift conversion report
+  source: f5-afm
+  target: terraform-aws
+
+Summary
+  Security rules:     42   exact 9, approximated 15, needs review 18 (18 emitted disabled), skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var vpc_id=... shows what it creates, terraform apply creates new security groups and their rules; a group of the same name in the VPC makes it fail. The groups have no members when it is done: nothing changes until they are attached
+  [needs-review] TERRAFORM_ATTACH: 3 groups: attach each to the network interfaces whose private addresses its '# attach' comment (and the output fwshift_attach) lists, and take the other groups off those interfaces: vpc_security_group_ids of the instances, security_groups of the network interfaces, or aws_network_interface_sg_attachment. A group applies to the whole interface: give the addresses of one interface the same group
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security group does not. VPC Flow Logs record the connections of the interfaces instead
+
+Security rules
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a security group names no zone: give the networks behind internal with --zone-network.
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a security group names no zone: give the networks behind internal with --zone-network.
+  global/admins_continue>rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a security group names no zone: give the networks behind internal with --zone-network.
+  global/admins_continue>rd0/dmz_no_inside  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web6/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a security group names no zone: give the networks behind external with --zone-network.
+  global/admins_continue>vs_web6/(default)  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a security group names no zone: give the networks behind external with --zone-network.
+  global/admins_continue>vs_web/(default)  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web_http/(refused)  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  global/admins_continue>vs_old_app/(refused)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  global/admins_continue>vs_inbound_dmz/(default)  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_outbound/(default)  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/reject_telnet  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action reset-client: a security group drops what it does not allow, without an answer
+  global/ping_in@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, internal, and a security group names no zone: give the networks behind dmz, internal with --zone-network.
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a security group names no zone: give the networks behind internal with --zone-network.
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a security group names addresses.
+  global/partners_in@vs_web  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a security group names addresses.
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a security group names addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a security group names addresses.
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a security group names addresses.
+  global/inspect_irule>rd0/dmz_no_inside  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/inspect_irule>vs_old_app/(refused)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  global/inspect_irule>vs_inbound_dmz/(default)  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/inspect_irule>vs_outbound/(default)  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a security group names no zone: give the networks behind internal with --zone-network.
+  rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a security group names no zone: give the networks behind internal with --zone-network.
+  rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a security group names no zone: give the networks behind internal with --zone-network.
+  rd0/dmz_no_inside  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web6/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a security group names no zone: give the networks behind external with --zone-network.
+  vs_web6/web6_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a security group names no zone: give the networks behind external with --zone-network.
+  vs_web6/(default)  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a security group names no zone: give the networks behind external with --zone-network.
+  vs_web/(default)  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web_http/(refused)  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  vs_old_app/(refused)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  vs_inbound_dmz/(default)  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_outbound/(default)  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones

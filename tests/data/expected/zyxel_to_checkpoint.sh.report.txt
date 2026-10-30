@@ -1,0 +1,73 @@
+FWShift conversion report
+  source: zyxel
+  target: checkpoint
+
+Summary
+  Security rules:     19   exact 12, approximated 3, needs review 3 (3 emitted disabled), skipped 1
+  NAT rules:           9   exact 0, approximated 4, needs review 2, skipped 3
+  Addresses:          17   exact 17, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           16   exact 16, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZYXEL_DEFAULT_SNAT: the default SNAT of the WAN trunk (connections from internal interfaces leave with the address of the WAN interface) is not a rule of the configuration and is not converted: give the target the source NAT it needs
+  [needs-review] ZYXEL_BLOCK_INTRAZONE: zones that block traffic between their members: read as a rule at the top that denies inside the zone, whatever the rules say (not confirmed on a device): DMZ
+  [needs-review] ZYXEL_FQDN: address objects of a host name (fqdn), read as names resolved for IPv4; the form is not in the CLI Reference Guide FWShift could read: PORTAL
+  [needs-review] CHECKPOINT_SCRIPT: the output is a shell script of mgmt_cli calls. It changes one session and publishes nothing: log in, run it, review the session in SmartConsole, then publish and install the policy yourself. It stops at the first call the server refuses; discard the session before running it again
+  [needs-review] IMPLIED_RULES: Check Point applies implied rules (Global Properties) next to the rulebase, and every ordered layer of the policy package must accept a connection. Neither is part of the conversion: check that they allow no more and no less than intended
+  [needs-review] ZONES_REQUIRED: the rules use these security zones, which must be assigned to the interfaces of the gateway (or renamed with --zone-map): DMZ, WAN, LAN1, LAB. Rules that name a zone and addresses on the same side are sorted into 7 inline layers, one per pair of zones. An interface without a zone only reaches the rules that name no zone
+  [needs-review] NAT_MANUAL_RULES: 6 NAT rules are written as manual rules at the bottom of the NAT rulebase, below the automatic ones. Manual NAT does not answer ARP for translated addresses: add proxy ARP on the gateway for every translated address that is not routed to it
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] ZYXEL_SOURCE: 4 zones (WAN, LAN1, DMZ, LAB); 18 rules of the security policy, first match, IPv4 and IPv6 lists one after the other. Rules to and from the firewall itself (ZyWALL) are not converted
+  [info] ZYXEL_NAT_ORDER: virtual servers and 1:1 NAT are done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT of policy routes is done after it
+  [info] ZYXEL_UNZONED: interfaces in no zone, which only rules from any or to any match: ge7
+  [info] ZYXEL_INTERFACE_OBJECT: address objects of an interface, read with the static address the configuration gives the interface: interface-subnet ge3, interface-subnet ge4, interface-ip ge1
+  [info] ZYXEL_ICMP_NAMES: ICMP types by name, read with the numbers of the IANA registry: echo, echo-request
+  [info] ZYXEL_DEFAULTS: what no rule matches (secure-policy default-rule): IPv4 deny, IPv6 deny
+  [info] LAYER_PLACEMENT: the rules are written to the top of access layer 'Network', in order, and end in a cleanup rule; rules the layer held before stay below it and are no longer reached. Choose another layer with --target-layer
+  [info] NAME_COLLISIONS: Check Point predefines several hundred objects (http, https, ssh, ...). If the script stops because a name exists already, convert again with --target-prefix to give every created object a prefix
+  [info] DOMAIN_OBJECTS: host names are written as domain objects, named after the domain with a leading dot; the gateway needs DNS to enforce them: .portal.example.com
+  [info] ANY_ONE_IP_VERSION: 'any address of one IP version' is written as a range object covering that version (All-IPv4, All-IPv6)
+
+Security rules
+  WAN_to_Web  ->  approximated  (emitted as layer Network_WAN_to_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'PUBLIC_WEB' next to 'WEB_SRV' because of NAT rule 'virtual-server WEB_VS'; check that this rule is meant to cover the translated traffic
+  WAN_to_Mail  ->  approximated  (emitted as layer Network_WAN_to_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to 'MAIL_SRV' because of NAT rule 'virtual-server MAIL_VS'; check that this rule is meant to cover the translated traffic
+  Admin_Mgmt  ->  approximated  (emitted as layer Network_LAN1_to_DMZ)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default_av); attach equivalent inspection on the target
+  Alice_Workhours  ->  needs-review, emitted disabled  (emitted as layer Network_LAN1_to_WAN)
+      [needs-review] SCHEDULE: schedule 'WORKHOURS' is not converted; the rule would apply at all times.
+      [needs-review] USER_MATCH: source user match alice is not converted.
+  Country_Block  ->  needs-review, emitted disabled  (emitted as layer Network_WAN_to_DMZ, layer Network_WAN_to_any)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'COUNTRY_X': geography XX: not an address FWShift can read. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  VS_Only  ->  needs-review, emitted disabled  (emitted as layer Network_WAN_to_DMZ)
+      [needs-review] UNSUPPORTED_MATCH: not converted: ctmatch dnat: matches only connections that a virtual server translated.
+  LAN1_to_Device  ->  skipped
+      [info] ZYXEL_DEVICE_RULE: a rule for traffic to the firewall itself (LAN1 to ZyWALL): not converted
+
+NAT rules
+  virtual-server WEB_VS  ->  approximated
+      [approximated] ZYXEL_NAT_LOOPBACK: nat-loopback: hosts behind the firewall that use the original address are translated as well (and their source is translated to the firewall); only the translation for traffic that arrives on the interface is converted
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only; it is written without zones and applies whatever the zone the traffic comes from
+  virtual-server MAIL_VS  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only; it is written without zones and applies whatever the zone the traffic comes from
+  virtual-server ALT_VS  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only; it is written without zones and applies whatever the zone the traffic comes from
+  virtual-server ONE2ONE  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only; it is written without zones and now translates traffic towards every other zone as well: put a rule without translation above it for the traffic that must keep its addresses
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two rules, one for each direction
+  virtual-server MANY2ONE  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only; it is written without zones and now translates traffic towards every other zone as well: put a rule without translation above it for the traffic that must keep its addresses
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two rules, one for each direction
+  virtual-server OLD_VS  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only; it is written without zones and applies whatever the zone the traffic comes from
+  policy-route 1  ->  skipped
+      [info] ZYXEL_ROUTE_NO_SNAT: a policy route without SNAT above one with SNAT: kept as a rule that translates nothing, so that the SNAT of the routes below it does not apply to its traffic
+      [needs-review] NAT_NOT_CONVERTED: not converted: references 'LAB_SUBNET': interface-subnet ge6: interface-subnet of ge6: the interface gets its address by dhcp
+  policy-route 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface; name the gateway object to hide behind with --target-gateway
+  policy-route 3  ->  skipped
+      [info] ZYXEL_SNAT_POOL: SNAT to the addresses of PUBLIC_RANGE, read as translation with port translation (the documentation does not say)
+      [needs-review] NAT_NOT_CONVERTED: not converted: hide NAT is written behind one address; this rule translates to several

@@ -37,6 +37,11 @@ what was approximated and what a person has to look at.
 | AWS Network Firewall | the JSON of the AWS CLI for one firewall policy: `describe-firewall-policy`, `describe-rule-group` for its rule groups (stateless rules, 5-tuple and Suricata rules, domain lists), the inspection VPC for `HOME_NET` | a shell script of AWS CLI calls that creates a stateful rule group and a firewall policy, associated with no firewall |
 | pf (OpenBSD, FreeBSD) | `pf.conf` (macros, tables, `match`, `nat-to`/`rdr-to`, FreeBSD's `nat`/`rdr`/`binat`), or `pfctl -sr` | a ruleset for an anchor (`pfctl -a fwshift -f`), decided when traffic leaves, tagged by the zone it came from |
 | VyOS 1.4 and later (read also VyOS 1.3, Vyatta and EdgeOS) | `set` commands (`show configuration commands`) or the configuration in braces (`config.boot`) | `set` commands for a configuration session: groups, named chains, zones and NAT rules |
+| F5 BIG-IP AFM (network firewall) | `tmsh list` of the firewall lists and policies, the contexts they are enforced in (global, route domains, virtual servers), VLANs, self IPs, virtual servers and `tm.fw.defaultaction` | a file for `tmsh load sys config merge`: address lists, port lists, a rule list and a policy, enforced in no context |
+| Oracle Cloud Infrastructure security lists and network security groups | the JSON of the OCI CLI for one VCN: subnets, security lists, NSGs with their rules, VNICs, and optionally Oracle's published ranges for service CIDR labels | a shell script of OCI CLI calls that creates new network security groups |
+| Hillstone StoneOS (E-, T-, X-series, CloudEdge) | `show configuration`: zones, address and service books, the policy rules in query order, SNAT and DNAT rules | configuration-mode commands |
+| Zyxel ZLD (USG FLEX, ATP, VPN; ZLD 4.x and 5.x) | `startup-config.conf` / `show running-config`: zones, address and service objects and groups, `secure-policy` and `secure-policy6` with their default rules, virtual servers and 1:1 NAT, policy routes with SNAT | a script of CLI commands (`secure-policy insert`, `ip virtual-server`, `policy insert`) |
+| Windows Defender Firewall | registry export (`reg export` of the local and Group Policy stores) | a PowerShell script of `New-NetFirewallRule` calls in one rule group |
 | Juniper ScreenOS (NetScreen, SSG, ISG; 5.x and 6.x) | `get config` | — (read only) |
 | Cisco PIX (6.x; 7 and later read as an ASA) | `write terminal` / `show running-config` | — (read only) |
 
@@ -61,7 +66,7 @@ ticketing system) or one **HTML** page to read and sign (`--format`, and
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.41).** The converter is tested against synthetic
+> **Status: alpha (0.42).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -105,8 +110,9 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   source decides, NAT included. Four web connections through a Drop rule were answered by the firewall's web proxy
 >   with its block page, not by the host (`SOPHOS_DROP_WEB`).
 > * **Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
->   WatchGuard, Barracuda, VMware NSX, RouterOS, Forcepoint, Azure Firewall, AWS Network Firewall, pf
->   and VyOS** output has **not been loaded on a device**, the **Terraform** output has not been applied with
+>   WatchGuard, Barracuda, VMware NSX, RouterOS, Forcepoint, Azure Firewall, pf, VyOS, F5 BIG-IP AFM, OCI,
+>   Hillstone, Zyxel and Windows Defender Firewall** output has **not been loaded on a device** (AWS Network Firewall
+>   output was loaded by the lab in 0.41.7 and failed, every reply dropped; the fix of 0.41.8 has not been rerun), the **Terraform** output has not been applied with
 >   Terraform, and no **ScreenOS** or **PIX** configuration (both read only) was read from a device. The Check Point input format is taken from the API
 >   documentation, not from a real export, the FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
@@ -150,7 +156,13 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   1.4), VyOS 1.3, Vyatta and EdgeOS as that migration rewrites them, EdgeOS NAT from Ubiquiti's articles, and
 >   nothing was loaded on a router; ScreenOS from what could be read of Juniper's documentation, published `get config`
 >   excerpts and community pages, much of it assumed; PIX 6.x from Cisco's PIX command reference 6.3 and its NAT
->   documents. None of these inputs is a real export.
+>   documents; F5 BIG-IP AFM from F5's manuals, the tmsh reference and its bug tracker, and nothing was read from or
+>   loaded on a BIG-IP; OCI from Oracle's documentation, the API reference and the SDK models, and no call was made to
+>   a tenancy; Hillstone from its StoneOS CLI and WebUI guides (read in part, through summaries) and published
+>   configurations, much of the syntax assumed, and nothing was run on a firewall; Zyxel from the ZLD CLI Reference
+>   Guide (4.x and 2.11) and the USG FLEX User's Guide 5.42, some syntax assumed, and nothing was loaded on a firewall;
+>   Windows Defender Firewall from Microsoft's protocol specifications ([MS-GPFAS], [MS-FASP]) and its documentation,
+>   and nothing was read from or loaded on a Windows host. None of these inputs is a real export.
 >   Several conversion rules rest on
 >   vendor behaviour taken from documentation rather than from a lab.
 >
@@ -230,8 +242,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.41.7.pyz --version
-python3 fwshift-0.41.7.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.42.0.pyz --version
+python3 fwshift-0.42.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -446,6 +458,42 @@ fwshift convert running-config.xml --to aws-network-firewall -o nfw.sh --report 
     --zone-network trust=10.10.0.0/16 --zone-network untrust=0.0.0.0/0,::/0
 DRY_RUN=1 sh nfw.sh
 
+# F5 BIG-IP AFM: the tmsh output of section 3 of the manual (firewall lists and policies,
+# VLANs, route domains, self IPs, virtual servers, tm.fw.defaultaction). To AFM, a file for
+# 'tmsh load sys config merge' that creates a policy and enforces it nowhere
+fwshift convert afm.conf --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to f5-afm -o fwshift.conf --report report.txt \
+    --zone-map trust=internal --zone-map untrust=external --zone-network external=0.0.0.0/0
+tmsh load sys config merge file /var/tmp/fwshift.conf verify
+
+# Oracle Cloud Infrastructure: the answers of the OCI CLI for one VCN (section 3 of the
+# manual). To OCI, a script that creates network security groups and attaches no VNIC
+fwshift convert oci.json --to panos -o panos.set --report report.txt
+fwshift convert running-config.xml --to oci -o nsgs.sh --report report.txt \
+    --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0,::/0 \
+    --inside-zone dmz
+DRY_RUN=1 sh nsgs.sh
+
+# Hillstone StoneOS: show configuration. To StoneOS, configuration-mode commands that add
+# zones, entries, services and policy-global rules with ids of their own
+fwshift convert stoneos.conf --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to hillstone -o stoneos.txt --report report.txt \
+    --interface-map ethernet1/1=ethernet0/1
+
+# Zyxel ZLD (USG FLEX, ATP, VPN): startup-config.conf. To ZLD, a shell script (.zysh)
+# that inserts the rules before the firewall's own, inactive until each is complete
+fwshift convert startup-config.conf --to panos -o panos.set --report report.txt
+fwshift convert running-config.xml --to zyxel -o fwshift.zysh --report report.txt \
+    --zone-map trust=LAN1 --zone-map untrust=WAN --interface-map ethernet1/1=ge2
+
+# Windows Defender Firewall: reg export of the local and the Group Policy store, joined
+# (copy /b local.reg + gpo.reg winfw.reg). To Windows, a PowerShell script of
+# New-NetFirewallRule calls in the rule group FWShift; -DryRun first
+fwshift convert winfw.reg --to json -o host.json --report report.txt
+fwshift convert running-config.xml --to windows-firewall -o rules.ps1 --report report.txt \
+    --zone-map dmz=Host --zone-map untrust=Public --zone-map trust=Domain
+powershell -ExecutionPolicy Bypass -File rules.ps1 -DryRun
+
 # pf: pf.conf of OpenBSD (FreeBSD's nat, rdr and binat too); addresses of
 # interfaces are not in it: give them. To pf, a ruleset for the anchor
 # "fwshift", for OpenBSD or FreeBSD 15 and later
@@ -509,7 +557,9 @@ a few `gcloud ... --format=json` answers, for Terraform `terraform show -json`,
 for Azure Firewall a few `az network firewall policy` answers, for AWS Network
 Firewall the answers of `aws network-firewall describe-firewall-policy` and
 `describe-rule-group`, for pf its `pf.conf`, for VyOS or EdgeOS `show
-configuration commands`, for ScreenOS `get config`, for a PIX `write terminal`.
+configuration commands`, for an F5 BIG-IP a few `tmsh list` commands, for OCI a few `oci network ...` answers,
+for Hillstone `show configuration`, for Zyxel `startup-config.conf`, for Windows `reg export` of the firewall's
+registry keys, for ScreenOS `get config`, for a PIX `write terminal`.
 
 The report starts with a summary and then lists every rule that is not exact:
 
@@ -882,6 +932,51 @@ FWShift reads back) and does the same for the conversion. See
 | NAT | `nat destination` and `nat source` (`exclude`, masquerade, addresses, ranges, networks); EdgeOS `service nat`. Written: `nat destination` and `nat source` rules from 10000, IPv4 |
 | Scope | forwarded traffic of one router. Written: set commands for VyOS 1.4 and later that add and delete nothing |
 
+| | F5 BIG-IP AFM |
+|---|---|
+| Address objects | addresses, ranges and networks in rules, address lists (nested), FQDNs; geo not converted. Written: address lists |
+| Address groups | address lists in address lists. Written: nested address lists |
+| Services | protocols, ports and port lists (nested), ICMP types and codes. Written: port lists, one rule per protocol and source-port set |
+| Security rules | the global, route domain and virtual server contexts read as one first-match list (`accept` hands on, `accept-decisively` ends), each virtual server ending in the default of ADC or Firewall mode; VLANs as zones; self IP and management port rules, staged policies and iRules reported. Written: one rule list and one policy, allow as `accept-decisively`, ending in the default, enforced nowhere |
+| NAT | not read (it lives in LTM virtual servers and CGNAT). Written: none (`F5AFM_NAT_NOT_CONVERTED`) |
+| Scope | the `tmsh list` output of section 3 of the manual, or `bigip_base.conf` and `bigip.conf` |
+
+| | Oracle Cloud Infrastructure |
+|---|---|
+| Address objects | CIDR blocks, NSGs as sources and destinations (their VNICs), service CIDR labels (Oracle's published ranges where given). Written: CIDR blocks in the rules |
+| Address groups | an NSG stands for its VNICs, a security list for its subnets. Written: NSGs cut by address |
+| Services | all, TCP and UDP with destination and source port ranges, ICMP type and code, other protocol numbers. Written: the same, source ports included |
+| Security rules | allow only, ingress and egress, stateful and stateless; a union per VNIC of its subnet's security lists and its NSGs; a stateless rule wins over a stateful one, and its replies need a rule. Written: new NSGs with deny rules subtracted, every rule at both ends, 25 per call, at most 120 per NSG |
+| NAT | a VNIC's public IP read as static NAT. Written: none |
+| Scope | one VCN |
+
+| | Hillstone StoneOS |
+|---|---|
+| Address objects | address entries with `ip`, `range`, `host`, members and exclusions, IPv4 and IPv6. Written: address entries, one per IP version |
+| Address groups | entries that hold other entries. Written: the same |
+| Services | custom services (TCP, UDP, ICMP, protocol numbers), service groups, the predefined services FWShift knows. Written: services |
+| Security rules | the rules in query order (`move`, `top`, `before`, `after` carried out), zones, actions permit, deny, reject, `disable`, `default-action`; schedules, applications and users not converted. Written: rules of `policy-global` with ids of their own, one per pair of zones and IP version |
+| NAT | `snatrule` and `dnatrule` of every virtual router, in order. Written: the same in `trust-vr` |
+| Scope | `show configuration` of StoneOS 5.x (the zone-pair policies of 4.x read too) |
+
+| | Zyxel ZLD |
+|---|---|
+| Address objects | address objects (host, range, network, interface-bound), IPv4 and IPv6; FQDN objects not converted. Written: prefixed objects |
+| Address groups | `object-group address` and `address6`. Written: the same |
+| Services | service objects (TCP, UDP, ICMP, ICMPv6, protocol numbers) and groups; `sourceport` folded in. Written: the same |
+| Security rules | `secure-policy` and `secure-policy6`, first match, each list's default rule, zones, `block` inside a zone; the `firewall` rules of ZLD 3.x. Written: `secure-policy insert N` before the firewall's rules, inactive until complete, then the source's default for every pair of zones written |
+| NAT | virtual servers and 1:1 NAT (before the policy: rules rewritten for the inside address), policy routes with SNAT. Written: `ip virtual-server` and policy routes with SNAT |
+| Scope | the configuration file of ZLD 4.x and 5.x; the uOS of the USG FLEX H is not read |
+
+| | Windows Defender Firewall |
+|---|---|
+| Address objects | local and remote addresses, ranges and networks; keywords (`LocalSubnet`, `DNS`, `DHCP`, `Internet` ...) as dynamic groups. Written: addresses in the rules, keywords only from a Windows source |
+| Address groups | none |
+| Services | protocol, local and remote ports, ICMP type and code. Written: the same |
+| Security rules | no order: block beats allow, then the profile default; the host as zone `Host`, the profiles as zones; Group Policy and local stores merged as Windows does; programs, services, users, interfaces and IPsec not converted. Written: `New-NetFirewallRule` in one rule group, block rules without what the allow rules above them allow |
+| NAT | none |
+| Scope | the local, Group Policy and MDM stores of one host |
+
 | | Juniper ScreenOS (read only) |
 |---|---|
 | Address objects | address books per zone with the Global book behind them: addresses (IPv4, IPv6), host names; `MIP(A)` and `VIP(A)` as objects |
@@ -969,7 +1064,8 @@ and everything else outside the policy.
   Azure) 0.26, Google Cloud firewall rules (and terraform-google) 0.27, Cisco IOS
   and IOS XE 0.28, Huawei USG 0.29, Stormshield SNS 0.30, Cisco Meraki MX
   0.31; Azure Firewall, AWS Network Firewall, pf and VyOS, with Juniper
-  ScreenOS and Cisco PIX 6.x read only, 0.41; what is still open for each is in
+  ScreenOS and Cisco PIX 6.x read only, 0.41; F5 BIG-IP AFM, Oracle Cloud Infrastructure, Hillstone StoneOS,
+  Zyxel ZLD and Windows Defender Firewall 0.42; what is still open for each is in
   TODO.md.
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),

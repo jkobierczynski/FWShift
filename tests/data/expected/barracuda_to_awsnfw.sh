@@ -73,7 +73,7 @@ policy() {
 free_group fwshift-rules
 free_policy fwshift
 
-# Rule group 1: 10 rules, in the order of the policy.
+# Rule group 1: 11 rules, in the order of the policy.
 cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
 {
  "RuleVariables": {
@@ -114,7 +114,7 @@ cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
   }
  },
  "RulesSource": {
-  "RulesString": "drop ip $Blocked_Nets__IPv4_ any -> 0.0.0.0/0 any (msg:\"BLOCK-BAD\"; flow:to_server; sid:1; rev:1;)\ndrop ip $Blocked_Nets__IPv6_ any -> ::/0 any (msg:\"BLOCK-BAD-V6\"; flow:to_server; sid:2; rev:1;)\npass tcp $Office_LAN any -> 0.0.0.0/0 [80,443] (msg:\"LAN-2-INTERNET\"; flow:to_server; sid:3; rev:1;)\npass tcp $DMZ_Servers any -> $Office_LAN [80,443,8080] (msg:\"SERVER-SYNC\"; flow:to_server; sid:4; rev:1;)\npass tcp $Office_LAN any -> $DMZ_Servers [80,443,8080] (msg:\"SERVER-SYNC _back_\"; flow:to_server; sid:5; rev:1;)\npass icmp $Office_LAN any -> 0.0.0.0/0 any (msg:\"PING-ALL\"; flow:to_server; ip_proto:1; sid:6; rev:1;)\npass tcp ::/0 any -> $V6_Servers [80,443] (msg:\"V6-WEB\"; flow:to_server; sid:7; rev:1;)\ndrop ip $Office_LAN any -> $DMZ_Servers any (msg:\"DENY-LAN-DMZ\"; flow:to_server; sid:8; rev:1;)\npass ip $Office_LAN any -> $Mail_Server any (msg:\"GRE-LAB\"; flow:to_server; ip_proto:47; sid:9; rev:1;)\ndrop ip 0.0.0.0/0 any -> 0.0.0.0/0 any (msg:\"BLOCKALL\"; flow:to_server; sid:10; rev:1;)\n"
+  "RulesString": "pass ip any any -> any any (msg:\"fwshift-replies\"; flow:to_client; sid:11; rev:1;)\ndrop ip $Blocked_Nets__IPv4_ any -> 0.0.0.0/0 any (msg:\"BLOCK-BAD\"; flow:to_server; sid:1; rev:1;)\ndrop ip $Blocked_Nets__IPv6_ any -> ::/0 any (msg:\"BLOCK-BAD-V6\"; flow:to_server; sid:2; rev:1;)\npass tcp $Office_LAN any -> 0.0.0.0/0 [80,443] (msg:\"LAN-2-INTERNET\"; flow:to_server; sid:3; rev:1;)\npass tcp $DMZ_Servers any -> $Office_LAN [80,443,8080] (msg:\"SERVER-SYNC\"; flow:to_server; sid:4; rev:1;)\npass tcp $Office_LAN any -> $DMZ_Servers [80,443,8080] (msg:\"SERVER-SYNC _back_\"; flow:to_server; sid:5; rev:1;)\npass icmp $Office_LAN any -> 0.0.0.0/0 any (msg:\"PING-ALL\"; flow:to_server; ip_proto:1; sid:6; rev:1;)\npass tcp ::/0 any -> $V6_Servers [80,443] (msg:\"V6-WEB\"; flow:to_server; sid:7; rev:1;)\ndrop ip $Office_LAN any -> $DMZ_Servers any (msg:\"DENY-LAN-DMZ\"; flow:to_server; sid:8; rev:1;)\npass ip $Office_LAN any -> $Mail_Server any (msg:\"GRE-LAB\"; flow:to_server; ip_proto:47; sid:9; rev:1;)\ndrop ip 0.0.0.0/0 any -> 0.0.0.0/0 any (msg:\"BLOCKALL\"; flow:to_server; sid:10; rev:1;)\n"
  },
  "StatefulRuleOptions": {
   "RuleOrder": "STRICT_ORDER"

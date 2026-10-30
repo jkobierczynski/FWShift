@@ -1,0 +1,136 @@
+FWShift conversion report
+  source: f5-afm
+  target: sonicwall
+
+Summary
+  Security rules:     42   exact 35, approximated 0, needs review 6 (6 emitted disabled), skipped 1
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 9, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] IPV6_PRIORITY_AUTO: IPv6 rules are written without a priority, after every IPv4 rule: SonicOS keeps one list of priorities for the rules of every pair of zones, IPv4 first and with rules of its own among them, so the place of an IPv6 rule is not known beforehand (SonicOS 8.2.2 refused the places FWShift gave). SonicOS places them. Pairs with more than one IPv6 rule, whose order SonicOS decides: dmz to dmz, dmz to external, dmz to internal, external to dmz, external to external, external to internal, internal to dmz, internal to external, internal to internal: check it
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, address-object ipv6, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): internal, dmz, external
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv4' (all addresses, in two halves) instead of any
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv6' (all addresses, in two halves) instead of any
+  [info] DEFAULT_DENY_ADDED: 12 rules that deny were added, one at the end of each pair of zones and IP version: SonicOS allows some traffic between zones by itself (from LAN to WAN, for example), and the source did not
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 5 rule(s) match IPv4 and IPv6 traffic and were written twice: SonicOS has address objects and access rules per IP version
+
+Security rules
+  global/block_bad  ->  exact  (emitted as global/block_bad, global/block_bad 2, global/block_bad 3, global/block_bad 4, global/block_bad 5, global/block_bad 6, global/block_bad 7, global/block_bad 8, global/block_bad 9)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 9 rules
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_dns  ->  exact  (emitted as global/admins_continue>rd0/outbo, global/admins_continue>rd0/out 4, global/admins_continue>rd0/out 5)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound  ->  exact  (emitted as global/admins_continue>rd0/out 2, global/admins_continue>rd0/out 6, global/admins_continue>rd0/out 7)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  global/admins_continue>rd0/outbound/allow_web_out@vs_outbound  ->  exact  (emitted as global/admins_continue>rd0/out 3, global/admins_continue>rd0/out 8, global/admins_continue>rd0/out 9)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  global/admins_continue>rd0/dmz_no_inside  ->  exact  (emitted as global/admins_continue>rd0/dmz_n, global/admins_continue>rd0/dmz 2, global/admins_continue>rd0/dmz 3, global/admins_continue>rd0/dmz 4, global/admins_continue>rd0/dmz 5, global/admins_continue>rd0/dmz 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  global/admins_continue>vs_web6/web_in  ->  exact  (emitted as global/admins_continue>vs_web6/w, global/admins_continue>vs_web6 2, global/admins_continue>vs_web6 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  global/admins_continue>vs_web6/(default)  ->  exact  (emitted as global/admins_continue>vs_web6/(, global/admins_continue>vs_web6 4, global/admins_continue>vs_web6 5)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  global/admins_continue>vs_web/web_in  ->  exact  (emitted as global/admins_continue>vs_web/we, global/admins_continue>vs_web/ 2, global/admins_continue>vs_web/ 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  global/admins_continue>vs_web/(default)  ->  exact  (emitted as global/admins_continue>vs_web/(d, global/admins_continue>vs_web/ 4, global/admins_continue>vs_web/ 5)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  global/admins_continue>vs_web_http/(refused)  ->  exact  (emitted as global/admins_continue>vs_web_ht, global/admins_continue>vs_web_ 2, global/admins_continue>vs_web_ 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  global/admins_continue>vs_dns/(default)  ->  exact  (emitted as global/admins_continue>vs_dns/(d, global/admins_continue>vs_dns/ 2, global/admins_continue>vs_dns/ 3, global/admins_continue>vs_dns/ 4, global/admins_continue>vs_dns/ 5, global/admins_continue>vs_dns/ 6, global/admins_continue>vs_dns/ 7, global/admins_continue>vs_dns/ 8, global/admins_continue>vs_dns/ 9)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 9 rules
+  global/admins_continue>vs_old_app/(refused)  ->  exact  (emitted as global/admins_continue>vs_old_ap, global/admins_continue>vs_old_ 2, global/admins_continue>vs_old_ 3, global/admins_continue>vs_old_ 4, global/admins_continue>vs_old_ 5, global/admins_continue>vs_old_ 6, global/admins_continue>vs_old_ 7, global/admins_continue>vs_old_ 8, global/admins_continue>vs_old_ 9)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 9 rules
+  global/admins_continue>vs_inbound_dmz/(default)  ->  exact  (emitted as global/admins_continue>vs_inboun, global/admins_continue>vs_inbo 2, global/admins_continue>vs_inbo 3, global/admins_continue>vs_inbo 4, global/admins_continue>vs_inbo 5, global/admins_continue>vs_inbo 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 6 rules
+  global/admins_continue>vs_outbound/(default)  ->  exact  (emitted as global/admins_continue>vs_outbou, global/admins_continue>vs_outb 2, global/admins_continue>vs_outb 3, global/admins_continue>vs_outb 4, global/admins_continue>vs_outb 5, global/admins_continue>vs_outb 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 6 rules
+  global/reject_telnet  ->  exact  (emitted as global/reject_telnet, global/reject_telnet 2, global/reject_telnet 3, global/reject_telnet 4, global/reject_telnet 5, global/reject_telnet 6, global/reject_telnet 7, global/reject_telnet 8, global/reject_telnet 9, global/reject_telnet 10, global/reject_telnet 11, global/reject_telnet 12, global/reject_telnet 13, global/reject_telnet 14, global/reject_telnet 15, global/reject_telnet 16, global/reject_telnet 17, global/reject_telnet 18)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 9 rules
+      [info] RESET_ACTION: action reset-client becomes deny
+  global/ping_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as global/ping_in@vs_outbound, global/ping_in@vs_outbound 2, global/ping_in@vs_outbound 3, global/ping_in@vs_outbound 4, global/ping_in@vs_outbound 5, global/ping_in@vs_outbound 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 6 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-8-0': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  global/old_rule  ->  exact  (emitted as global/old_rule, global/old_rule 2, global/old_rule 3, global/old_rule 4, global/old_rule 5, global/old_rule 6, global/old_rule 7, global/old_rule 8, global/old_rule 9, global/old_rule 10, global/old_rule 11, global/old_rule 12, global/old_rule 13, global/old_rule 14, global/old_rule 15, global/old_rule 16, global/old_rule 17, global/old_rule 18)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 9 rules
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled  (emitted as global/office_ssh@vs_outbound, global/office_ssh@vs_outbound 2, global/office_ssh@vs_outbound 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  global/partners_in@vs_web6  ->  skipped
+      [needs-review] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves nothing
+  global/partners_in@vs_web  ->  needs-review, emitted disabled  (emitted as global/partners_in@vs_web, global/partners_in@vs_web 2, global/partners_in@vs_web 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled  (emitted as global/partners_in@vs_web_http, global/partners_in@vs_web_http 2, global/partners_in@vs_web_http 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled  (emitted as global/partners_in@vs_inbound_dm, global/partners_in@vs_inbound_ 2, global/partners_in@vs_inbound_ 3, global/partners_in@vs_inbound_ 4, global/partners_in@vs_inbound_ 5, global/partners_in@vs_inbound_ 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 6 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as global/partners_in@vs_outbound, global/partners_in@vs_outbound 2, global/partners_in@vs_outbound 3, global/partners_in@vs_outbound 4, global/partners_in@vs_outbound 5, global/partners_in@vs_outbound 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 6 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/inspect_irule>rd0/dmz_no_inside  ->  exact  (emitted as global/inspect_irule>rd0/dmz_no_, global/inspect_irule>rd0/dmz_n 2, global/inspect_irule>rd0/dmz_n 3, global/inspect_irule>rd0/dmz_n 4, global/inspect_irule>rd0/dmz_n 5, global/inspect_irule>rd0/dmz_n 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  global/inspect_irule>vs_old_app/(refused)  ->  exact  (emitted as global/inspect_irule>vs_old_app/, global/inspect_irule>vs_old_ap 2, global/inspect_irule>vs_old_ap 3, global/inspect_irule>vs_old_ap 4, global/inspect_irule>vs_old_ap 5, global/inspect_irule>vs_old_ap 6, global/inspect_irule>vs_old_ap 7, global/inspect_irule>vs_old_ap 8, global/inspect_irule>vs_old_ap 9)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 9 rules
+  global/inspect_irule>vs_inbound_dmz/(default)  ->  exact  (emitted as global/inspect_irule>vs_inbound_, global/inspect_irule>vs_inboun 2, global/inspect_irule>vs_inboun 3, global/inspect_irule>vs_inboun 4, global/inspect_irule>vs_inboun 5, global/inspect_irule>vs_inboun 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 6 rules
+  global/inspect_irule>vs_outbound/(default)  ->  exact  (emitted as global/inspect_irule>vs_outbound, global/inspect_irule>vs_outbou 2, global/inspect_irule>vs_outbou 3, global/inspect_irule>vs_outbou 4, global/inspect_irule>vs_outbou 5, global/inspect_irule>vs_outbou 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 6 rules
+  rd0/outbound/allow_dns_out@vs_dns  ->  exact  (emitted as rd0/outbound/allow_dns_out@vs_dn, rd0/outbound/allow_dns_out@vs_ 2, rd0/outbound/allow_dns_out@vs_ 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  rd0/outbound/allow_dns_out@vs_outbound  ->  exact  (emitted as rd0/outbound/allow_dns_out@vs_ou, rd0/outbound/allow_dns_out@vs_ 4, rd0/outbound/allow_dns_out@vs_ 5)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  rd0/outbound/allow_web_out@vs_outbound  ->  exact  (emitted as rd0/outbound/allow_web_out@vs_ou, rd0/outbound/allow_web_out@vs_ 2, rd0/outbound/allow_web_out@vs_ 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  rd0/dmz_no_inside  ->  exact  (emitted as rd0/dmz_no_inside, rd0/dmz_no_inside 2, rd0/dmz_no_inside 3, rd0/dmz_no_inside 4, rd0/dmz_no_inside 5, rd0/dmz_no_inside 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  vs_web6/web_in  ->  exact  (emitted as vs_web6/web_in, vs_web6/web_in 2, vs_web6/web_in 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  vs_web6/web6_in  ->  exact  (emitted as vs_web6/web6_in, vs_web6/web6_in 2, vs_web6/web6_in 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  vs_web6/(default)  ->  exact  (emitted as vs_web6/(default), vs_web6/(default) 2, vs_web6/(default) 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  vs_web/web_in  ->  exact  (emitted as vs_web/web_in, vs_web/web_in 2, vs_web/web_in 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  vs_web/(default)  ->  exact  (emitted as vs_web/(default), vs_web/(default) 2, vs_web/(default) 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  vs_web_http/(refused)  ->  exact  (emitted as vs_web_http/(refused), vs_web_http/(refused) 2, vs_web_http/(refused) 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  vs_dns/dns_from_partners  ->  exact  (emitted as vs_dns/dns_from_partners, vs_dns/dns_from_partners 2, vs_dns/dns_from_partners 3, vs_dns/dns_from_partners 4, vs_dns/dns_from_partners 5, vs_dns/dns_from_partners 6, vs_dns/dns_from_partners 7, vs_dns/dns_from_partners 8, vs_dns/dns_from_partners 9)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 9 rules
+  vs_dns/(default)  ->  exact  (emitted as vs_dns/(default), vs_dns/(default) 2, vs_dns/(default) 3, vs_dns/(default) 4, vs_dns/(default) 5, vs_dns/(default) 6, vs_dns/(default) 7, vs_dns/(default) 8, vs_dns/(default) 9)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 9 rules
+  vs_old_app/(refused)  ->  exact  (emitted as vs_old_app/(refused), vs_old_app/(refused) 2, vs_old_app/(refused) 3, vs_old_app/(refused) 4, vs_old_app/(refused) 5, vs_old_app/(refused) 6, vs_old_app/(refused) 7, vs_old_app/(refused) 8, vs_old_app/(refused) 9)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 9 rules
+  vs_inbound_dmz/(default)  ->  exact  (emitted as vs_inbound_dmz/(default), vs_inbound_dmz/(default) 2, vs_inbound_dmz/(default) 3, vs_inbound_dmz/(default) 4, vs_inbound_dmz/(default) 5, vs_inbound_dmz/(default) 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 6 rules
+  vs_outbound/(default)  ->  exact  (emitted as vs_outbound/(default), vs_outbound/(default) 2, vs_outbound/(default) 3, vs_outbound/(default) 4, vs_outbound/(default) 5, vs_outbound/(default) 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 6 rules
+
+Address groups
+  admins  ->  exact  (emitted as admins, admins v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'admins', 'admins v6'
+  web_servers  ->  exact  (emitted as web_servers, web_servers v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'web_servers', 'web_servers v6'
+  inside  ->  exact  (emitted as inside, inside v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'inside', 'inside v6'
+
+Services
+  web_ports  ->  exact  (emitted as web_ports, web_ports tcp 80, web_ports tcp 443)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'web_ports' of 'web_ports tcp 80', 'web_ports tcp 443'
+  icmp-8-0  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  mgmt_ports  ->  exact  (emitted as mgmt_ports, mgmt_ports tcp 22, mgmt_ports tcp 80, mgmt_ports tcp 443, mgmt_ports tcp 8443)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'mgmt_ports' of 'mgmt_ports tcp 22', 'mgmt_ports tcp 80', 'mgmt_ports tcp 443', 'mgmt_ports tcp 8443'

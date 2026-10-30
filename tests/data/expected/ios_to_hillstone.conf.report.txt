@@ -1,0 +1,132 @@
+FWShift conversion report
+  source: ios
+  target: hillstone
+
+Summary
+  Security rules:    204   exact 173, approximated 0, needs review 31 (30 emitted disabled), skipped 0
+  NAT rules:           3   exact 1, approximated 2, needs review 0, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10223 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface GigabitEthernet0/0/0 / zone "FWS_OUTSIDE"; interface GigabitEthernet0/0/1 / zone "FWS_INSIDE"; interface GigabitEthernet0/0/2 / zone "FWS_DMZ"; interface GigabitEthernet0/0/3 / zone "FWS_LAB"; interface GigabitEthernet0 / zone "FWS_MGMT"
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  WAN-IN-70 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp-0' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0.
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN6-IN-30 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp6-129' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0.
+  WAN6-IN-40 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp6-2' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp-0' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp-0' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NEGATE: every service but some: a rule of StoneOS lists the services it matches. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp6-129' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp6-2' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp-0' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp-0' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NEGATE: every service but some: a rule of StoneOS lists the services it matches. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-30 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp6-129' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp6-2' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp-0' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp6-129' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp6-2' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp-0' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp6-129' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp6-2' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)-2  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-DNS (INSIDE to OUTSIDE)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-MAIL-SUB (INSIDE to OUTSIDE)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review  (emitted as 1 rule of policy-global)
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-PING (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as 2 rules of policy-global)
+      [needs-review] SERVICE_NOT_WRITTEN: service 'icmp_icmp6' cannot be written: ICMPv6, an ICMP type or code a service of StoneOS does not take, SCTP with ports, or protocol 0.
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT class-default (INSIDE to OUTSIDE)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  INSIDE (in): no access list (INSIDE to INSIDE)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to LAB (INSIDE to LAB)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to MGMT (INSIDE to MGMT)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-DNS (DMZ to OUTSIDE)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)-2  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT class-default (DMZ to OUTSIDE)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to INSIDE (DMZ to INSIDE)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to LAB (DMZ to LAB)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to MGMT (DMZ to MGMT)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to OUTSIDE (MGMT to OUTSIDE)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to INSIDE (MGMT to INSIDE)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to LAB (MGMT to LAB)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  MGMT (in): no access list (MGMT to MGMT)  ->  exact  (emitted as 2 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+
+NAT rules
+  nat-177  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from OUTSIDE; the rule written applies to traffic from every zone
+  nat-178  ->  approximated  (emitted as snatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from INSIDE, DMZ; the rule written applies to traffic from every zone

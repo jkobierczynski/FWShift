@@ -1,0 +1,60 @@
+FWShift conversion report
+  source: stormshield
+  target: oci
+
+Summary
+  Security rules:     18   exact 5, approximated 0, needs review 11 (8 emitted disabled), skipped 2
+  Addresses:          22   exact 22, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  [needs-review] STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  [needs-review] STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  [needs-review] STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+  [needs-review] OCI_LOAD: the output is a shell script of OCI CLI calls (section 10): DRY_RUN=1 prints them, COMPARTMENT_ID and VCN_ID create the NSGs and their rules. It creates new NSGs only, and stops if an NSG of the same name exists in the VCN. The NSGs have no VNICs when it is done: nothing changes until VNICs are put in them
+  [needs-review] OCI_ATTACH: 13 NSGs: put each VNIC in the NSGs whose '# attach' line lists its addresses, and take it out of the others; a VNIC with addresses of both IP versions is in an NSG for each. An NSG applies to the whole VNIC: a VNIC with several addresses of one IP version in different NSGs gives each address the rules of all of them, so give such addresses the same NSG. 'oci network vnic update --nsg-ids' replaces the NSGs of a VNIC: it is left to you
+  [needs-review] OCI_SECURITY_LISTS: the security lists of the VNICs' subnets keep applying, and OCI allows what a rule of a security list or of an NSG allows: for the VNICs to be held to what the NSGs allow, their subnets need security lists that allow no more (the default security list of a VCN allows SSH from anywhere and every egress)
+  [needs-review] OCI_RULE_LIMIT: an NSG takes 120 rules, so these were split and a VNIC goes in every part: fwshift-addresses-2 (2 NSGs), fwshift-addresses-3 (2 NSGs), fwshift-addresses-4 (2 NSGs), fwshift-Firewall_lab (2 NSGs)
+  [info] STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  [info] STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; an NSG does not. VCN flow logs record the connections of the subnets or VNICs instead
+
+Security rules
+  local 1  ->  needs-review, emitted disabled
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone in, and an NSG names no zone: give the networks behind in with --zone-network.
+  local 2  ->  needs-review  (emitted as NSGs fwshift-addresses-2, fwshift-addresses-3, fwshift-addresses-4, fwshift-Firewall_lab, fwshift-Firewall_out)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 4  ->  needs-review  (emitted as NSGs fwshift-addresses, fwshift-addresses-2, fwshift-addresses-3, fwshift-addresses-4, fwshift-Firewall_lab, fwshift-Firewall_out)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (inspection=ips); attach equivalent inspection on the target
+      [info] DENY_SUBTRACTED: an NSG cannot block: the rule is written without what the blocking rules above it match
+  local 5  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone in, and an NSG names no zone: give the networks behind in with --zone-network.
+  local 6  ->  needs-review  (emitted as taken out of the rules below it)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [info] ACTION_DROP: action reset-client: an NSG drops what it does not allow, without an answer
+  local 8  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone out, and an NSG names no zone: give the networks behind out with --zone-network.
+  local 9  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone out, and an NSG names no zone: give the networks behind out with --zone-network.
+  local 10  ->  needs-review, emitted disabled
+      [needs-review] STORMSHIELD_BRIDGE: names a bridge or a port of one: read as that interface only; whether the firewall matches the bridge for its ports, or the reverse, is not documented
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lab, and an NSG names no zone: give the networks behind lab with --zone-network.
+  local 11  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match staff@corp.example is not converted.
+  local 12  ->  exact  (emitted as NSGs fwshift-addresses, fwshift-addresses-2, fwshift-addresses-3, fwshift-addresses-4, fwshift-Firewall_lab, fwshift-Firewall_out)
+      [info] DENY_SUBTRACTED: an NSG cannot block: the rule is written without what the blocking rules above it match
+  local 13  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: an NSG rule names addresses.
+  local 15  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application protocol=http); attach equivalent inspection on the target
+      [needs-review] FQDN_NOT_SUPPORTED: host name object www.example.org: an NSG rule names addresses.
+  global 2  ->  skipped
+      [info] STORMSHIELD_DELEG: deleg of everything: the rest goes to the local policy
+  local 7  ->  skipped
+      [info] STORMSHIELD_NON_TERMINAL: action decrypt: the firewall goes on to the next rule; nothing is decided here

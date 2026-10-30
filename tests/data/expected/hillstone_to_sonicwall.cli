@@ -1,0 +1,282 @@
+configure terminal
+address-object ipv4 "inside-net" network 10.10.0.0 255.255.255.0 zone trust
+address-object ipv4 "web-srv" host 10.20.0.10 zone dmz
+address-object ipv4 "mail-srv" host 10.20.0.25 zone dmz
+address-object ipv4 "lab-pool" range 10.30.0.100 10.30.0.150 zone lab
+address-object fqdn "update-site" domain "updates.example.com" zone untrust
+address-object fqdn "partners/partner.example.net" domain "partner.example.net" zone untrust
+address-object ipv6 "v6-inside" network 2001:db8:10:: /64 zone trust
+address-object ipv4 "pub-web" host 203.0.113.10 zone dmz
+address-object ipv4 "snat-pool" network 203.0.113.20 255.255.255.254 zone dmz
+address-object fqdn "files.example.org" domain "files.example.org" zone untrust
+address-object ipv4 "n 10.20.0.40_31" network 10.20.0.40 255.255.255.254 zone dmz
+address-object ipv4 "r 10.10.0.0-10.10.0.199" range 10.10.0.0 10.10.0.199 zone dmz
+address-object ipv4 "r 10.10.0.210-10.10.0.255" range 10.10.0.210 10.10.0.255 zone dmz
+address-object ipv4 "n 198.51.100.0_24" network 198.51.100.0 255.255.255.0 zone dmz
+address-object ipv4 "wild-hosts" host 192.0.0.8 zone dmz
+address-object ipv4 "blocked-country" host 192.0.0.8 zone dmz
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone dmz
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone dmz
+address-object ipv4 "h 10.10.0.50" host 10.10.0.50 zone dmz
+address-object ipv4 "r 10.10.0.60-10.10.0.69" range 10.10.0.60 10.10.0.69 zone dmz
+address-object ipv6 "n ::_1" network :: /1 zone dmz
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone dmz
+address-object ipv4 "h 203.0.113.11" host 203.0.113.11 zone dmz
+address-object ipv4 "h 203.0.113.12" host 203.0.113.12 zone dmz
+address-group ipv4 "servers"
+    address-object ipv4 "n 10.20.0.40_31"
+    address-object ipv4 "web-srv"
+    address-object ipv4 "mail-srv"
+    exit
+address-group ipv4 "inside-no-printers"
+    address-object ipv4 "r 10.10.0.0-10.10.0.199"
+    address-object ipv4 "r 10.10.0.210-10.10.0.255"
+    exit
+address-group ipv4 "partners"
+    address-object ipv4 "n 198.51.100.0_24"
+    address-object fqdn "partners/partner.example.net"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv4 "src app-clients"
+    address-object ipv4 "h 10.10.0.50"
+    address-object ipv4 "r 10.10.0.60-10.10.0.69"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
+service-object "tcp-8080" TCP 8080 8080
+service-object "HTTP 2" TCP 80 80
+service-object "HTTPS 2" TCP 443 443
+service-object "SSH 2" TCP 22 22
+service-object "DNS tcp 53" TCP 53 53
+service-object "DNS udp 53" UDP 53 53
+service-group "DNS"
+    service-object "DNS tcp 53"
+    service-object "DNS udp 53"
+    exit
+service-object "tcp 8080" TCP 8080 8080
+service-group "web-group"
+    service-object "HTTP 2"
+    service-object "HTTPS 2"
+    service-object "tcp-8080"
+    exit
+service-group "admin-group"
+    service-group "web-group"
+    service-object "SSH 2"
+    exit
+service-group "svc inside-to-web"
+    service-group "web-group"
+    service-group "DNS"
+    exit
+service-group "svc v6-out"
+    service-object "HTTPS 2"
+    service-object "Ping"
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "pub-web" translated-destination name "web-srv" service name "HTTP 2" translated-service name "tcp 8080"
+    name "dnatrule 1"
+    comment "dnatrule id 1 from Any to pub-we"
+    priority manual 1
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 203.0.113.11" translated-destination name "mail-srv" service any translated-service original
+    name "dnatrule 2"
+    comment "dnatrule id 2 from address-book"
+    priority manual 2
+    exit
+nat-policy ipv4 inbound any outbound any source name "inside-net" translated-source original destination group "partners" translated-destination original service any translated-service original
+    name "snatrule 1"
+    comment "snatrule id 1 from inside-net to"
+    priority manual 3
+    exit
+nat-policy ipv4 inbound any outbound any source name "lab-pool" translated-source name "snat-pool" destination any translated-destination original service any translated-service original
+    name "snatrule 3"
+    comment "snatrule id 3 from lab-pool to A"
+    priority manual 4
+    exit
+nat-policy ipv4 inbound any outbound any source name "web-srv" translated-source name "h 203.0.113.12" destination any translated-destination original service any translated-service original
+    name "snatrule 4"
+    comment "snatrule id 4 from web-srv to An"
+    priority manual 5
+    no enable
+    exit
+access-rule ipv4 from trust to trust action allow source address any service name "Ping" destination address any
+    name "inside-ping"
+    priority manual 1
+    exit
+access-rule ipv4 from trust to untrust action allow source address name "inside-net" service group "svc inside-to-web" destination address any
+    name "inside-to-web"
+    priority manual 2
+    exit
+access-rule ipv4 from untrust to dmz action allow source address any service name "HTTP 2" destination address name "pub-web"
+    name "publish-web"
+    priority manual 3
+    exit
+access-rule ipv4 from trust to untrust action deny source address any service any destination address group "blocked-country"
+    name "block-country"
+    priority manual 4
+    no enable
+    exit
+access-rule ipv4 from lab to trust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "lab-to-inside"
+    priority manual 5
+    exit
+access-rule ipv4 from trust to dmz action allow source address group "inside-no-printers" service group "admin-group" destination address group "servers"
+    name "inside-to-servers"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from lab to untrust action allow source address name "lab-pool" service name "HTTPS 2" destination address name "update-site"
+    name "lab-updates"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from trust to untrust action allow source address group "src app-clients" service any destination address name "files.example.org"
+    name "app-clients"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from trust to untrust action allow source address name "inside-net" service any destination address any
+    name "p2p"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from lab to untrust action allow source address any service any destination address group "partners"
+    name "tunnels-to-partners"
+    priority manual 10
+    no enable
+    exit
+access-rule ipv4 from dmz to untrust action allow source address any service any destination address group "partners"
+    name "tunnels-to-partners 2"
+    priority manual 11
+    no enable
+    exit
+access-rule ipv4 from trust to untrust action allow source address name "inside-net" service any destination address any
+    name "to-branch-vpn"
+    priority manual 12
+    no enable
+    exit
+access-rule ipv4 from trust to untrust action allow source address group "wild-hosts" service any destination address any
+    name "contractors-out"
+    priority manual 13
+    no enable
+    exit
+access-rule ipv4 from trust to lab action allow source address name "inside-net" service any destination address any
+    name "rule 13"
+    priority manual 14
+    exit
+access-rule ipv4 from dmz to dmz action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT dmz to dmz"
+    priority manual 15
+    exit
+access-rule ipv4 from dmz to lab action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT dmz to lab"
+    priority manual 16
+    exit
+access-rule ipv4 from dmz to trust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT dmz to trust"
+    priority manual 17
+    exit
+access-rule ipv4 from dmz to untrust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT dmz to untrust"
+    priority manual 18
+    exit
+access-rule ipv4 from lab to dmz action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT lab to dmz"
+    priority manual 19
+    exit
+access-rule ipv4 from lab to lab action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT lab to lab"
+    priority manual 20
+    exit
+access-rule ipv4 from lab to untrust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT lab to untrust"
+    priority manual 21
+    exit
+access-rule ipv4 from trust to dmz action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT trust to dmz"
+    priority manual 22
+    exit
+access-rule ipv4 from trust to lab action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT trust to lab"
+    priority manual 23
+    exit
+access-rule ipv4 from trust to trust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT trust to trust"
+    priority manual 24
+    exit
+access-rule ipv4 from trust to untrust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT trust to untrust"
+    priority manual 25
+    exit
+access-rule ipv4 from untrust to dmz action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT untrust to dmz"
+    priority manual 26
+    exit
+access-rule ipv4 from untrust to lab action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT untrust to lab"
+    priority manual 27
+    exit
+access-rule ipv4 from untrust to trust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT untrust to trust"
+    priority manual 28
+    exit
+access-rule ipv4 from untrust to untrust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT untrust to untrust"
+    priority manual 29
+    exit
+access-rule ipv6 from trust to untrust action allow source address name "v6-inside" service group "svc v6-out" destination address any
+    name "v6-out"
+    exit
+access-rule ipv6 from dmz to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz to dmz v6"
+    exit
+access-rule ipv6 from dmz to lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz to lab v6"
+    exit
+access-rule ipv6 from dmz to trust action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz to trust v6"
+    exit
+access-rule ipv6 from dmz to untrust action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz to untrust v6"
+    exit
+access-rule ipv6 from lab to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT lab to dmz v6"
+    exit
+access-rule ipv6 from lab to lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT lab to lab v6"
+    exit
+access-rule ipv6 from lab to trust action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT lab to trust v6"
+    exit
+access-rule ipv6 from lab to untrust action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT lab to untrust v6"
+    exit
+access-rule ipv6 from trust to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT trust to dmz v6"
+    exit
+access-rule ipv6 from trust to lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT trust to lab v6"
+    exit
+access-rule ipv6 from trust to trust action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT trust to trust v6"
+    exit
+access-rule ipv6 from trust to untrust action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT trust to untrust v6"
+    exit
+access-rule ipv6 from untrust to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT untrust to dmz v6"
+    exit
+access-rule ipv6 from untrust to lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT untrust to lab v6"
+    exit
+access-rule ipv6 from untrust to trust action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT untrust to trust v6"
+    exit
+access-rule ipv6 from untrust to untrust action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT untrust to untrust v6"
+    exit
+commit
+exit

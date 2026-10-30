@@ -1,0 +1,100 @@
+FWShift conversion report
+  source: f5-afm
+  target: nsx
+
+Summary
+  Security rules:     42   exact 9, approximated 15, needs review 18 (18 emitted disabled), skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] NSX_LOAD: the output is the body of one hierarchical PATCH of the Policy API: curl -X PATCH -H 'Content-Type: application/json' --data @FILE https://MANAGER/policy/api/v1/infra. It creates or updates the services, the groups and one security policy of category Application (sequence number 1: give it the place you want), and leaves everything else alone, except objects of the same id, which it changes: give --target-prefix to keep the new ones apart. There is no dry run: load it on a lab manager first
+  [needs-review] NSX_DEFAULT_DENY: the source denies what no rule allows: the policy ends in fwshift-default-deny, which drops every connection no rule above it allows, for all workloads. It ends the Application category: policies after it and the default layer-3 rule are never reached
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+
+Security rules
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled  (emitted as rule global_admins_continue_rd0_outbound_allow_dns_out_vs_dns)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the distributed firewall names no zone: give the networks behind internal with --zone-network.
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as rule global_admins_continue_rd0_outbound_allow_dns_out_vs_outbound)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the distributed firewall names no zone: give the networks behind internal with --zone-network.
+  global/admins_continue>rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as rule global_admins_continue_rd0_outbound_allow_web_out_vs_outbound)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the distributed firewall names no zone: give the networks behind internal with --zone-network.
+  global/admins_continue>rd0/dmz_no_inside  ->  approximated  (emitted as rule global_admins_continue_rd0_dmz_no_inside)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web6/web_in  ->  needs-review, emitted disabled  (emitted as rule global_admins_continue_vs_web6_web_in)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of the distributed firewall names no zone: give the networks behind external with --zone-network.
+  global/admins_continue>vs_web6/(default)  ->  approximated  (emitted as rule global_admins_continue_vs_web6_default)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web/web_in  ->  needs-review, emitted disabled  (emitted as rule global_admins_continue_vs_web_web_in)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of the distributed firewall names no zone: give the networks behind external with --zone-network.
+  global/admins_continue>vs_web/(default)  ->  approximated  (emitted as rule global_admins_continue_vs_web_default)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web_http/(refused)  ->  approximated  (emitted as rule global_admins_continue_vs_web_http_refused)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_inbound_dmz/(default)  ->  approximated  (emitted as rule global_admins_continue_vs_inbound_dmz_default)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_outbound/(default)  ->  approximated  (emitted as rule global_admins_continue_vs_outbound_default)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/ping_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as rule global_ping_in_vs_outbound)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, internal, and a rule of the distributed firewall names no zone: give the networks behind dmz, internal with --zone-network.
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled  (emitted as rule global_office_ssh_vs_outbound)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the distributed firewall names no zone: give the networks behind internal with --zone-network.
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled  (emitted as rule global_partners_in_vs_web6)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a group of NSX holds addresses; a domain name needs a context profile, which is not written.
+      [needs-review] ZONE_DYNAMIC: the source 'partners' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks.
+  global/partners_in@vs_web  ->  needs-review, emitted disabled  (emitted as rule global_partners_in_vs_web)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a group of NSX holds addresses; a domain name needs a context profile, which is not written.
+      [needs-review] ZONE_DYNAMIC: the source 'partners' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks.
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled  (emitted as rule global_partners_in_vs_web_http)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a group of NSX holds addresses; a domain name needs a context profile, which is not written. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: the source 'partners' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled  (emitted as rule global_partners_in_vs_inbound_dmz)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a group of NSX holds addresses; a domain name needs a context profile, which is not written.
+      [needs-review] ZONE_DYNAMIC: the source 'partners' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks.
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as rule global_partners_in_vs_outbound)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a group of NSX holds addresses; a domain name needs a context profile, which is not written.
+      [needs-review] ZONE_DYNAMIC: the source 'partners' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks.
+  global/inspect_irule>rd0/dmz_no_inside  ->  approximated  (emitted as rule global_inspect_irule_rd0_dmz_no_inside)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/inspect_irule>vs_inbound_dmz/(default)  ->  approximated  (emitted as rule global_inspect_irule_vs_inbound_dmz_default)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/inspect_irule>vs_outbound/(default)  ->  approximated  (emitted as rule global_inspect_irule_vs_outbound_default)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled  (emitted as rule rd0_outbound_allow_dns_out_vs_dns)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the distributed firewall names no zone: give the networks behind internal with --zone-network.
+  rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as rule rd0_outbound_allow_dns_out_vs_outbound)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the distributed firewall names no zone: give the networks behind internal with --zone-network.
+  rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as rule rd0_outbound_allow_web_out_vs_outbound)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a rule of the distributed firewall names no zone: give the networks behind internal with --zone-network.
+  rd0/dmz_no_inside  ->  approximated  (emitted as rule rd0_dmz_no_inside)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web6/web_in  ->  needs-review, emitted disabled  (emitted as rule vs_web6_web_in)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of the distributed firewall names no zone: give the networks behind external with --zone-network.
+  vs_web6/web6_in  ->  needs-review, emitted disabled  (emitted as rule vs_web6_web6_in)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of the distributed firewall names no zone: give the networks behind external with --zone-network.
+  vs_web6/(default)  ->  approximated  (emitted as rule vs_web6_default)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web/web_in  ->  needs-review, emitted disabled  (emitted as rule vs_web_web_in)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a rule of the distributed firewall names no zone: give the networks behind external with --zone-network.
+  vs_web/(default)  ->  approximated  (emitted as rule vs_web_default)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web_http/(refused)  ->  approximated  (emitted as rule vs_web_http_refused)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_inbound_dmz/(default)  ->  approximated  (emitted as rule vs_inbound_dmz_default)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_outbound/(default)  ->  approximated  (emitted as rule vs_outbound_default)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones

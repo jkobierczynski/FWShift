@@ -1,0 +1,60 @@
+FWShift zone matrix
+  source: oci (ocid1.vcn.oc1.eu-frankfurt-1.exampleshopvcn)
+  security rules: 37 (0 disabled, 6 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 (other zones)
+  (other zones)  any~
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+(other zones) -> (other zones)
+  allowed: any ~
+  cleartext or remote administration: telnet (rule 'db-sl-in-3'); ftp (rule 'db-sl-in-3'); rsh/rlogin/rexec (rule 'db-sl-in-3'); netbios (rule 'db-sl-in-3'); smb (rule 'db-sl-in-3'); rdp (rule 'db-sl-in-3'); vnc (rule 'db-sl-in-3'); x11 (rule 'db-sl-in-3')
+  industrial protocols: modbus (rule 'db-sl-in-3'); s7/iso-tsap (rule 'db-sl-in-3'); dnp3 (rule 'db-sl-in-3'); ethernet-ip (rule 'db-sl-in-3'); opc-ua (rule 'db-sl-in-3'); iec-104 (rule 'db-sl-in-3'); profinet (rule 'db-sl-in-3'); niagara-fox (rule 'db-sl-in-3')
+  rule 'app-subnet-to-db-sl': 10.30.2.0-10.30.2.29, 10.30.2.33-10.30.2.255 -> 10.30.3.0/24: tcp/5432 from port 1024-65535
+  rule 'app-subnet+app-nsg-to-db-sl': 10.30.2.30-10.30.2.32 -> 10.30.3.0/24: tcp/5432 from port 1024-65535
+  rule 'db-subnet-to-Default Security List for shop-vcn': 10.30.3.0/24 -> 10.30.9.0/24: tcp/22
+  rule 'Default Security List for shop-vcn-in-1': 0.0.0.0/0 -> Default Security List for shop-vcn: tcp/22
+  rule 'Default Security List for shop-vcn-in-2': 0.0.0.0/0 -> Default Security List for shop-vcn: icmp type 3 code 4
+  rule 'Default Security List for shop-vcn-in-3': 10.30.0.0/16 -> Default Security List for shop-vcn: icmp type 3
+  rule 'Default Security List for shop-vcn-in-4': ::/0 -> Default Security List for shop-vcn: tcp/22
+  rule 'Default Security List for shop-vcn-in-5': ::/0 -> Default Security List for shop-vcn: icmp6 type 2 code 0
+  rule 'web-sl-in-1': 0.0.0.0/0 -> web-sl: tcp/443
+  rule 'web-sl-in-2': ::/0 -> web-sl: tcp/80
+  rule 'web-sl-in-3': 10.30.0.0/16 -> web-sl: tcp/8080
+  rule 'app-sl-in-1': 10.30.1.0/24 -> app-sl: tcp/8080
+  rule 'app-sl-in-2': 10.30.9.0/24 -> app-sl: ip/47 (gre)
+  rule 'app-sl-in-3': 10.30.9.0/24 -> app-sl: icmp type 8
+  rule 'db-sl-in-2': 10.30.9.0/24 -> db-sl: tcp/5432
+  rule 'db-sl-in-3': 10.30.9.10 -> db-sl: tcp/1-65535 from port 22
+  rule 'db-sl-in-5': 10.30.0.0/16 -> db-sl: icmp type 3 code 4
+  rule 'db-sl-in-6': 10.30.0.0/16 -> db-sl: any (only with ICMPv6 with an address of the other IP version (10.30.0.0/16), which matches no packet, which is not in the model) ~
+  rule 'app-nsg-in-1': web-nsg -> app-nsg: tcp/8080-8443
+  rule 'Default Security List for shop-vcn-out-1': Default Security List for shop-vcn -> 0.0.0.0-10.29.255.255, 10.31.0.0-255.255.255.255: any
+  rule 'Default Security List for shop-vcn-out-2': Default Security List for shop-vcn -> ::-2001:db8:2f:ffff:ffff:ffff:ffff:ffff, 2001:db8:30:100::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff: any
+  rule 'app-sl-out-2': app-sl -> all-fra-services-in-oracle-services-network: tcp/443 ~
+  rule 'app-sl-out-3': app-sl -> 0.0.0.0-10.29.255.255, 10.31.0.0-255.255.255.255: udp/123 from port 123
+  rule 'app-sl-out-4': app-sl -> oci-fra-objectstorage: tcp/443 ~
+  rule 'app-sl-out-5': app-sl -> oci-ams-objectstorage: tcp/443 ~
+
+From reading the configuration
+  OCI_STATELESS_REPLY: stateless rules let traffic through without tracking the connection, and some of their replies are not allowed in the other direction (a stateless rule decides over a stateful one that matches the same traffic). Those connections fail on OCI and are blocked first in the converted policy ('...-stateless-in', '...-stateless-out')
+  OCI_EGRESS_PAIRS: inside the VCN a connection needs an egress rule of the sender's lists and NSGs and an ingress rule of the receiver's. Where the egress rules do not allow everything, 3 rules allow what both allow, and a rule after them blocks the rest of what those addresses send inside the VCN
+  OCI_RULE_INVALID: ingress rule 3 of NSG web-nsg names NSG ocid1.networksecuritygroup.oc1.eu-frankfurt-1.exampledeletednsg, which was deleted (is-valid false): OCI ignores the rule, and so does the converted policy
+  OCI_PUBLIC_ADDRESSES: the public IP addresses of the VNICs are static NAT of their primary private addresses: the internet gateway translates what comes from outside, and the rules see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  OCI_HAIRPIN: connections from inside the VCN to its own public addresses are not converted as OCI decides them: they go through the internet gateway, and the rules see public addresses at both ends (a rule that names an NSG does not match them). The converted policy treats them as connections to the private address, which may allow more
+  OCI_UNFILTERED: security rules are never enforced for traffic to or from 169.254.0.0/16 (instance metadata, iSCSI boot volumes, the VCN's DNS and NTP); neither does the converted policy say anything about it
+  OCI_REMOTE_NSG: rules name NSGs that are not in the input: ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplemonitoringnsgotherteam. No VNIC of the input is in them, so those rules allow nothing (an NSG names NSGs of its own VCN; if VNICs are missing from the input, add them)
+  OCI_SERVICE_LABEL: rules name service CIDR labels whose addresses are not in the input: oci-ams-objectstorage. Those rules are not converted; add Oracle's public_ip_ranges.json and 'oci iam region list'
+  OCI_UNUSED: these security lists are associated with no subnet, or no VNIC is in these NSGs, so their rules allow nothing and were left out: spare-sl, legacy-nsg
+  OCI_DEFAULT_SECURITY_LIST: these subnets use the default security list of the VCN, whose rules (as created: SSH from anywhere, ICMP type 3, every egress) are converted as they are now: web-subnet, mgmt-subnet
+  OCI_UDP_FRAGMENTS: rules allow UDP to or from certain ports: OCI drops the fragments after the first of a fragmented UDP packet that such a rule allows (they carry no ports). The model has no fragments
+  OCI_TERMINATED: 1 objects that are terminated or being terminated were left out
+
+Notes
+  The policy names no zones, so the matrix has one cell. Give zones as networks with --network-zone NAME=NETWORK[,NETWORK...] to see who reaches whom.
+  6 rule(s) never match and are left out; 'fwshift audit' names them.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

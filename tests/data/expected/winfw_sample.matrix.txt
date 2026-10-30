@@ -1,0 +1,84 @@
+FWShift zone matrix
+  source: windows-firewall (Group Policy, local)
+  security rules: 31 (3 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+           Host              Domain            Private           Public
+  Host     -                 any               tcp/80 +3~        any except tcp/…
+  Domain   tcp/22 +3~        -                 -                 -
+  Private  any~              -                 -                 -
+  Public   any~              -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+Host -> Domain
+  allowed: any
+  rule '(default) outbound': any -> any: any
+Host -> Private
+  allowed: tcp/80, tcp/443, tcp/10000-10010, udp/53 ~
+  rule 'Web out on private networks': any -> any: tcp/80, tcp/443
+  rule 'DNS out on private networks': any -> DNS: udp/53 ~
+  rule 'Backup agent to the backup server': any -> 10.30.0.20: tcp/10000-10010
+Host -> Public
+  allowed: any except tcp/23
+  rule 'Backup agent to the backup server': any -> 10.30.0.20: tcp/10000-10010
+  rule '(default) outbound': any -> any: any except tcp/23
+Domain -> Host
+  allowed: tcp/22, tcp/445, tcp/5985, udp/53 ~
+  cleartext or remote administration: smb (rule 'SMB from the local subnet')
+  rule 'Allow WinRM from management': 10.0.0.0/8 -> any: tcp/5985
+  rule 'SMB from the local subnet': LocalSubnet -> any: tcp/445 ~
+  rule 'SSH from the IPv6 jump hosts': 2001:db8:abcd::/48 -> any: tcp/22
+  rule 'DNS server': 10.0.0.0/8 -> any: udp/53
+Private -> Host
+  allowed: any ~
+  cleartext or remote administration: smb (rule 'SMB from the local subnet'); rdp (rule 'Remote Desktop from the admin networks'); snmp (rule 'SNMP from the local subnet')
+  rule 'Management over IPsec, overriding block rules': any -> any: any (only with remote computers, IPsec (Authenticate): only connections IPsec protects match and 1 more, which is not in the model) ~
+  rule 'SMB from the local subnet': LocalSubnet -> any: tcp/445 ~
+  rule 'SSH from the IPv6 jump hosts': 2001:db8:abcd::/48 -> any: tcp/22
+  rule 'Echo request (ICMPv4-In)': any -> any: icmp type 8
+  rule 'Echo request (ICMPv6-In)': LocalSubnet6 -> any: icmp6 type 128 ~
+  rule 'Fragmentation needed and time exceeded': any -> any: icmp type 11 code 0, icmp type 3 code 4
+  rule 'Remote Desktop from the admin networks': 192.0.2.0/24, 10.20.0.0/16, 2001:db8:20::/48 -> any: tcp/3389
+  rule 'Web server': any -> 10.10.0.5, 2001:db8:10::5: tcp/80, tcp/443
+  rule 'FTP passive ports': 10.10.0.0/16 -> any: tcp/50000-50100
+  rule 'SNMP from the local subnet': LocalSubnet4 -> any: udp/161 from port 1024-65535 ~
+  rule 'GRE from the tunnel peer': 198.51.100.1 -> any: ip/47 (gre)
+  rule 'Example application server': any -> any: any (only with program C:\Program Files\Example\server.exe, which is not in the model) ~
+  rule 'Print spooler (RPC)': any -> any: any (only with the local port keyword RPC, service Spooler, which is not in the model) ~
+  rule 'mDNS on wireless': any -> any: any (only with interface types wireless, which is not in the model) ~
+  rule 'Printer port': any -> any: any (only with the field 'newfield2_40', which FWShift does not know, which is not in the model) ~
+  rule 'SSDP discovery': LocalSubnet -> any: udp/1900 ~
+Public -> Host
+  allowed: any ~
+  cleartext or remote administration: snmp (rule 'SNMP from the local subnet')
+  rule 'Management over IPsec, overriding block rules': any -> any: any (only with remote computers, IPsec (Authenticate): only connections IPsec protects match and 1 more, which is not in the model) ~
+  rule 'SSH from the IPv6 jump hosts': 2001:db8:abcd::/48 -> any: tcp/22
+  rule 'Echo request (ICMPv4-In)': any -> any: icmp type 8
+  rule 'Echo request (ICMPv6-In)': LocalSubnet6 -> any: icmp6 type 128 ~
+  rule 'Fragmentation needed and time exceeded': any -> any: icmp type 11 code 0, icmp type 3 code 4
+  rule 'Web server': any -> 10.10.0.5, 2001:db8:10::5: tcp/80, tcp/443
+  rule 'SNMP from the local subnet': LocalSubnet4 -> any: udp/161 from port 1024-65535 ~
+  rule 'GRE from the tunnel peer': 198.51.100.1 -> any: ip/47 (gre)
+  rule 'Example application server': any -> any: any except tcp/139, tcp/445 (only with program C:\Program Files\Example\server.exe, which is not in the model) ~
+  rule 'Print spooler (RPC)': any -> any: any except tcp/139, tcp/445 (only with the local port keyword RPC, service Spooler, which is not in the model) ~
+  rule 'mDNS on wireless': any -> any: any except tcp/139, tcp/445 (only with interface types wireless, which is not in the model) ~
+  rule 'Game server through edge traversal': any -> any: udp/3544 ~
+  rule 'Printer port': any -> any: any except tcp/139, tcp/445 (only with the field 'newfield2_40', which FWShift does not know, which is not in the model) ~
+  rule 'SSDP discovery': LocalSubnet -> any: udp/1900 ~
+
+From reading the configuration
+  WINFW_DEFAULT_ASSUMED: settings that no store of the input holds were taken as Windows's defaults (firewall on, inbound blocked, outbound allowed): Private defaultinboundaction, Public defaultinboundaction, Public defaultoutboundaction
+  WINFW_HOST_POLICY: a host firewall: the zone Host is the host itself, the zones Domain, Private and Public the networks of the interfaces in each profile. Windows has no rule order: block rules decide before allow rules, then the default of the profile; the converted policy says that in first-match order (block rules, allow rules, the defaults that allow). Traffic between the networks is not the host's to decide and is denied
+  WINFW_STORES: stores read: Group Policy 8 rules, local 22 rules
+  WINFW_PROFILES: Domain: inbound blocked (Group Policy), outbound allowed (Group Policy), local rules not merged (Group Policy); Private: inbound blocked (default), outbound blocked (Group Policy); Public: inbound blocked (default), outbound allowed (default)
+  WINFW_LOCAL_NOT_MERGED: Group Policy (or MDM) does not merge local rules in the profile Domain: the local rules are left out there (16 rules named it)
+  WINFW_SETTING_NOT_CONVERTED: profile settings that decide traffic no rule names are not converted: Public: unicast responses to multicast and broadcast traffic are blocked
+  WINFW_ADDRESS_KEYWORDS: rules name address keywords, whose addresses only Windows knows at run time: DNS, LocalSubnet, LocalSubnet4, LocalSubnet6. They are dynamic groups; only a Windows target writes them again
+  WINFW_NOT_READ: not read: 1 connection security (IPsec) rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\ConSecRules; 1 Windows Service Hardening rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Static\System
+  WINFW_BYPASS: rules with authenticated bypass let IPsec-authenticated connections through block rules; they are first in the converted policy and not converted: Management over IPsec, overriding block rules
+
+Notes
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

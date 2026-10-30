@@ -1,0 +1,270 @@
+FWShift conversion report
+  source: terraform-azure
+  target: f5-afm
+
+Summary
+  Security rules:     86   exact 0, approximated 42, needs review 44 (44 emitted disabled), skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: azurerm_firewall. The converted policy does not hold what they do
+  [needs-review] F5AFM_LOAD: the output is a file for 'tmsh load sys config merge file' (section 10): address lists, port lists, the rule list /Common/FWShift_rules and the policy /Common/FWShift. Load it with 'verify' first. The merge changes objects of the same name that exist: check that none does. The policy is enforced in no context: attach it to the global context, a route domain or a virtual server yourself. Allow rules are accept-decisively and the list ends with the default, so the policy decides alone wherever it is attached; the BIG-IP still lets through only traffic that a virtual server takes, which FWShift does not create
+  [needs-review] F5AFM_VLANS_REQUIRED: the rules name these VLANs as the zones they come from, which must exist on the BIG-IP under these names (--zone-map renames): /Common/nsg-app, /Common/nsg-db, /Common/nsg-web, /Common/outside
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.40.1.0/24 --zone-network nsg-app=10.40.2.0/24 --zone-network nsg-db=10.40.3.0/24
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 58 rules say what both allow, in the order of the two
+  [info] AZURE_DEFAULT_RULES_ADDED: the export does not list the default rules of these groups (a template never does); the six rules every group has were added: nsg-web, nsg-app, nsg-db
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-app, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Azure command line for the same resources: 2 azurerm_application_security_group, 3 azurerm_network_interface, 3 azurerm_network_interface_application_security_group_association, 3 azurerm_network_security_group, 2 azurerm_network_security_rule, 3 azurerm_subnet, 3 azurerm_subnet_network_security_group_association, 1 azurerm_virtual_network. Resources outside this state (made by hand, or by another state) are not in it
+  [info] F5AFM_ICMP_CONTEXT: the policy has ICMP rules: the BIG-IP ignores ICMP rules in the virtual server and self IP contexts, so attach the policy to the global or a route domain context for them to apply
+
+Security rules
+  nsg-web:https-in  ->  needs-review, emitted disabled  (emitted as nsg-web_https-in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-web with --zone-network.
+  nsg-web:block-doc  ->  approximated  (emitted as nsg-web_block-doc, nsg-web_block-doc_2, nsg-web_block-doc_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-web; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:ssh-admin  ->  needs-review, emitted disabled  (emitted as nsg-web_ssh-admin)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowVnetInBound, nsg-web_AllowVnetInBound_2, nsg-web_AllowVnetInBound_3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-web with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowAzureLoadBalancerInBound, nsg-web_AllowAzureLoadBalancerInBound_2, nsg-web_AllowAzureLoadBalancerInBound_3)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-web with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:DenyAllInBound  ->  approximated  (emitted as nsg-web_DenyAllInBound, nsg-web_DenyAllInBound_2, nsg-web_DenyAllInBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-web; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:to-app  ->  needs-review, emitted disabled  (emitted as nsg-web_to-app)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind outside with --zone-network.
+  nsg-web:no-internet  ->  needs-review, emitted disabled  (emitted as nsg-web_no-internet, nsg-web_no-internet_2, nsg-web_no-internet_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone outside; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowVnetOutBound, nsg-web_AllowVnetOutBound_2, nsg-web_AllowVnetOutBound_3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind outside with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowInternetOutBound, nsg-web_AllowInternetOutBound_2, nsg-web_AllowInternetOutBound_3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind outside with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:DenyAllOutBound  ->  approximated  (emitted as nsg-web_DenyAllOutBound, nsg-web_DenyAllOutBound_2, nsg-web_DenyAllOutBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone outside; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:from-web  ->  needs-review, emitted disabled  (emitted as nsg-app_from-web)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+  nsg-app:icmp-vnet  ->  needs-review, emitted disabled  (emitted as nsg-app_icmp-vnet)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+  nsg-app:deny-rest  ->  approximated  (emitted as nsg-app_deny-rest, nsg-app_deny-rest_2, nsg-app_deny-rest_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-app; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowVnetInBound, nsg-app_AllowVnetInBound_2, nsg-app_AllowVnetInBound_3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowAzureLoadBalancerInBound, nsg-app_AllowAzureLoadBalancerInBound_2, nsg-app_AllowAzureLoadBalancerInBound_3)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:DenyAllInBound  ->  approximated  (emitted as nsg-app_DenyAllInBound, nsg-app_DenyAllInBound_2, nsg-app_DenyAllInBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-app; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowVnetOutBound, nsg-app_AllowVnetOutBound_2, nsg-app_AllowVnetOutBound_3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind outside with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowInternetOutBound, nsg-app_AllowInternetOutBound_2, nsg-app_AllowInternetOutBound_3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind outside with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:DenyAllOutBound  ->  approximated  (emitted as nsg-app_DenyAllOutBound, nsg-app_DenyAllOutBound_2, nsg-app_DenyAllOutBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone outside; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:postgres-from-app  ->  needs-review, emitted disabled  (emitted as nsg-db_postgres-from-app)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-db with --zone-network.
+  nsg-db:deny-web  ->  approximated  (emitted as nsg-db_deny-web, nsg-db_deny-web_2, nsg-db_deny-web_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-db; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowVnetInBound, nsg-db_AllowVnetInBound_2, nsg-db_AllowVnetInBound_3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-db with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowAzureLoadBalancerInBound, nsg-db_AllowAzureLoadBalancerInBound_2, nsg-db_AllowAzureLoadBalancerInBound_3)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-db with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:DenyAllInBound  ->  approximated  (emitted as nsg-db_DenyAllInBound, nsg-db_DenyAllInBound_2, nsg-db_DenyAllInBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-db; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowVnetOutBound, nsg-db_AllowVnetOutBound_2, nsg-db_AllowVnetOutBound_3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind outside with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowInternetOutBound, nsg-db_AllowInternetOutBound_2, nsg-db_AllowInternetOutBound_3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind outside with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:DenyAllOutBound  ->  approximated  (emitted as nsg-db_DenyAllOutBound, nsg-db_DenyAllOutBound_2, nsg-db_DenyAllOutBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone outside; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:to-app+nsg-web:block-doc  ->  approximated  (emitted as nsg-web_to-app_nsg-web_block-doc)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-web; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:to-app+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_to-app_nsg-web_AllowVnetInBound)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-web with --zone-network.
+  nsg-web:to-app+nsg-web:DenyAllInBound  ->  approximated  (emitted as nsg-web_to-app_nsg-web_DenyAllInBound)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-web; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-web:block-doc  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-web_block-doc, nsg-web_AllowVnetOutBound_nsg-web_block-doc_2, nsg-web_AllowVnetOutBound_nsg-web_block-doc_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-web; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:AllowVnetOutBound+nsg-web:ssh-admin  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowVnetOutBound_nsg-web_ssh-admin)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound, nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound_2, nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound_3)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-web with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound, nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound_2, nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-web; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:DenyAllOutBound to nsg-web  ->  approximated  (emitted as nsg-web_DenyAllOutBound_to_nsg-web, nsg-web_DenyAllOutBound_to_nsg-web_2, nsg-web_DenyAllOutBound_to_nsg-web_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-web; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:to-app+nsg-app:from-web  ->  needs-review, emitted disabled  (emitted as nsg-web_to-app_nsg-app_from-web)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+  nsg-web:to-app+nsg-app:deny-rest  ->  approximated  (emitted as nsg-web_to-app_nsg-app_deny-rest)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-app; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:to-app+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_to-app_nsg-app_AllowVnetInBound)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+  nsg-web:to-app+nsg-app:DenyAllInBound  ->  approximated  (emitted as nsg-web_to-app_nsg-app_DenyAllInBound)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-app; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-app:from-web  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowVnetOutBound_nsg-app_from-web)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-app:icmp-vnet  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowVnetOutBound_nsg-app_icmp-vnet)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-app:deny-rest  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-app_deny-rest, nsg-web_AllowVnetOutBound_nsg-app_deny-rest_2, nsg-web_AllowVnetOutBound_nsg-app_deny-rest_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-app; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound, nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound_2, nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound_3)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound, nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound_2, nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-app; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:DenyAllOutBound to nsg-app  ->  approximated  (emitted as nsg-web_DenyAllOutBound_to_nsg-app, nsg-web_DenyAllOutBound_to_nsg-app_2, nsg-web_DenyAllOutBound_to_nsg-app_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-app; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:to-app+nsg-db:deny-web  ->  approximated  (emitted as nsg-web_to-app_nsg-db_deny-web)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-db; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:to-app+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_to-app_nsg-db_AllowVnetInBound)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-db with --zone-network.
+  nsg-web:to-app+nsg-db:DenyAllInBound  ->  approximated  (emitted as nsg-web_to-app_nsg-db_DenyAllInBound)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-db; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-db:postgres-from-app  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowVnetOutBound_nsg-db_postgres-from-app)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-db with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-db:deny-web  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-db_deny-web, nsg-web_AllowVnetOutBound_nsg-db_deny-web_2, nsg-web_AllowVnetOutBound_nsg-db_deny-web_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-db; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound, nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound_2, nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound_3)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-db with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound, nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound_2, nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-db; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-web:DenyAllOutBound to nsg-db  ->  approximated  (emitted as nsg-web_DenyAllOutBound_to_nsg-db, nsg-web_DenyAllOutBound_to_nsg-db_2, nsg-web_DenyAllOutBound_to_nsg-db_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-db; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:AllowVnetOutBound+nsg-web:block-doc  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-web_block-doc, nsg-app_AllowVnetOutBound_nsg-web_block-doc_2, nsg-app_AllowVnetOutBound_nsg-web_block-doc_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-web; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:AllowVnetOutBound+nsg-web:ssh-admin  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowVnetOutBound_nsg-web_ssh-admin)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound, nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound_2, nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound_3)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-web with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound, nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound_2, nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-web; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:DenyAllOutBound to nsg-web  ->  approximated  (emitted as nsg-app_DenyAllOutBound_to_nsg-web, nsg-app_DenyAllOutBound_to_nsg-web_2, nsg-app_DenyAllOutBound_to_nsg-web_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-web; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:AllowVnetOutBound+nsg-app:from-web  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowVnetOutBound_nsg-app_from-web)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-app:icmp-vnet  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowVnetOutBound_nsg-app_icmp-vnet)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-app:deny-rest  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-app_deny-rest, nsg-app_AllowVnetOutBound_nsg-app_deny-rest_2, nsg-app_AllowVnetOutBound_nsg-app_deny-rest_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-app; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound, nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound_2, nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound_3)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound, nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound_2, nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-app; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:DenyAllOutBound to nsg-app  ->  approximated  (emitted as nsg-app_DenyAllOutBound_to_nsg-app, nsg-app_DenyAllOutBound_to_nsg-app_2, nsg-app_DenyAllOutBound_to_nsg-app_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-app; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:AllowVnetOutBound+nsg-db:postgres-from-app  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowVnetOutBound_nsg-db_postgres-from-app)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-db with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-db:deny-web  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-db_deny-web, nsg-app_AllowVnetOutBound_nsg-db_deny-web_2, nsg-app_AllowVnetOutBound_nsg-db_deny-web_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-db; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound, nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound_2, nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound_3)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-db with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound, nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound_2, nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-db; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-app:DenyAllOutBound to nsg-db  ->  approximated  (emitted as nsg-app_DenyAllOutBound_to_nsg-db, nsg-app_DenyAllOutBound_to_nsg-db_2, nsg-app_DenyAllOutBound_to_nsg-db_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-db; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:AllowVnetOutBound+nsg-web:block-doc  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-web_block-doc, nsg-db_AllowVnetOutBound_nsg-web_block-doc_2, nsg-db_AllowVnetOutBound_nsg-web_block-doc_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-web; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:AllowVnetOutBound+nsg-web:ssh-admin  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowVnetOutBound_nsg-web_ssh-admin)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound, nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound_2, nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound_3)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-web with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound, nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound_2, nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-web; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:DenyAllOutBound to nsg-web  ->  approximated  (emitted as nsg-db_DenyAllOutBound_to_nsg-web, nsg-db_DenyAllOutBound_to_nsg-web_2, nsg-db_DenyAllOutBound_to_nsg-web_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-web; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:AllowVnetOutBound+nsg-app:from-web  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowVnetOutBound_nsg-app_from-web)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-app:icmp-vnet  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowVnetOutBound_nsg-app_icmp-vnet)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-app:deny-rest  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-app_deny-rest, nsg-db_AllowVnetOutBound_nsg-app_deny-rest_2, nsg-db_AllowVnetOutBound_nsg-app_deny-rest_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-app; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound, nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound_2, nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound_3)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-app with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound, nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound_2, nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-app; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:DenyAllOutBound to nsg-app  ->  approximated  (emitted as nsg-db_DenyAllOutBound_to_nsg-app, nsg-db_DenyAllOutBound_to_nsg-app_2, nsg-db_DenyAllOutBound_to_nsg-app_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-app; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:AllowVnetOutBound+nsg-db:postgres-from-app  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowVnetOutBound_nsg-db_postgres-from-app)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-db with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-db:deny-web  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-db_deny-web, nsg-db_AllowVnetOutBound_nsg-db_deny-web_2, nsg-db_AllowVnetOutBound_nsg-db_deny-web_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-db; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound, nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound_2, nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound_3)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind nsg-db with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound, nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound_2, nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-db; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+  nsg-db:DenyAllOutBound to nsg-db  ->  approximated  (emitted as nsg-db_DenyAllOutBound_to_nsg-db, nsg-db_DenyAllOutBound_to_nsg-db_2, nsg-db_DenyAllOutBound_to_nsg-db_3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone nsg-db; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 3 rules
+
+Services
+  tcp-8080,8443  ->  exact  (emitted as tcp-8080_8443)
+      [info] RENAMED: renamed to 'tcp-8080_8443' to fit the target's naming rules

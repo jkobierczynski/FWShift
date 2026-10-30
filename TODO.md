@@ -217,6 +217,47 @@ with deny entries, policy statics of more than one entry; ICMP replies of a
 PAT translation flagged though the PIX passes them; checking that conduits are
 first match and that no less specific `nat` statement is a fallback.
 
+Done in **0.42.0**, all from documentation and none loaded on a device: **F5
+BIG-IP AFM** (`tmsh list` of the firewall and its contexts, read; a file for
+`tmsh load sys config merge`, written), **Oracle Cloud Infrastructure**
+(security lists and NSGs from the OCI CLI, read; a script that creates NSGs,
+written), **Hillstone StoneOS** (`show configuration`, read; configuration-mode
+commands, written), **Zyxel ZLD** (the configuration file of a USG FLEX, ATP or
+VPN, read; a shell script, written) and **Windows Defender Firewall** (`reg
+export` of the local and Group Policy stores, read; a PowerShell script of
+`New-NetFirewallRule`, written). Conversions between the five are in the
+goldens.
+
+Still open for F5 BIG-IP AFM: self IP and management-port contexts, staged
+policies, NAT (LTM pools and SNAT, `security nat`, CGNAT), DoS, IP
+intelligence and iRules; `one-line` tmsh output; virtual addresses named in
+`destination`; an F5 to F5 conversion keeps the contexts apart instead of
+flattening them; on a device, the global default and `tm.rejectunmatched`,
+disabled virtual servers, route domains without `%ID`, destination zones and a
+merge onto an existing name.
+
+Still open for OCI: service CIDR labels and NSG references written as such
+OCI to OCI (CIDR blocks today), stateless rules as a target; Zero Trust Packet
+Routing, VNICs in VLANs, routing appliances and the OCI Network Firewall
+service; the CLI's `--query` wrapping of NSG rules checked on a real CLI.
+
+Still open for Hillstone: which destination address a rule names under DNAT
+(read as before DNAT, every affected rule flagged); schedules, applications,
+users, VPN actions, wildcard and country entries, BNAT, NAT64/46, server pools,
+virtual systems and `show configuration xml`; the zones of NAT rules, ICMPv6
+services and load-balanced DNAT as a target; much of the object syntax.
+
+Still open for Zyxel: the uOS of the USG FLEX H series (another language,
+named rules, `edit running` and `commit`); users, schedules, security profiles,
+`ctmatch`, NAT loopback, the WAN trunk's default SNAT; the networks behind
+the zones from the static routes; on a device, `block` next to the rules,
+`snat pool` and ports, and how a running configuration prints `activate`.
+
+Still open for Windows Defender Firewall: program, service, package, user and
+IPsec rules (also Windows to Windows), connection security rules and Windows
+Service Hardening, edge traversal; outbound is exact only where the profile
+blocks outbound by default; the host's own rules next to the written ones.
+
 
 ## Rule usage
 
@@ -405,9 +446,9 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
 
 * the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
   the reload commands of OPNsense and pfSense);
-* AWS Network Firewall in tier 1 (0.41.7, scripted from AWS's documentation, never run): its first run; whether a
-  pass rule with `flow:to_server` lets the replies of its connections through under `aws:drop_strict`, and the
-  routes to the endpoint between subnets of one VPC;
+* AWS Network Firewall in tier 1 (0.41.7): the first run failed (with strict order and `aws:drop_strict` each packet
+  is decided on its own, so the replies were dropped; the routes to the endpoint did their part). 0.41.8 passes the
+  replies with a rule `flow:to_client` and reads such policies per packet: its rerun;
 * Sophos Firewall in tier 3 (passed in 0.41.5): the XML API is switched on by hand, since only the web console does it
   on SFOS 22; the REST API of SFOS 23 may change that;
 * tier 3 on Google Cloud: each firewall's zone interfaces written Google Cloud's way (a `/32` address or DHCP, and the
@@ -611,6 +652,35 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
    interfaces and watch `show xlate`, `show conn` and syslog messages 106023
    (denied by an access list) and 305005 (no translation group found) for the
    mandatory NAT.
+25. F5 BIG-IP AFM: BIG-IP Virtual Edition with AFM ("F5 BIG-IP Virtual
+   Edition - BEST", PAYG, on AWS, Azure and Google Cloud), AFM provisioned
+   (`tmsh modify sys provision afm level nominal`); SSH as `admin`. Load with
+   `tmsh load sys config merge file /var/tmp/fwshift.conf verify`, then
+   without `verify`; enforce with `tmsh modify security firewall global-rules
+   enforced-policy /Common/FWShift` and a forwarding virtual server
+   (`ip-forward`, `0.0.0.0:any`) on the lab VLANs. Read back with the commands
+   of section 3 of the manual; test Firewall mode with `tm.fw.defaultaction`
+   `drop`.
+26. OCI: no image needed; a tenancy (Always Free works), a VCN with three
+   subnets and small instances, an API key for the CLI. Run the script with
+   `COMPARTMENT_ID` and `VCN_ID`, put each VNIC in its NSGs (`oci network vnic
+   update --nsg-ids`), give the subnets an empty security list; read back with
+   the export of section 3; include a stateless list to check replies and
+   precedence.
+27. Hillstone: CloudEdge (vFW) in the AWS and Azure marketplaces (BYOL and
+   PAYG); SSH as `hillstone`. Paste the output; read back `show
+   configuration`, `show policy`, `show snat`, `show dnat`. First check: a
+   `dnatrule` with a rule naming only the public address, then only the
+   server's.
+28. Zyxel: no virtual ZLD firewall in a marketplace; a physical USG FLEX,
+   ATP or VPN (e.g. a USG FLEX 100 on 5.3x), not in Nebula cloud mode. SSH as
+   `admin`; upload the `.zysh` in the File Manager and run it; read back `show
+   running-config`.
+29. Windows Defender Firewall: a Windows Server 2022 or 2025 image (AWS
+   "Microsoft Windows Server 2022 Base", Azure `2022-datacenter`), RDP or
+   WinRM as Administrator. Run the script with `-DryRun`, then without; read
+   back with `reg export` of the two keys; connect from hosts in two networks,
+   with the profile defaults as the report asks.
 
 ## Project
 

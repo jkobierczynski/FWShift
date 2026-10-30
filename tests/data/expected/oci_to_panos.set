@@ -1,0 +1,485 @@
+set address n-10.30.1.0_24 ip-netmask 10.30.1.0/24
+set address n-2001_db8_30_1___64 ip-netmask 2001:db8:30:1::/64
+set address-group web-subnet static [ n-10.30.1.0_24 n-2001_db8_30_1___64 ]
+set address-group web-subnet description "subnet ocid1.subnet.oc1.eu-frankfurt-1.examplewebsubnet"
+set address n-10.30.2.0_24 ip-netmask 10.30.2.0/24
+set address-group app-subnet static n-10.30.2.0_24
+set address-group app-subnet description "subnet ocid1.subnet.oc1.eu-frankfurt-1.exampleappsubnet"
+set address n-10.30.3.0_24 ip-netmask 10.30.3.0/24
+set address-group db-subnet static n-10.30.3.0_24
+set address-group db-subnet description "subnet ocid1.subnet.oc1.eu-frankfurt-1.exampledbsubnet"
+set address n-10.30.9.0_24 ip-netmask 10.30.9.0/24
+set address-group mgmt-subnet static n-10.30.9.0_24
+set address-group mgmt-subnet description "subnet ocid1.subnet.oc1.eu-frankfurt-1.examplemgmtsubnet"
+set address-group "Default Security List for shop-vcn" static [ web-subnet mgmt-subnet ]
+set address-group "Default Security List for shop-vcn" description "security list ocid1.securitylist.oc1.eu-frankfurt-1.exampledefault: the subnets it is associated with"
+set address-group web-sl static web-subnet
+set address-group web-sl description "security list ocid1.securitylist.oc1.eu-frankfurt-1.examplewebsl: the subnets it is associated with"
+set address-group app-sl static app-subnet
+set address-group app-sl description "security list ocid1.securitylist.oc1.eu-frankfurt-1.exampleappsl: the subnets it is associated with"
+set address-group db-sl static db-subnet
+set address-group db-sl description "security list ocid1.securitylist.oc1.eu-frankfurt-1.exampledbsl: the subnets it is associated with"
+set address spare-sl ip-netmask 0.0.0.0/32
+set address spare-sl description "FWSHIFT PLACEHOLDER, matches nothing: empty address group"
+set address n-10.30.1.10_31 ip-netmask 10.30.1.10/31
+set address n-2001_db8_30_1__10_127 ip-netmask 2001:db8:30:1::10/127
+set address-group web-nsg static [ n-10.30.1.10_31 n-2001_db8_30_1__10_127 ]
+set address-group web-nsg description "network security group ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplewebnsg"
+set address r-10.30.2.30-10.30.2.32 ip-range 10.30.2.30-10.30.2.32
+set address-group app-nsg static r-10.30.2.30-10.30.2.32
+set address-group app-nsg description "network security group ocid1.networksecuritygroup.oc1.eu-frankfurt-1.exampleappnsg"
+set address h-10.30.9.5 ip-netmask 10.30.9.5
+set address-group bastion-nsg static h-10.30.9.5
+set address-group bastion-nsg description "network security group ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplebastionnsg"
+set address legacy-nsg ip-netmask 0.0.0.0/32
+set address legacy-nsg description "FWSHIFT PLACEHOLDER, matches nothing: empty address group"
+set address n-10.30.0.0_16 ip-netmask 10.30.0.0/16
+set address n-2001_db8_30___56 ip-netmask 2001:db8:30::/56
+set address-group shop-vcn static [ n-10.30.0.0_16 n-2001_db8_30___56 ]
+set address-group shop-vcn description "the addresses of VCN ocid1.vcn.oc1.eu-frankfurt-1.exampleshopvcn (its CIDR blocks)"
+set address ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplemonitoring ip-netmask 0.0.0.0/32
+set address ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplemonitoring description "FWSHIFT PLACEHOLDER, matches nothing: empty address group"
+set address r-10.30.2.0-10.30.2.29 ip-range 10.30.2.0-10.30.2.29
+set address r-10.30.2.33-10.30.2.255 ip-range 10.30.2.33-10.30.2.255
+set address-group "app-subnet members" static [ r-10.30.2.0-10.30.2.29 r-10.30.2.33-10.30.2.255 ]
+set address-group "app-subnet members" description "the addresses whose lists and NSGs are exactly app-subnet"
+set address-group "app-subnet_app-nsg members" static r-10.30.2.30-10.30.2.32
+set address-group "app-subnet_app-nsg members" description "the addresses whose lists and NSGs are exactly app-subnet+app-nsg"
+set address-group "db-subnet members" static n-10.30.3.0_24
+set address-group "db-subnet members" description "the addresses whose lists and NSGs are exactly db-subnet"
+set address r-203.0.113.128-203.0.113.223 ip-range 203.0.113.128-203.0.113.223
+set address-group all-fra-services-in-oracle-services-network static r-203.0.113.128-203.0.113.223
+set address-group all-fra-services-in-oracle-services-network description "service CIDR label all-fra-services-in-oracle-services-network (Oracle's public_ip_ranges.json of 2026-10-01T06:00:00.000000)"
+set address n-203.0.113.128_26 ip-netmask 203.0.113.128/26
+set address-group oci-fra-objectstorage static n-203.0.113.128_26
+set address-group oci-fra-objectstorage description "service CIDR label oci-fra-objectstorage (Oracle's public_ip_ranges.json of 2026-10-01T06:00:00.000000)"
+set address oci-ams-objectstorage ip-netmask 0.0.0.0/32
+set address oci-ams-objectstorage description "FWSHIFT PLACEHOLDER, matches nothing: the addresses of the Oracle services of oci-ams-objectstorage are not in the input (add Oracle's public_ip_ranges.json and the answer of 'oci iam region list')"
+set service tcp-5432 protocol tcp port 5432
+set service tcp-1-65535 protocol tcp port 1-65535
+set service tcp-1024-65535-from-5432 protocol tcp port 1024-65535
+set service tcp-1024-65535-from-5432 protocol tcp source-port 5432
+set service tcp-22 protocol tcp port 22
+set service svc-tcp5432 protocol tcp port 5432
+set service svc-tcp5432 protocol tcp source-port 0-1023
+set service svc-tcp1-65535-tcp1-65535-tcp protocol tcp port 1-65535
+set service svc-tcp1-65535-tcp1-65535-tcp protocol tcp source-port 0-21
+set service svc-tcp1-65535-tcp1-65535-tcp_2 protocol tcp port 1-65535
+set service svc-tcp1-65535-tcp1-65535-tcp_2 protocol tcp source-port 23-65535
+set service-group svc-tcp1-65535-tcp1-65535 members [ svc-tcp1-65535-tcp1-65535-tcp svc-tcp1-65535-tcp1-65535-tcp_2 ]
+set service tcp-443 protocol tcp port 443
+set service udp-123-from-123 protocol udp port 123
+set service udp-123-from-123 protocol udp source-port 123
+set service tcp-80 protocol tcp port 80
+set service tcp-8080 protocol tcp port 8080
+set service tcp-9100 protocol tcp port 9100
+set service tcp-8080-8443 protocol tcp port 8080-8443
+set service tcp-7000-7001 protocol tcp port 7000-7001
+set rulebase security rules db-subnet-stateless-in from any
+set rulebase security rules db-subnet-stateless-in to any
+set rulebase security rules db-subnet-stateless-in source 10.30.2.0/24
+set rulebase security rules db-subnet-stateless-in destination 10.30.3.0/24
+set rulebase security rules db-subnet-stateless-in source-user any
+set rulebase security rules db-subnet-stateless-in category any
+set rulebase security rules db-subnet-stateless-in application any
+set rulebase security rules db-subnet-stateless-in service svc-tcp5432
+set rulebase security rules db-subnet-stateless-in action drop
+set rulebase security rules db-subnet-stateless-in log-end no
+set rulebase security rules db-subnet-stateless-in description "let in by a stateless rule of db-subnet, and the replies are not let through"
+set rulebase security rules db-subnet-stateless-in-2 from any
+set rulebase security rules db-subnet-stateless-in-2 to any
+set rulebase security rules db-subnet-stateless-in-2 source 10.30.9.10
+set rulebase security rules db-subnet-stateless-in-2 destination 10.30.3.0/24
+set rulebase security rules db-subnet-stateless-in-2 source-user any
+set rulebase security rules db-subnet-stateless-in-2 category any
+set rulebase security rules db-subnet-stateless-in-2 application any
+set rulebase security rules db-subnet-stateless-in-2 service svc-tcp1-65535-tcp1-65535
+set rulebase security rules db-subnet-stateless-in-2 action drop
+set rulebase security rules db-subnet-stateless-in-2 log-end no
+set rulebase security rules db-subnet-stateless-in-2 description "let in by a stateless rule of db-subnet, and the replies are not let through"
+set rulebase security rules db-subnet-stateless-in-3 from any
+set rulebase security rules db-subnet-stateless-in-3 to any
+set rulebase security rules db-subnet-stateless-in-3 source 10.30.0.0/16
+set rulebase security rules db-subnet-stateless-in-3 destination 10.30.3.0/24
+set rulebase security rules db-subnet-stateless-in-3 source-user any
+set rulebase security rules db-subnet-stateless-in-3 category any
+set rulebase security rules db-subnet-stateless-in-3 application ping
+set rulebase security rules db-subnet-stateless-in-3 service application-default
+set rulebase security rules db-subnet-stateless-in-3 action drop
+set rulebase security rules db-subnet-stateless-in-3 log-end no
+set rulebase security rules db-subnet-stateless-in-3 description "let in by a stateless rule of db-subnet, and the replies are not let through"
+set rulebase security rules app-subnet-to-db-sl from any
+set rulebase security rules app-subnet-to-db-sl to any
+set rulebase security rules app-subnet-to-db-sl source [ 10.30.2.0-10.30.2.29 10.30.2.33-10.30.2.255 ]
+set rulebase security rules app-subnet-to-db-sl destination 10.30.3.0/24
+set rulebase security rules app-subnet-to-db-sl source-user any
+set rulebase security rules app-subnet-to-db-sl category any
+set rulebase security rules app-subnet-to-db-sl application any
+set rulebase security rules app-subnet-to-db-sl service tcp-5432
+set rulebase security rules app-subnet-to-db-sl action allow
+set rulebase security rules app-subnet-to-db-sl log-end no
+set rulebase security rules app-subnet-to-db-sl description "egress rule 1 of app-sl and ingress rule 1 of db-sl"
+set rulebase security rules app-subnet-egress-rest from any
+set rulebase security rules app-subnet-egress-rest to any
+set rulebase security rules app-subnet-egress-rest source "app-subnet members"
+set rulebase security rules app-subnet-egress-rest destination [ shop-vcn 203.0.113.10 203.0.113.11 203.0.113.50 ]
+set rulebase security rules app-subnet-egress-rest source-user any
+set rulebase security rules app-subnet-egress-rest category any
+set rulebase security rules app-subnet-egress-rest application any
+set rulebase security rules app-subnet-egress-rest service any
+set rulebase security rules app-subnet-egress-rest action drop
+set rulebase security rules app-subnet-egress-rest log-end no
+set rulebase security rules app-subnet-egress-rest description "what the egress rules of app-subnet do not allow inside the VCN"
+set rulebase security rules app-subnet_app-nsg-to-db-sl from any
+set rulebase security rules app-subnet_app-nsg-to-db-sl to any
+set rulebase security rules app-subnet_app-nsg-to-db-sl source 10.30.2.30-10.30.2.32
+set rulebase security rules app-subnet_app-nsg-to-db-sl destination 10.30.3.0/24
+set rulebase security rules app-subnet_app-nsg-to-db-sl source-user any
+set rulebase security rules app-subnet_app-nsg-to-db-sl category any
+set rulebase security rules app-subnet_app-nsg-to-db-sl application any
+set rulebase security rules app-subnet_app-nsg-to-db-sl service tcp-5432
+set rulebase security rules app-subnet_app-nsg-to-db-sl action allow
+set rulebase security rules app-subnet_app-nsg-to-db-sl log-end no
+set rulebase security rules app-subnet_app-nsg-to-db-sl description "egress rule 1 of app-sl and ingress rule 1 of db-sl"
+set rulebase security rules app-subnet_app-nsg-egress-rest from any
+set rulebase security rules app-subnet_app-nsg-egress-rest to any
+set rulebase security rules app-subnet_app-nsg-egress-rest source "app-subnet_app-nsg members"
+set rulebase security rules app-subnet_app-nsg-egress-rest destination [ shop-vcn 203.0.113.10 203.0.113.11 203.0.113.50 ]
+set rulebase security rules app-subnet_app-nsg-egress-rest source-user any
+set rulebase security rules app-subnet_app-nsg-egress-rest category any
+set rulebase security rules app-subnet_app-nsg-egress-rest application any
+set rulebase security rules app-subnet_app-nsg-egress-rest service any
+set rulebase security rules app-subnet_app-nsg-egress-rest action drop
+set rulebase security rules app-subnet_app-nsg-egress-rest log-end no
+set rulebase security rules app-subnet_app-nsg-egress-rest description "what the egress rules of app-subnet+app-nsg do not allow inside the VCN"
+set rulebase security rules "db-subnet-to-Default Security List for shop-vcn" from any
+set rulebase security rules "db-subnet-to-Default Security List for shop-vcn" to any
+set rulebase security rules "db-subnet-to-Default Security List for shop-vcn" source 10.30.3.0/24
+set rulebase security rules "db-subnet-to-Default Security List for shop-vcn" destination [ 10.30.9.0/24 203.0.113.50 ]
+set rulebase security rules "db-subnet-to-Default Security List for shop-vcn" source-user any
+set rulebase security rules "db-subnet-to-Default Security List for shop-vcn" category any
+set rulebase security rules "db-subnet-to-Default Security List for shop-vcn" application any
+set rulebase security rules "db-subnet-to-Default Security List for shop-vcn" service tcp-22
+set rulebase security rules "db-subnet-to-Default Security List for shop-vcn" action allow
+set rulebase security rules "db-subnet-to-Default Security List for shop-vcn" log-end no
+set rulebase security rules "db-subnet-to-Default Security List for shop-vcn" description "egress rule 2 of db-sl and ingress rule 1 of Default Security List for shop-vcn"
+set rulebase security rules db-subnet-egress-rest from any
+set rulebase security rules db-subnet-egress-rest to any
+set rulebase security rules db-subnet-egress-rest source "db-subnet members"
+set rulebase security rules db-subnet-egress-rest destination [ shop-vcn 203.0.113.10 203.0.113.11 203.0.113.50 ]
+set rulebase security rules db-subnet-egress-rest source-user any
+set rulebase security rules db-subnet-egress-rest category any
+set rulebase security rules db-subnet-egress-rest application any
+set rulebase security rules db-subnet-egress-rest service any
+set rulebase security rules db-subnet-egress-rest action drop
+set rulebase security rules db-subnet-egress-rest log-end no
+set rulebase security rules db-subnet-egress-rest description "what the egress rules of db-subnet do not allow inside the VCN"
+set rulebase security rules "Default Security List for shop-vcn-in-1" from any
+set rulebase security rules "Default Security List for shop-vcn-in-1" to any
+set rulebase security rules "Default Security List for shop-vcn-in-1" source 0.0.0.0/0
+set rulebase security rules "Default Security List for shop-vcn-in-1" destination [ "Default Security List for shop-vcn" 203.0.113.10 203.0.113.11 203.0.113.50 ]
+set rulebase security rules "Default Security List for shop-vcn-in-1" source-user any
+set rulebase security rules "Default Security List for shop-vcn-in-1" category any
+set rulebase security rules "Default Security List for shop-vcn-in-1" application any
+set rulebase security rules "Default Security List for shop-vcn-in-1" service tcp-22
+set rulebase security rules "Default Security List for shop-vcn-in-1" action allow
+set rulebase security rules "Default Security List for shop-vcn-in-1" log-end no
+set rulebase security rules "Default Security List for shop-vcn-in-2" from any
+set rulebase security rules "Default Security List for shop-vcn-in-2" to any
+set rulebase security rules "Default Security List for shop-vcn-in-2" source 0.0.0.0/0
+set rulebase security rules "Default Security List for shop-vcn-in-2" destination [ "Default Security List for shop-vcn" 203.0.113.10 203.0.113.11 203.0.113.50 ]
+set rulebase security rules "Default Security List for shop-vcn-in-2" source-user any
+set rulebase security rules "Default Security List for shop-vcn-in-2" category any
+set rulebase security rules "Default Security List for shop-vcn-in-2" application icmp
+set rulebase security rules "Default Security List for shop-vcn-in-2" service application-default
+set rulebase security rules "Default Security List for shop-vcn-in-2" action allow
+set rulebase security rules "Default Security List for shop-vcn-in-2" log-end no
+set rulebase security rules "Default Security List for shop-vcn-in-3" from any
+set rulebase security rules "Default Security List for shop-vcn-in-3" to any
+set rulebase security rules "Default Security List for shop-vcn-in-3" source 10.30.0.0/16
+set rulebase security rules "Default Security List for shop-vcn-in-3" destination [ "Default Security List for shop-vcn" 203.0.113.10 203.0.113.11 203.0.113.50 ]
+set rulebase security rules "Default Security List for shop-vcn-in-3" source-user any
+set rulebase security rules "Default Security List for shop-vcn-in-3" category any
+set rulebase security rules "Default Security List for shop-vcn-in-3" application icmp
+set rulebase security rules "Default Security List for shop-vcn-in-3" service application-default
+set rulebase security rules "Default Security List for shop-vcn-in-3" action allow
+set rulebase security rules "Default Security List for shop-vcn-in-3" log-end no
+set rulebase security rules "Default Security List for shop-vcn-in-4" from any
+set rulebase security rules "Default Security List for shop-vcn-in-4" to any
+set rulebase security rules "Default Security List for shop-vcn-in-4" source ::/0
+set rulebase security rules "Default Security List for shop-vcn-in-4" destination [ "Default Security List for shop-vcn" 203.0.113.10 203.0.113.11 203.0.113.50 ]
+set rulebase security rules "Default Security List for shop-vcn-in-4" source-user any
+set rulebase security rules "Default Security List for shop-vcn-in-4" category any
+set rulebase security rules "Default Security List for shop-vcn-in-4" application any
+set rulebase security rules "Default Security List for shop-vcn-in-4" service tcp-22
+set rulebase security rules "Default Security List for shop-vcn-in-4" action allow
+set rulebase security rules "Default Security List for shop-vcn-in-4" log-end no
+set rulebase security rules "Default Security List for shop-vcn-in-5" from any
+set rulebase security rules "Default Security List for shop-vcn-in-5" to any
+set rulebase security rules "Default Security List for shop-vcn-in-5" source ::/0
+set rulebase security rules "Default Security List for shop-vcn-in-5" destination [ "Default Security List for shop-vcn" 203.0.113.10 203.0.113.11 203.0.113.50 ]
+set rulebase security rules "Default Security List for shop-vcn-in-5" source-user any
+set rulebase security rules "Default Security List for shop-vcn-in-5" category any
+set rulebase security rules "Default Security List for shop-vcn-in-5" application ipv6-icmp
+set rulebase security rules "Default Security List for shop-vcn-in-5" service application-default
+set rulebase security rules "Default Security List for shop-vcn-in-5" action allow
+set rulebase security rules "Default Security List for shop-vcn-in-5" log-end no
+set rulebase security rules web-sl-in-1 from any
+set rulebase security rules web-sl-in-1 to any
+set rulebase security rules web-sl-in-1 source 0.0.0.0/0
+set rulebase security rules web-sl-in-1 destination [ web-sl 203.0.113.10 203.0.113.11 ]
+set rulebase security rules web-sl-in-1 source-user any
+set rulebase security rules web-sl-in-1 category any
+set rulebase security rules web-sl-in-1 application any
+set rulebase security rules web-sl-in-1 service tcp-443
+set rulebase security rules web-sl-in-1 action allow
+set rulebase security rules web-sl-in-1 log-end no
+set rulebase security rules web-sl-in-1 description "HTTPS from anywhere"
+set rulebase security rules web-sl-in-2 from any
+set rulebase security rules web-sl-in-2 to any
+set rulebase security rules web-sl-in-2 source ::/0
+set rulebase security rules web-sl-in-2 destination [ web-sl 203.0.113.10 203.0.113.11 ]
+set rulebase security rules web-sl-in-2 source-user any
+set rulebase security rules web-sl-in-2 category any
+set rulebase security rules web-sl-in-2 application any
+set rulebase security rules web-sl-in-2 service tcp-80
+set rulebase security rules web-sl-in-2 action allow
+set rulebase security rules web-sl-in-2 log-end no
+set rulebase security rules web-sl-in-3 from any
+set rulebase security rules web-sl-in-3 to any
+set rulebase security rules web-sl-in-3 source 10.30.0.0/16
+set rulebase security rules web-sl-in-3 destination [ web-sl 203.0.113.10 203.0.113.11 ]
+set rulebase security rules web-sl-in-3 source-user any
+set rulebase security rules web-sl-in-3 category any
+set rulebase security rules web-sl-in-3 application any
+set rulebase security rules web-sl-in-3 service tcp-8080
+set rulebase security rules web-sl-in-3 action allow
+set rulebase security rules web-sl-in-3 log-end no
+set rulebase security rules app-sl-in-1 from any
+set rulebase security rules app-sl-in-1 to any
+set rulebase security rules app-sl-in-1 source 10.30.1.0/24
+set rulebase security rules app-sl-in-1 destination app-sl
+set rulebase security rules app-sl-in-1 source-user any
+set rulebase security rules app-sl-in-1 category any
+set rulebase security rules app-sl-in-1 application any
+set rulebase security rules app-sl-in-1 service tcp-8080
+set rulebase security rules app-sl-in-1 action allow
+set rulebase security rules app-sl-in-1 log-end no
+set rulebase security rules app-sl-in-2 from any
+set rulebase security rules app-sl-in-2 to any
+set rulebase security rules app-sl-in-2 source 10.30.9.0/24
+set rulebase security rules app-sl-in-2 destination app-sl
+set rulebase security rules app-sl-in-2 source-user any
+set rulebase security rules app-sl-in-2 category any
+set rulebase security rules app-sl-in-2 application gre
+set rulebase security rules app-sl-in-2 service application-default
+set rulebase security rules app-sl-in-2 action allow
+set rulebase security rules app-sl-in-2 log-end no
+set rulebase security rules app-sl-in-2 description "GRE from management"
+set rulebase security rules app-sl-in-3 from any
+set rulebase security rules app-sl-in-3 to any
+set rulebase security rules app-sl-in-3 source 10.30.9.0/24
+set rulebase security rules app-sl-in-3 destination app-sl
+set rulebase security rules app-sl-in-3 source-user any
+set rulebase security rules app-sl-in-3 category any
+set rulebase security rules app-sl-in-3 application ping
+set rulebase security rules app-sl-in-3 service application-default
+set rulebase security rules app-sl-in-3 action allow
+set rulebase security rules app-sl-in-3 log-end no
+set rulebase security rules db-sl-in-1 from any
+set rulebase security rules db-sl-in-1 to any
+set rulebase security rules db-sl-in-1 source 10.30.2.0/24
+set rulebase security rules db-sl-in-1 destination db-sl
+set rulebase security rules db-sl-in-1 source-user any
+set rulebase security rules db-sl-in-1 category any
+set rulebase security rules db-sl-in-1 application any
+set rulebase security rules db-sl-in-1 service tcp-5432
+set rulebase security rules db-sl-in-1 action allow
+set rulebase security rules db-sl-in-1 log-end no
+set rulebase security rules db-sl-in-1 description "app tier, stateless | stateless"
+set rulebase security rules db-sl-in-2 from any
+set rulebase security rules db-sl-in-2 to any
+set rulebase security rules db-sl-in-2 source 10.30.9.0/24
+set rulebase security rules db-sl-in-2 destination db-sl
+set rulebase security rules db-sl-in-2 source-user any
+set rulebase security rules db-sl-in-2 category any
+set rulebase security rules db-sl-in-2 application any
+set rulebase security rules db-sl-in-2 service tcp-5432
+set rulebase security rules db-sl-in-2 action allow
+set rulebase security rules db-sl-in-2 log-end no
+set rulebase security rules db-sl-in-2 description "management, stateful"
+set rulebase security rules db-sl-in-3 from any
+set rulebase security rules db-sl-in-3 to any
+set rulebase security rules db-sl-in-3 source 10.30.9.10
+set rulebase security rules db-sl-in-3 destination db-sl
+set rulebase security rules db-sl-in-3 source-user any
+set rulebase security rules db-sl-in-3 category any
+set rulebase security rules db-sl-in-3 application any
+set rulebase security rules db-sl-in-3 service tcp-1-65535
+set rulebase security rules db-sl-in-3 action allow
+set rulebase security rules db-sl-in-3 log-end no
+set rulebase security rules db-sl-in-3 description "backup host, stateless | stateless"
+set rulebase security rules db-sl-in-4 from any
+set rulebase security rules db-sl-in-4 to any
+set rulebase security rules db-sl-in-4 source 10.30.0.0/16
+set rulebase security rules db-sl-in-4 destination db-sl
+set rulebase security rules db-sl-in-4 source-user any
+set rulebase security rules db-sl-in-4 category any
+set rulebase security rules db-sl-in-4 application ping
+set rulebase security rules db-sl-in-4 service application-default
+set rulebase security rules db-sl-in-4 action allow
+set rulebase security rules db-sl-in-4 log-end no
+set rulebase security rules db-sl-in-4 description "ping, stateless | stateless"
+set rulebase security rules db-sl-in-5 from any
+set rulebase security rules db-sl-in-5 to any
+set rulebase security rules db-sl-in-5 source 10.30.0.0/16
+set rulebase security rules db-sl-in-5 destination db-sl
+set rulebase security rules db-sl-in-5 source-user any
+set rulebase security rules db-sl-in-5 category any
+set rulebase security rules db-sl-in-5 application icmp
+set rulebase security rules db-sl-in-5 service application-default
+set rulebase security rules db-sl-in-5 action allow
+set rulebase security rules db-sl-in-5 log-end no
+set rulebase security rules db-sl-in-5 description stateless
+set rulebase security rules db-sl-in-6 from any
+set rulebase security rules db-sl-in-6 to any
+set rulebase security rules db-sl-in-6 source 10.30.0.0/16
+set rulebase security rules db-sl-in-6 destination db-sl
+set rulebase security rules db-sl-in-6 source-user any
+set rulebase security rules db-sl-in-6 category any
+set rulebase security rules db-sl-in-6 application ping6
+set rulebase security rules db-sl-in-6 service application-default
+set rulebase security rules db-sl-in-6 action allow
+set rulebase security rules db-sl-in-6 log-end no
+set rulebase security rules db-sl-in-6 disabled yes
+set rulebase security rules db-sl-in-6 description "FWSHIFT: disabled by the converter, see the report. ICMPv6 with an IPv4 block"
+set rulebase security rules web-nsg-in-1 from any
+set rulebase security rules web-nsg-in-1 to any
+set rulebase security rules web-nsg-in-1 source bastion-nsg
+set rulebase security rules web-nsg-in-1 destination [ web-nsg 203.0.113.10 203.0.113.11 ]
+set rulebase security rules web-nsg-in-1 source-user any
+set rulebase security rules web-nsg-in-1 category any
+set rulebase security rules web-nsg-in-1 application any
+set rulebase security rules web-nsg-in-1 service tcp-22
+set rulebase security rules web-nsg-in-1 action allow
+set rulebase security rules web-nsg-in-1 log-end no
+set rulebase security rules web-nsg-in-1 description "SSH from the bastion"
+set rulebase security rules app-nsg-in-1 from any
+set rulebase security rules app-nsg-in-1 to any
+set rulebase security rules app-nsg-in-1 source web-nsg
+set rulebase security rules app-nsg-in-1 destination app-nsg
+set rulebase security rules app-nsg-in-1 source-user any
+set rulebase security rules app-nsg-in-1 category any
+set rulebase security rules app-nsg-in-1 application any
+set rulebase security rules app-nsg-in-1 service tcp-8080-8443
+set rulebase security rules app-nsg-in-1 action allow
+set rulebase security rules app-nsg-in-1 log-end no
+set rulebase security rules app-nsg-in-2 from any
+set rulebase security rules app-nsg-in-2 to any
+set rulebase security rules app-nsg-in-2 source app-nsg
+set rulebase security rules app-nsg-in-2 destination app-nsg
+set rulebase security rules app-nsg-in-2 source-user any
+set rulebase security rules app-nsg-in-2 category any
+set rulebase security rules app-nsg-in-2 application any
+set rulebase security rules app-nsg-in-2 service tcp-7000-7001
+set rulebase security rules app-nsg-in-2 action allow
+set rulebase security rules app-nsg-in-2 log-end no
+set rulebase security rules app-nsg-in-2 description cluster
+set rulebase security rules bastion-nsg-in-1 from any
+set rulebase security rules bastion-nsg-in-1 to any
+set rulebase security rules bastion-nsg-in-1 source 192.0.2.0/25
+set rulebase security rules bastion-nsg-in-1 destination [ bastion-nsg 203.0.113.50 ]
+set rulebase security rules bastion-nsg-in-1 source-user any
+set rulebase security rules bastion-nsg-in-1 category any
+set rulebase security rules bastion-nsg-in-1 application any
+set rulebase security rules bastion-nsg-in-1 service tcp-22
+set rulebase security rules bastion-nsg-in-1 action allow
+set rulebase security rules bastion-nsg-in-1 log-end no
+set rulebase security rules bastion-nsg-in-1 description "corporate office"
+set rulebase security rules bastion-nsg-in-2 from any
+set rulebase security rules bastion-nsg-in-2 to any
+set rulebase security rules bastion-nsg-in-2 source 198.51.100.0/25
+set rulebase security rules bastion-nsg-in-2 destination [ bastion-nsg 203.0.113.50 ]
+set rulebase security rules bastion-nsg-in-2 source-user any
+set rulebase security rules bastion-nsg-in-2 category any
+set rulebase security rules bastion-nsg-in-2 application any
+set rulebase security rules bastion-nsg-in-2 service tcp-22
+set rulebase security rules bastion-nsg-in-2 action allow
+set rulebase security rules bastion-nsg-in-2 log-end no
+set rulebase security rules "Default Security List for shop-vcn-out-1" from any
+set rulebase security rules "Default Security List for shop-vcn-out-1" to any
+set rulebase security rules "Default Security List for shop-vcn-out-1" source "Default Security List for shop-vcn"
+set rulebase security rules "Default Security List for shop-vcn-out-1" destination [ 0.0.0.0-10.29.255.255 10.31.0.0-255.255.255.255 ]
+set rulebase security rules "Default Security List for shop-vcn-out-1" source-user any
+set rulebase security rules "Default Security List for shop-vcn-out-1" category any
+set rulebase security rules "Default Security List for shop-vcn-out-1" application any
+set rulebase security rules "Default Security List for shop-vcn-out-1" service any
+set rulebase security rules "Default Security List for shop-vcn-out-1" action allow
+set rulebase security rules "Default Security List for shop-vcn-out-1" log-end no
+set rulebase security rules "Default Security List for shop-vcn-out-1" description "0.0.0.0/0 without the addresses of the VCN"
+set rulebase security rules "Default Security List for shop-vcn-out-2" from any
+set rulebase security rules "Default Security List for shop-vcn-out-2" to any
+set rulebase security rules "Default Security List for shop-vcn-out-2" source "Default Security List for shop-vcn"
+set rulebase security rules "Default Security List for shop-vcn-out-2" destination [ ::-2001:db8:2f:ffff:ffff:ffff:ffff:ffff 2001:db8:30:100::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ]
+set rulebase security rules "Default Security List for shop-vcn-out-2" source-user any
+set rulebase security rules "Default Security List for shop-vcn-out-2" category any
+set rulebase security rules "Default Security List for shop-vcn-out-2" application any
+set rulebase security rules "Default Security List for shop-vcn-out-2" service any
+set rulebase security rules "Default Security List for shop-vcn-out-2" action allow
+set rulebase security rules "Default Security List for shop-vcn-out-2" log-end no
+set rulebase security rules "Default Security List for shop-vcn-out-2" description "::/0 without the addresses of the VCN"
+set rulebase security rules app-sl-out-2 from any
+set rulebase security rules app-sl-out-2 to any
+set rulebase security rules app-sl-out-2 source app-sl
+set rulebase security rules app-sl-out-2 destination all-fra-services-in-oracle-services-network
+set rulebase security rules app-sl-out-2 source-user any
+set rulebase security rules app-sl-out-2 category any
+set rulebase security rules app-sl-out-2 application any
+set rulebase security rules app-sl-out-2 service tcp-443
+set rulebase security rules app-sl-out-2 action allow
+set rulebase security rules app-sl-out-2 log-end no
+set rulebase security rules app-sl-out-3 from any
+set rulebase security rules app-sl-out-3 to any
+set rulebase security rules app-sl-out-3 source app-sl
+set rulebase security rules app-sl-out-3 destination [ 0.0.0.0-10.29.255.255 10.31.0.0-255.255.255.255 ]
+set rulebase security rules app-sl-out-3 source-user any
+set rulebase security rules app-sl-out-3 category any
+set rulebase security rules app-sl-out-3 application any
+set rulebase security rules app-sl-out-3 service udp-123-from-123
+set rulebase security rules app-sl-out-3 action allow
+set rulebase security rules app-sl-out-3 log-end no
+set rulebase security rules app-sl-out-3 description "NTP | 0.0.0.0/0 without the addresses of the VCN"
+set rulebase security rules app-sl-out-4 from any
+set rulebase security rules app-sl-out-4 to any
+set rulebase security rules app-sl-out-4 source app-sl
+set rulebase security rules app-sl-out-4 destination oci-fra-objectstorage
+set rulebase security rules app-sl-out-4 source-user any
+set rulebase security rules app-sl-out-4 category any
+set rulebase security rules app-sl-out-4 application any
+set rulebase security rules app-sl-out-4 service tcp-443
+set rulebase security rules app-sl-out-4 action allow
+set rulebase security rules app-sl-out-4 log-end no
+set rulebase security rules app-sl-out-5 from any
+set rulebase security rules app-sl-out-5 to any
+set rulebase security rules app-sl-out-5 source app-sl
+set rulebase security rules app-sl-out-5 destination oci-ams-objectstorage
+set rulebase security rules app-sl-out-5 source-user any
+set rulebase security rules app-sl-out-5 category any
+set rulebase security rules app-sl-out-5 application any
+set rulebase security rules app-sl-out-5 service tcp-443
+set rulebase security rules app-sl-out-5 action allow
+set rulebase security rules app-sl-out-5 log-end no
+set rulebase security rules app-sl-out-5 disabled yes
+set rulebase security rules app-sl-out-5 description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

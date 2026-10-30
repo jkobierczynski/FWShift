@@ -1,0 +1,56 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: windows-firewall
+
+Summary
+  Security rules:      8   exact 0, approximated 1, needs review 7 (7 emitted disabled), skipped 0
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  Block_IoT_to_office  ->  approximated  (emitted as FWShift-Block_IoT_to_office-1, FWShift-Block_IoT_to_office-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone inside_zone; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone inside_zone; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Inside_Outside_web  ->  needs-review, emitted disabled  (emitted as FWShift-Inside_Outside_web-1, FWShift-Inside_Outside_web-2, FWShift-Inside_Outside_web-3, FWShift-Inside_Outside_web-4)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside_zone, and a rule of Windows Firewall names no zone: give the networks behind inside_zone with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside_zone, and a rule of Windows Firewall names no zone: give the networks behind outside_zone with --zone-network (or --zone-map it to Host or a profile).
+  IoT_telemetry  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object vendor-cloud: a rule of Windows Firewall names addresses.
+  NAS_from_Internet  ->  needs-review, emitted disabled  (emitted as FWShift-NAS_from_Internet-1, FWShift-NAS_from_Internet-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside_zone, and a rule of Windows Firewall names no zone: give the networks behind outside_zone with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone inside_zone, and a rule of Windows Firewall names no zone: give the networks behind inside_zone with --zone-network (or --zone-map it to Host or a profile).
+  Head_office_v6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside_zone, and a rule of Windows Firewall names no zone: give the networks behind outside_zone with --zone-network (or --zone-map it to Host or a profile).
+  DNS_answers  ->  needs-review, emitted disabled  (emitted as FWShift-DNS_answers-1, FWShift-DNS_answers-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside_zone, and a rule of Windows Firewall names no zone: give the networks behind outside_zone with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone inside_zone, and a rule of Windows Firewall names no zone: give the networks behind inside_zone with --zone-network (or --zone-map it to Host or a profile).
+  Staff_streaming  ->  needs-review, emitted disabled  (emitted as FWShift-Staff_streaming-1, FWShift-Staff_streaming-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone inside_zone; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside_zone; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests_by_time  ->  needs-review, emitted disabled  (emitted as FWShift-Guests_by_time-1, FWShift-Guests_by_time-2)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside_zone, and a rule of Windows Firewall names no zone: give the networks behind inside_zone with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside_zone, and a rule of Windows Firewall names no zone: give the networks behind outside_zone with --zone-network (or --zone-map it to Host or a profile).
+
+NAT rules
+  NAS_published  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 192.0.2.2
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  nas_static  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  InsideOutsideNatRule  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  IoT_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation

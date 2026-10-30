@@ -1,0 +1,127 @@
+FWShift conversion report
+  source: windows-firewall (Group Policy, local)
+  target: terraform-aws
+
+Summary
+  Security rules:     31   exact 2, approximated 5, needs review 24 (23 emitted disabled), skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           23   exact 23, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] WINFW_BYPASS: rules with authenticated bypass let IPsec-authenticated connections through block rules; they are first in the converted policy and not converted: Management over IPsec, overriding block rules
+  [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var vpc_id=... shows what it creates, terraform apply creates new security groups and their rules; a group of the same name in the VPC makes it fail. The groups have no members when it is done: nothing changes until they are attached
+  [needs-review] TERRAFORM_ATTACH: 1 group: attach each to the network interfaces whose private addresses its '# attach' comment (and the output fwshift_attach) lists, and take the other groups off those interfaces: vpc_security_group_ids of the instances, security_groups of the network interfaces, or aws_network_interface_sg_attachment. A group applies to the whole interface: give the addresses of one interface the same group
+  [info] WINFW_DEFAULT_ASSUMED: settings that no store of the input holds were taken as Windows's defaults (firewall on, inbound blocked, outbound allowed): Private defaultinboundaction, Public defaultinboundaction, Public defaultoutboundaction
+  [info] WINFW_HOST_POLICY: a host firewall: the zone Host is the host itself, the zones Domain, Private and Public the networks of the interfaces in each profile. Windows has no rule order: block rules decide before allow rules, then the default of the profile; the converted policy says that in first-match order (block rules, allow rules, the defaults that allow). Traffic between the networks is not the host's to decide and is denied
+  [info] WINFW_STORES: stores read: Group Policy 8 rules, local 22 rules
+  [info] WINFW_PROFILES: Domain: inbound blocked (Group Policy), outbound allowed (Group Policy), local rules not merged (Group Policy); Private: inbound blocked (default), outbound blocked (Group Policy); Public: inbound blocked (default), outbound allowed (default)
+  [info] WINFW_LOCAL_NOT_MERGED: Group Policy (or MDM) does not merge local rules in the profile Domain: the local rules are left out there (16 rules named it)
+  [info] WINFW_SETTING_NOT_CONVERTED: profile settings that decide traffic no rule names are not converted: Public: unicast responses to multicast and broadcast traffic are blocked
+  [info] WINFW_ADDRESS_KEYWORDS: rules name address keywords, whose addresses only Windows knows at run time: DNS, LocalSubnet, LocalSubnet4, LocalSubnet6. They are dynamic groups; only a Windows target writes them again
+  [info] WINFW_NOT_READ: not read: 1 connection security (IPsec) rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\ConSecRules; 1 Windows Service Hardening rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Static\System
+
+Security rules
+  Management over IPsec, overriding block rules  ->  needs-review, emitted disabled
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: remote computers; IPsec (Authenticate): only connections IPsec protects match; authenticated bypass: only IPsec-authenticated connections match, and they override block rules. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: remote computers.
+      [needs-review] UNSUPPORTED_MATCH: not converted: IPsec (Authenticate): only connections IPsec protects match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: authenticated bypass: only IPsec-authenticated connections match, and they override block rules.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a security group names no zone: give the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  Block a known bad host  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Host; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Domain, Private, Public; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Block RDP from the guest half of the admin network  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Domain, Private, Public; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Host; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Block telnet out  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Host; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Private, Public; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Block the scanner networks  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Private, Public; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Host; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Block SMB on public networks  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Public; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Host; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Allow WinRM from management  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Domain, and a security group names no zone: give the networks behind Domain with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  Web out on private networks  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Private, and a security group names no zone: give the networks behind Private with --zone-network.
+  DNS out on private networks  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'DNS': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  SMB from the local subnet  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  SSH from the IPv6 jump hosts  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Domain, Private, Public, and a security group names no zone: give the networks behind Domain, Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  DNS server  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Domain, and a security group names no zone: give the networks behind Domain with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  Echo request (ICMPv4-In)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a security group names no zone: give the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  Echo request (ICMPv6-In)  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet6': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  Fragmentation needed and time exceeded  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a security group names no zone: give the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  Remote Desktop from the admin networks  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, and a security group names no zone: give the networks behind Private with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  Web server  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a security group names no zone: give the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  FTP passive ports  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, and a security group names no zone: give the networks behind Private with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  SNMP from the local subnet  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet4': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+      [needs-review] SOURCE_PORTS: source ports: a security group rule matches destination ports only.
+  GRE from the tunnel peer  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a security group names no zone: give the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  Example application server  ->  needs-review, emitted disabled
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: program C:\Program Files\Example\server.exe. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: program C:\Program Files\Example\server.exe.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a security group names no zone: give the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  Print spooler (RPC)  ->  needs-review, emitted disabled
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the local port keyword RPC; service Spooler. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the local port keyword RPC.
+      [needs-review] UNSUPPORTED_MATCH: not converted: service Spooler.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a security group names no zone: give the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  mDNS on wireless  ->  needs-review, emitted disabled
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: interface types wireless. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: interface types wireless.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a security group names no zone: give the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  Game server through edge traversal  ->  needs-review, emitted disabled
+      [approximated] WINFW_EDGE_TRAVERSAL: the rule also accepts traffic that came through edge traversal (Teredo); the model has no such path: the converted rule does not let it in
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Public, and a security group names no zone: give the networks behind Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  Printer port  ->  needs-review, emitted disabled
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the field 'newfield2_40', which FWShift does not know. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the field 'newfield2_40', which FWShift does not know.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Private, Public, and a security group names no zone: give the networks behind Private, Public with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  A rule Windows cannot parse  ->  needs-review
+      [needs-review] WINFW_RULE_INVALID: Windows does not enforce a rule it cannot parse (local ports without protocol TCP or UDP): it is kept disabled
+  SSDP discovery  ->  needs-review, emitted disabled
+      [info] WINFW_PLATFORM: the rule applies on Windows NT 6.2 and later; it is taken as applying on this host
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+  DNS server (local copy)  ->  exact
+      [info] WINFW_OVERRIDDEN: the Group Policy store has a rule of the same id ('Shared-Id'), which replaces this one: it is kept disabled
+  Backup agent to the backup server  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Private, Public, and a security group names no zone: give the networks behind Private, Public with --zone-network.
+  (default) outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Host, and a security group names no zone: give the networks behind Host with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Domain, Public, and a security group names no zone: give the networks behind Domain, Public with --zone-network.

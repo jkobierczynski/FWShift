@@ -1,0 +1,38 @@
+FWShift audit
+  source: oci (ocid1.vcn.oc1.eu-frankfurt-1.exampleshopvcn)
+  security rules: 37 (0 disabled), NAT rules: 3
+
+Summary
+  high 0, medium 5, low 18, info 2
+
+Findings in the policy as it was read
+  [medium] RISKY_SERVICE: rule 'db-sl-in-3' allows telnet, ftp, rsh/rlogin/rexec, netbios, smb, rdp, vnc, x11, from any zone to any zone (on the list of the cleartext and remote administration protocols)
+  [medium] ANY_SERVICE: rule 'Default Security List for shop-vcn-out-1' allows any service between its addresses, from any zone to any zone
+  [medium] ANY_SERVICE: rule 'Default Security List for shop-vcn-out-2' allows any service between its addresses, from any zone to any zone
+  [medium] SHADOWED_RULE: rule 'db-sl-in-4' never matches: the rule allows traffic from any zone to any zone, but all it could match is taken by earlier rules: 'db-subnet-stateless-in-3' blocks it
+  [medium] SHADOWED_RULE: rule 'app-nsg-in-2' never matches: the rule allows traffic from any zone to any zone, but all it could match is taken by earlier rules: 'app-subnet+app-nsg-egress-rest' blocks it
+  [low] ANY_SOURCE: rule 'Default Security List for shop-vcn-in-1' allows any source, from any zone to any zone
+  [low] ANY_SOURCE: rule 'Default Security List for shop-vcn-in-2' allows any source, from any zone to any zone
+  [low] ANY_SOURCE: rule 'Default Security List for shop-vcn-in-4' allows any source, from any zone to any zone
+  [low] ANY_SOURCE: rule 'Default Security List for shop-vcn-in-5' allows any source, from any zone to any zone
+  [low] ANY_SOURCE: rule 'web-sl-in-1' allows any source, from any zone to any zone
+  [low] ANY_SOURCE: rule 'web-sl-in-2' allows any source, from any zone to any zone
+  [low] WIDE_PORTS: rule 'db-sl-in-3' allows the ports tcp/1-65535, from any zone to any zone
+  [low] INDUSTRIAL_SERVICE: rule 'db-sl-in-3' allows modbus, s7/iso-tsap, dnp3, ethernet-ip, opc-ua, iec-104, profinet, niagara-fox, from any zone to any zone (on the list of the industrial control protocols)
+  [low] WIDE_NETWORK: rule 'Default Security List for shop-vcn-out-1' allows traffic for '0.0.0.0-10.29.255.255', '10.31.0.0-255.255.255.255', from any zone to any zone
+  [low] WIDE_NETWORK: rule 'Default Security List for shop-vcn-out-2' allows traffic for '::-2001:db8:2f:ffff:ffff:ffff:ffff:ffff', '2001:db8:30:100::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff', from any zone to any zone
+  [low] WIDE_NETWORK: rule 'app-sl-out-3' allows traffic for '0.0.0.0-10.29.255.255', '10.31.0.0-255.255.255.255', from any zone to any zone
+  [low] REDUNDANT_RULE: rule 'db-sl-in-1' never matches: 'app-subnet-to-db-sl', 'app-subnet+app-nsg-to-db-sl' above it already allow everything it could match
+  [low] REDUNDANT_RULE: rule 'web-nsg-in-1' never matches: 'Default Security List for shop-vcn-in-1' above it already allows everything it could match
+  [low] REDUNDANT_RULE: rule 'bastion-nsg-in-1' never matches: 'Default Security List for shop-vcn-in-1' above it already allows everything it could match
+  [low] REDUNDANT_RULE: rule 'bastion-nsg-in-2' never matches: 'Default Security List for shop-vcn-in-1' above it already allows everything it could match
+  [low] EMPTY_GROUP: address group 'spare-sl' has no members: it matches no address
+  [low] EMPTY_GROUP: address group 'legacy-nsg' has no members: it matches no address
+  [low] EMPTY_GROUP: address group 'ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplemonitoringnsgotherteam' has no members: it matches no address
+  [info] UNUSED_OBJECT: 3 address groups no rule uses: 'spare-sl', 'legacy-nsg', 'ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplemonitoringnsgotherteam'
+  [info] UNUSED_OBJECT: 2 services no rule uses: 'tcp-1024-65535-from-5432', 'tcp-9100'
+
+Left out of the order checks
+  2 rule(s) that the model holds only approximately are neither called dead nor used to call another rule dead:
+    'app-sl-out-2' (OCI_SERVICE_RANGES)
+    'app-sl-out-4' (OCI_SERVICE_RANGES)

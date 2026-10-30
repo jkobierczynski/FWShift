@@ -73,11 +73,11 @@ policy() {
 free_group fwshift-rules
 free_policy fwshift
 
-# Rule group 1: 2 rules, in the order of the policy.
+# Rule group 1: 3 rules, in the order of the policy.
 cat > "$TMP/group1.json" <<'FWSHIFT_JSON'
 {
  "RulesSource": {
-  "RulesString": "drop ip any any -> any any (msg:\"Block-OT-Outbound\"; flow:to_server; sid:1; rev:1;)\ndrop ip any any -> any any (msg:\"DMZ-Intrazone\"; flow:to_server; sid:2; rev:1;)\n"
+  "RulesString": "pass ip any any -> any any (msg:\"fwshift-replies\"; flow:to_client; sid:3; rev:1;)\ndrop ip any any -> any any (msg:\"Block-OT-Outbound\"; flow:to_server; sid:1; rev:1;)\ndrop ip any any -> any any (msg:\"DMZ-Intrazone\"; flow:to_server; sid:2; rev:1;)\n"
  },
  "StatefulRuleOptions": {
   "RuleOrder": "STRICT_ORDER"
