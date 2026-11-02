@@ -1,0 +1,112 @@
+FWShift conversion report
+  source: clavister
+  target: opnsense
+
+Summary
+  Security rules:     25   exact 4, approximated 13, needs review 4 (1 emitted disabled), skipped 4
+  NAT rules:          12   exact 4, approximated 5, needs review 1, skipped 2
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] INTERFACES_REQUIRED: OPNsense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: guest, dmz
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. The NAT area holds 7 port forwards and 0 1:1 rules, and sets outbound NAT to manual mode with the 11 rules of the source; it removes every rule of NPt. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [approximated] ZONE_NETWORK_GAP: the networks given with --zone-network do not cover every address: 0.0.0.0/5, 8.0.0.0/7, 10.0.0.0/12, 10.16.0.0/13, 10.24.0.0/14, 10.28.0.0/15. Rules that pass traffic to a zone leave those addresses out, rules that block keep them
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: lan=192.168.10.0/24,2001:db8:10::/64; dmz=172.16.20.0/24,172.16.0.0/16; wan=203.0.113.0/24; guest=10.30.0.0/24. --no-source-networks takes none of them
+  [info] SELF_EXCLUDED: on OPNsense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled  (emitted as lan, dmz, wan, guest)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'pol_dmz_https' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  approximated  (emitted as wan)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'web_srv' because of NAT rule 'allow_web+sat_web'; check that this rule is meant to cover the translated traffic
+  block_bad_mail+sat_mail  ->  approximated  (emitted as wan)
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'allow_mail+sat_mail'; check that this rule is meant to cover the translated traffic
+  nat_mail+sat_mail  ->  approximated  (emitted as lan, guest)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'nat_mail+sat_mail'; check that this rule is meant to cover the translated traffic
+  allow_mail+sat_mail  ->  approximated  (emitted as wan)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'allow_mail+sat_mail'; check that this rule is meant to cover the translated traffic
+  allow_pool+sat_pool  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+      [info] EGRESS_BY_NETWORKS: the rule is for traffic to zone dmz. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network)
+      [approximated] EGRESS_NO_ADDRESS: by the networks given with --zone-network no address of its destination lies behind the zones the rule is for: it is left out
+  to_guest/guest_dns  ->  approximated  (emitted as guest)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
+  to_guest/guest_web  ->  approximated  (emitted as guest)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
+  to_guest/guest_never  ->  needs-review  (emitted as guest)
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_srv', the address NAT rule 'nat_mail+sat_mail' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  lan_dns  ->  approximated  (emitted as lan)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
+  lan_web  ->  approximated  (emitted as lan)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
+  lan_updates  ->  approximated  (emitted as lan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by wan. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  lan_to_dmz  ->  needs-review  (emitted as lan)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_srv', the address NAT rule 'nat_mail+sat_mail' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  syslog_fast  ->  approximated  (emitted as dmz)
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+  gre_tunnel  ->  skipped
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses of its destination that lie in none of the networks given
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+      [approximated] EGRESS_NO_ADDRESS: by the networks given with --zone-network no address of its destination lies behind the zones the rule is for: it is left out
+  old_rule  ->  approximated  (emitted as wan)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  lan6_web  ->  skipped
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone dmz. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses of its destination that lie in none of the networks given
+      [approximated] EGRESS_NO_ADDRESS: by the networks given with --zone-network no address of its destination lies behind the zones the rule is for: it is left out
+  pol_dmz_https  ->  needs-review  (emitted as wan)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip2' with post-NAT 'web_srv' because of NAT rule 'pol_dmz_https'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'pol_dmz_https' also translates the port to 8443: the service of this rule (https) named the pre-NAT port only, and now names 8443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web_srv', the address NAT rule 'allow_web+sat_web' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  pol_dmz_out  ->  approximated  (emitted as dmz)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
+  pol_block_ftp  ->  approximated  (emitted as lan, dmz, wan, guest)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  nat_mail+sat_mail  ->  needs-review  (emitted as 2 port forwards, 2 outbound NAT rules)
+      [approximated] NAT_OUTPUT_INTERFACE: the rule also translates the destination, so the traffic does not leave by wan; its source translation is written for dmz, wan
+      [needs-review] NAT_INPUT_INTERFACE: the rule applied to traffic from lan, guest only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+      [approximated] NAT_AFTER_DNAT: the source translation of this rule is matched after its destination translation; it also applies to traffic from the same sources that is sent to the translated address directly
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] NAT_DESTINATION: a port forward of OPNsense sends to one IPv4 address
+  to_guest/guest_dns  ->  approximated  (emitted as 1 outbound NAT rule)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from guest only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+  to_guest/guest_web  ->  approximated  (emitted as 2 outbound NAT rules)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from guest only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+  lan_dns  ->  approximated  (emitted as 1 outbound NAT rule)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from lan only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+  lan_web  ->  approximated  (emitted as 3 outbound NAT rules)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from lan only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+  lan_updates  ->  skipped
+      [needs-review] NAT_ADDRESSES: the rule needs static IPv4 addresses as source and destination
+  pol_dmz_out  ->  approximated  (emitted as 2 outbound NAT rules)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from dmz only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+  sat_unused  ->  exact  (emitted as 1 port forward)
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [info] NAT_DISABLED: disabled in the source; written disabled
+
+Addresses
+  admin_hosts#1  ->  exact  (emitted as admin_hosts_1)
+      [info] RENAMED: renamed to 'admin_hosts_1' to fit the target's naming rules
+  admin_hosts#2  ->  exact  (emitted as admin_hosts_2)
+      [info] RENAMED: renamed to 'admin_hosts_2' to fit the target's naming rules
+  admin_hosts#3  ->  exact  (emitted as admin_hosts_3)
+      [info] RENAMED: renamed to 'admin_hosts_3' to fit the target's naming rules

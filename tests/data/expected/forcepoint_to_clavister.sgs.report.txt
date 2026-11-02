@@ -1,0 +1,70 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: clavister
+
+Summary
+  Security rules:     32   exact 20, approximated 5, needs review 6 (6 emitted disabled), skipped 1
+  NAT rules:           5   exact 4, approximated 1, needs review 0, skipped 0
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 2 rule sets it sends traffic to; 48 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: Internal, External
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  Rule @900.0  ->  needs-review, emitted disabled  (emitted as fws_rules 3 (fws_Rule__900.0), a placeholder, disabled)
+      [needs-review] UNSUPPORTED_MATCH: not converted: source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+  admins in  ->  exact  (emitted as fws_rules 6 (fws_to_admin_sub-policy___admins_in))
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  others out  ->  exact  (emitted as fws_rules 7 (fws_to_admin_sub-policy___others_out))
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  refuse admins 8443  ->  approximated  (emitted as fws_rules 8 (fws_refuse_admins_8443))
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  old block  ->  exact  (emitted as fws_rules 9 (fws_old_block))
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  updates by name  ->  skipped
+      [info] MATCHES_NOTHING: the sources and destinations have no IP version in common: the rule matches nothing
+  zone or web host out  ->  exact  (emitted as fws_rules 12 (fws_zone_or_web_host_out))
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+  vpn only  ->  needs-review, emitted disabled  (emitted as fws_rules 14 (fws_vpn_only))
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN).
+  no social  ->  needs-review, emitted disabled  (emitted as fws_rules 16 (fws_no_social), a placeholder, disabled)
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) Facebook; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  helpdesk to dmz  ->  needs-review, emitted disabled  (emitted as fws_rules 17 (fws_helpdesk_to_dmz))
+      [needs-review] USER_MATCH: source user match helpdesk is not converted.
+  unfinished  ->  exact  (emitted as fws_rules 18 (fws_unfinished))
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  office web  ->  needs-review, emitted disabled  (emitted as fws_rules 19 (fws_office_web))
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times.
+  limited guests  ->  approximated  (emitted as fws_rules 20 (fws_limited_guests))
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (deep_inspection=on); attach equivalent inspection on the target
+  block list  ->  needs-review, emitted disabled  (emitted as fws_rules 21 (fws_block_list))
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Rule @902.0  ->  approximated  (emitted as fws_rules 26 (fws_Rule__902.0))
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  v6 guests  ->  approximated  (emitted as fws_rules 31 (fws_v6_guests))
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  Rule @952.0  ->  approximated  (emitted as fws_rules 32 (fws_Rule__952.0))
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+
+NAT rules
+  guests hide  ->  approximated  (emitted as fws_snat 5 (fws_guests_hide))
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by

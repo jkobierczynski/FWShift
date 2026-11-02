@@ -1,0 +1,68 @@
+FWShift conversion report
+  source: netskope
+  target: mguard
+
+Summary
+  Security rules:     16   exact 0, approximated 0, needs review 0, skipped 16
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): internet=external
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  Block known bad ranges  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: client, ipsec, gre: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Branch mail to partner  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: ipsec, gre: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Voice from sites  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: gre: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Admins to jump hosts [app-ssh-jump]  ->  skipped
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [needs-review] MGUARD_ZONE_UNKNOWN: client: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Admins to jump hosts [app-rdp-gw]  ->  skipped
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [needs-review] MGUARD_ZONE_UNKNOWN: client: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Engineering to git  ->  skipped
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+      [needs-review] MGUARD_ZONE_UNKNOWN: client: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Block BitTorrent  ->  skipped
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: client, ipsec, gre: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Not from the server networks: no NTP  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: ipsec: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Time servers  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: client, ipsec, gre: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Old FTP exception  ->  skipped
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  SaaS files from the office  ->  skipped
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp-saas-domains': destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] MGUARD_ZONE_UNKNOWN: gre: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'dp-saas-domains' holds members only its platform knows, or an address the profile does not hold.
+  Ping out  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: client, ipsec, gre: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  DNS out  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: client, ipsec, gre: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Contractors: nothing else  ->  skipped
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: client: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Lab network out  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: ipsec: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Default Action  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: client, ipsec, gre: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.

@@ -1,0 +1,1341 @@
+configure terminal
+address-object ipv4 "fileserver" host 10.20.0.10 zone Antwerp-DC
+address-object ipv4 "erp-db" host 10.20.0.20 zone Antwerp-DC
+address-object ipv4 "historian" host 10.30.0.50 zone Ghent-Plant
+address-object ipv4 "Ghent Plant _ LAN" network 10.30.0.0 255.255.255.0 zone Ghent-Plant
+address-object ipv4 "Antwerp DC _ Routed lab" network 10.20.30.0 255.255.255.0 zone Antwerp-DC
+address-object ipv4 "Partner net" network 192.0.2.0 255.255.255.128 zone Brussels-HQ
+address-object ipv4 "Monitoring" range 198.51.100.10 198.51.100.20 zone Brussels-HQ
+address-object ipv4 "host lab-printer" host 192.0.0.8 zone Brussels-HQ
+address-object fqdn "fqdn updates.example.com" domain "updates.example.com" zone internet
+address-object fqdn "fqdn ftp.example.net" domain "ftp.example.net" zone internet
+address-object ipv4 "n 10.10.0.0_24" network 10.10.0.0 255.255.255.0 zone Antwerp-DC
+address-object ipv4 "n 10.10.20.0_24" network 10.10.20.0 255.255.255.0 zone Antwerp-DC
+address-object ipv4 "n 10.20.0.0_24" network 10.20.0.0 255.255.255.0 zone Antwerp-DC
+address-object ipv4 "n 10.40.0.0_24" network 10.40.0.0 255.255.255.0 zone Antwerp-DC
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone Antwerp-DC
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone Antwerp-DC
+address-object ipv6 "n ::_1" network :: /1 zone Antwerp-DC
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone Antwerp-DC
+address-object ipv4 "r 0.0.0.0-10.20.0.19" range 0.0.0.0 10.20.0.19 zone Antwerp-DC
+address-object ipv4 "r 10.20.0.21-255.255.255.255" range 10.20.0.21 255.255.255.255 zone Antwerp-DC
+address-object ipv4 "h 10.20.0.99" host 10.20.0.99 zone Antwerp-DC
+address-object ipv4 "r 10.10.20.100-10.10.20.120" range 10.10.20.100 10.10.20.120 zone Antwerp-DC
+address-object ipv4 "h 10.30.0.5" host 10.30.0.5 zone Antwerp-DC
+address-object ipv4 "h 198.51.100.66" host 198.51.100.66 zone Antwerp-DC
+address-object ipv4 "n 203.0.113.0_24" network 203.0.113.0 255.255.255.0 zone Antwerp-DC
+address-group ipv4 "dst Allow HQ to DC servers"
+    address-object ipv4 "fileserver"
+    address-object ipv4 "erp-db"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
+address-group ipv4 "dst Remote users to DC"
+    address-object ipv4 "r 0.0.0.0-10.20.0.19"
+    address-object ipv4 "r 10.20.0.21-255.255.255.255"
+    exit
+address-group ipv4 "src Modbus to the plant (2)"
+    address-object ipv4 "h 10.20.0.99"
+    address-object ipv4 "r 10.10.20.100-10.10.20.120"
+    exit
+address-group ipv4 "dst Block bad networks"
+    address-object ipv4 "h 198.51.100.66"
+    address-object ipv4 "n 203.0.113.0_24"
+    exit
+service-object "HTTPS 2" TCP 443 443
+service-object "tcp/8443" TCP 8443 8443
+service-object "tcp/1433" TCP 1433 1433
+service-object "udp/5000-5010" UDP 5000 5010
+service-object "tcp-udp/53 tcp 53" TCP 53 53
+service-object "tcp-udp/53 udp 53" UDP 53 53
+service-group "tcp-udp/53"
+    service-object "tcp-udp/53 tcp 53"
+    service-object "tcp-udp/53 udp 53"
+    exit
+service-object "tcp/502" TCP 502 502
+service-object "tcp/5432" TCP 5432 5432
+service-object "SSH 2" TCP 22 22
+service-object "RDP" TCP 3389 3389
+service-object "tcp/9100" TCP 9100 9100
+service-object "FTP 2" TCP 21 21
+service-object "SMB" TCP 445 445
+service-group "svc Allow HQ to DC servers"
+    service-object "HTTPS 2"
+    service-object "tcp/8443"
+    exit
+service-group "svc Allow HQ to DC servers (2)"
+    service-object "HTTPS 2"
+    service-object "tcp/8443"
+    exit
+service-group "svc Historian both ways"
+    service-object "tcp/1433"
+    service-object "udp/5000-5010"
+    exit
+service-group "svc Historian both ways (2)"
+    service-object "tcp/1433"
+    service-object "udp/5000-5010"
+    exit
+access-rule ipv4 from Brussels-HQ to Brussels-HQ action allow source address name "n 10.10.0.0_24" service any destination address name "n 10.10.0.0_24"
+    name "inside Brussels-HQ range 1"
+    priority manual 1
+    exit
+access-rule ipv4 from Brussels-HQ to Brussels-HQ action allow source address name "n 10.10.20.0_24" service any destination address name "n 10.10.20.0_24"
+    name "inside Brussels-HQ range 2"
+    priority manual 2
+    exit
+access-rule ipv4 from Antwerp-DC to Antwerp-DC action allow source address name "n 10.20.0.0_24" service any destination address name "n 10.20.0.0_24"
+    name "inside Antwerp-DC range 1"
+    priority manual 3
+    exit
+access-rule ipv4 from Antwerp-DC to Antwerp-DC action allow source address name "Antwerp DC _ Routed lab" service any destination address name "Antwerp DC _ Routed lab"
+    name "inside Antwerp-DC range 2"
+    priority manual 4
+    exit
+access-rule ipv4 from Ghent-Plant to Ghent-Plant action allow source address name "Ghent Plant _ LAN" service any destination address name "Ghent Plant _ LAN"
+    name "inside Ghent-Plant range 1"
+    priority manual 5
+    exit
+access-rule ipv4 from Leuven-Lab to Leuven-Lab action allow source address name "n 10.40.0.0_24" service any destination address name "n 10.40.0.0_24"
+    name "inside Leuven-Lab range 1"
+    priority manual 6
+    exit
+access-rule ipv4 from Brussels-HQ to Antwerp-DC action allow source address any service group "svc Allow HQ to DC servers" destination address group "dst Allow HQ to DC servers"
+    name "Allow HQ to DC servers"
+    priority manual 7
+    exit
+access-rule ipv4 from Brussels-HQ to Brussels-HQ action allow source address any service group "svc Allow HQ to DC servers (2)" destination address name "Monitoring"
+    name "Allow HQ to DC servers (2)"
+    priority manual 8
+    exit
+access-rule ipv4 from Brussels-HQ to Antwerp-DC action allow source address any service group "svc Allow HQ to DC servers (2)" destination address name "Monitoring"
+    name "Allow HQ to DC servers (2) 2"
+    priority manual 9
+    exit
+access-rule ipv4 from Brussels-HQ to Ghent-Plant action allow source address any service group "svc Allow HQ to DC servers (2)" destination address name "Monitoring"
+    name "Allow HQ to DC servers (2) 3"
+    priority manual 10
+    exit
+access-rule ipv4 from Brussels-HQ to Leuven-Lab action allow source address any service group "svc Allow HQ to DC servers (2)" destination address name "Monitoring"
+    name "Allow HQ to DC servers (2) 4"
+    priority manual 11
+    exit
+access-rule ipv4 from Brussels-HQ to remote-users action allow source address any service group "svc Allow HQ to DC servers (2)" destination address name "Monitoring"
+    name "Allow HQ to DC servers (2) 5"
+    priority manual 12
+    exit
+access-rule ipv4 from Ghent-Plant to Brussels-HQ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block OT to HQ"
+    priority manual 13
+    exit
+access-rule ipv4 from Leuven-Lab to Brussels-HQ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block OT to HQ 3"
+    priority manual 14
+    exit
+access-rule ipv4 from Ghent-Plant to Antwerp-DC action allow source address name "historian" service group "svc Historian both ways" destination address name "Antwerp DC _ Routed lab"
+    name "Historian both ways"
+    priority manual 15
+    exit
+access-rule ipv4 from Antwerp-DC to Ghent-Plant action allow source address name "Antwerp DC _ Routed lab" service group "svc Historian both ways (2)" destination address name "historian"
+    name "Historian both ways (2)"
+    priority manual 16
+    exit
+access-rule ipv4 from remote-users to Antwerp-DC action allow source address any service group "tcp-udp/53" destination address group "dst Remote users to DC"
+    name "Remote users to DC"
+    priority manual 17
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Ghent-Plant action allow source address any service name "tcp/502" destination address name "Ghent Plant _ LAN"
+    name "Modbus to the plant"
+    priority manual 18
+    exit
+access-rule ipv4 from Brussels-HQ to Ghent-Plant action allow source address group "src Modbus to the plant (2)" service name "tcp/502" destination address name "Ghent Plant _ LAN"
+    name "Modbus to the plant (2)"
+    priority manual 19
+    exit
+access-rule ipv4 from Antwerp-DC to Ghent-Plant action allow source address group "src Modbus to the plant (2)" service name "tcp/502" destination address name "Ghent Plant _ LAN"
+    name "Modbus to the plant (2) 2"
+    priority manual 20
+    exit
+access-rule ipv4 from Ghent-Plant to Ghent-Plant action allow source address group "src Modbus to the plant (2)" service name "tcp/502" destination address name "Ghent Plant _ LAN"
+    name "Modbus to the plant (2) 3"
+    priority manual 21
+    exit
+access-rule ipv4 from Leuven-Lab to Ghent-Plant action allow source address group "src Modbus to the plant (2)" service name "tcp/502" destination address name "Ghent Plant _ LAN"
+    name "Modbus to the plant (2) 4"
+    priority manual 22
+    exit
+access-rule ipv4 from remote-users to Ghent-Plant action allow source address group "src Modbus to the plant (2)" service name "tcp/502" destination address name "Ghent Plant _ LAN"
+    name "Modbus to the plant (2) 5"
+    priority manual 23
+    exit
+access-rule ipv4 from Ghent-Plant to Ghent-Plant action allow source address name "historian" service name "tcp/502" destination address name "Ghent Plant _ LAN"
+    name "Modbus to the plant (3)"
+    priority manual 24
+    exit
+access-rule ipv4 from Brussels-HQ to Antwerp-DC action allow source address any service name "tcp/5432" destination address name "erp-db"
+    name "Finance to ERP"
+    priority manual 25
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Antwerp-DC action allow source address any service name "tcp/5432" destination address name "erp-db"
+    name "Finance to ERP 2"
+    priority manual 26
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Antwerp-DC action allow source address any service name "tcp/5432" destination address name "erp-db"
+    name "Finance to ERP 3"
+    priority manual 27
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Antwerp-DC action allow source address any service name "tcp/5432" destination address name "erp-db"
+    name "Finance to ERP 4"
+    priority manual 28
+    no enable
+    exit
+access-rule ipv4 from remote-users to Antwerp-DC action allow source address any service name "tcp/5432" destination address name "erp-db"
+    name "Finance to ERP 5"
+    priority manual 29
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Brussels-HQ action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH"
+    priority manual 30
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Antwerp-DC action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 2"
+    priority manual 31
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Ghent-Plant action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 3"
+    priority manual 32
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Leuven-Lab action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 4"
+    priority manual 33
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to remote-users action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 5"
+    priority manual 34
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Brussels-HQ action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 6"
+    priority manual 35
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Antwerp-DC action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 7"
+    priority manual 36
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Ghent-Plant action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 8"
+    priority manual 37
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Leuven-Lab action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 9"
+    priority manual 38
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to remote-users action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 10"
+    priority manual 39
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Brussels-HQ action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 11"
+    priority manual 40
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Antwerp-DC action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 12"
+    priority manual 41
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Ghent-Plant action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 13"
+    priority manual 42
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Leuven-Lab action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 14"
+    priority manual 43
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to remote-users action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 15"
+    priority manual 44
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Brussels-HQ action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 16"
+    priority manual 45
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Antwerp-DC action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 17"
+    priority manual 46
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Ghent-Plant action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 18"
+    priority manual 47
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Leuven-Lab action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 19"
+    priority manual 48
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to remote-users action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 20"
+    priority manual 49
+    no enable
+    exit
+access-rule ipv4 from remote-users to Brussels-HQ action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 21"
+    priority manual 50
+    no enable
+    exit
+access-rule ipv4 from remote-users to Antwerp-DC action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 22"
+    priority manual 51
+    no enable
+    exit
+access-rule ipv4 from remote-users to Ghent-Plant action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 23"
+    priority manual 52
+    no enable
+    exit
+access-rule ipv4 from remote-users to Leuven-Lab action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 24"
+    priority manual 53
+    no enable
+    exit
+access-rule ipv4 from remote-users to remote-users action allow source address any service name "SSH 2" destination address name "n 10.20.0.0_24"
+    name "Prompt for SSH 25"
+    priority manual 54
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Brussels-HQ action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block"
+    priority manual 55
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Antwerp-DC action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 2"
+    priority manual 56
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Ghent-Plant action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 3"
+    priority manual 57
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Leuven-Lab action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 4"
+    priority manual 58
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to remote-users action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 5"
+    priority manual 59
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Brussels-HQ action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 6"
+    priority manual 60
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Antwerp-DC action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 7"
+    priority manual 61
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Ghent-Plant action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 8"
+    priority manual 62
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Leuven-Lab action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 9"
+    priority manual 63
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to remote-users action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 10"
+    priority manual 64
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Brussels-HQ action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 11"
+    priority manual 65
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Antwerp-DC action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 12"
+    priority manual 66
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Ghent-Plant action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 13"
+    priority manual 67
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Leuven-Lab action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 14"
+    priority manual 68
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to remote-users action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 15"
+    priority manual 69
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Brussels-HQ action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 16"
+    priority manual 70
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Antwerp-DC action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 17"
+    priority manual 71
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Ghent-Plant action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 18"
+    priority manual 72
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Leuven-Lab action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 19"
+    priority manual 73
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to remote-users action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 20"
+    priority manual 74
+    no enable
+    exit
+access-rule ipv4 from remote-users to Brussels-HQ action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 21"
+    priority manual 75
+    no enable
+    exit
+access-rule ipv4 from remote-users to Antwerp-DC action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 22"
+    priority manual 76
+    no enable
+    exit
+access-rule ipv4 from remote-users to Ghent-Plant action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 23"
+    priority manual 77
+    no enable
+    exit
+access-rule ipv4 from remote-users to Leuven-Lab action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 24"
+    priority manual 78
+    no enable
+    exit
+access-rule ipv4 from remote-users to remote-users action deny source address name "n 10.10.0.0_24" service any destination address name "h 10.30.0.5"
+    name "Old block 25"
+    priority manual 79
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Antwerp-DC action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Floating range"
+    priority manual 80
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Antwerp-DC action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Floating range 3"
+    priority manual 81
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Antwerp-DC action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Floating range 5"
+    priority manual 82
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Antwerp-DC action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Floating range 7"
+    priority manual 83
+    no enable
+    exit
+access-rule ipv4 from remote-users to Antwerp-DC action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Floating range 9"
+    priority manual 84
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Ghent-Plant action allow source address any service name "RDP" destination address any
+    name "Maintenance window"
+    priority manual 85
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Brussels-HQ action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites"
+    priority manual 86
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Antwerp-DC action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 3"
+    priority manual 87
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Ghent-Plant action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 5"
+    priority manual 88
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Leuven-Lab action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 7"
+    priority manual 89
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to remote-users action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 9"
+    priority manual 90
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Brussels-HQ action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 11"
+    priority manual 91
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Antwerp-DC action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 13"
+    priority manual 92
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Ghent-Plant action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 15"
+    priority manual 93
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Leuven-Lab action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 17"
+    priority manual 94
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to remote-users action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 19"
+    priority manual 95
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Brussels-HQ action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 21"
+    priority manual 96
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Antwerp-DC action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 23"
+    priority manual 97
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Ghent-Plant action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 25"
+    priority manual 98
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Leuven-Lab action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 27"
+    priority manual 99
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to remote-users action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 29"
+    priority manual 100
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Brussels-HQ action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 31"
+    priority manual 101
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Antwerp-DC action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 33"
+    priority manual 102
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Ghent-Plant action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 35"
+    priority manual 103
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Leuven-Lab action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 37"
+    priority manual 104
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to remote-users action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 39"
+    priority manual 105
+    no enable
+    exit
+access-rule ipv4 from remote-users to Brussels-HQ action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 41"
+    priority manual 106
+    no enable
+    exit
+access-rule ipv4 from remote-users to Antwerp-DC action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 43"
+    priority manual 107
+    no enable
+    exit
+access-rule ipv4 from remote-users to Ghent-Plant action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 45"
+    priority manual 108
+    no enable
+    exit
+access-rule ipv4 from remote-users to Leuven-Lab action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 47"
+    priority manual 109
+    no enable
+    exit
+access-rule ipv4 from remote-users to remote-users action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Teams between sites 49"
+    priority manual 110
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Brussels-HQ action allow source address any service name "tcp/9100" destination address name "host lab-printer"
+    name "Unknown host"
+    priority manual 111
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Antwerp-DC action allow source address any service name "tcp/9100" destination address name "host lab-printer"
+    name "Unknown host 2"
+    priority manual 112
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Ghent-Plant action allow source address any service name "tcp/9100" destination address name "host lab-printer"
+    name "Unknown host 3"
+    priority manual 113
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Leuven-Lab action allow source address any service name "tcp/9100" destination address name "host lab-printer"
+    name "Unknown host 4"
+    priority manual 114
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to remote-users action allow source address any service name "tcp/9100" destination address name "host lab-printer"
+    name "Unknown host 5"
+    priority manual 115
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Brussels-HQ action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS"
+    priority manual 116
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Antwerp-DC action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 2"
+    priority manual 117
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Ghent-Plant action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 3"
+    priority manual 118
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to Leuven-Lab action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 4"
+    priority manual 119
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to remote-users action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 5"
+    priority manual 120
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Brussels-HQ action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 6"
+    priority manual 121
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Antwerp-DC action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 7"
+    priority manual 122
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Ghent-Plant action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 8"
+    priority manual 123
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to Leuven-Lab action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 9"
+    priority manual 124
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to remote-users action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 10"
+    priority manual 125
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Brussels-HQ action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 11"
+    priority manual 126
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Antwerp-DC action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 12"
+    priority manual 127
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Ghent-Plant action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 13"
+    priority manual 128
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Leuven-Lab action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 14"
+    priority manual 129
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to remote-users action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 15"
+    priority manual 130
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Brussels-HQ action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 16"
+    priority manual 131
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Antwerp-DC action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 17"
+    priority manual 132
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Ghent-Plant action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 18"
+    priority manual 133
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to Leuven-Lab action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 19"
+    priority manual 134
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to remote-users action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 20"
+    priority manual 135
+    no enable
+    exit
+access-rule ipv4 from remote-users to Brussels-HQ action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 21"
+    priority manual 136
+    no enable
+    exit
+access-rule ipv4 from remote-users to Antwerp-DC action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 22"
+    priority manual 137
+    no enable
+    exit
+access-rule ipv4 from remote-users to Ghent-Plant action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 23"
+    priority manual 138
+    no enable
+    exit
+access-rule ipv4 from remote-users to Leuven-Lab action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 24"
+    priority manual 139
+    no enable
+    exit
+access-rule ipv4 from remote-users to remote-users action deny source address name "n 10.10.20.0_24" service any destination address any
+    name "Block guest except DNS 25"
+    priority manual 140
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to Brussels-HQ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block plant to remote users"
+    priority manual 141
+    exit
+access-rule ipv4 from Ghent-Plant to Antwerp-DC action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block plant to remote users 3"
+    priority manual 142
+    exit
+access-rule ipv4 from Ghent-Plant to Ghent-Plant action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block plant to remote users 5"
+    priority manual 143
+    exit
+access-rule ipv4 from Ghent-Plant to Leuven-Lab action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block plant to remote users 7"
+    priority manual 144
+    exit
+access-rule ipv4 from Ghent-Plant to remote-users action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block plant to remote users 9"
+    priority manual 145
+    exit
+access-rule ipv4 from Brussels-HQ to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block anonymizers"
+    priority manual 146
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block anonymizers 3"
+    priority manual 147
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block anonymizers 5"
+    priority manual 148
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block anonymizers 7"
+    priority manual 149
+    no enable
+    exit
+access-rule ipv4 from remote-users to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block anonymizers 9"
+    priority manual 150
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to internet action deny source address any service any destination address group "dst Block bad networks"
+    name "Block bad networks"
+    priority manual 151
+    exit
+access-rule ipv4 from Antwerp-DC to internet action deny source address any service any destination address group "dst Block bad networks"
+    name "Block bad networks 2"
+    priority manual 152
+    exit
+access-rule ipv4 from Ghent-Plant to internet action deny source address any service any destination address group "dst Block bad networks"
+    name "Block bad networks 3"
+    priority manual 153
+    exit
+access-rule ipv4 from Leuven-Lab to internet action deny source address any service any destination address group "dst Block bad networks"
+    name "Block bad networks 4"
+    priority manual 154
+    exit
+access-rule ipv4 from remote-users to internet action deny source address any service any destination address group "dst Block bad networks"
+    name "Block bad networks 5"
+    priority manual 155
+    exit
+access-rule ipv4 from Ghent-Plant to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Plant has no internet"
+    priority manual 156
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to internet action allow source address any service name "HTTPS 2" destination address any
+    name "HQ web"
+    priority manual 157
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Isolate unknown sites"
+    priority manual 158
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Isolate unknown sites 3"
+    priority manual 159
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Isolate unknown sites 5"
+    priority manual 160
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Isolate unknown sites 7"
+    priority manual 161
+    no enable
+    exit
+access-rule ipv4 from remote-users to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Isolate unknown sites 9"
+    priority manual 162
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to internet action allow source address name "Partner net" service name "FTP 2" destination address name "fqdn ftp.example.net"
+    name "Partner FTP"
+    priority manual 163
+    exit
+access-rule ipv4 from Antwerp-DC to internet action allow source address name "Partner net" service name "FTP 2" destination address name "fqdn ftp.example.net"
+    name "Partner FTP 2"
+    priority manual 164
+    exit
+access-rule ipv4 from Ghent-Plant to internet action allow source address name "Partner net" service name "FTP 2" destination address name "fqdn ftp.example.net"
+    name "Partner FTP 3"
+    priority manual 165
+    exit
+access-rule ipv4 from Leuven-Lab to internet action allow source address name "Partner net" service name "FTP 2" destination address name "fqdn ftp.example.net"
+    name "Partner FTP 4"
+    priority manual 166
+    exit
+access-rule ipv4 from remote-users to internet action allow source address name "Partner net" service name "FTP 2" destination address name "fqdn ftp.example.net"
+    name "Partner FTP 5"
+    priority manual 167
+    exit
+access-rule ipv4 from Brussels-HQ to internet action deny source address any service name "SMB" destination address any
+    name "Block remote users to SMB"
+    priority manual 168
+    no enable
+    exit
+access-rule ipv4 from Antwerp-DC to internet action deny source address any service name "SMB" destination address any
+    name "Block remote users to SMB 3"
+    priority manual 169
+    no enable
+    exit
+access-rule ipv4 from Ghent-Plant to internet action deny source address any service name "SMB" destination address any
+    name "Block remote users to SMB 5"
+    priority manual 170
+    no enable
+    exit
+access-rule ipv4 from Leuven-Lab to internet action deny source address any service name "SMB" destination address any
+    name "Block remote users to SMB 7"
+    priority manual 171
+    no enable
+    exit
+access-rule ipv4 from remote-users to internet action deny source address any service name "SMB" destination address any
+    name "Block remote users to SMB 9"
+    priority manual 172
+    no enable
+    exit
+access-rule ipv4 from Brussels-HQ to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Internet Firewall implicit allow"
+    priority manual 173
+    exit
+access-rule ipv4 from Antwerp-DC to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Internet Firewall implicit all 3"
+    priority manual 174
+    exit
+access-rule ipv4 from Ghent-Plant to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Internet Firewall implicit all 5"
+    priority manual 175
+    exit
+access-rule ipv4 from Leuven-Lab to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Internet Firewall implicit all 7"
+    priority manual 176
+    exit
+access-rule ipv4 from remote-users to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Internet Firewall implicit all 9"
+    priority manual 177
+    exit
+access-rule ipv4 from Antwerp-DC to Antwerp-DC action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Antwerp-DC to Antwerp-DC"
+    priority manual 178
+    exit
+access-rule ipv4 from Antwerp-DC to Brussels-HQ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Antwerp-DC to Brussels-H"
+    priority manual 179
+    exit
+access-rule ipv4 from Antwerp-DC to Ghent-Plant action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Antwerp-DC to Ghent-Plan"
+    priority manual 180
+    exit
+access-rule ipv4 from Antwerp-DC to Leuven-Lab action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Antwerp-DC to Leuven-Lab"
+    priority manual 181
+    exit
+access-rule ipv4 from Antwerp-DC to remote-users action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Antwerp-DC to remote-use"
+    priority manual 182
+    exit
+access-rule ipv4 from Brussels-HQ to Antwerp-DC action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Brussels-HQ to Antwerp-D"
+    priority manual 183
+    exit
+access-rule ipv4 from Brussels-HQ to Brussels-HQ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Brussels-HQ to Brussels-"
+    priority manual 184
+    exit
+access-rule ipv4 from Brussels-HQ to Ghent-Plant action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Brussels-HQ to Ghent-Pla"
+    priority manual 185
+    exit
+access-rule ipv4 from Brussels-HQ to Leuven-Lab action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Brussels-HQ to Leuven-La"
+    priority manual 186
+    exit
+access-rule ipv4 from Brussels-HQ to remote-users action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Brussels-HQ to remote-us"
+    priority manual 187
+    exit
+access-rule ipv4 from Leuven-Lab to Antwerp-DC action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Leuven-Lab to Antwerp-DC"
+    priority manual 188
+    exit
+access-rule ipv4 from Leuven-Lab to Brussels-HQ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Leuven-Lab to Brussels-H"
+    priority manual 189
+    exit
+access-rule ipv4 from Leuven-Lab to Ghent-Plant action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Leuven-Lab to Ghent-Plan"
+    priority manual 190
+    exit
+access-rule ipv4 from Leuven-Lab to Leuven-Lab action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Leuven-Lab to Leuven-Lab"
+    priority manual 191
+    exit
+access-rule ipv4 from Leuven-Lab to remote-users action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Leuven-Lab to remote-use"
+    priority manual 192
+    exit
+access-rule ipv4 from internet to Antwerp-DC action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to Antwerp-DC"
+    priority manual 193
+    exit
+access-rule ipv4 from internet to Brussels-HQ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to Brussels-HQ"
+    priority manual 194
+    exit
+access-rule ipv4 from internet to Ghent-Plant action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to Ghent-Plant"
+    priority manual 195
+    exit
+access-rule ipv4 from internet to Leuven-Lab action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to Leuven-Lab"
+    priority manual 196
+    exit
+access-rule ipv4 from internet to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to internet"
+    priority manual 197
+    exit
+access-rule ipv4 from internet to remote-users action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to remote-users"
+    priority manual 198
+    exit
+access-rule ipv4 from remote-users to Antwerp-DC action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT remote-users to Antwerp-"
+    priority manual 199
+    exit
+access-rule ipv4 from remote-users to Brussels-HQ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT remote-users to Brussels"
+    priority manual 200
+    exit
+access-rule ipv4 from remote-users to Ghent-Plant action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT remote-users to Ghent-Pl"
+    priority manual 201
+    exit
+access-rule ipv4 from remote-users to Leuven-Lab action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT remote-users to Leuven-L"
+    priority manual 202
+    exit
+access-rule ipv4 from remote-users to remote-users action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT remote-users to remote-u"
+    priority manual 203
+    exit
+access-rule ipv6 from Ghent-Plant to Brussels-HQ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block OT to HQ 2"
+    exit
+access-rule ipv6 from Leuven-Lab to Brussels-HQ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block OT to HQ 4"
+    exit
+access-rule ipv6 from remote-users to Antwerp-DC action allow source address any service group "tcp-udp/53" destination address any
+    name "Remote users to DC 2"
+    no enable
+    exit
+access-rule ipv6 from Brussels-HQ to Antwerp-DC action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Floating range 2"
+    no enable
+    exit
+access-rule ipv6 from Antwerp-DC to Antwerp-DC action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Floating range 4"
+    no enable
+    exit
+access-rule ipv6 from Ghent-Plant to Antwerp-DC action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Floating range 6"
+    no enable
+    exit
+access-rule ipv6 from Leuven-Lab to Antwerp-DC action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Floating range 8"
+    no enable
+    exit
+access-rule ipv6 from remote-users to Antwerp-DC action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Floating range 10"
+    no enable
+    exit
+access-rule ipv6 from Antwerp-DC to Ghent-Plant action allow source address any service name "RDP" destination address any
+    name "Maintenance window 2"
+    no enable
+    exit
+access-rule ipv6 from Brussels-HQ to Brussels-HQ action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 2"
+    no enable
+    exit
+access-rule ipv6 from Brussels-HQ to Antwerp-DC action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 4"
+    no enable
+    exit
+access-rule ipv6 from Brussels-HQ to Ghent-Plant action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 6"
+    no enable
+    exit
+access-rule ipv6 from Brussels-HQ to Leuven-Lab action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 8"
+    no enable
+    exit
+access-rule ipv6 from Brussels-HQ to remote-users action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 10"
+    no enable
+    exit
+access-rule ipv6 from Antwerp-DC to Brussels-HQ action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 12"
+    no enable
+    exit
+access-rule ipv6 from Antwerp-DC to Antwerp-DC action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 14"
+    no enable
+    exit
+access-rule ipv6 from Antwerp-DC to Ghent-Plant action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 16"
+    no enable
+    exit
+access-rule ipv6 from Antwerp-DC to Leuven-Lab action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 18"
+    no enable
+    exit
+access-rule ipv6 from Antwerp-DC to remote-users action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 20"
+    no enable
+    exit
+access-rule ipv6 from Ghent-Plant to Brussels-HQ action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 22"
+    no enable
+    exit
+access-rule ipv6 from Ghent-Plant to Antwerp-DC action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 24"
+    no enable
+    exit
+access-rule ipv6 from Ghent-Plant to Ghent-Plant action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 26"
+    no enable
+    exit
+access-rule ipv6 from Ghent-Plant to Leuven-Lab action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 28"
+    no enable
+    exit
+access-rule ipv6 from Ghent-Plant to remote-users action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 30"
+    no enable
+    exit
+access-rule ipv6 from Leuven-Lab to Brussels-HQ action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 32"
+    no enable
+    exit
+access-rule ipv6 from Leuven-Lab to Antwerp-DC action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 34"
+    no enable
+    exit
+access-rule ipv6 from Leuven-Lab to Ghent-Plant action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 36"
+    no enable
+    exit
+access-rule ipv6 from Leuven-Lab to Leuven-Lab action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 38"
+    no enable
+    exit
+access-rule ipv6 from Leuven-Lab to remote-users action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 40"
+    no enable
+    exit
+access-rule ipv6 from remote-users to Brussels-HQ action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 42"
+    no enable
+    exit
+access-rule ipv6 from remote-users to Antwerp-DC action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 44"
+    no enable
+    exit
+access-rule ipv6 from remote-users to Ghent-Plant action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 46"
+    no enable
+    exit
+access-rule ipv6 from remote-users to Leuven-Lab action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 48"
+    no enable
+    exit
+access-rule ipv6 from remote-users to remote-users action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Teams between sites 50"
+    no enable
+    exit
+access-rule ipv6 from Ghent-Plant to Brussels-HQ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block plant to remote users 2"
+    exit
+access-rule ipv6 from Ghent-Plant to Antwerp-DC action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block plant to remote users 4"
+    exit
+access-rule ipv6 from Ghent-Plant to Ghent-Plant action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block plant to remote users 6"
+    exit
+access-rule ipv6 from Ghent-Plant to Leuven-Lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block plant to remote users 8"
+    exit
+access-rule ipv6 from Ghent-Plant to remote-users action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block plant to remote users 10"
+    exit
+access-rule ipv6 from Brussels-HQ to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block anonymizers 2"
+    no enable
+    exit
+access-rule ipv6 from Antwerp-DC to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block anonymizers 4"
+    no enable
+    exit
+access-rule ipv6 from Ghent-Plant to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block anonymizers 6"
+    no enable
+    exit
+access-rule ipv6 from Leuven-Lab to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block anonymizers 8"
+    no enable
+    exit
+access-rule ipv6 from remote-users to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block anonymizers 10"
+    no enable
+    exit
+access-rule ipv6 from Ghent-Plant to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Plant has no internet 2"
+    no enable
+    exit
+access-rule ipv6 from Brussels-HQ to internet action allow source address any service name "HTTPS 2" destination address any
+    name "HQ web 2"
+    no enable
+    exit
+access-rule ipv6 from Brussels-HQ to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Isolate unknown sites 2"
+    no enable
+    exit
+access-rule ipv6 from Antwerp-DC to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Isolate unknown sites 4"
+    no enable
+    exit
+access-rule ipv6 from Ghent-Plant to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Isolate unknown sites 6"
+    no enable
+    exit
+access-rule ipv6 from Leuven-Lab to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Isolate unknown sites 8"
+    no enable
+    exit
+access-rule ipv6 from remote-users to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Isolate unknown sites 10"
+    no enable
+    exit
+access-rule ipv6 from Brussels-HQ to internet action deny source address any service name "SMB" destination address any
+    name "Block remote users to SMB 2"
+    no enable
+    exit
+access-rule ipv6 from Antwerp-DC to internet action deny source address any service name "SMB" destination address any
+    name "Block remote users to SMB 4"
+    no enable
+    exit
+access-rule ipv6 from Ghent-Plant to internet action deny source address any service name "SMB" destination address any
+    name "Block remote users to SMB 6"
+    no enable
+    exit
+access-rule ipv6 from Leuven-Lab to internet action deny source address any service name "SMB" destination address any
+    name "Block remote users to SMB 8"
+    no enable
+    exit
+access-rule ipv6 from remote-users to internet action deny source address any service name "SMB" destination address any
+    name "Block remote users to SMB 10"
+    no enable
+    exit
+access-rule ipv6 from Brussels-HQ to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Internet Firewall implicit all 2"
+    exit
+access-rule ipv6 from Antwerp-DC to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Internet Firewall implicit all 4"
+    exit
+access-rule ipv6 from Ghent-Plant to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Internet Firewall implicit all 6"
+    exit
+access-rule ipv6 from Leuven-Lab to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Internet Firewall implicit all 8"
+    exit
+access-rule ipv6 from remote-users to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Internet Firewall implicit al 10"
+    exit
+access-rule ipv6 from Antwerp-DC to Antwerp-DC action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Antwerp-DC to Antwerp- 2"
+    exit
+access-rule ipv6 from Antwerp-DC to Brussels-HQ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Antwerp-DC to Brussels 2"
+    exit
+access-rule ipv6 from Antwerp-DC to Ghent-Plant action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Antwerp-DC to Ghent-Pl 2"
+    exit
+access-rule ipv6 from Antwerp-DC to Leuven-Lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Antwerp-DC to Leuven-L 2"
+    exit
+access-rule ipv6 from Antwerp-DC to remote-users action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Antwerp-DC to remote-u 2"
+    exit
+access-rule ipv6 from Brussels-HQ to Antwerp-DC action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Brussels-HQ to Antwerp 2"
+    exit
+access-rule ipv6 from Brussels-HQ to Brussels-HQ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Brussels-HQ to Brussel 2"
+    exit
+access-rule ipv6 from Brussels-HQ to Ghent-Plant action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Brussels-HQ to Ghent-P 2"
+    exit
+access-rule ipv6 from Brussels-HQ to Leuven-Lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Brussels-HQ to Leuven- 2"
+    exit
+access-rule ipv6 from Brussels-HQ to remote-users action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Brussels-HQ to remote- 2"
+    exit
+access-rule ipv6 from Leuven-Lab to Antwerp-DC action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Leuven-Lab to Antwerp- 2"
+    exit
+access-rule ipv6 from Leuven-Lab to Brussels-HQ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Leuven-Lab to Brussels 2"
+    exit
+access-rule ipv6 from Leuven-Lab to Ghent-Plant action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Leuven-Lab to Ghent-Pl 2"
+    exit
+access-rule ipv6 from Leuven-Lab to Leuven-Lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Leuven-Lab to Leuven-L 2"
+    exit
+access-rule ipv6 from Leuven-Lab to remote-users action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Leuven-Lab to remote-u 2"
+    exit
+access-rule ipv6 from internet to Antwerp-DC action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to Antwerp-DC v"
+    exit
+access-rule ipv6 from internet to Brussels-HQ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to Brussels-H 2"
+    exit
+access-rule ipv6 from internet to Ghent-Plant action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to Ghent-Plan 2"
+    exit
+access-rule ipv6 from internet to Leuven-Lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to Leuven-Lab v"
+    exit
+access-rule ipv6 from internet to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to internet v6"
+    exit
+access-rule ipv6 from internet to remote-users action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to remote-use 2"
+    exit
+access-rule ipv6 from remote-users to Antwerp-DC action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT remote-users to Antwer 2"
+    exit
+access-rule ipv6 from remote-users to Brussels-HQ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT remote-users to Brusse 2"
+    exit
+access-rule ipv6 from remote-users to Ghent-Plant action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT remote-users to Ghent- 2"
+    exit
+access-rule ipv6 from remote-users to Leuven-Lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT remote-users to Leuven 2"
+    exit
+access-rule ipv6 from remote-users to remote-users action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT remote-users to remote 2"
+    exit
+commit
+exit

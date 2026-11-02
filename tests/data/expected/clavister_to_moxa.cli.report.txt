@@ -1,0 +1,116 @@
+FWShift conversion report
+  source: clavister
+  target: moxa
+
+Summary
+  Security rules:     25   exact 1, approximated 0, needs review 23 (23 emitted disabled), skipped 1
+  NAT rules:          12   exact 0, approximated 0, needs review 0, skipped 12
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] MOXA_INTRAZONE_NOT_BLOCKED: the source blocks traffic inside these zones that no rule matches; traffic inside one interface does not pass the router's policies: lan
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [needs-review] MOXA_ZONES: zones that are not interfaces of the router (lan, wan1, wan2); their rules are written disabled: give --zone-map ZONE=lan|wan1|wan2 for wan, dmz, guest
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] MOXA_LOG_NOT_WRITTEN: rules of the source log; the CLI manual FWShift read shows no logging of a policy: set it in the web console for the policies of 1 rules: DropAll
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled  (emitted as firewall 1)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  needs-review, emitted disabled  (emitted as firewall 2)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+      [needs-review] MOXA_ZONE: zones wan, dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  block_bad_mail+sat_mail  ->  needs-review, emitted disabled  (emitted as firewall 3)
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [needs-review] MOXA_ZONE: zones wan, dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [approximated] MOXA_RESET_AS_DROP: action reset-client written as drop, which answers nobody
+  nat_mail+sat_mail  ->  needs-review, emitted disabled  (emitted as firewall 4)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [needs-review] MOXA_ZONE: zones guest, dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  allow_mail+sat_mail  ->  needs-review, emitted disabled  (emitted as firewall 5)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [needs-review] MOXA_ZONE: zones wan, dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  allow_pool+sat_pool  ->  needs-review, emitted disabled  (emitted as firewall 6)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+      [needs-review] MOXA_ZONE: zones wan, dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  to_guest/guest_dns  ->  needs-review, emitted disabled  (emitted as firewall 7)
+      [needs-review] MOXA_ZONE: zones guest, wan: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  to_guest/guest_web  ->  needs-review, emitted disabled  (emitted as firewall 8)
+      [needs-review] MOXA_ZONE: zones guest, wan: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  to_guest/guest_never  ->  needs-review, emitted disabled  (emitted as firewall 9)
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+      [needs-review] MOXA_ZONE: zones guest, dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  admin_mgmt  ->  needs-review, emitted disabled  (emitted as firewall 10)
+      [needs-review] MOXA_ZONE: zones dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  lan_dns  ->  needs-review, emitted disabled  (emitted as firewall 11)
+      [needs-review] MOXA_ZONE: zones wan: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  lan_web  ->  needs-review, emitted disabled  (emitted as firewall 12)
+      [needs-review] MOXA_ZONE: zones wan: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  lan_updates  ->  needs-review, emitted disabled  (emitted as firewall 13)
+      [needs-review] MOXA_ZONE: zones wan: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: a policy names IPv4 addresses only.
+  lan_to_dmz  ->  needs-review, emitted disabled  (emitted as firewall 14)
+      [needs-review] MOXA_ZONE: zones dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  syslog_fast  ->  needs-review, emitted disabled  (emitted as firewall 15)
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+      [needs-review] MOXA_ZONE: zones dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  gre_tunnel  ->  needs-review, emitted disabled  (emitted as firewall 16)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+      [needs-review] MOXA_ZONE: zones dmz, wan: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP.
+  old_rule  ->  needs-review, emitted disabled  (emitted as firewall 17)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+      [needs-review] MOXA_ZONE: zones wan, dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  lan6_web  ->  needs-review, emitted disabled  (emitted as firewall 18)
+      [needs-review] MOXA_ZONE: zones dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  lan6_ping  ->  needs-review, emitted disabled  (emitted as firewall 19)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match.
+  pol_dmz_https  ->  needs-review, emitted disabled  (emitted as firewall 20)
+      [needs-review] MOXA_ZONE: zones wan, dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  pol_dmz_out  ->  needs-review, emitted disabled  (emitted as firewall 21)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+      [needs-review] MOXA_ZONE: zones dmz, wan: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  pol_block_ftp  ->  needs-review, emitted disabled  (emitted as firewall 22)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+      [needs-review] MOXA_ZONE: zones dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [approximated] MOXA_RESET_AS_DROP: action reset-client written as drop, which answers nobody
+  DropAll6  ->  needs-review, emitted disabled  (emitted as firewall 24)
+      [needs-review] NOT_WRITTEN: the rule matches no IPv4 address: the router's policies are IPv4. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  allow_web+sat_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  nat_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  allow_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  to_guest/guest_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  to_guest/guest_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  lan_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  lan_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  lan_updates  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  pol_dmz_https  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  pol_dmz_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  sat_unused  ->  skipped
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [info] MOXA_NAT_DISABLED: disabled in the source: not written

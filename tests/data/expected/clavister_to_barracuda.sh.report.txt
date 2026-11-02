@@ -1,0 +1,127 @@
+FWShift conversion report
+  source: clavister
+  target: barracuda
+
+Summary
+  Security rules:     25   exact 5, approximated 8, needs review 4 (4 emitted disabled), skipped 8
+  NAT rules:          12   exact 0, approximated 0, needs review 0, skipped 12
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 11, approximated 0, needs review 2, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: lan=192.168.10.0/24,2001:db8:10::/64; dmz=172.16.20.0/24,172.16.0.0/16; wan=203.0.113.0/24; guest=10.30.0.0/24. --no-source-networks takes none of them
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
+  block_bad_mail+sat_mail  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written without the networks given for the other zones with --zone-network
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
+  nat_mail+sat_mail  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] ZONE_BY_NETWORKS: the source in zone lan, guest is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
+  allow_mail+sat_mail  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
+  allow_pool+sat_pool  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+      [approximated] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
+  to_guest/guest_dns  ->  approximated  (emitted as to_guest_guest_dns)
+      [approximated] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+  to_guest/guest_web  ->  approximated  (emitted as to_guest_guest_web)
+      [approximated] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+  to_guest/guest_never  ->  exact  (emitted as to_guest_guest_never)
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+  lan_dns  ->  approximated
+      [approximated] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+  lan_web  ->  approximated
+      [approximated] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+  lan_updates  ->  needs-review, emitted disabled
+      [approximated] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'updates': a host name: how the API spells a hostname object is not known.
+  syslog_fast  ->  approximated
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+  gre_tunnel  ->  needs-review, emitted disabled
+      [approximated] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  old_rule  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+      [approximated] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+  lan6_web  ->  skipped
+      [approximated] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
+  lan6_ping  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'echo6': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+  pol_dmz_https  ->  skipped
+      [approximated] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
+  pol_dmz_out  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+      [approximated] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+  pol_block_ftp  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  allow_web+sat_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  nat_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  allow_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  to_guest/guest_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  to_guest/guest_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  lan_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  lan_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  lan_updates  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  pol_dmz_https  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  pol_dmz_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  sat_unused  ->  skipped
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+
+Addresses
+  admin_hosts#1  ->  exact  (emitted as admin_hosts_1)
+      [info] RENAMED: renamed to 'admin_hosts_1' to fit the target's naming rules
+  admin_hosts#2  ->  exact  (emitted as admin_hosts_2)
+      [info] RENAMED: renamed to 'admin_hosts_2' to fit the target's naming rules
+  admin_hosts#3  ->  exact  (emitted as admin_hosts_3)
+      [info] RENAMED: renamed to 'admin_hosts_3' to fit the target's naming rules
+
+Services
+  echo-only  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
+  echo6  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated

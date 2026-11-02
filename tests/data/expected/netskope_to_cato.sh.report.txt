@@ -1,0 +1,53 @@
+FWShift conversion report
+  source: netskope
+  target: cato
+
+Summary
+  Security rules:     16   exact 11, approximated 1, needs review 3 (3 emitted disabled), skipped 1
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] CATO_INTERNET_DEFAULT: the source blocks what no rule matches; the Internet Firewall allows it (implicit any-any allow). A last rule that blocks the rest to the internet is written switched off: with it on, everything to the internet that no rule above it allows is blocked, also what existing rules below the position do not block
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: client, ipsec, gre
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): client, ipsec, gre
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  [info] CATO_INTERNET_BY_ROUTE: no --inside-zone: the zones behind the default route (or named internet) are the internet, the others sites: internet
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  Branch mail to partner  ->  exact  (emitted as fws-Branch mail to partner)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Voice from sites  ->  approximated  (emitted as fws-Voice from sites)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  Admins to jump hosts [app-ssh-jump]  ->  exact  (emitted as fws-Admins to jump hosts _app-ssh-jump_)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Admins to jump hosts [app-rdp-gw]  ->  exact  (emitted as fws-Admins to jump hosts _app-rdp-gw_)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Engineering to git  ->  needs-review, emitted disabled  (emitted as fws-Engineering to git)
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+  Block BitTorrent  ->  needs-review, emitted disabled  (emitted as fws-Block BitTorrent)
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Old FTP exception  ->  exact  (emitted as fws-Old FTP exception)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  SaaS files from the office  ->  skipped
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [needs-review] CATO_NOT_WRITTEN: not written: 'dp-saas-domains' holds members whose addresses are not known
+  Contractors: nothing else  ->  needs-review, emitted disabled  (emitted as fws-Contractors: nothing else)
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Lab network out  ->  exact  (emitted as fws-Lab network out)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)

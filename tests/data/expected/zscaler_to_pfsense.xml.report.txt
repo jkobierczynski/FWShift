@@ -1,0 +1,151 @@
+FWShift conversion report
+  source: zscaler
+  target: pfsense
+
+Summary
+  Security rules:     17   exact 0, approximated 0, needs review 17 (17 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZSCALER_OUTBOUND_ONLY: ZIA filters traffic to the internet only: traffic between locations, inside one and from the internet does not pass it, and the model blocks it (no rule allows it). A target that sees such traffic needs rules for it
+  [needs-review] ZSCALER_FIREWALL_OFF: locations whose firewall is off (ofwEnabled false): the rules do not decide their traffic on ZIA, the model applies them anyway: Guest-WiFi
+  [needs-review] ZSCALER_RANK: admin ranks out of the rule order: read in the rule order: Ranked web (rank 3 below rank 7)
+  [needs-review] PFSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of a pfSense configuration. Under Diagnostics > Backup & Restore, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every rule, every alias, every NAT rule that is there now is gone, with the separators, the rules pfSense linked to port forwards and the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. Keep a backup, and look at the rules before anything depends on them: pfSense does not check what it restores, and a rule it cannot resolve is not loaded. Written for pfSense 2.7 and later
+  [info] ZSCALER_SOURCE: 4 locations (HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi), road-warrior (Client Connector outside a location) and internet; the rules decide traffic from the locations to the internet, first match in ascending order, and the default rule decides the rest
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: HQ-Servers=10.10.20.0/24. --no-source-networks takes none of them
+
+Security rules
+  Allow DNS to resolvers  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_SUBLOCATION: location HQ-Brussels has sub-locations (HQ-Servers): read as the location without them, which may be narrower than ZIA
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Block SSH out  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'HQ-Servers' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Guest-WiFi' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'road-warrior' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block malicious IPs and domains  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_CATEGORY: destination IP categories BOTNET, MALWARE_SITE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination IP categories BOTNET, MALWARE_SITE. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'HQ-Servers' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Guest-WiFi' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'road-warrior' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Office 365 One Click Rule  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_APPLICATION: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'HQ-Servers' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Guest-WiFi' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'road-warrior' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Partner app  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'HQ-Servers' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Branch web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work hours' is not converted; the rule would apply at all times.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Engineers to SaaS  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_FQDN: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold
+      [needs-review] ZSCALER_IDENTITY: groups Engineering: narrows the match and is not modelled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups Engineering.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'SaaS_Domains': a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'HQ-Servers' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Guest-WiFi' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'road-warrior' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  No embargoed countries  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_COUNTRY: destination countries COUNTRY_KP: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination countries COUNTRY_KP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'HQ-Servers' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Guest-WiFi' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'road-warrior' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Printers syslog  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'HQ-Servers' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Guest-WiFi' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'road-warrior' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Infra out  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'HQ-Servers' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Guest-WiFi' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'road-warrior' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Block GRE and ESP  ->  needs-review, emitted disabled
+      [info] ZSCALER_BLOCK_ICMP: BLOCK_ICMP drops and answers with an ICMP unreachable: read as deny
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'HQ-Servers' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Guest-WiFi' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'road-warrior' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Evaluate apps  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_EVAL_NWAPP: action EVAL_NWAPP hands the decision to the network application of the traffic: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action EVAL_NWAPP: the decision waits for the network application, which is not modelled. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'HQ-Servers' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Guest-WiFi' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'road-warrior' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Ranked web  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_FQDN: destination files.example.org: ZIA matches a domain by the names it sees in the traffic; not modelled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination FQDN files.example.org.
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'HQ-Servers' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Guest-WiFi' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'road-warrior' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Ghent and corporate  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_LOCATION_GROUP: the rule names locations and location groups: whether ZIA takes either or both is not documented
+      [needs-review] UNSUPPORTED_MATCH: not converted: both locations and location groups: how ZIA combines them is not known.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Web for all  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'HQ-Servers' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Guest-WiFi' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'road-warrior' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Guest ICMP  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'Guest-WiFi' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Default Firewall Filtering Rule  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'HQ-Brussels' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Branch-Ghent' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'HQ-Servers' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Guest-WiFi' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'road-warrior' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+Address groups
+  Engineering-Nets  ->  exact  (emitted as Engineering_Nets)
+      [info] RENAMED: renamed to 'Engineering_Nets' to fit the target's naming rules
+  Eng-v6  ->  exact  (emitted as Eng_v6)
+      [info] RENAMED: renamed to 'Eng_v6' to fit the target's naming rules
+  Partner-Servers  ->  exact  (emitted as Partner_Servers)
+      [info] RENAMED: renamed to 'Partner_Servers' to fit the target's naming rules
+  SaaS-Domains  ->  exact  (emitted as SaaS_Domains)
+      [info] RENAMED: renamed to 'SaaS_Domains' to fit the target's naming rules
+  Partner-v6  ->  exact  (emitted as Partner_v6)
+      [info] RENAMED: renamed to 'Partner_v6' to fit the target's naming rules

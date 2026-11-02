@@ -1,0 +1,107 @@
+FWShift conversion report
+  source: lancom-uf (desktop)
+  target: moxa
+
+Summary
+  Security rules:     25   exact 0, approximated 0, needs review 24 (24 emitted disabled), skipped 1
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          11   exact 11, approximated 0, needs review 0, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OBJECTS_MISSING: objects and services the connections name are not in the input, and the rules that name them are not used: '0e5f1a2b-0000-4000-8000-000000000999'. Save the answers of every collection (section 3)
+  [needs-review] CONNECTION_KEYS_NOT_READ: desktop connections hold keys the parser does not know: 'nat'. They are kept with the rules as how they handle traffic, and not converted; if one of them narrows what a connection lets through, the converted rules allow more
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [needs-review] MOXA_ZONES: zones that are not interfaces of the router (lan, wan1, wan2); their rules are written disabled: give --zone-map ZONE=lan|wan1|wan2 for eth1, WAN, eth2, eth3
+  [info] LANCOM_UF_FORMAT: read 14 desktop connections, 15 desktop objects and 13 services from the answers of the REST API. LANCOM publishes the keys of that API only by the examples of its LMC add-ins (networks, desktop connections, user-defined services); the keys of hosts, IP ranges, groups, Internet objects and of a rule other than those are assumed, and an object, service or rule with a key the parser does not know is not used. The desktop only allows: what no connection allows is blocked
+  [info] VPN_USER_OBJECTS: VPN and user objects are not read: the rules of connections to and from them are not used
+  [info] MASQUERADING_READ: masquerading set on services was read as NAT rules to the address of the outgoing interface. A NAT source address other than that, the NAT of a connection and DMZ (port forwarding) are not read
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  LAN to Internet - internet.http  ->  needs-review, emitted disabled  (emitted as firewall 1)
+      [needs-review] MOXA_ZONE: zones eth1, WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  LAN to Internet - internet.https  ->  needs-review, emitted disabled  (emitted as firewall 2)
+      [needs-review] MOXA_ZONE: zones eth1, WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  LAN to Internet - standard.dns  ->  needs-review, emitted disabled  (emitted as firewall 3)
+      [needs-review] MOXA_ZONE: zones eth1, WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  LAN to Internet - standard.ping  ->  needs-review, emitted disabled  (emitted as firewall 4)
+      [needs-review] MOXA_ZONE: zones eth1, WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Internet to Webserver - internet.https  ->  needs-review, emitted disabled  (emitted as firewall 5)
+      [needs-review] DMZ_NOT_READ: DMZ / port forwarding is set for the service; its keys are not known and the translation is not read: the rule allows the connections that reach the host by its own address, not those forwarded to it
+      [needs-review] MOXA_ZONE: zones WAN, eth2: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Admin-PCs to Servers - standard.ssh  ->  needs-review, emitted disabled  (emitted as firewall 6)
+      [needs-review] MOXA_ZONE: zones eth1, eth2: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Admin-PCs to Servers - remote.rdp  ->  needs-review, emitted disabled  (emitted as firewall 7)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+      [needs-review] MOXA_ZONE: zones eth1, eth2: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Servers to Admin-PCs - remote.rdp  ->  needs-review, emitted disabled  (emitted as firewall 8)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+      [needs-review] MOXA_ZONE: zones eth2, eth1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth1 to eth3)  ->  needs-review, emitted disabled  (emitted as firewall 9)
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+      [needs-review] MOXA_ZONE: zones eth1, eth3: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth3 to eth3)  ->  needs-review, emitted disabled  (emitted as firewall 10)
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+      [needs-review] MOXA_ZONE: zones eth3: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  HMI to OT-Cell - OPC-UA  ->  needs-review, emitted disabled  (emitted as firewall 11)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+      [needs-review] MOXA_ZONE: zones eth3: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  OT-Cell to HMI - OPC-UA  ->  needs-review, emitted disabled  (emitted as firewall 12)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+      [needs-review] MOXA_ZONE: zones eth3: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Monitoring to OT-Cell - standard.ping  ->  needs-review, emitted disabled  (emitted as firewall 13)
+      [info] RULE_ALWAYS_OFF: the rule has no time range (Always Off): read as disabled
+      [needs-review] MOXA_ZONE: zones eth3: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  LAN to Mailserver - internet.smtp  ->  needs-review, emitted disabled  (emitted as firewall 14)
+      [needs-review] CONNECTION_NAT_NOT_READ: the rule takes the NAT settings of its connection, whose keys are not known: whether and how the connection translates is not read. Look at the NAT tab of the connection
+      [needs-review] MOXA_ZONE: zones eth1, eth2: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Branch Sites to LAN - remote.rdp  ->  needs-review, emitted disabled  (emitted as firewall 15)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'Branch Sites' is a VPN object, which is not converted.
+      [needs-review] MOXA_ZONE: zones eth1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  LAN to Lab-v6 - internet.http  ->  needs-review, emitted disabled  (emitted as firewall 16)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Lab-v6' cannot be read: attribute 'ipv6', which this parser does not read.
+      [needs-review] MOXA_ZONE: zones eth1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  DMZ to Internet - GRE-Tunnel  ->  needs-review, emitted disabled  (emitted as firewall 17)
+      [needs-review] MOXA_ZONE: zones eth2, WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP.
+  DMZ to Internet - Legacy-App  ->  needs-review, emitted disabled  (emitted as firewall 18)
+      [needs-review] UNSUPPORTED_MATCH: not converted: service 'Legacy-App' cannot be read: an entry with 'sourceport', which this parser does not read.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Legacy-App': an entry with 'sourceport', which this parser does not read.
+      [needs-review] MOXA_ZONE: zones eth2, WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  DMZ to Internet - standard.ssh  ->  needs-review, emitted disabled  (emitted as firewall 19)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action 'drop', which is not a direction (LANCOM documents no rule that blocks).
+      [needs-review] MOXA_ZONE: zones eth2, WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Internet to ? - internet.https  ->  needs-review, emitted disabled  (emitted as firewall 20)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object '0e5f1a2b-0000-4000-8000-000000000999' is not in the input.
+      [needs-review] MOXA_ZONE: zones WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  LAN to DMZ - Web  ->  needs-review, emitted disabled  (emitted as firewall 21)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+      [needs-review] MOXA_ZONE: zones eth1, eth2: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  DMZ to LAN - Web  ->  needs-review, emitted disabled  (emitted as firewall 22)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+      [needs-review] MOXA_ZONE: zones eth2, eth1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  DMZ to LAN - vpn.ipsec  ->  needs-review, emitted disabled  (emitted as firewall 23)
+      [needs-review] MOXA_ZONE: zones eth2, eth1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 50: a policy names all, TCP, UDP or ICMP.
+  Printer to DMZ - internet.http  ->  needs-review, emitted disabled  (emitted as firewall 24)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Printer' cannot be read: a host that names no interface.
+      [needs-review] MOXA_ZONE: zones eth2: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  LAN to Firewall - traffic to the firewall  ->  skipped
+      [info] FIREWALL_TRAFFIC: the connection is between a desktop object and the firewall itself: traffic to the firewall (its services, its administration) is not forwarded traffic and is not converted
+
+NAT rules
+  LAN to Internet - internet.http (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  LAN to Internet - internet.https (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  LAN to Internet - standard.dns (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  LAN to Internet - standard.ping (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  DMZ to Internet - GRE-Tunnel (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface

@@ -1,0 +1,88 @@
+FWShift conversion report
+  source: f5-afm
+  target: zscaler
+
+Summary
+  Security rules:     42   exact 16, approximated 5, needs review 16 (7 emitted disabled), skipped 5
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] ZSCALER_BLOCK_RULE: the source blocks what no rule matches. Rule fws-block the rest that does so follows the converted rules, disabled: until it is enabled, the rules of the tenant below it and its default rule decide that traffic
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_INSIDE: no --inside-zone: every zone was taken as a location of ZIA, and every rule as one to the internet; ZIA does not filter traffic between locations or from the internet. Name the zones inside with --inside-zone
+  [needs-review] ZSCALER_LOST: ZIA filters traffic from locations to the internet only: 9 rules for traffic from the internet and 0 for traffic between or inside zones inside are not written, or only in part. That traffic needs a firewall of its own at the sites
+  [needs-review] ZSCALER_LOCATIONS_REQUIRED: rules name these locations, which must exist on the tenant under these names: dmz, external, internal
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+
+Security rules
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_dns  ->  approximated  (emitted as fws-global_admins_continue_rd0_)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound  ->  approximated  (emitted as fws-global_admins_continue_rd_2)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  global/admins_continue>rd0/outbound/allow_web_out@vs_outbound  ->  approximated  (emitted as fws-global_admins_continue_rd_3)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  global/admins_continue>rd0/dmz_no_inside  ->  needs-review  (emitted as fws-global_admins_continue_rd_4)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  global/admins_continue>vs_web6/web_in  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  global/admins_continue>vs_web6/(default)  ->  skipped
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  global/admins_continue>vs_web/web_in  ->  approximated  (emitted as fws-global_admins_continue_vs_w)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  global/admins_continue>vs_web/(default)  ->  needs-review  (emitted as fws-global_admins_continue_vs_2)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  global/admins_continue>vs_web_http/(refused)  ->  needs-review  (emitted as fws-global_admins_continue_vs_3)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  global/admins_continue>vs_dns/(default)  ->  needs-review  (emitted as fws-global_admins_continue_vs_d)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  global/admins_continue>vs_old_app/(refused)  ->  needs-review  (emitted as fws-global_admins_continue_vs_o)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  global/admins_continue>vs_inbound_dmz/(default)  ->  needs-review  (emitted as fws-global_admins_continue_vs_i)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  global/admins_continue>vs_outbound/(default)  ->  needs-review  (emitted as fws-global_admins_continue_vs_4)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  global/ping_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as fws-global_ping_in_vs_outbound)
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type: a network service of ZIA holds TCP and UDP ports, and the predefined ICMP_ANY, GRE_PROTOCOL and ESP_PROTOCOL.
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled  (emitted as fws-global_office_ssh_vs_outbou)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled  (emitted as fws-global_partners_in_vs_web6)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_web  ->  needs-review, emitted disabled  (emitted as fws-global_partners_in_vs_web)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled  (emitted as fws-global_partners_in_vs_web_h)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled  (emitted as fws-global_partners_in_vs_inbou)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as fws-global_partners_in_vs_outbo)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+  global/inspect_irule>rd0/dmz_no_inside  ->  needs-review  (emitted as fws-global_inspect_irule_rd0_dm)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  rd0/outbound/allow_web_out@vs_outbound  ->  approximated  (emitted as fws-rd0_outbound_allow_web_out_)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  rd0/dmz_no_inside  ->  needs-review  (emitted as fws-rd0_dmz_no_inside)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  vs_web6/web_in  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  vs_web6/web6_in  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  vs_web6/(default)  ->  skipped
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written

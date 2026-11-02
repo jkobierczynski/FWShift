@@ -1,0 +1,100 @@
+FWShift conversion report
+  source: cato
+  target: scalance
+
+Summary
+  Security rules:     32   exact 9, approximated 1, needs review 1, skipped 21
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SCALANCE_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the device passes everything: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, internet
+  [needs-review] SCALANCE_LOAD: the output is CLI commands for the FIREWALL and FIREWALL NAT modes (section 10): 125 IP rules with priorities 1 to 8. The device processes rules by ascending priority: rules it has with a lower priority come first. Commands take effect as they are entered; nothing is deleted and nothing is saved
+  [needs-review] SCALANCE_ZONE_NAMES: zones that are not interfaces of the device (vlan N, ipsecALL, ipsec N, sinemarcall, ppp 0, usb 0) are written as they are, and the device refuses those rules: map them with --zone-map ZONE=vlanN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, internet
+  [needs-review] SCALANCE_IPV6: ipv6rule and ICMP services of IPv6 are written in the form of the IPv4 commands; no Siemens manual FWShift could read shows them: check them on the device
+  [info] CATO_SOURCE: 4 sites as zones (Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab), remote-users and internet; the WAN Firewall (first match, implicit block) decides between sites and remote users, the Internet Firewall (first match, implicit allow, written as a last rule) from them to the internet; traffic inside one network range does not reach Cato and is allowed
+  [info] CATO_INTERNET_TOP: a hidden rule of Cato above the Internet Firewall blocks connections Cato deems illegal or malicious; it is not in the answer and not converted
+  [info] CATO_INBOUND: traffic from the internet to the sites is decided by Remote Port Forwarding, which is not read: in the model nothing from the internet is allowed
+  [info] CATO_REMOVED: rules marked removed in the revision read: left out: Retired rule
+  [info] SCALANCE_DEFAULT_RULES: after the converted rules, rules that drop what no rule matches, as the source does, for every pair of the 6 zones written (priority 8); traffic inside one zone does not pass the IP firewall
+  [info] SCALANCE_RULE_COUNT: 125 IP rules: the S615 CLI manual of 2015 numbers rules 1 to 100; check how many the firmware takes
+  [info] LOGGING_CONVERTED: rules of the source log; their rules log at the level info
+
+Security rules
+  inside Brussels-HQ range 1  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  inside Brussels-HQ range 2  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  inside Antwerp-DC range 1  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  inside Antwerp-DC range 2  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  inside Ghent-Plant range 1  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  inside Leuven-Lab range 1  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  Allow HQ to DC servers  ->  approximated  (emitted as 4 IP rules, priority 1)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Allow HQ to DC servers (2)'
+  Allow HQ to DC servers (2)  ->  exact  (emitted as 8 IP rules, priority 1)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  Historian both ways  ->  exact  (emitted as 2 IP rules, priority 3)
+      [info] CATO_BOTH: direction BOTH: written as rules for each direction, the second set with source and destination swapped: 'Historian both ways (2)'
+  Remote users to DC  ->  exact  (emitted as 8 IP rules, priority 3)
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+  Modbus to the plant  ->  exact  (emitted as 1 IP rules, priority 4)
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Modbus to the plant (2)', 'Modbus to the plant (3)'
+  Modbus to the plant (2)  ->  exact  (emitted as 8 IP rules, priority 4)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  Modbus to the plant (3)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  Finance to ERP  ->  skipped
+      [needs-review] CATO_USERS: users or user groups narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups Finance.
+  Prompt for SSH  ->  skipped
+      [needs-review] CATO_ACTION: action PROMPT: not converted (read as allow)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: action PROMPT: the user is asked on a web page.
+  Old block  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  Floating range  ->  skipped
+      [needs-review] CATO_OBJECT: floating ranges, system groups or group members whose addresses are not known: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: floating ranges Cloud floating.
+  Maintenance window  ->  skipped
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] SCHEDULE: schedule 'SATURDAY,SUNDAY 22:00:00-23:59:00' is not converted; the rule would apply at all times.
+  Teams between sites  ->  skipped
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application column (applications, categories, domains or addresses as applications).
+  Unknown host  ->  skipped
+      [needs-review] CATO_UNRESOLVED: objects that are not in the lookups of the input: they match nothing until they are
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'host lab-printer': a host that is not in the lookups of the input.
+      [needs-review] ZONE_DYNAMIC: 'host lab-printer' holds members only its platform knows.
+  Block guest except DNS  ->  skipped
+      [needs-review] CATO_EXCEPTION: exceptions that cannot be cut out of the rule: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: exception dns from one host: source, service (only an exception of one column of addresses or services is cut out). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block plant to remote users  ->  needs-review  (emitted as 8 IP rules, priority 5)
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  Block anonymizers  ->  skipped
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [info] CATO_SYSTEM_RULE: a system rule of Cato, which cannot be changed or removed
+      [needs-review] UNSUPPORTED_MATCH: not converted: appCategory Anonymizers. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Plant has no internet  ->  skipped
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [needs-review] FQDN_NOT_SUPPORTED: host name object fqdn updates.example.com: a rule of the device names addresses only. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  HQ web  ->  skipped
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: domains example.org.
+  Isolate unknown sites  ->  skipped
+      [needs-review] CATO_ACTION: action RBI: not converted (read as allow)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action RBI: remote browser isolation.
+      [needs-review] UNSUPPORTED_MATCH: not converted: customCategory Uncategorized.
+  Partner FTP  ->  skipped
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] FQDN_NOT_SUPPORTED: host name object fqdn ftp.example.net: a rule of the device names addresses only.
+  Block remote users to SMB  ->  skipped
+      [needs-review] CATO_ORIGIN: connection origins that are not all sites or all remote users: not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: connection origins REMOTE_CLIENT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.

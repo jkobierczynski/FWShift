@@ -1,0 +1,45 @@
+FWShift conversion report
+  source: stormshield
+  target: clavister
+
+Summary
+  Security rules:     18   exact 8, approximated 0, needs review 8 (3 emitted disabled), skipped 2
+  Addresses:          22   exact 22, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  [needs-review] STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  [needs-review] STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  [needs-review] STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 0 rule sets it sends traffic to; 21 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: ethernet0, ethernet1, ethernet2, ethernet3, bridge0
+  [info] STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  [info] STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+
+Security rules
+  local 1  ->  needs-review  (emitted as fws_rules 2 (fws_local_1))
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+  local 2  ->  needs-review  (emitted as fws_rules 3 (fws_local_2))
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 4  ->  needs-review  (emitted as fws_rules 5 (fws_local_4))
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (inspection=ips); attach equivalent inspection on the target
+  local 6  ->  needs-review  (emitted as fws_rules 7 (fws_local_6))
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 10  ->  needs-review  (emitted as fws_rules 10 (fws_local_10))
+      [needs-review] STORMSHIELD_BRIDGE: names a bridge or a port of one: read as that interface only; whether the firewall matches the bridge for its ports, or the reverse, is not documented
+  local 11  ->  needs-review, emitted disabled  (emitted as fws_rules 11 (fws_local_11))
+      [needs-review] USER_MATCH: source user match staff@corp.example is not converted.
+  local 13  ->  needs-review, emitted disabled  (emitted as fws_rules 13 (fws_local_13), a placeholder, disabled)
+      [needs-review] CLAVISTER_FQDN: the destination holds the host name updates.example.com, which is not written.
+  local 15  ->  needs-review, emitted disabled  (emitted as fws_rules 15 (fws_local_15), a placeholder, disabled)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application protocol=http); attach equivalent inspection on the target
+      [needs-review] CLAVISTER_FQDN: the destination holds the host name www.example.org, which is not written.
+  global 2  ->  skipped
+      [info] STORMSHIELD_DELEG: deleg of everything: the rest goes to the local policy
+  local 7  ->  skipped
+      [info] STORMSHIELD_NON_TERMINAL: action decrypt: the firewall goes on to the next rule; nothing is decided here

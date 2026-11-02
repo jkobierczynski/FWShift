@@ -1,0 +1,72 @@
+FWShift conversion report
+  source: hillstone
+  target: lancom-uf
+
+Summary
+  Security rules:     14   exact 3, approximated 1, needs review 3 (1 emitted disabled), skipped 7
+  NAT rules:           9   exact 0, approximated 0, needs review 0, skipped 9
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_NAT_ORDER: DNAT is looked up before the route and the policy, SNAT after the route; the rules were read as naming the destination before DNAT and the zone after it, which is what Hillstone's troubleshooting guide shows (one of its configuration examples names the translated address instead): check the rules for translated traffic on the firewall
+  [needs-review] HILLSTONE_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with show service predefined: HTTP, HTTPS, SSH, PING, DNS
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): dmz, lab, trust, untrust
+  [info] HILLSTONE_SOURCE: 4 zones (trust, untrust, dmz, lab); 14 rules of the policy, first match in the order of the configuration (not by id)
+  [info] HILLSTONE_ANY: the address Any is read as every IPv4 address and IPv6-any as every IPv6 address
+  [info] HILLSTONE_REJECT: action reject: read as a deny that answers the client: lab-to-inside
+  [info] HILLSTONE_SCHEDULE: rules with a schedule: schedules are not converted, a target writes these rules disabled: app-clients: office-hours
+  [info] HILLSTONE_DEFAULTS: what no rule matches, between zones and inside a zone (default-action): deny
+
+Security rules
+  inside-ping  ->  skipped
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  block-country  ->  needs-review, emitted disabled
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-country': address entry blocked-country: country XX, which the configuration does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  lab-to-inside  ->  needs-review  (emitted as taken out of the rules below it)
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [info] ACTION_DROP: action reset-client: the firewall drops what it does not allow
+  inside-to-servers  ->  needs-review  (emitted as fws-10.10.0.0_25-trust > fws-web-srv: fws-svc-3, fws-10.10.0.0_25-trust > fws-mail-srv: fws-svc-3, fws-10.10.0.0_25-trust > fws-10.20.0.40_31-dmz: fws-svc-3, fws-10.10.0.128_26-trust > fws-web-srv: fws-svc-3, fws-10.10.0.128_26-trust > fws-mail-srv: fws-svc-3, fws-10.10.0.128_26-trust > fws-10.20.0.40_31-dmz: fws-svc-3, fws-10.10.0.192_29-trust > fws-web-srv: fws-svc-3, fws-10.10.0.192_29-trust > fws-mail-srv: fws-svc-3, fws-10.10.0.192_29-trust > fws-10.20.0.40_31-dmz: fws-svc-3, fws-10.10.0.210_31-trust > fws-web-srv: fws-svc-3, fws-10.10.0.210_31-trust > fws-mail-srv: fws-svc-3, fws-10.10.0.210_31-trust > fws-10.20.0.40_31-dmz: fws-svc-3, fws-10.10.0.212_30-trust > fws-web-srv: fws-svc-3, fws-10.10.0.212_30-trust > fws-mail-srv: fws-svc-3, fws-10.10.0.212_30-trust > fws-10.20.0.40_31-dmz: fws-svc-3, fws-10.10.0.216_29-trust > fws-web-srv: fws-svc-3, fws-10.10.0.216_29-trust > fws-mail-srv: fws-svc-3, fws-10.10.0.216_29-trust > fws-10.20.0.40_31-dmz: fws-svc-3, fws-10.10.0.224_27-trust > fws-web-srv: fws-svc-3, fws-10.10.0.224_27-trust > fws-mail-srv: fws-svc-3, fws-10.10.0.224_27-trust > fws-10.20.0.40_31-dmz: fws-svc-3)
+      [needs-review] HILLSTONE_DNAT_INSIDE: names servers, which holds an address that dnatrule 1, dnatrule 2, dnatrule 3 translate(s) to: read as the address a packet has before DNAT; if the firewall matches rules after DNAT, the rule also matches the connections translated to it
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  app-clients  ->  skipped
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times; the rule is not written
+      [needs-review] UNCONVERTIBLE_OBJECT: the destination 'files.example.org' holds a host name; a desktop object of the firewall names addresses; the rule is not written
+  p2p  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: application BitTorrent: application identification narrows the match; the rule is not written
+  v6-out  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  tunnels-to-partners  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: the destination 'partners' holds addresses that are not known; a desktop object of the firewall names addresses; the rule is not written
+  to-branch-vpn  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: action tunnel vpn-to-branch: traffic of a VPN tunnel only; the rule is not written
+  contractors-out  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'wild-hosts': address entry wild-hosts: wildcard address '10.10.0.5 0.0.255.0'; the rule is not written
+      [needs-review] USER_MATCH: source user match role contractors is not converted; the rule is not written
+  rule 13  ->  approximated  (emitted as fws-inside-net > fws-0.0.0.0_0-lab: fws-svc-4)
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+
+NAT rules
+  bnatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  dnatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  dnatrule 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  dnatrule 3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  dnatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  snatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  snatrule 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)
+  snatrule 3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  snatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)

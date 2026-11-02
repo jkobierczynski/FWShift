@@ -1,0 +1,85 @@
+add Address IP4Address fws_global_bad Address=192.0.2.128/25
+add Address IP4Address fws_admin_ws Address=10.10.0.50
+add Address IP4Address fws_10.10.0.60 Address=10.10.0.60
+add Address IP6Address fws_2001_db8_10__60 Address=2001:db8:10::60
+add Address IP4Address fws_Firewall_out Address=203.0.113.2
+add Address IP4Address fws_Firewall_in Address=10.10.0.254
+add Address IP4Address fws_Firewall_dmz1 Address=10.20.0.254
+add Address IP4Address fws_Firewall_lab Address=10.30.0.254
+add Address IP4Address fws_Firewall_labbridge Address=10.30.0.254
+add Service ServiceTCPUDP fws_ssh Type=TCP DestinationPorts=22
+add Service ServiceTCPUDP fws_https Type=TCP DestinationPorts=443
+add Address IP4Address fws_Network_in Address=10.10.0.0/24
+add Address IP4Address fws_Network_dmz1 Address=10.20.0.0/24
+add Address IP4Address fws_Network_lab Address=10.30.0.0/24
+add Address IP4Address fws_Network_labbridge Address=10.30.0.0/24
+add Service ServiceICMP fws__rule__ipproto-icmp MessageTypes=All
+add Address IP4Address fws_blocked Address=198.51.100.0/24
+add Address IP4Address fws_local_4_dst_not_1 Address=0.0.0.0-10.9.255.255
+add Address IP4Address fws_local_4_dst_not_2 Address=10.10.1.0-10.19.255.255
+add Address IP4Address fws_local_4_dst_not_3 Address=10.20.1.0-10.29.255.255
+add Address IP4Address fws_local_4_dst_not_4 Address=10.30.1.0-255.255.255.255
+add Service ServiceTCPUDP fws_web_ports_1 Type=TCP DestinationPorts=8080-8090
+add Service ServiceTCPUDP fws_web_ports_2 Type=TCP DestinationPorts=443
+add Service ServiceTCPUDP fws_web_ports_3 Type=TCP DestinationPorts=80
+add Address IP4Address fws_lan Address=10.10.0.0/24
+add Service ServiceTCPUDP fws__rule__dns_udp-udp Type=UDP DestinationPorts=53
+add Service ServiceTCPUDP fws_ident Type=TCP DestinationPorts=113
+add Address IP4Address fws_web_pub Address=203.0.113.3 Comments="public address of the web server"
+add Service ServiceTCPUDP fws_http Type=TCP DestinationPorts=80
+add Address IP4Address fws_web_srv Address=10.20.0.10 Comments="web server"
+add Address IP4Address fws_mail_srv Address=10.20.0.25
+add Service ServiceTCPUDP fws_smtp Type=TCP DestinationPorts=25
+add Address IP4Address fws_lab_net Address=10.30.0.0/24
+add Service ServiceTCPUDP fws_lab_tools Type=TCPUDP DestinationPorts=5000-5010
+add Service ServiceIPProto fws__rule__ipproto-proto_200 IPProto=200
+add Address IP4Address fws_local_13_src_not_1 Address=0.0.0.0-10.9.255.255
+add Address IP4Address fws_local_13_src_not_2 Address=10.10.1.0-255.255.255.255
+add Address IP6Address fws_lan6 Address=2001:db8:10::/64
+add Service ServiceTCPUDP fws_web_alt Type=TCP DestinationPorts=8080-8090
+add Address IP4Address fws_nothing Address=0.0.0.0
+add InterfaceGroup fws_zones Members=ethernet0,ethernet1,ethernet2,ethernet3,bridge0
+add Address IP4Group fws_dual_ws Members=fws_10.10.0.60
+add Address IP4Group fws_admins Members=fws_admin_ws,fws_dual_ws
+add Address IP6Group fws_dual_ws_v6 Members=fws_2001_db8_10__60
+add Address IP6Group fws_admins_v6 Members=fws_dual_ws_v6
+add Address IP4Group fws_firewall_all Members=fws_Firewall_out,fws_Firewall_in,fws_Firewall_dmz1,fws_Firewall_lab,fws_Firewall_labbridge
+add Service ServiceGroup fws_local_1_svc Members=fws_ssh,fws_https
+add Address IP4Group fws_Network_internals Members=fws_Network_in,fws_Network_dmz1,fws_Network_lab,fws_Network_labbridge
+add Address IP4Group fws_local_4_dst_not Members=fws_local_4_dst_not_1,fws_local_4_dst_not_2,fws_local_4_dst_not_3,fws_local_4_dst_not_4
+add Service ServiceGroup fws_web_ports_grp Members=fws_web_ports_1,fws_web_ports_2,fws_web_ports_3
+add Service ServiceGroup fws_local_8_svc Members=fws_http,fws_https
+add Address IP4Group fws_dmz_servers Members=fws_web_srv,fws_mail_srv
+add Address IP4Group fws_local_13_src_not Members=fws_local_13_src_not_1,fws_local_13_src_not_2
+add Service ServiceGroup fws_local_15_svc Members=fws_http,fws_web_alt
+add IPRuleSet fws_rules Comments="Written by FWShift"
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_global_1 Action=Drop SourceInterface=fws_zones SourceNetwork=fws_global_bad DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=Yes Comments="blocked company-wide"
+add IPRule Index=2 Name=fws_local_1 Action=Allow SourceInterface=ethernet1 SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=fws_firewall_all Service=fws_local_1_svc LogEnabled=Yes Comments="admin access"
+add IPRule Index=3 Name=fws_local_2 Action=Allow SourceInterface=fws_zones SourceNetwork=fws_Network_internals DestinationInterface=fws_zones DestinationNetwork=fws_firewall_all Service=fws__rule__ipproto-icmp LogEnabled=Yes Comments="ping the firewall"
+add IPRule Index=4 Name=fws_local_3 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_blocked Service=all_services LogEnabled=Yes Comments="known bad"
+add IPRule Index=5 Name=fws_local_4 Action=Allow SourceInterface=fws_zones SourceNetwork=fws_Network_internals DestinationInterface=fws_zones DestinationNetwork=fws_local_4_dst_not Service=fws_web_ports_grp LogEnabled=Yes Comments="web"
+add IPRule Index=6 Name=fws_local_5 Action=Allow SourceInterface=ethernet1 SourceNetwork=fws_lan DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws__rule__dns_udp-udp LogEnabled=Yes Comments="dns"
+add IPRule Index=7 Name=fws_local_6 Action=Reject SourceInterface=fws_zones SourceNetwork=fws_Network_internals DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_ident LogEnabled=Yes
+add IPRule Index=8 Name=fws_local_8 Action=Allow SourceInterface=ethernet0 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_web_pub Service=fws_local_8_svc LogEnabled=Yes Comments="public web, as it arrives"
+add IPRule Index=9 Name=fws_local_9 Action=Allow SourceInterface=ethernet0 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_dmz_servers Service=fws_smtp LogEnabled=Yes
+add IPRule Index=10 Name=fws_local_10 Action=Allow SourceInterface=ethernet3 SourceNetwork=fws_lab_net DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_lab_tools LogEnabled=Yes
+add IPRule Index=11 Name=fws_local_11 Action=Allow SourceInterface=fws_zones SourceNetwork=fws_lan DestinationInterface=fws_zones DestinationNetwork=fws_dmz_servers Service=fws_web_ports_grp LogEnabled=Yes
+set IPRule 11 -disable
+add IPRule Index=12 Name=fws_local_12 Action=Allow SourceInterface=fws_zones SourceNetwork=fws_lab_net DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws__rule__ipproto-proto_200 LogEnabled=Yes
+add IPRule Index=13 Name=fws_local_13 Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=Yes
+set IPRule 13 -disable
+add IPRule Index=14 Name=fws_local_14 Action=Allow SourceInterface=fws_zones SourceNetwork=fws_lan6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=Yes
+add IPRule Index=15 Name=fws_local_15 Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=Yes
+set IPRule 15 -disable
+add IPRule Index=16 Name=fws_local_16 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=Yes Comments="Block all"
+add IPRule Index=17 Name=fws_local_16_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=Yes Comments="Block all"
+add IPRule Index=18 Name=fws_default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=19 Name=fws_default_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=20 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=21 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

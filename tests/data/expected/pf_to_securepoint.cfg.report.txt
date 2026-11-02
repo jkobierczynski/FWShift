@@ -1,0 +1,122 @@
+FWShift conversion report
+  source: pf
+  target: securepoint
+
+Summary
+  Security rules:     31   exact 0, approximated 12, needs review 18 (10 emitted disabled), skipped 1
+  NAT rules:           4   exact 1, approximated 1, needs review 0, skipped 2
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 7, approximated 0, needs review 2, skipped 0
+  Services:           20   exact 20, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PF_ANCHOR: the rules of these anchors are not converted: 'relayd/*' (line 94). Rules loaded into an anchor decide where the anchor stands, before or after any converted rule; add them to the file to convert them
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): em0, em2, em1, firewall-em0. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: em0-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] PF_LAST_MATCH: 22 rules are not quick: pf decides by the last rule that matches unless a quick rule matches first. The model is first match: the quick rules come first, in their order, then the others, the last one first
+  [info] PF_DEFAULT_PASS: pf passes what no rule matches; the model records that as its default action
+  [info] PF_HOST_NAMES: pfctl resolves host names once, when the rules are loaded: www.example.com. They are host name objects here
+  [info] PF_OVERLOAD: rules that add addresses to a table when they exceed a limit (overload): 'line 57'. The table they fill is empty in pf.conf
+  [info] SECUREPOINT_DEFAULT_WRITTEN: the source lets through traffic no rule matches; 9 rules after the converted ones do the same between the zones of the policy (the UTM drops it otherwise)
+  [info] SECUREPOINT_COMMENTED: 10 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  line 72  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  line 75  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  line 46 out  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by every interface: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic, less what the rules before it that decide pass ('line 50', 'line 74')
+      [needs-review] PF_OUT_UNNAMED: the rule blocks what leaves by any interface, less what rules for some interfaces pass; it is written for the interfaces this ruleset names, and traffic that leaves by another interface is not blocked by it
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  line 41  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+  antispoof em1 network  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] PF_NEGATED_INTERFACE: 'on ! em1' is every interface but em1; it is written for the other interfaces this ruleset names, em0, em2, and not for interfaces it does not name
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 network': the network of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  antispoof em1 address  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 address': the address of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  bogons  ->  needs-review  (emitted as 9 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  brute force  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'bruteforce': it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  line 49  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'spamd': its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  admin ssh  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em2 network': the network of em2 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+  line 92  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+      [needs-review] UNSUPPORTED_MATCH: not converted: the user of the socket (user proxy), which only traffic of the firewall itself has.
+  line 91  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'egress address': the address of egress is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+  line 90  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+      [needs-review] UNSUPPORTED_MATCH: not converted: a mark set by another rule (tagged INTERNAL).
+  line 87  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] PF_ROUTE_TO: the rule sends what it matches elsewhere (route-to ( em3 10.30.0.1 )); the converted rule decides only whether it passes, and the traffic takes the route the target chooses
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+  line 86  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+  line 85  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'www.example.com'; that a network object of the UTM takes a host name is not documented.
+  line 84  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] PF_NO_STATE: the rule passes packets without keeping state (no state): the replies need a rule of their own on pf. The converted rule allows the connection, replies included
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+  line 81  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [info] RESET_ACTION: action reset-client becomes REJECT, which answers the sender with an ICMP message, not a TCP reset
+  line 80  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+  line 79  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+  line 78  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+  line 69  ->  approximated  (emitted as 3 rules of group fwshift)
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+  line 69.2  ->  approximated  (emitted as 3 rules of group fwshift)
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+  line 66  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+  line 65  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+      [needs-review] SECUREPOINT_ICMP_CODE: ICMP type 3 code 4: a service of the UTM names ICMP types, not codes.
+  line 64  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+  line 57  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.1.10' because of NAT rule 'line 39 rdr'; check that this rule is meant to cover the translated traffic
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+  line 54  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  line 53  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched
+  line 46  ->  needs-review  (emitted as 9 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (em0, em1, em2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  line 73  ->  skipped
+      [info] PF_OUT_SHADOWED: the rule blocks traffic that leaves, but the rules before it that decide ('line 74') pass all of it: it decides nothing for forwarded traffic and is not converted for that direction
+
+NAT rules
+  line 37 nat  ->  approximated  (emitted as 3 rules with HIDENAT)
+      [approximated] SECUREPOINT_HIDENAT_PORTS: HIDENAT translates the ports as well; the source kept them
+  line 39 rdr  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT needs the one zone the traffic is sent to (the zone of its NAT network object, firewall-<zone>); the NAT rule names none
+  line 41 rdr  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT needs the one zone the traffic is sent to (the zone of its NAT network object, firewall-<zone>); the NAT rule names none
+
+Address groups
+  bruteforce  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <bruteforce> cannot be converted: it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload)
+  spamd  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <spamd> cannot be converted: its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf

@@ -1,0 +1,64 @@
+add Address IP4Address fws_wan1-address Address=203.0.113.2 Comments="the address of interface WAN 1"
+add Service ServiceTCPUDP fws_tcp-8443 Type=TCP DestinationPorts=8443
+add Address IP4Address fws_192.168.127.60 Address=192.168.127.60
+add Address IP4Address fws_192.168.127.1-192.168.127.199 Address=192.168.127.1-192.168.127.199
+add Address IP4Address fws_192.168.127.200-192.168.127.250 Address=192.168.127.200-192.168.127.250
+add Address IP4Address fws_192.168.127.10-192.168.127.20 Address=192.168.127.10-192.168.127.20
+add Address IP4Address fws_172.16.40.5 Address=172.16.40.5
+add Service ServiceTCPUDP fws_tcp-502 Type=TCP DestinationPorts=502
+add Service ServiceTCPUDP fws_tcp-23 Type=TCP DestinationPorts=23
+add Address IP4Address fws_198.51.100.0-198.51.100.255 Address=198.51.100.0/24
+add Address IP4Address fws_192.168.127.50 Address=192.168.127.50
+add Service ServiceTCPUDP fws_tcp-443 Type=TCP DestinationPorts=443
+add Address IP4Address fws_192.168.127.30 Address=192.168.127.30
+add Service ServiceTCPUDP fws_udp-20000-20010-from-1024-65535 Type=UDP DestinationPorts=20000-20010 SourcePorts=1024-65535
+add Service ServiceICMP fws_icmp MessageTypes=All
+add Address IP4Address fws_192.168.127.60-192.168.127.69 Address=192.168.127.60-192.168.127.69
+add Address IP4Address fws_198.51.100.60 Address=198.51.100.60
+add Service ServiceTCPUDP fws_tcp-8080-8090 Type=TCP DestinationPorts=8080-8090
+add Service ServiceTCPUDP fws_tcp-22 Type=TCP DestinationPorts=22
+add InterfaceGroup fws_zones Members=lan,wan1,wan2
+add InterfaceGroup fws_if_wan1_wan2 Members=wan1,wan2
+add Address IP4Group fws_firewall_3_dst Members=fws_192.168.127.50,fws_wan1-address
+add Address IP4Group fws_firewall_8_dst Members=fws_192.168.127.60-192.168.127.69,fws_198.51.100.60
+add Address IP4Group fws_firewall_10_dst Members=fws_192.168.127.60,fws_198.51.100.60
+add IPRuleSet fws_rules Comments="Written by FWShift"
+add IPRuleSet fws_snat Comments="Written by FWShift"
+add IPRuleSet fws_d_ip_nat_1 Comments="Written by FWShift"
+cc IPRuleSet fws_snat
+add IPRule Index=1 Name=fws_ip_nat_2_sat Action=SAT SourceInterface=fws_zones SourceNetwork=fws_192.168.127.60 DestinationInterface=wan2 DestinationNetwork=all-nets Service=all_services SATTranslate=SourceIP SATTranslateToIP=fws_198.51.100.60 LogEnabled=No
+add IPRule Index=2 Name=fws_ip_nat_2 Action=Allow SourceInterface=fws_zones SourceNetwork=fws_192.168.127.60 DestinationInterface=wan2 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="ip nat static inside lan 192.168.127.60 outside wan 2 198.51.100.60"
+add IPRule Index=3 Name=fws_ip_nat_3 Action=NAT SourceInterface=lan SourceNetwork=fws_192.168.127.1-192.168.127.199 DestinationInterface=wan1 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="ip nat dynamic inside lan 192.168.127.1 192.168.127.199 outside wan 1"
+add IPRule Index=4 Name=fws_ip_nat_4 Action=NAT SourceInterface=lan SourceNetwork=fws_192.168.127.200-192.168.127.250 DestinationInterface=fws_if_wan1_wan2 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="ip nat dynamic inside lan 192.168.127.200 192.168.127.250 outside wan auto"
+set IPRule 4 -disable
+add IPRule Index=5 Name=fws_snat_allow Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=6 Name=fws_snat_allow_v6 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_ip_nat_1
+add IPRule Index=1 Name=fws_ip_nat_1_default Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_ip_nat_1_sat Action=SAT SourceInterface=wan1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_wan1-address Service=fws_tcp-8443 SATTranslate=DestinationIP SATTranslateToIP=fws_192.168.127.50 SATTranslateToPort=443 LogEnabled=No Comments="ip nat static tcp inside lan 192.168.127.50 443 outside wan 1 8443"
+add GotoRule Index=2 Name=fws_ip_nat_1_goto SourceInterface=wan1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_wan1-address Service=fws_tcp-8443 RuleSet=fws_d_ip_nat_1 LogEnabled=No
+add GotoRule Index=3 Name=fws_firewall_1 SourceInterface=lan SourceNetwork=fws_192.168.127.10-192.168.127.20 DestinationInterface=wan1 DestinationNetwork=fws_172.16.40.5 Service=fws_tcp-502 RuleSet=fws_snat LogEnabled=No
+add IPRule Index=4 Name=fws_firewall_2 Action=Drop SourceInterface=wan1 SourceNetwork=all-nets DestinationInterface=lan DestinationNetwork=all-nets Service=fws_tcp-23 LogEnabled=No
+add IPRule Index=5 Name=fws_firewall_3 Action=Allow SourceInterface=wan1 SourceNetwork=fws_198.51.100.0-198.51.100.255 DestinationInterface=lan DestinationNetwork=fws_firewall_3_dst Service=fws_tcp-443 LogEnabled=No
+add IPRule Index=6 Name=fws_firewall_4 Action=Allow SourceInterface=lan SourceNetwork=fws_192.168.127.30 DestinationInterface=wan2 DestinationNetwork=all-nets Service=fws_udp-20000-20010-from-1024-65535 LogEnabled=No
+add GotoRule Index=7 Name=fws_firewall_5 SourceInterface=lan SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_icmp RuleSet=fws_snat LogEnabled=No
+add IPRule Index=8 Name=fws_firewall_6 Action=Allow SourceInterface=wan2 SourceNetwork=all-nets DestinationInterface=lan DestinationNetwork=all-nets Service=all_services LogEnabled=No
+set IPRule 8 -disable
+add IPRule Index=9 Name=fws_firewall_7 Action=Allow SourceInterface=lan SourceNetwork=all-nets DestinationInterface=wan1 DestinationNetwork=all-nets Service=all_services LogEnabled=No
+set IPRule 9 -disable
+add IPRule Index=10 Name=fws_firewall_8 Action=Allow SourceInterface=wan2 SourceNetwork=all-nets DestinationInterface=lan DestinationNetwork=fws_firewall_8_dst Service=fws_tcp-8080-8090 LogEnabled=No
+set IPRule 10 -disable
+add IPRule Index=11 Name=fws_firewall_9 Action=Drop SourceInterface=lan SourceNetwork=fws_192.168.127.200-192.168.127.250 DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=12 Name=fws_firewall_10 Action=Allow SourceInterface=wan2 SourceNetwork=all-nets DestinationInterface=lan DestinationNetwork=fws_firewall_10_dst Service=fws_tcp-22 LogEnabled=No
+add IPRule Index=13 Name=fws_default Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=14 Name=fws_default_v6 Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=15 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=16 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

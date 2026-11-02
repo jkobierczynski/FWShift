@@ -1,0 +1,190 @@
+FWShift conversion report
+  source: azure
+  target: cato
+
+Summary
+  Security rules:    116   exact 84, approximated 5, needs review 0, skipped 27
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: nsg-web, nsg-app, nsg-db, outside
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): nsg-web, nsg-app, nsg-db, outside
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.30.1.0/24,2001:db8:30:1::/64 --zone-network nsg-app=10.30.2.0/24 --zone-network nsg-db=10.30.3.20
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 80 rules say what both allow, in the order of the two
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-db, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+
+Security rules
+  nsg-web:Allow-HTTPS  ->  approximated  (emitted as fws-nsg-web:Allow-HTTPS)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Allow-SSH-Admins  ->  exact  (emitted as fws-nsg-web:Allow-SSH-Admins)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Allow-HTTPS-v6  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  nsg-web:Deny-Partner  ->  exact  (emitted as fws-nsg-web:Deny-Partner)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Allow-Ping-VNet  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'VirtualNetwork' holds members whose addresses are not known
+  nsg-web:AllowVnetInBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'VirtualNetwork' holds members whose addresses are not known
+  nsg-web:AllowAzureLoadBalancerInBound  ->  exact  (emitted as fws-nsg-web:AllowAzureLoadBalancerInBound)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Allow-App-Out  ->  exact  (emitted as fws-nsg-web:Allow-App-Out)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Allow-Storage  ->  approximated  (emitted as fws-nsg-web:Allow-Storage)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Deny-Internet  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'Internet' holds members whose addresses are not known This deny rule is NOT enforced; rules below it may let more through.
+  nsg-web:AllowVnetOutBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'VirtualNetwork' holds members whose addresses are not known
+  nsg-web:AllowInternetOutBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'Internet' holds members whose addresses are not known
+  nsg-app:Allow-From-Web  ->  exact  (emitted as fws-nsg-app:Allow-From-Web)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Esp-Partner  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  nsg-app:Allow-Probe  ->  exact  (emitted as fws-nsg-app:Allow-Probe)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Deny-VNet  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'VirtualNetwork' holds members whose addresses are not known This deny rule is NOT enforced; rules below it may let more through.
+  nsg-app:AllowVnetInBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'VirtualNetwork' holds members whose addresses are not known
+  nsg-app:AllowAzureLoadBalancerInBound  ->  exact  (emitted as fws-nsg-app:AllowAzureLoadBalancerInBound)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Db  ->  exact  (emitted as fws-nsg-app:Allow-Db)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Sql  ->  exact  (emitted as fws-nsg-app:Allow-Sql)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Dns  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  nsg-app:AllowVnetOutBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'VirtualNetwork' holds members whose addresses are not known
+  nsg-app:AllowInternetOutBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'Internet' holds members whose addresses are not known
+  nsg-db:Allow-Sql-From-App  ->  exact  (emitted as fws-nsg-db:Allow-Sql-From-App)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-db:Allow-Old-Gre  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  nsg-db:AllowVnetInBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'VirtualNetwork' holds members whose addresses are not known
+  nsg-db:AllowAzureLoadBalancerInBound  ->  exact  (emitted as fws-nsg-db:AllowAzureLoadBalancerInBound)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-db:AllowVnetOutBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'VirtualNetwork' holds members whose addresses are not known
+  nsg-db:AllowInternetOutBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'Internet' holds members whose addresses are not known
+  nsg-web:Allow-App-Out+nsg-web:Deny-Partner  ->  exact  (emitted as fws-nsg-web:Allow-App-Out_nsg-web:Deny-Partner)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Allow-App-Out+nsg-web:AllowVnetInBound  ->  exact  (emitted as fws-nsg-web:Allow-App-Out_nsg-web:AllowVnetInBound)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Allow-App-Out+nsg-web:DenyAllInBound  ->  exact  (emitted as fws-nsg-web:Allow-App-Out_nsg-web:DenyAllInBound)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  approximated  (emitted as fws-nsg-web:AllowVnetOutBound_nsg-web:Allow-HTTPS)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  exact  (emitted as fws-nsg-web:AllowVnetOutBound_nsg-web:Allow-SSH-Admins)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  nsg-web:AllowVnetOutBound+nsg-web:Deny-Partner  ->  exact  (emitted as fws-nsg-web:AllowVnetOutBound_nsg-web:Deny-Partner)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Allow-App-Out+nsg-app:Allow-From-Web  ->  exact  (emitted as fws-nsg-web:Allow-App-Out_nsg-app:Allow-From-Web)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Allow-App-Out+nsg-app:Deny-VNet  ->  exact  (emitted as fws-nsg-web:Allow-App-Out_nsg-app:Deny-VNet)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Allow-App-Out+nsg-app:AllowVnetInBound  ->  exact  (emitted as fws-nsg-web:Allow-App-Out_nsg-app:AllowVnetInBound)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Allow-App-Out+nsg-app:DenyAllInBound  ->  exact  (emitted as fws-nsg-web:Allow-App-Out_nsg-app:DenyAllInBound)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  exact  (emitted as fws-nsg-web:AllowVnetOutBound_nsg-app:Allow-From-Web)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Allow-App-Out+nsg-db:AllowVnetInBound  ->  exact  (emitted as fws-nsg-web:Allow-App-Out_nsg-db:AllowVnetInBound)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:Allow-App-Out+nsg-db:DenyAllInBound  ->  exact  (emitted as fws-nsg-web:Allow-App-Out_nsg-db:DenyAllInBound)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-web:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  exact  (emitted as fws-nsg-web:AllowVnetOutBound_nsg-db:Allow-Sql-From-App)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Db+nsg-web:Deny-Partner  ->  exact  (emitted as fws-nsg-app:Allow-Db_nsg-web:Deny-Partner)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Db+nsg-web:AllowVnetInBound  ->  exact  (emitted as fws-nsg-app:Allow-Db_nsg-web:AllowVnetInBound)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Db+nsg-web:DenyAllInBound  ->  exact  (emitted as fws-nsg-app:Allow-Db_nsg-web:DenyAllInBound)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Dns+nsg-web:Deny-Partner  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only This deny rule is NOT enforced; rules below it may let more through.
+  nsg-app:Allow-Dns+nsg-web:AllowVnetInBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  nsg-app:Allow-Dns+nsg-web:DenyAllInBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only This deny rule is NOT enforced; rules below it may let more through.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  approximated  (emitted as fws-nsg-app:AllowVnetOutBound_nsg-web:Allow-HTTPS)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  exact  (emitted as fws-nsg-app:AllowVnetOutBound_nsg-web:Allow-SSH-Admins)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  nsg-app:AllowVnetOutBound+nsg-web:Deny-Partner  ->  exact  (emitted as fws-nsg-app:AllowVnetOutBound_nsg-web:Deny-Partner)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Db+nsg-app:Deny-VNet  ->  exact  (emitted as fws-nsg-app:Allow-Db_nsg-app:Deny-VNet)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Db+nsg-app:AllowVnetInBound  ->  exact  (emitted as fws-nsg-app:Allow-Db_nsg-app:AllowVnetInBound)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Db+nsg-app:DenyAllInBound  ->  exact  (emitted as fws-nsg-app:Allow-Db_nsg-app:DenyAllInBound)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Dns+nsg-app:Deny-VNet  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only This deny rule is NOT enforced; rules below it may let more through.
+  nsg-app:Allow-Dns+nsg-app:AllowVnetInBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  nsg-app:Allow-Dns+nsg-app:DenyAllInBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only This deny rule is NOT enforced; rules below it may let more through.
+  nsg-app:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  exact  (emitted as fws-nsg-app:AllowVnetOutBound_nsg-app:Allow-From-Web)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Db+nsg-db:Allow-Sql-From-App  ->  exact  (emitted as fws-nsg-app:Allow-Db_nsg-db:Allow-Sql-From-App)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Db+nsg-db:AllowVnetInBound  ->  exact  (emitted as fws-nsg-app:Allow-Db_nsg-db:AllowVnetInBound)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Db+nsg-db:DenyAllInBound  ->  exact  (emitted as fws-nsg-app:Allow-Db_nsg-db:DenyAllInBound)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-app:Allow-Dns+nsg-db:AllowVnetInBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  nsg-app:Allow-Dns+nsg-db:DenyAllInBound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only This deny rule is NOT enforced; rules below it may let more through.
+  nsg-app:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  exact  (emitted as fws-nsg-app:AllowVnetOutBound_nsg-db:Allow-Sql-From-App)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  approximated  (emitted as fws-nsg-db:AllowVnetOutBound_nsg-web:Allow-HTTPS)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  exact  (emitted as fws-nsg-db:AllowVnetOutBound_nsg-web:Allow-SSH-Admins)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  nsg-db:AllowVnetOutBound+nsg-web:Deny-Partner  ->  exact  (emitted as fws-nsg-db:AllowVnetOutBound_nsg-web:Deny-Partner)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-db:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  exact  (emitted as fws-nsg-db:AllowVnetOutBound_nsg-app:Allow-From-Web)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  nsg-db:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  exact  (emitted as fws-nsg-db:AllowVnetOutBound_nsg-db:Allow-Sql-From-App)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)

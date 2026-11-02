@@ -1,0 +1,32 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: zscaler
+
+Summary
+  Security rules:     10   exact 7, approximated 0, needs review 3 (3 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] ZSCALER_BLOCK_RULE: the source blocks what no rule matches. Rule fws-block the rest that does so follows the converted rules, disabled: until it is enabled, the rules of the tenant below it and its default rule decide that traffic
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_INSIDE: no --inside-zone: every zone was taken as a location of ZIA, and every rule as one to the internet; ZIA does not filter traffic between locations or from the internet. Name the zones inside with --inside-zone
+  [needs-review] ZSCALER_LOCATIONS_REQUIRED: rules name these locations, which must exist on the tenant under these names: DMZ, External, Guests, Lab, Trusted
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+
+Security rules
+  DMZ Updates  ->  needs-review, emitted disabled  (emitted as fws-DMZ Updates)
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+  Staff Only  ->  needs-review, emitted disabled  (emitted as fws-Staff Only)
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+  Ping  ->  needs-review, emitted disabled  (emitted as fws-Ping)
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type: a network service of ZIA holds TCP and UDP ports, and the predefined ICMP_ANY, GRE_PROTOCOL and ESP_PROTOCOL.
+
+NAT rules
+  Web-Public (Web In)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  Mail-Public (Mail In)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only

@@ -1,0 +1,424 @@
+configure terminal
+address-object ipv4 "lan_ip" host 192.168.10.1 zone lan
+address-object ipv4 "lan_net" network 192.168.10.0 255.255.255.0 zone lan
+address-object ipv4 "dmz_ip" host 172.16.20.1 zone dmz
+address-object ipv4 "dmz_net" network 172.16.20.0 255.255.255.0 zone dmz
+address-object ipv4 "wan_ip" host 203.0.113.10 zone wan
+address-object ipv4 "wan_net" network 203.0.113.0 255.255.255.0 zone wan
+address-object ipv4 "guest_ip" host 10.30.0.1 zone guest
+address-object ipv4 "guest_net" network 10.30.0.0 255.255.255.0 zone guest
+address-object ipv6 "lan_ip6" host 2001:db8:10::1 zone lan
+address-object ipv6 "lan_net6" network 2001:db8:10:: /64 zone lan
+address-object ipv4 "web_srv" host 172.16.20.80 zone dmz
+address-object ipv4 "mail_srv" host 172.16.20.25 zone dmz
+address-object ipv4 "wan_ip2" host 203.0.113.12 zone wan
+address-object ipv4 "pub_pool" range 203.0.113.20 203.0.113.23 zone wan
+address-object ipv4 "srv_base" host 172.16.20.100 zone dmz
+address-object ipv4 "admin_hosts#1" host 192.168.10.5 zone lan
+address-object ipv4 "admin_hosts#2" host 192.168.10.6 zone lan
+address-object ipv4 "admin_hosts#3" network 192.168.10.32 255.255.255.240 zone lan
+address-object ipv6 "v6_web" host 2001:db8:20::80 zone dmz
+address-object fqdn "updates" domain "updates.example.com" zone wan
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone dmz
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone dmz
+address-object ipv4 "n 198.51.100.0_24" network 198.51.100.0 255.255.255.0 zone dmz
+address-object ipv4 "h 192.168.10.50" host 192.168.10.50 zone dmz
+address-object ipv4 "h 172.16.20.9" host 172.16.20.9 zone dmz
+address-object ipv4 "h 198.51.100.7" host 198.51.100.7 zone dmz
+address-object ipv6 "n ::_1" network :: /1 zone dmz
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone dmz
+address-object ipv4 "n 172.16.20.100_30" network 172.16.20.100 255.255.255.252 zone dmz
+address-object ipv4 "h 203.0.113.11" host 203.0.113.11 zone dmz
+address-object ipv4 "h 172.16.20.21" host 172.16.20.21 zone dmz
+address-group ipv4 "admin_hosts"
+    address-object ipv4 "admin_hosts#1"
+    address-object ipv4 "admin_hosts#2"
+    address-object ipv4 "admin_hosts#3"
+    exit
+address-group ipv4 "servers"
+    address-object ipv4 "web_srv"
+    address-object ipv4 "mail_srv"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
+service-object "smtp-in" TCP 25 25
+service-object "web-ports tcp 80" TCP 80 80
+service-object "web-ports tcp 443" TCP 443 443
+service-object "web-ports tcp 8080-8090" TCP 8080 8090
+service-group "web-ports"
+    service-object "web-ports tcp 80"
+    service-object "web-ports tcp 443"
+    service-object "web-ports tcp 8080-8090"
+    exit
+service-object "dns-both tcp 53" TCP 53 53
+service-object "dns-both udp 53" UDP 53 53
+service-group "dns-both"
+    service-object "dns-both tcp 53"
+    service-object "dns-both udp 53"
+    exit
+service-object "ftp-alg" TCP 21 21
+service-object "http-all tcp 80" TCP 80 80
+service-object "http-all tcp 443" TCP 443 443
+service-group "http-all"
+    service-object "http-all tcp 80"
+    service-object "http-all tcp 443"
+    exit
+service-object "dns-all tcp 53" TCP 53 53
+service-object "dns-all udp 53" UDP 53 53
+service-group "dns-all"
+    service-object "dns-all tcp 53"
+    service-object "dns-all udp 53"
+    exit
+service-object "ssh 2" TCP 22 22
+service-object "https 2" TCP 443 443
+service-object "tcp 8443" TCP 8443 8443
+service-group "mgmt"
+    service-object "ssh 2"
+    service-object "https 2"
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "wan_ip" translated-destination name "web_srv" service group "http-all" translated-service original
+    name "allow_web+sat_web"
+    comment "Completes sat_web"
+    priority manual 1
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "wan_ip" translated-destination name "mail_srv" service name "smtp-in" translated-service original
+    name "allow_mail+sat_mail"
+    comment "allow_mail+sat_mail"
+    priority manual 2
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "pub_pool" translated-destination name "n 172.16.20.100_30" service group "web-ports" translated-service original
+    name "allow_pool+sat_pool"
+    comment "allow_pool+sat_pool"
+    priority manual 3
+    exit
+nat-policy ipv4 inbound any outbound any source name "lan_net" translated-source name "h 203.0.113.11" destination any translated-destination original service group "web-ports" translated-service original
+    name "lan_web"
+    comment "lan_web"
+    priority manual 4
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "wan_ip2" translated-destination name "web_srv" service name "https 2" translated-service name "tcp 8443"
+    name "pol_dmz_https"
+    comment "pol_dmz_https"
+    priority manual 5
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "wan_ip" translated-destination name "h 172.16.20.21" service name "ftp-alg" translated-service original
+    name "sat_unused"
+    comment "sat_unused"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from dmz to dmz action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios"
+    priority manual 1
+    no enable
+    exit
+access-rule ipv4 from dmz to guest action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 2"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from dmz to lan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 3"
+    priority manual 3
+    no enable
+    exit
+access-rule ipv4 from dmz to wan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 4"
+    priority manual 4
+    no enable
+    exit
+access-rule ipv4 from guest to dmz action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 5"
+    priority manual 5
+    no enable
+    exit
+access-rule ipv4 from guest to guest action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 6"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from guest to lan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 7"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from guest to wan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 8"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from lan to dmz action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 9"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from lan to guest action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 10"
+    priority manual 10
+    no enable
+    exit
+access-rule ipv4 from lan to lan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 11"
+    priority manual 11
+    no enable
+    exit
+access-rule ipv4 from lan to wan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 12"
+    priority manual 12
+    no enable
+    exit
+access-rule ipv4 from wan to dmz action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 13"
+    priority manual 13
+    no enable
+    exit
+access-rule ipv4 from wan to guest action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 14"
+    priority manual 14
+    no enable
+    exit
+access-rule ipv4 from wan to lan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 15"
+    priority manual 15
+    no enable
+    exit
+access-rule ipv4 from wan to wan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "drop_netbios 16"
+    priority manual 16
+    no enable
+    exit
+access-rule ipv4 from wan to dmz action allow source address any service group "http-all" destination address name "wan_ip"
+    name "allow_web+sat_web"
+    priority manual 17
+    exit
+access-rule ipv4 from wan to dmz action deny source address name "n 198.51.100.0_24" service name "smtp-in" destination address name "wan_ip"
+    name "block_bad_mail+sat_mail"
+    priority manual 18
+    exit
+access-rule ipv4 from lan to dmz action allow source address any service name "smtp-in" destination address name "wan_ip"
+    name "nat_mail+sat_mail"
+    priority manual 19
+    exit
+access-rule ipv4 from guest to dmz action allow source address any service name "smtp-in" destination address name "wan_ip"
+    name "nat_mail+sat_mail 2"
+    priority manual 20
+    exit
+access-rule ipv4 from wan to dmz action allow source address any service name "smtp-in" destination address name "wan_ip"
+    name "allow_mail+sat_mail"
+    priority manual 21
+    exit
+access-rule ipv4 from wan to dmz action allow source address any service group "web-ports" destination address name "pub_pool"
+    name "allow_pool+sat_pool"
+    priority manual 22
+    exit
+access-rule ipv4 from guest to wan action allow source address name "guest_net" service group "dns-all" destination address any
+    name "to_guest/guest_dns"
+    priority manual 23
+    exit
+access-rule ipv4 from guest to wan action allow source address name "guest_net" service group "http-all" destination address any
+    name "to_guest/guest_web"
+    priority manual 24
+    exit
+access-rule ipv4 from guest to dmz action allow source address name "guest_net" service any destination address name "dmz_net"
+    name "to_guest/guest_never"
+    priority manual 25
+    no enable
+    exit
+access-rule ipv4 from lan to dmz action allow source address group "admin_hosts" service group "mgmt" destination address group "servers"
+    name "admin_mgmt"
+    priority manual 26
+    exit
+access-rule ipv4 from lan to wan action allow source address name "lan_net" service group "dns-both" destination address any
+    name "lan_dns"
+    priority manual 27
+    exit
+access-rule ipv4 from lan to wan action allow source address name "lan_net" service group "web-ports" destination address any
+    name "lan_web"
+    priority manual 28
+    exit
+access-rule ipv4 from lan to wan action allow source address name "lan_net" service name "https 2" destination address name "updates"
+    name "lan_updates"
+    priority manual 29
+    exit
+access-rule ipv4 from lan to dmz action allow source address name "lan_net" service any destination address name "dmz_net"
+    name "lan_to_dmz"
+    priority manual 30
+    exit
+access-rule ipv4 from dmz to lan action allow source address name "dmz_net" service any destination address name "h 192.168.10.50"
+    name "syslog_fast"
+    priority manual 31
+    no enable
+    exit
+access-rule ipv4 from dmz to wan action allow source address name "h 172.16.20.9" service any destination address name "h 198.51.100.7"
+    name "gre_tunnel"
+    priority manual 32
+    no enable
+    exit
+access-rule ipv4 from wan to dmz action allow source address any service name "ftp-alg" destination address group "servers"
+    name "old_rule"
+    priority manual 33
+    no enable
+    exit
+access-rule ipv4 from wan to dmz action allow source address any service name "https 2" destination address name "wan_ip2"
+    name "pol_dmz_https"
+    priority manual 34
+    exit
+access-rule ipv4 from dmz to wan action allow source address name "dmz_net" service group "http-all" destination address any
+    name "pol_dmz_out"
+    priority manual 35
+    exit
+access-rule ipv4 from dmz to dmz action deny source address any service name "ftp-alg" destination address name "dmz_net"
+    name "pol_block_ftp"
+    priority manual 36
+    exit
+access-rule ipv4 from guest to dmz action deny source address any service name "ftp-alg" destination address name "dmz_net"
+    name "pol_block_ftp 2"
+    priority manual 37
+    exit
+access-rule ipv4 from lan to dmz action deny source address any service name "ftp-alg" destination address name "dmz_net"
+    name "pol_block_ftp 3"
+    priority manual 38
+    exit
+access-rule ipv4 from wan to dmz action deny source address any service name "ftp-alg" destination address name "dmz_net"
+    name "pol_block_ftp 4"
+    priority manual 39
+    exit
+access-rule ipv4 from dmz to dmz action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll"
+    priority manual 40
+    exit
+access-rule ipv4 from dmz to guest action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 2"
+    priority manual 41
+    exit
+access-rule ipv4 from dmz to lan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 3"
+    priority manual 42
+    exit
+access-rule ipv4 from dmz to wan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 4"
+    priority manual 43
+    exit
+access-rule ipv4 from guest to dmz action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 5"
+    priority manual 44
+    exit
+access-rule ipv4 from guest to guest action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 6"
+    priority manual 45
+    exit
+access-rule ipv4 from guest to lan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 7"
+    priority manual 46
+    exit
+access-rule ipv4 from guest to wan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 8"
+    priority manual 47
+    exit
+access-rule ipv4 from lan to dmz action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 9"
+    priority manual 48
+    exit
+access-rule ipv4 from lan to guest action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 10"
+    priority manual 49
+    exit
+access-rule ipv4 from lan to lan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 11"
+    priority manual 50
+    exit
+access-rule ipv4 from lan to wan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 12"
+    priority manual 51
+    exit
+access-rule ipv4 from wan to dmz action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 13"
+    priority manual 52
+    exit
+access-rule ipv4 from wan to guest action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 14"
+    priority manual 53
+    exit
+access-rule ipv4 from wan to lan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 15"
+    priority manual 54
+    exit
+access-rule ipv4 from wan to wan action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "DropAll 16"
+    priority manual 55
+    exit
+access-rule ipv6 from lan to dmz action allow source address name "lan_net6" service group "http-all" destination address name "v6_web"
+    name "lan6_web"
+    exit
+access-rule ipv6 from lan to dmz action allow source address name "lan_net6" service any destination address any
+    name "lan6_ping"
+    no enable
+    exit
+access-rule ipv6 from lan to guest action allow source address name "lan_net6" service any destination address any
+    name "lan6_ping 2"
+    no enable
+    exit
+access-rule ipv6 from lan to lan action allow source address name "lan_net6" service any destination address any
+    name "lan6_ping 3"
+    no enable
+    exit
+access-rule ipv6 from lan to wan action allow source address name "lan_net6" service any destination address any
+    name "lan6_ping 4"
+    no enable
+    exit
+access-rule ipv6 from dmz to dmz action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6"
+    exit
+access-rule ipv6 from dmz to guest action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 2"
+    exit
+access-rule ipv6 from dmz to lan action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 3"
+    exit
+access-rule ipv6 from dmz to wan action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 4"
+    exit
+access-rule ipv6 from guest to dmz action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 5"
+    exit
+access-rule ipv6 from guest to guest action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 6"
+    exit
+access-rule ipv6 from guest to lan action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 7"
+    exit
+access-rule ipv6 from guest to wan action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 8"
+    exit
+access-rule ipv6 from lan to dmz action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 9"
+    exit
+access-rule ipv6 from lan to guest action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 10"
+    exit
+access-rule ipv6 from lan to lan action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 11"
+    exit
+access-rule ipv6 from lan to wan action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 12"
+    exit
+access-rule ipv6 from wan to dmz action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 13"
+    exit
+access-rule ipv6 from wan to guest action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 14"
+    exit
+access-rule ipv6 from wan to lan action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 15"
+    exit
+access-rule ipv6 from wan to wan action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DropAll6 16"
+    exit
+commit
+exit

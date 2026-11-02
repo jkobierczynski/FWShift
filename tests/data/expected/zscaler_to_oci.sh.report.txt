@@ -1,0 +1,88 @@
+FWShift conversion report
+  source: zscaler
+  target: oci
+
+Summary
+  Security rules:     17   exact 1, approximated 3, needs review 13 (12 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZSCALER_OUTBOUND_ONLY: ZIA filters traffic to the internet only: traffic between locations, inside one and from the internet does not pass it, and the model blocks it (no rule allows it). A target that sees such traffic needs rules for it
+  [needs-review] ZSCALER_FIREWALL_OFF: locations whose firewall is off (ofwEnabled false): the rules do not decide their traffic on ZIA, the model applies them anyway: Guest-WiFi
+  [needs-review] ZSCALER_RANK: admin ranks out of the rule order: read in the rule order: Ranked web (rank 3 below rank 7)
+  [needs-review] OCI_LOAD: the output is a shell script of OCI CLI calls (section 10): DRY_RUN=1 prints them, COMPARTMENT_ID and VCN_ID create the NSGs and their rules. It creates new NSGs only, and stops if an NSG of the same name exists in the VCN. The NSGs have no VNICs when it is done: nothing changes until VNICs are put in them
+  [needs-review] OCI_ATTACH: 1 NSG: put each VNIC in the NSGs whose '# attach' line lists its addresses, and take it out of the others; a VNIC with addresses of both IP versions is in an NSG for each. An NSG applies to the whole VNIC: a VNIC with several addresses of one IP version in different NSGs gives each address the rules of all of them, so give such addresses the same NSG. 'oci network vnic update --nsg-ids' replaces the NSGs of a VNIC: it is left to you
+  [needs-review] OCI_SECURITY_LISTS: the security lists of the VNICs' subnets keep applying, and OCI allows what a rule of a security list or of an NSG allows: for the VNICs to be held to what the NSGs allow, their subnets need security lists that allow no more (the default security list of a VCN allows SSH from anywhere and every egress)
+  [info] ZSCALER_SOURCE: 4 locations (HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi), road-warrior (Client Connector outside a location) and internet; the rules decide traffic from the locations to the internet, first match in ascending order, and the default rule decides the rest
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: HQ-Servers=10.10.20.0/24. --no-source-networks takes none of them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; an NSG does not. VCN flow logs record the connections of the subnets or VNICs instead
+
+Security rules
+  Allow DNS to resolvers  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_SUBLOCATION: location HQ-Brussels has sub-locations (HQ-Servers): read as the location without them, which may be narrower than ZIA
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone HQ-Brussels, and an NSG names no zone: give the networks behind HQ-Brussels with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and an NSG names no zone: give the networks behind internet with --zone-network.
+  Block SSH out  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action reset-client: an NSG drops what it does not allow, without an answer
+  Block malicious IPs and domains  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_CATEGORY: destination IP categories BOTNET, MALWARE_SITE: narrows the match and is not modelled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination IP categories BOTNET, MALWARE_SITE. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Office 365 One Click Rule  ->  needs-review
+      [needs-review] ZSCALER_APPLICATION: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE: narrows the match and is not modelled
+  Partner app  ->  needs-review, emitted disabled
+      [info] ZONE_BY_NETWORKS: the source in zone HQ-Servers is written as the addresses of the networks given for it with --zone-network
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and an NSG names no zone: give the networks behind internet with --zone-network.
+  Branch web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Branch-Ghent, and an NSG names no zone: give the networks behind Branch-Ghent with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and an NSG names no zone: give the networks behind internet with --zone-network.
+  Engineers to SaaS  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_FQDN: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold
+      [needs-review] ZSCALER_IDENTITY: groups Engineering: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups Engineering.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'SaaS-Domains': a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior, and an NSG names no zone: give the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior with --zone-network.
+  No embargoed countries  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_COUNTRY: destination countries COUNTRY_KP: narrows the match and is not modelled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination countries COUNTRY_KP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Printers syslog  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior, and an NSG names no zone: give the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and an NSG names no zone: give the networks behind internet with --zone-network.
+  Block GRE and ESP  ->  approximated  (emitted as taken out of the rules below it)
+      [info] ZSCALER_BLOCK_ICMP: BLOCK_ICMP drops and answers with an ICMP unreachable: read as deny
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: an NSG drops what it does not allow, without an answer
+  Evaluate apps  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_EVAL_NWAPP: action EVAL_NWAPP hands the decision to the network application of the traffic: not converted
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: action EVAL_NWAPP: the decision waits for the network application, which is not modelled. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Ranked web  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_FQDN: destination files.example.org: ZIA matches a domain by the names it sees in the traffic; not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination FQDN files.example.org.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior, and an NSG names no zone: give the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and an NSG names no zone: give the networks behind internet with --zone-network.
+  Ghent and corporate  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_LOCATION_GROUP: the rule names locations and location groups: whether ZIA takes either or both is not documented
+      [needs-review] UNSUPPORTED_MATCH: not converted: both locations and location groups: how ZIA combines them is not known.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Branch-Ghent, HQ-Brussels, and an NSG names no zone: give the networks behind Branch-Ghent, HQ-Brussels with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and an NSG names no zone: give the networks behind internet with --zone-network.
+  Web for all  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior, and an NSG names no zone: give the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and an NSG names no zone: give the networks behind internet with --zone-network.
+  Guest ICMP  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Guest-WiFi, and an NSG names no zone: give the networks behind Guest-WiFi with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and an NSG names no zone: give the networks behind internet with --zone-network.
+  Default Firewall Filtering Rule  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; an NSG names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones

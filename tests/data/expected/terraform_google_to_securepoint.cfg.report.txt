@@ -1,0 +1,88 @@
+FWShift conversion report
+  source: terraform-google (vpc-shop)
+  target: securepoint
+
+Summary
+  Security rules:     28   exact 0, approximated 0, needs review 28 (28 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] TERRAFORM_MEMBERS: the instances a rule applies to, and that its source tags and service accounts stand for, are those of this state: instances made elsewhere (another state, by hand, a managed instance group) are not known to the converted policy
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: google_compute_security_policy. The converted policy does not hold what they do
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Google Cloud command line for the same resources: 11 google_compute_firewall, 5 google_compute_instance, 1 google_compute_network, 1 google_compute_network_firewall_policy, 1 google_compute_network_firewall_policy_association, 6 google_compute_network_firewall_policy_rule, 1 google_compute_region_network_firewall_policy, 1 google_compute_region_network_firewall_policy_association, 1 google_compute_region_network_firewall_policy_rule. Resources outside this state (made by hand, or by another state) are not in it
+  [info] SECUREPOINT_COMMENTED: 28 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  db-to-vpc+allow-https-web  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  db-to-vpc+implied deny ingress  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-no-internet (between instances)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  pol-shop:deny-smtp-out (between instances)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  implied allow egress+allow-app-from-web  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  implied allow egress+allow-db-from-app  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  implied allow egress+allow-https-web  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  implied allow egress+allow-https-web-v6  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  implied allow egress+implied deny ingress  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow-app-from-web  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  allow-db-from-app  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  deny-ssh-blocked  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow-https-web  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  allow-https-web-v6  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  old-dns  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  allow-ssh-admins  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  allow-mgmt-v6  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  pol-shop:deny-tor (in)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  pol-shop:allow-monitoring (in)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  pol-shop:geo-and-fqdn (in)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: matches srcFqdns, srcRegionCodes, which the export does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  pol-ew1:allow-lb-health (in)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  implied deny ingress (in)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  deny-egress-doc  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-to-vpc  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  db-no-internet  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  pol-shop:allow-dns-out (out)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+  pol-shop:deny-smtp-out (out)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  implied allow egress (out)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NO_ZONES: the policy names no zone, and a network object of the UTM needs one: give the rules zones, or map them with --zone-map.
+
+NAT rules
+  external-192.0.2.10  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: the policy names no zone, and a network object of the UTM needs one
+  external-192.0.2.5  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: the policy names no zone, and a network object of the UTM needs one

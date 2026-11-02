@@ -1,0 +1,115 @@
+FWShift conversion report
+  source: clavister
+  target: kubernetes
+
+Summary
+  Security rules:     25   exact 7, approximated 8, needs review 8 (4 emitted disabled), skipped 2
+  NAT rules:          12   exact 0, approximated 0, needs review 0, skipped 12
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] K8S_LOAD: the output is a List of NetworkPolicies for kubectl apply -n NAMESPACE -f FILE (kubectl apply --dry-run=server checks it first). It names no namespace: apply it in the namespace of the pods it is for, and in each such namespace. Policies of the same name are replaced; nothing else is changed. A policy selects the pods labelled fwshift/group=<its group>, and no pod has that label yet: nothing changes until pods are labelled
+  [needs-review] K8S_LABEL_PODS: 8 groups: label each pod with fwshift/group=<group> of the policy whose fwshift/addresses annotation holds the pod's address (kubectl label pod POD ...). A pod's address changes when it is created again: label the pods through their Deployment or StatefulSet template, where every address the template's pods get must be in that group. A pod with addresses of both IP versions needs a group that holds both
+  [needs-review] K8S_IPBLOCK_PODS: the peers are written as ipBlock. Whether an ipBlock matches the addresses of pods depends on the network plugin (the Kubernetes documentation says ipBlock is meant for addresses outside the cluster); where it does not, rules between pods allow nothing
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: lan=192.168.10.0/24,2001:db8:10::/64; dmz=172.16.20.0/24,172.16.0.0/16; wan=203.0.113.0/24; guest=10.30.0.0/24. --no-source-networks takes none of them
+  [info] K8S_PLATFORM_ALLOWS: a NetworkPolicy always allows traffic between a pod and the node it runs on, and a pod to itself; and it is only guaranteed to decide TCP, UDP and SCTP (for ICMP and other protocols the network plugin decides)
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a NetworkPolicy does not (some network plugins can log on their own)
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'pol_dmz_https' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  approximated  (emitted as NetworkPolicies fwshift-web-srv, fwshift-wan-net)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'web_srv' because of NAT rule 'allow_web+sat_web'; check that this rule is meant to cover the translated traffic
+      [info] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it with --zone-network
+  block_bad_mail+sat_mail  ->  approximated  (emitted as taken out of the rules below it)
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'allow_mail+sat_mail'; check that this rule is meant to cover the translated traffic
+  nat_mail+sat_mail  ->  approximated  (emitted as NetworkPolicies fwshift-guest-net, fwshift-mail-srv, fwshift-lan-net)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'nat_mail+sat_mail'; check that this rule is meant to cover the translated traffic
+      [info] ZONE_BY_NETWORKS: the source in zone lan, guest is written as the addresses of the networks given for it with --zone-network
+  allow_mail+sat_mail  ->  approximated  (emitted as NetworkPolicies fwshift-mail-srv, fwshift-wan-net)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'allow_mail+sat_mail'; check that this rule is meant to cover the translated traffic
+      [info] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it with --zone-network
+  allow_pool+sat_pool  ->  approximated  (emitted as NetworkPolicies fwshift-dmz-2, fwshift-wan-net)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'pub_pool' with post-NAT '172.16.20.100/30' because of NAT rule 'allow_pool+sat_pool'; check that this rule is meant to cover the translated traffic
+      [info] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it with --zone-network
+  to_guest/guest_dns  ->  exact  (emitted as NetworkPolicies fwshift-guest-net, fwshift-wan-net)
+      [info] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it with --zone-network
+  to_guest/guest_web  ->  exact  (emitted as NetworkPolicies fwshift-guest-net, fwshift-wan-net)
+      [info] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it with --zone-network
+  to_guest/guest_never  ->  needs-review
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_srv', the address NAT rule 'nat_mail+sat_mail' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  lan_dns  ->  exact  (emitted as NetworkPolicies fwshift-lan-net, fwshift-wan-net)
+      [info] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it with --zone-network
+  lan_web  ->  exact  (emitted as NetworkPolicies fwshift-lan-net, fwshift-wan-net)
+      [info] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it with --zone-network
+  lan_updates  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: a NetworkPolicy names addresses.
+  lan_to_dmz  ->  needs-review  (emitted as NetworkPolicies fwshift-dmz, fwshift-mail-srv, fwshift-web-srv, fwshift-dmz-2, fwshift-lan-net)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_srv', the address NAT rule 'nat_mail+sat_mail' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  syslog_fast  ->  needs-review, emitted disabled
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+      [needs-review] SOURCE_PORTS: source ports: a NetworkPolicy matches destination ports only.
+  gre_tunnel  ->  needs-review, emitted disabled
+      [info] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it with --zone-network
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  old_rule  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  lan6_web  ->  skipped
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+      [info] MATCHES_NOTHING: after the negation and the networks of its zones, the rule matches no connection
+  lan6_ping  ->  needs-review
+      [needs-review] K8S_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a NetworkPolicy (ICMP or another protocol on its own, every protocol but some, a range of source ports) and is not written; the converted rule allows less
+  pol_dmz_https  ->  needs-review  (emitted as NetworkPolicies fwshift-web-srv, fwshift-wan-net)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip2' with post-NAT 'web_srv' because of NAT rule 'pol_dmz_https'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'pol_dmz_https' also translates the port to 8443: the service of this rule (https) named the pre-NAT port only, and now names 8443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web_srv', the address NAT rule 'allow_web+sat_web' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+      [info] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it with --zone-network
+  pol_dmz_out  ->  approximated  (emitted as NetworkPolicies fwshift-dmz, fwshift-mail-srv, fwshift-web-srv, fwshift-dmz-2, fwshift-wan-net)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+      [info] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it with --zone-network
+  pol_block_ftp  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  allow_web+sat_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  nat_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  allow_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  to_guest/guest_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  to_guest/guest_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  lan_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  lan_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  lan_updates  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  pol_dmz_https  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  pol_dmz_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  sat_unused  ->  skipped
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see

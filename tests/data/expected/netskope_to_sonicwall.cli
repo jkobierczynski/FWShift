@@ -1,0 +1,366 @@
+configure terminal
+address-object ipv4 "h 198.51.100.25" host 198.51.100.25 zone client
+address-object ipv4 "h 198.51.100.26" host 198.51.100.26 zone client
+address-object ipv4 "n 203.0.113.0_26" network 203.0.113.0 255.255.255.192 zone client
+address-object ipv6 "n 2001:db8:5::_48" network 2001:db8:5:: /48 zone client
+address-object ipv4 "n 192.0.2.128_26" network 192.0.2.128 255.255.255.192 zone client
+address-object ipv4 "h 203.0.113.200" host 203.0.113.200 zone client
+address-object ipv4 "h 198.51.100.123" host 198.51.100.123 zone client
+address-object ipv4 "dp-saas-domains" host 192.0.0.8 zone client
+address-object ipv4 "h 198.51.100.10" host 198.51.100.10 zone client
+address-object ipv4 "h 198.51.100.11" host 198.51.100.11 zone client
+address-object ipv4 "h 203.0.113.40" host 203.0.113.40 zone client
+address-object ipv4 "n 10.20.0.0_16" network 10.20.0.0 255.255.0.0 zone client
+address-object ipv4 "n 10.21.0.0_16" network 10.21.0.0 255.255.0.0 zone client
+address-object ipv4 "n 10.30.0.0_16" network 10.30.0.0 255.255.0.0 zone client
+address-object ipv6 "n fd00:30::_48" network fd00:30:: /48 zone client
+address-object ipv4 "n 10.99.0.0_24" network 10.99.0.0 255.255.255.0 zone client
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone client
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone client
+address-object ipv6 "n ::_1" network :: /1 zone client
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone client
+address-object ipv4 "n 10.20.10.0_24" network 10.20.10.0 255.255.255.0 zone client
+address-object ipv4 "n 10.20.11.0_25" network 10.20.11.0 255.255.255.128 zone client
+address-object ipv4 "r 0.0.0.0-10.20.9.255" range 0.0.0.0 10.20.9.255 zone client
+address-object ipv4 "r 10.20.11.128-255.255.255.255" range 10.20.11.128 255.255.255.255 zone client
+address-object ipv4 "n 10.20.5.0_24" network 10.20.5.0 255.255.255.0 zone client
+address-object ipv4 "n 10.40.0.0_16" network 10.40.0.0 255.255.0.0 zone client
+address-group ipv4 "dp-partner-mail"
+    address-object ipv4 "h 198.51.100.25"
+    address-object ipv4 "h 198.51.100.26"
+    exit
+address-group ipv4 "dp-voice-provider"
+    address-object ipv4 "n 203.0.113.0_26"
+    exit
+address-group ipv6 "dp-voice-provider v6"
+    address-object ipv6 "n 2001:db8:5::_48"
+    exit
+address-group ipv4 "dp-blocked-ranges"
+    address-object ipv4 "n 192.0.2.128_26"
+    address-object ipv4 "h 203.0.113.200"
+    exit
+address-group ipv4 "dp-time"
+    address-object ipv4 "h 198.51.100.123"
+    exit
+address-group ipv4 "app-ssh-jump"
+    address-object ipv4 "h 198.51.100.10"
+    address-object ipv4 "h 198.51.100.11"
+    exit
+address-group ipv4 "app-rdp-gw"
+    address-object ipv4 "h 203.0.113.40"
+    exit
+address-group ipv4 "src Branch mail to partner"
+    address-object ipv4 "n 10.20.0.0_16"
+    address-object ipv4 "n 10.21.0.0_16"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
+address-group ipv4 "src Not from the server networks"
+    address-object ipv4 "r 0.0.0.0-10.20.9.255"
+    address-object ipv4 "r 10.20.11.128-255.255.255.255"
+    exit
+service-object "HTTPS 2" TCP 443 443
+service-object "DNS tcp 53" TCP 53 53
+service-object "DNS udp 53" UDP 53 53
+service-group "DNS"
+    service-object "DNS tcp 53"
+    service-object "DNS udp 53"
+    exit
+service-object "svc-mail tcp 587" TCP 587 587
+service-object "svc-mail tcp 993" TCP 993 993
+service-group "svc-mail"
+    service-object "svc-mail tcp 587"
+    service-object "svc-mail tcp 993"
+    exit
+service-object "svc-voice tcp 5061" TCP 5061 5061
+service-object "svc-voice udp 5060" UDP 5060 5060
+service-object "svc-voice udp 10000-20000" UDP 10000 20000
+service-group "svc-voice"
+    service-object "svc-voice tcp 5061"
+    service-object "svc-voice udp 5060"
+    service-object "svc-voice udp 10000-20000"
+    exit
+service-object "svc-ntp" UDP 123 123
+service-object "app-ssh-jump" TCP 22 22
+service-object "app-rdp-gw tcp 3389" TCP 3389 3389
+service-object "app-rdp-gw udp 3389" UDP 3389 3389
+service-group "app-rdp-gw"
+    service-object "app-rdp-gw tcp 3389"
+    service-object "app-rdp-gw udp 3389"
+    exit
+service-object "app-git tcp 22" TCP 22 22
+service-object "app-git tcp 9418" TCP 9418 9418
+service-group "app-git"
+    service-object "app-git tcp 22"
+    service-object "app-git tcp 9418"
+    exit
+service-object "app-any-ftp" TCP 20 21
+access-rule ipv4 from client to internet action deny source address any service any destination address group "dp-blocked-ranges"
+    name "Block known bad ranges"
+    priority manual 1
+    exit
+access-rule ipv4 from ipsec to internet action deny source address any service any destination address group "dp-blocked-ranges"
+    name "Block known bad ranges 2"
+    priority manual 2
+    exit
+access-rule ipv4 from gre to internet action deny source address any service any destination address group "dp-blocked-ranges"
+    name "Block known bad ranges 3"
+    priority manual 3
+    exit
+access-rule ipv4 from ipsec to internet action allow source address group "src Branch mail to partner" service group "svc-mail" destination address group "dp-partner-mail"
+    name "Branch mail to partner"
+    priority manual 4
+    exit
+access-rule ipv4 from gre to internet action allow source address group "src Branch mail to partner" service group "svc-mail" destination address group "dp-partner-mail"
+    name "Branch mail to partner 2"
+    priority manual 5
+    exit
+access-rule ipv4 from gre to internet action allow source address name "n 10.30.0.0_16" service group "svc-voice" destination address group "dp-voice-provider"
+    name "Voice from sites"
+    priority manual 6
+    exit
+access-rule ipv4 from client to internet action allow source address name "n 10.99.0.0_24" service name "app-ssh-jump" destination address group "app-ssh-jump"
+    name "Admins to jump hosts [app-ssh-ju"
+    priority manual 7
+    exit
+access-rule ipv4 from client to internet action allow source address name "n 10.99.0.0_24" service group "app-rdp-gw" destination address group "app-rdp-gw"
+    name "Admins to jump hosts [app-rdp-gw"
+    priority manual 8
+    exit
+access-rule ipv4 from client to internet action allow source address any service group "app-git" destination address any
+    name "Engineering to git"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from client to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block BitTorrent"
+    priority manual 10
+    no enable
+    exit
+access-rule ipv4 from ipsec to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block BitTorrent 3"
+    priority manual 11
+    no enable
+    exit
+access-rule ipv4 from gre to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block BitTorrent 5"
+    priority manual 12
+    no enable
+    exit
+access-rule ipv4 from ipsec to internet action deny source address group "src Not from the server networks" service name "svc-ntp" destination address any
+    name "Not from the server networks: no"
+    priority manual 13
+    exit
+access-rule ipv4 from client to internet action allow source address any service name "svc-ntp" destination address group "dp-time"
+    name "Time servers"
+    priority manual 14
+    exit
+access-rule ipv4 from ipsec to internet action allow source address any service name "svc-ntp" destination address group "dp-time"
+    name "Time servers 2"
+    priority manual 15
+    exit
+access-rule ipv4 from gre to internet action allow source address any service name "svc-ntp" destination address group "dp-time"
+    name "Time servers 3"
+    priority manual 16
+    exit
+access-rule ipv4 from ipsec to internet action allow source address name "n 10.20.5.0_24" service name "app-any-ftp" destination address any
+    name "Old FTP exception"
+    priority manual 17
+    no enable
+    exit
+access-rule ipv4 from gre to internet action allow source address any service name "HTTPS 2" destination address group "dp-saas-domains"
+    name "SaaS files from the office"
+    priority manual 18
+    no enable
+    exit
+access-rule ipv4 from client to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Ping out"
+    priority manual 19
+    no enable
+    exit
+access-rule ipv4 from ipsec to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Ping out 2"
+    priority manual 20
+    no enable
+    exit
+access-rule ipv4 from gre to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Ping out 3"
+    priority manual 21
+    no enable
+    exit
+access-rule ipv4 from client to internet action allow source address any service group "DNS" destination address any
+    name "DNS out"
+    priority manual 22
+    exit
+access-rule ipv4 from ipsec to internet action allow source address any service group "DNS" destination address any
+    name "DNS out 3"
+    priority manual 23
+    exit
+access-rule ipv4 from gre to internet action allow source address any service group "DNS" destination address any
+    name "DNS out 5"
+    priority manual 24
+    exit
+access-rule ipv4 from client to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Contractors: nothing else"
+    priority manual 25
+    no enable
+    exit
+access-rule ipv4 from ipsec to internet action allow source address name "n 10.40.0.0_16" service any destination address any
+    name "Lab network out"
+    priority manual 26
+    exit
+access-rule ipv4 from client to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Default Action"
+    priority manual 27
+    exit
+access-rule ipv4 from ipsec to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Default Action 3"
+    priority manual 28
+    exit
+access-rule ipv4 from gre to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Default Action 5"
+    priority manual 29
+    exit
+access-rule ipv4 from client to client action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT client to client"
+    priority manual 30
+    exit
+access-rule ipv4 from client to gre action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT client to gre"
+    priority manual 31
+    exit
+access-rule ipv4 from client to ipsec action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT client to ipsec"
+    priority manual 32
+    exit
+access-rule ipv4 from gre to client action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT gre to client"
+    priority manual 33
+    exit
+access-rule ipv4 from gre to gre action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT gre to gre"
+    priority manual 34
+    exit
+access-rule ipv4 from gre to ipsec action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT gre to ipsec"
+    priority manual 35
+    exit
+access-rule ipv4 from internet to client action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to client"
+    priority manual 36
+    exit
+access-rule ipv4 from internet to gre action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to gre"
+    priority manual 37
+    exit
+access-rule ipv4 from internet to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to internet"
+    priority manual 38
+    exit
+access-rule ipv4 from internet to ipsec action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to ipsec"
+    priority manual 39
+    exit
+access-rule ipv4 from ipsec to client action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT ipsec to client"
+    priority manual 40
+    exit
+access-rule ipv4 from ipsec to gre action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT ipsec to gre"
+    priority manual 41
+    exit
+access-rule ipv4 from ipsec to ipsec action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT ipsec to ipsec"
+    priority manual 42
+    exit
+access-rule ipv6 from gre to internet action allow source address name "n fd00:30::_48" service group "svc-voice" destination address group "dp-voice-provider v6"
+    name "Voice from sites 2"
+    exit
+access-rule ipv6 from client to internet action allow source address any service group "app-git" destination address any
+    name "Engineering to git 2"
+    no enable
+    exit
+access-rule ipv6 from client to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block BitTorrent 2"
+    no enable
+    exit
+access-rule ipv6 from ipsec to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block BitTorrent 4"
+    no enable
+    exit
+access-rule ipv6 from gre to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block BitTorrent 6"
+    no enable
+    exit
+access-rule ipv6 from ipsec to internet action deny source address any service name "svc-ntp" destination address any
+    name "Not from the server networks: 2"
+    exit
+access-rule ipv6 from client to internet action allow source address any service group "DNS" destination address any
+    name "DNS out 2"
+    exit
+access-rule ipv6 from ipsec to internet action allow source address any service group "DNS" destination address any
+    name "DNS out 4"
+    exit
+access-rule ipv6 from gre to internet action allow source address any service group "DNS" destination address any
+    name "DNS out 6"
+    exit
+access-rule ipv6 from client to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Contractors: nothing else 2"
+    no enable
+    exit
+access-rule ipv6 from client to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default Action 2"
+    exit
+access-rule ipv6 from ipsec to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default Action 4"
+    exit
+access-rule ipv6 from gre to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default Action 6"
+    exit
+access-rule ipv6 from client to client action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT client to client v6"
+    exit
+access-rule ipv6 from client to gre action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT client to gre v6"
+    exit
+access-rule ipv6 from client to ipsec action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT client to ipsec v6"
+    exit
+access-rule ipv6 from gre to client action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT gre to client v6"
+    exit
+access-rule ipv6 from gre to gre action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT gre to gre v6"
+    exit
+access-rule ipv6 from gre to ipsec action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT gre to ipsec v6"
+    exit
+access-rule ipv6 from internet to client action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to client v6"
+    exit
+access-rule ipv6 from internet to gre action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to gre v6"
+    exit
+access-rule ipv6 from internet to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to internet v6"
+    exit
+access-rule ipv6 from internet to ipsec action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to ipsec v6"
+    exit
+access-rule ipv6 from ipsec to client action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT ipsec to client v6"
+    exit
+access-rule ipv6 from ipsec to gre action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT ipsec to gre v6"
+    exit
+access-rule ipv6 from ipsec to ipsec action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT ipsec to ipsec v6"
+    exit
+commit
+exit

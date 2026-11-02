@@ -1,0 +1,773 @@
+configure terminal
+address-object ipv4 "n 10.10.0.0_16" network 10.10.0.0 255.255.0.0 zone Branch-Ghent
+address-object ipv4 "r 10.20.1.1-10.20.1.50" range 10.20.1.1 10.20.1.50 zone Branch-Ghent
+address-object ipv4 "h 10.10.5.10" host 10.10.5.10 zone Branch-Ghent
+address-object ipv4 "h 10.10.5.11" host 10.10.5.11 zone Branch-Ghent
+address-object ipv6 "n 2001:db8:10::_48" network 2001:db8:10:: /48 zone Branch-Ghent
+address-object ipv4 "n 198.51.100.0_25" network 198.51.100.0 255.255.255.128 zone Branch-Ghent
+address-object ipv4 "h 203.0.113.50" host 203.0.113.50 zone Branch-Ghent
+address-object ipv4 "SaaS-Domains" host 192.0.0.8 zone Branch-Ghent
+address-object ipv4 "Embargo" host 192.0.0.8 zone Branch-Ghent
+address-object ipv6 "n 2001:db8:200::_64" network 2001:db8:200:: /64 zone Branch-Ghent
+address-object ipv4 "h 198.51.100.53" host 198.51.100.53 zone Branch-Ghent
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone Branch-Ghent
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone Branch-Ghent
+address-object ipv6 "n ::_1" network :: /1 zone Branch-Ghent
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone Branch-Ghent
+address-object ipv4 "n 10.10.20.0_24" network 10.10.20.0 255.255.255.0 zone Branch-Ghent
+address-object ipv4 "r 192.0.2.10-192.0.2.20" range 192.0.2.10 192.0.2.20 zone Branch-Ghent
+address-object ipv4 "n 203.0.113.0_24" network 203.0.113.0 255.255.255.0 zone Branch-Ghent
+address-object ipv4 "r 10.30.0.1-10.30.0.99" range 10.30.0.1 10.30.0.99 zone Branch-Ghent
+address-group ipv4 "Engineering-Nets"
+    address-object ipv4 "n 10.10.0.0_16"
+    address-object ipv4 "r 10.20.1.1-10.20.1.50"
+    exit
+address-group ipv4 "Printers"
+    address-object ipv4 "h 10.10.5.10"
+    address-object ipv4 "h 10.10.5.11"
+    exit
+address-group ipv6 "Eng-v6"
+    address-object ipv6 "n 2001:db8:10::_48"
+    exit
+address-group ipv4 "Partner-Servers"
+    address-object ipv4 "n 198.51.100.0_25"
+    address-object ipv4 "h 203.0.113.50"
+    exit
+address-group ipv6 "Partner-v6"
+    address-object ipv6 "n 2001:db8:200::_64"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
+address-group ipv4 "src Web for all"
+    address-object ipv4 "n 10.10.0.0_16"
+    address-object ipv4 "r 10.30.0.1-10.30.0.99"
+    exit
+service-object "UDP_ANY" UDP 1 65535
+service-object "TCP_ANY" TCP 1 65535
+service-object "DNS tcp 53" TCP 53 53
+service-object "DNS udp 53" UDP 53 53
+service-group "DNS"
+    service-object "DNS tcp 53"
+    service-object "DNS udp 53"
+    exit
+service-object "HTTP 2" TCP 80 80
+service-object "HTTPS 2" TCP 443 443
+service-object "App-8443 tcp 8443" TCP 8443 8443
+service-object "App-8443 tcp 8000-8010" TCP 8000 8010
+service-group "App-8443"
+    service-object "App-8443 tcp 8443"
+    service-object "App-8443 tcp 8000-8010"
+    exit
+service-object "NTP 2" UDP 123 123
+service-object "SSH 2" TCP 22 22
+service-group "Web"
+    service-object "HTTP 2"
+    service-object "HTTPS 2"
+    exit
+service-group "svc Evaluate apps"
+    service-object "TCP_ANY"
+    service-object "UDP_ANY"
+    exit
+access-rule ipv4 from HQ-Brussels to internet action allow source address group "Engineering-Nets" service group "DNS" destination address name "h 198.51.100.53"
+    name "Allow DNS to resolvers"
+    priority manual 1
+    exit
+access-rule ipv4 from HQ-Brussels to internet action deny source address any service name "SSH 2" destination address any
+    name "Block SSH out"
+    priority manual 2
+    exit
+access-rule ipv4 from Branch-Ghent to internet action deny source address any service name "SSH 2" destination address any
+    name "Block SSH out 3"
+    priority manual 3
+    exit
+access-rule ipv4 from HQ-Servers to internet action deny source address any service name "SSH 2" destination address any
+    name "Block SSH out 5"
+    priority manual 4
+    exit
+access-rule ipv4 from Guest-WiFi to internet action deny source address any service name "SSH 2" destination address any
+    name "Block SSH out 7"
+    priority manual 5
+    exit
+access-rule ipv4 from road-warrior to internet action deny source address any service name "SSH 2" destination address any
+    name "Block SSH out 9"
+    priority manual 6
+    exit
+access-rule ipv4 from HQ-Brussels to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block malicious IPs and domains"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from Branch-Ghent to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block malicious IPs and domain 3"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from HQ-Servers to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block malicious IPs and domain 5"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from Guest-WiFi to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block malicious IPs and domain 7"
+    priority manual 10
+    no enable
+    exit
+access-rule ipv4 from road-warrior to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block malicious IPs and domain 9"
+    priority manual 11
+    no enable
+    exit
+access-rule ipv4 from HQ-Brussels to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Office 365 One Click Rule"
+    priority manual 12
+    no enable
+    exit
+access-rule ipv4 from Branch-Ghent to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Office 365 One Click Rule 3"
+    priority manual 13
+    no enable
+    exit
+access-rule ipv4 from HQ-Servers to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Office 365 One Click Rule 5"
+    priority manual 14
+    no enable
+    exit
+access-rule ipv4 from Guest-WiFi to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Office 365 One Click Rule 7"
+    priority manual 15
+    no enable
+    exit
+access-rule ipv4 from road-warrior to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Office 365 One Click Rule 9"
+    priority manual 16
+    no enable
+    exit
+access-rule ipv4 from HQ-Servers to internet action allow source address name "n 10.10.20.0_24" service group "App-8443" destination address group "Partner-Servers"
+    name "Partner app"
+    priority manual 17
+    exit
+access-rule ipv4 from Branch-Ghent to internet action allow source address any service group "Web" destination address any
+    name "Branch web"
+    priority manual 18
+    no enable
+    exit
+access-rule ipv4 from HQ-Brussels to internet action allow source address any service name "HTTPS 2" destination address group "SaaS-Domains"
+    name "Engineers to SaaS"
+    priority manual 19
+    no enable
+    exit
+access-rule ipv4 from Branch-Ghent to internet action allow source address any service name "HTTPS 2" destination address group "SaaS-Domains"
+    name "Engineers to SaaS 2"
+    priority manual 20
+    no enable
+    exit
+access-rule ipv4 from HQ-Servers to internet action allow source address any service name "HTTPS 2" destination address group "SaaS-Domains"
+    name "Engineers to SaaS 3"
+    priority manual 21
+    no enable
+    exit
+access-rule ipv4 from Guest-WiFi to internet action allow source address any service name "HTTPS 2" destination address group "SaaS-Domains"
+    name "Engineers to SaaS 4"
+    priority manual 22
+    no enable
+    exit
+access-rule ipv4 from road-warrior to internet action allow source address any service name "HTTPS 2" destination address group "SaaS-Domains"
+    name "Engineers to SaaS 5"
+    priority manual 23
+    no enable
+    exit
+access-rule ipv4 from HQ-Brussels to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "No embargoed countries"
+    priority manual 24
+    no enable
+    exit
+access-rule ipv4 from Branch-Ghent to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "No embargoed countries 3"
+    priority manual 25
+    no enable
+    exit
+access-rule ipv4 from HQ-Servers to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "No embargoed countries 5"
+    priority manual 26
+    no enable
+    exit
+access-rule ipv4 from Guest-WiFi to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "No embargoed countries 7"
+    priority manual 27
+    no enable
+    exit
+access-rule ipv4 from road-warrior to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "No embargoed countries 9"
+    priority manual 28
+    no enable
+    exit
+access-rule ipv4 from HQ-Brussels to internet action allow source address group "Printers" service any destination address name "r 192.0.2.10-192.0.2.20"
+    name "Printers syslog"
+    priority manual 29
+    no enable
+    exit
+access-rule ipv4 from Branch-Ghent to internet action allow source address group "Printers" service any destination address name "r 192.0.2.10-192.0.2.20"
+    name "Printers syslog 2"
+    priority manual 30
+    no enable
+    exit
+access-rule ipv4 from HQ-Servers to internet action allow source address group "Printers" service any destination address name "r 192.0.2.10-192.0.2.20"
+    name "Printers syslog 3"
+    priority manual 31
+    no enable
+    exit
+access-rule ipv4 from Guest-WiFi to internet action allow source address group "Printers" service any destination address name "r 192.0.2.10-192.0.2.20"
+    name "Printers syslog 4"
+    priority manual 32
+    no enable
+    exit
+access-rule ipv4 from road-warrior to internet action allow source address group "Printers" service any destination address name "r 192.0.2.10-192.0.2.20"
+    name "Printers syslog 5"
+    priority manual 33
+    no enable
+    exit
+access-rule ipv4 from HQ-Brussels to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Infra out"
+    priority manual 34
+    no enable
+    exit
+access-rule ipv4 from Branch-Ghent to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Infra out 3"
+    priority manual 35
+    no enable
+    exit
+access-rule ipv4 from HQ-Servers to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Infra out 5"
+    priority manual 36
+    no enable
+    exit
+access-rule ipv4 from Guest-WiFi to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Infra out 7"
+    priority manual 37
+    no enable
+    exit
+access-rule ipv4 from road-warrior to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Infra out 9"
+    priority manual 38
+    no enable
+    exit
+access-rule ipv4 from HQ-Brussels to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block GRE and ESP"
+    priority manual 39
+    no enable
+    exit
+access-rule ipv4 from Branch-Ghent to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block GRE and ESP 3"
+    priority manual 40
+    no enable
+    exit
+access-rule ipv4 from HQ-Servers to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block GRE and ESP 5"
+    priority manual 41
+    no enable
+    exit
+access-rule ipv4 from Guest-WiFi to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block GRE and ESP 7"
+    priority manual 42
+    no enable
+    exit
+access-rule ipv4 from road-warrior to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "Block GRE and ESP 9"
+    priority manual 43
+    no enable
+    exit
+access-rule ipv4 from HQ-Brussels to internet action discard source address any service group "svc Evaluate apps" destination address any
+    name "Evaluate apps"
+    priority manual 44
+    no enable
+    exit
+access-rule ipv4 from Branch-Ghent to internet action discard source address any service group "svc Evaluate apps" destination address any
+    name "Evaluate apps 3"
+    priority manual 45
+    no enable
+    exit
+access-rule ipv4 from HQ-Servers to internet action discard source address any service group "svc Evaluate apps" destination address any
+    name "Evaluate apps 5"
+    priority manual 46
+    no enable
+    exit
+access-rule ipv4 from Guest-WiFi to internet action discard source address any service group "svc Evaluate apps" destination address any
+    name "Evaluate apps 7"
+    priority manual 47
+    no enable
+    exit
+access-rule ipv4 from road-warrior to internet action discard source address any service group "svc Evaluate apps" destination address any
+    name "Evaluate apps 9"
+    priority manual 48
+    no enable
+    exit
+access-rule ipv4 from HQ-Brussels to internet action allow source address any service name "HTTPS 2" destination address name "n 203.0.113.0_24"
+    name "Ranked web"
+    priority manual 49
+    no enable
+    exit
+access-rule ipv4 from Branch-Ghent to internet action allow source address any service name "HTTPS 2" destination address name "n 203.0.113.0_24"
+    name "Ranked web 2"
+    priority manual 50
+    no enable
+    exit
+access-rule ipv4 from HQ-Servers to internet action allow source address any service name "HTTPS 2" destination address name "n 203.0.113.0_24"
+    name "Ranked web 3"
+    priority manual 51
+    no enable
+    exit
+access-rule ipv4 from Guest-WiFi to internet action allow source address any service name "HTTPS 2" destination address name "n 203.0.113.0_24"
+    name "Ranked web 4"
+    priority manual 52
+    no enable
+    exit
+access-rule ipv4 from road-warrior to internet action allow source address any service name "HTTPS 2" destination address name "n 203.0.113.0_24"
+    name "Ranked web 5"
+    priority manual 53
+    no enable
+    exit
+access-rule ipv4 from Branch-Ghent to internet action allow source address any service name "HTTP 2" destination address any
+    name "Ghent and corporate"
+    priority manual 54
+    no enable
+    exit
+access-rule ipv4 from HQ-Brussels to internet action allow source address any service name "HTTP 2" destination address any
+    name "Ghent and corporate 3"
+    priority manual 55
+    no enable
+    exit
+access-rule ipv4 from HQ-Brussels to internet action allow source address group "src Web for all" service group "Web" destination address any
+    name "Web for all"
+    priority manual 56
+    exit
+access-rule ipv4 from Branch-Ghent to internet action allow source address group "src Web for all" service group "Web" destination address any
+    name "Web for all 2"
+    priority manual 57
+    exit
+access-rule ipv4 from HQ-Servers to internet action allow source address group "src Web for all" service group "Web" destination address any
+    name "Web for all 3"
+    priority manual 58
+    exit
+access-rule ipv4 from Guest-WiFi to internet action allow source address group "src Web for all" service group "Web" destination address any
+    name "Web for all 4"
+    priority manual 59
+    exit
+access-rule ipv4 from road-warrior to internet action allow source address group "src Web for all" service group "Web" destination address any
+    name "Web for all 5"
+    priority manual 60
+    exit
+access-rule ipv4 from Guest-WiFi to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "Guest ICMP"
+    priority manual 61
+    no enable
+    exit
+access-rule ipv4 from HQ-Brussels to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "Default Firewall Filtering Rule"
+    priority manual 62
+    exit
+access-rule ipv4 from Branch-Ghent to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "Default Firewall Filtering Rul 3"
+    priority manual 63
+    exit
+access-rule ipv4 from HQ-Servers to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "Default Firewall Filtering Rul 5"
+    priority manual 64
+    exit
+access-rule ipv4 from Guest-WiFi to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "Default Firewall Filtering Rul 7"
+    priority manual 65
+    exit
+access-rule ipv4 from road-warrior to internet action discard source address group "FWSHIFT all IPv4" service any destination address any
+    name "Default Firewall Filtering Rul 9"
+    priority manual 66
+    exit
+access-rule ipv4 from Branch-Ghent to Branch-Ghent action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Branch-Ghent to Branch-G"
+    priority manual 67
+    exit
+access-rule ipv4 from Branch-Ghent to Guest-WiFi action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Branch-Ghent to Guest-Wi"
+    priority manual 68
+    exit
+access-rule ipv4 from Branch-Ghent to HQ-Brussels action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Branch-Ghent to HQ-Bruss"
+    priority manual 69
+    exit
+access-rule ipv4 from Branch-Ghent to HQ-Servers action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Branch-Ghent to HQ-Serve"
+    priority manual 70
+    exit
+access-rule ipv4 from Branch-Ghent to road-warrior action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Branch-Ghent to road-war"
+    priority manual 71
+    exit
+access-rule ipv4 from Guest-WiFi to Branch-Ghent action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Guest-WiFi to Branch-Ghe"
+    priority manual 72
+    exit
+access-rule ipv4 from Guest-WiFi to Guest-WiFi action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Guest-WiFi to Guest-WiFi"
+    priority manual 73
+    exit
+access-rule ipv4 from Guest-WiFi to HQ-Brussels action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Guest-WiFi to HQ-Brussel"
+    priority manual 74
+    exit
+access-rule ipv4 from Guest-WiFi to HQ-Servers action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Guest-WiFi to HQ-Servers"
+    priority manual 75
+    exit
+access-rule ipv4 from Guest-WiFi to road-warrior action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT Guest-WiFi to road-warri"
+    priority manual 76
+    exit
+access-rule ipv4 from HQ-Brussels to Branch-Ghent action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT HQ-Brussels to Branch-Gh"
+    priority manual 77
+    exit
+access-rule ipv4 from HQ-Brussels to Guest-WiFi action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT HQ-Brussels to Guest-WiF"
+    priority manual 78
+    exit
+access-rule ipv4 from HQ-Brussels to HQ-Brussels action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT HQ-Brussels to HQ-Brusse"
+    priority manual 79
+    exit
+access-rule ipv4 from HQ-Brussels to HQ-Servers action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT HQ-Brussels to HQ-Server"
+    priority manual 80
+    exit
+access-rule ipv4 from HQ-Brussels to road-warrior action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT HQ-Brussels to road-warr"
+    priority manual 81
+    exit
+access-rule ipv4 from HQ-Servers to Branch-Ghent action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT HQ-Servers to Branch-Ghe"
+    priority manual 82
+    exit
+access-rule ipv4 from HQ-Servers to Guest-WiFi action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT HQ-Servers to Guest-WiFi"
+    priority manual 83
+    exit
+access-rule ipv4 from HQ-Servers to HQ-Brussels action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT HQ-Servers to HQ-Brussel"
+    priority manual 84
+    exit
+access-rule ipv4 from HQ-Servers to HQ-Servers action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT HQ-Servers to HQ-Servers"
+    priority manual 85
+    exit
+access-rule ipv4 from HQ-Servers to road-warrior action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT HQ-Servers to road-warri"
+    priority manual 86
+    exit
+access-rule ipv4 from internet to Branch-Ghent action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to Branch-Ghent"
+    priority manual 87
+    exit
+access-rule ipv4 from internet to Guest-WiFi action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to Guest-WiFi"
+    priority manual 88
+    exit
+access-rule ipv4 from internet to HQ-Brussels action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to HQ-Brussels"
+    priority manual 89
+    exit
+access-rule ipv4 from internet to HQ-Servers action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to HQ-Servers"
+    priority manual 90
+    exit
+access-rule ipv4 from internet to internet action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to internet"
+    priority manual 91
+    exit
+access-rule ipv4 from internet to road-warrior action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internet to road-warrior"
+    priority manual 92
+    exit
+access-rule ipv4 from road-warrior to Branch-Ghent action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT road-warrior to Branch-G"
+    priority manual 93
+    exit
+access-rule ipv4 from road-warrior to Guest-WiFi action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT road-warrior to Guest-Wi"
+    priority manual 94
+    exit
+access-rule ipv4 from road-warrior to HQ-Brussels action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT road-warrior to HQ-Bruss"
+    priority manual 95
+    exit
+access-rule ipv4 from road-warrior to HQ-Servers action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT road-warrior to HQ-Serve"
+    priority manual 96
+    exit
+access-rule ipv4 from road-warrior to road-warrior action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT road-warrior to road-war"
+    priority manual 97
+    exit
+access-rule ipv6 from HQ-Brussels to internet action deny source address any service name "SSH 2" destination address any
+    name "Block SSH out 2"
+    exit
+access-rule ipv6 from Branch-Ghent to internet action deny source address any service name "SSH 2" destination address any
+    name "Block SSH out 4"
+    exit
+access-rule ipv6 from HQ-Servers to internet action deny source address any service name "SSH 2" destination address any
+    name "Block SSH out 6"
+    exit
+access-rule ipv6 from Guest-WiFi to internet action deny source address any service name "SSH 2" destination address any
+    name "Block SSH out 8"
+    exit
+access-rule ipv6 from road-warrior to internet action deny source address any service name "SSH 2" destination address any
+    name "Block SSH out 10"
+    exit
+access-rule ipv6 from HQ-Brussels to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block malicious IPs and domain 2"
+    no enable
+    exit
+access-rule ipv6 from Branch-Ghent to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block malicious IPs and domain 4"
+    no enable
+    exit
+access-rule ipv6 from HQ-Servers to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block malicious IPs and domain 6"
+    no enable
+    exit
+access-rule ipv6 from Guest-WiFi to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block malicious IPs and domain 8"
+    no enable
+    exit
+access-rule ipv6 from road-warrior to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block malicious IPs and domai 10"
+    no enable
+    exit
+access-rule ipv6 from HQ-Brussels to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Office 365 One Click Rule 2"
+    no enable
+    exit
+access-rule ipv6 from Branch-Ghent to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Office 365 One Click Rule 4"
+    no enable
+    exit
+access-rule ipv6 from HQ-Servers to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Office 365 One Click Rule 6"
+    no enable
+    exit
+access-rule ipv6 from Guest-WiFi to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Office 365 One Click Rule 8"
+    no enable
+    exit
+access-rule ipv6 from road-warrior to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Office 365 One Click Rule 10"
+    no enable
+    exit
+access-rule ipv6 from HQ-Servers to internet action allow source address group "Eng-v6" service group "App-8443" destination address group "Partner-v6"
+    name "Partner app 2"
+    exit
+access-rule ipv6 from Branch-Ghent to internet action allow source address any service group "Web" destination address any
+    name "Branch web 2"
+    no enable
+    exit
+access-rule ipv6 from HQ-Brussels to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "No embargoed countries 2"
+    no enable
+    exit
+access-rule ipv6 from Branch-Ghent to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "No embargoed countries 4"
+    no enable
+    exit
+access-rule ipv6 from HQ-Servers to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "No embargoed countries 6"
+    no enable
+    exit
+access-rule ipv6 from Guest-WiFi to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "No embargoed countries 8"
+    no enable
+    exit
+access-rule ipv6 from road-warrior to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "No embargoed countries 10"
+    no enable
+    exit
+access-rule ipv6 from HQ-Brussels to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Infra out 2"
+    no enable
+    exit
+access-rule ipv6 from Branch-Ghent to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Infra out 4"
+    no enable
+    exit
+access-rule ipv6 from HQ-Servers to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Infra out 6"
+    no enable
+    exit
+access-rule ipv6 from Guest-WiFi to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Infra out 8"
+    no enable
+    exit
+access-rule ipv6 from road-warrior to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Infra out 10"
+    no enable
+    exit
+access-rule ipv6 from HQ-Brussels to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block GRE and ESP 2"
+    no enable
+    exit
+access-rule ipv6 from Branch-Ghent to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block GRE and ESP 4"
+    no enable
+    exit
+access-rule ipv6 from HQ-Servers to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block GRE and ESP 6"
+    no enable
+    exit
+access-rule ipv6 from Guest-WiFi to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block GRE and ESP 8"
+    no enable
+    exit
+access-rule ipv6 from road-warrior to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Block GRE and ESP 10"
+    no enable
+    exit
+access-rule ipv6 from HQ-Brussels to internet action discard source address any service group "svc Evaluate apps" destination address any
+    name "Evaluate apps 2"
+    no enable
+    exit
+access-rule ipv6 from Branch-Ghent to internet action discard source address any service group "svc Evaluate apps" destination address any
+    name "Evaluate apps 4"
+    no enable
+    exit
+access-rule ipv6 from HQ-Servers to internet action discard source address any service group "svc Evaluate apps" destination address any
+    name "Evaluate apps 6"
+    no enable
+    exit
+access-rule ipv6 from Guest-WiFi to internet action discard source address any service group "svc Evaluate apps" destination address any
+    name "Evaluate apps 8"
+    no enable
+    exit
+access-rule ipv6 from road-warrior to internet action discard source address any service group "svc Evaluate apps" destination address any
+    name "Evaluate apps 10"
+    no enable
+    exit
+access-rule ipv6 from Branch-Ghent to internet action allow source address any service name "HTTP 2" destination address any
+    name "Ghent and corporate 2"
+    no enable
+    exit
+access-rule ipv6 from HQ-Brussels to internet action allow source address any service name "HTTP 2" destination address any
+    name "Ghent and corporate 4"
+    no enable
+    exit
+access-rule ipv6 from HQ-Brussels to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default Firewall Filtering Rul 2"
+    exit
+access-rule ipv6 from Branch-Ghent to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default Firewall Filtering Rul 4"
+    exit
+access-rule ipv6 from HQ-Servers to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default Firewall Filtering Rul 6"
+    exit
+access-rule ipv6 from Guest-WiFi to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default Firewall Filtering Rul 8"
+    exit
+access-rule ipv6 from road-warrior to internet action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default Firewall Filtering Ru 10"
+    exit
+access-rule ipv6 from Branch-Ghent to Branch-Ghent action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Branch-Ghent to Branch 2"
+    exit
+access-rule ipv6 from Branch-Ghent to Guest-WiFi action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Branch-Ghent to Guest- 2"
+    exit
+access-rule ipv6 from Branch-Ghent to HQ-Brussels action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Branch-Ghent to HQ-Bru 2"
+    exit
+access-rule ipv6 from Branch-Ghent to HQ-Servers action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Branch-Ghent to HQ-Ser 2"
+    exit
+access-rule ipv6 from Branch-Ghent to road-warrior action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Branch-Ghent to road-w 2"
+    exit
+access-rule ipv6 from Guest-WiFi to Branch-Ghent action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Guest-WiFi to Branch-G 2"
+    exit
+access-rule ipv6 from Guest-WiFi to Guest-WiFi action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Guest-WiFi to Guest-Wi 2"
+    exit
+access-rule ipv6 from Guest-WiFi to HQ-Brussels action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Guest-WiFi to HQ-Bruss 2"
+    exit
+access-rule ipv6 from Guest-WiFi to HQ-Servers action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Guest-WiFi to HQ-Serve 2"
+    exit
+access-rule ipv6 from Guest-WiFi to road-warrior action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Guest-WiFi to road-war 2"
+    exit
+access-rule ipv6 from HQ-Brussels to Branch-Ghent action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT HQ-Brussels to Branch- 2"
+    exit
+access-rule ipv6 from HQ-Brussels to Guest-WiFi action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT HQ-Brussels to Guest-W 2"
+    exit
+access-rule ipv6 from HQ-Brussels to HQ-Brussels action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT HQ-Brussels to HQ-Brus 2"
+    exit
+access-rule ipv6 from HQ-Brussels to HQ-Servers action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT HQ-Brussels to HQ-Serv 2"
+    exit
+access-rule ipv6 from HQ-Brussels to road-warrior action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT HQ-Brussels to road-wa 2"
+    exit
+access-rule ipv6 from HQ-Servers to Branch-Ghent action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT HQ-Servers to Branch-G 2"
+    exit
+access-rule ipv6 from HQ-Servers to Guest-WiFi action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT HQ-Servers to Guest-Wi 2"
+    exit
+access-rule ipv6 from HQ-Servers to HQ-Brussels action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT HQ-Servers to HQ-Bruss 2"
+    exit
+access-rule ipv6 from HQ-Servers to HQ-Servers action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT HQ-Servers to HQ-Serve 2"
+    exit
+access-rule ipv6 from HQ-Servers to road-warrior action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT HQ-Servers to road-war 2"
+    exit
+access-rule ipv6 from internet to Branch-Ghent action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to Branch-Ghe 2"
+    exit
+access-rule ipv6 from internet to Guest-WiFi action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to Guest-WiFi v"
+    exit
+access-rule ipv6 from internet to HQ-Brussels action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to HQ-Brussel 2"
+    exit
+access-rule ipv6 from internet to HQ-Servers action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to HQ-Servers v"
+    exit
+access-rule ipv6 from internet to internet action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to internet v6"
+    exit
+access-rule ipv6 from internet to road-warrior action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to road-warri 2"
+    exit
+access-rule ipv6 from road-warrior to Branch-Ghent action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT road-warrior to Branch 2"
+    exit
+access-rule ipv6 from road-warrior to Guest-WiFi action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT road-warrior to Guest- 2"
+    exit
+access-rule ipv6 from road-warrior to HQ-Brussels action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT road-warrior to HQ-Bru 2"
+    exit
+access-rule ipv6 from road-warrior to HQ-Servers action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT road-warrior to HQ-Ser 2"
+    exit
+access-rule ipv6 from road-warrior to road-warrior action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT road-warrior to road-w 2"
+    exit
+commit
+exit

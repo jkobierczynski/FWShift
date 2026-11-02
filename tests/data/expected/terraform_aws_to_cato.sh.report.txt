@@ -1,0 +1,57 @@
+FWShift conversion report
+  source: terraform-aws (vpc-0a1b2c3d4e5f63001)
+  target: cato
+
+Summary
+  Security rules:     23   exact 12, approximated 5, needs review 3, skipped 3
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:     10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0a1b2c3d4e5f63031 of subnet subnet-0a1b2c3d4e5f63013 denies some inbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections out of the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0a1b2c3d4e5f63031 of subnet subnet-0a1b2c3d4e5f63013 denies some outbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections into the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_MISSING: the network ACLs of these subnets are not in the export; the converted policy allows what they may deny: subnet-0a1b2c3d4e5f63011, subnet-0a1b2c3d4e5f63012, subnet-0a1b2c3d4e5f63014
+  [needs-review] AWS_HAIRPIN: connections from inside the VPC to its own public addresses are not converted as AWS decides them: they leave through the internet gateway, the source's outbound rules see the public address and the destination's inbound rules see the source's public address (or that of its NAT gateway). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] AWS_REMOTE_GROUP: rules name groups that are not in the export (another VPC, another account, or left out): sg-0f9e8d7c6b5a43001. Their members are not known; those rules are not converted
+  [needs-review] TERRAFORM_MEMBERS: the members of the security groups are the network interfaces and instances of this state: a group attached to interfaces elsewhere (another state, a load balancer, made by hand) has those members as well, and the converted policy does not know them
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: aws_networkfirewall_firewall. The converted policy does not hold what they do
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [info] AWS_EGRESS_PAIRS: inside the VPC a connection needs an outbound rule of the source's groups and an inbound rule of the destination's. Where the outbound rules do not allow everything, 2 rules allow what both allow, and a rule after them blocks the rest of what those members send inside the VPC
+  [info] AWS_PUBLIC_ADDRESSES: the public and Elastic IP addresses of the network interfaces are static NAT of their private addresses: the internet gateway translates what comes from outside, and the groups see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] AWS_UNFILTERED: security groups never filter traffic to the Amazon DNS server, DHCP, the instance metadata service, the Time Sync Service and Windows license activation; neither does the converted policy say anything about it
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the AWS command line for the same resources: 1 aws_ec2_managed_prefix_list, 3 aws_instance, 1 aws_network_acl, 1 aws_network_acl_association, 1 aws_network_interface, 4 aws_security_group, 3 aws_security_group_rule, 4 aws_subnet, 1 aws_vpc, 2 aws_vpc_security_group_egress_rule, 4 aws_vpc_security_group_ingress_rule. Resources outside this state (made by hand, or by another state) are not in it
+  [info] TERRAFORM_DEPOSED: 1 deposed object(s), which a replacement leaves until it is done, were left out
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+
+Security rules
+  shop-app-outbound-rest  ->  needs-review  (emitted as fws-shop-app-outbound-rest)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  shop-db-outbound-rest  ->  needs-review  (emitted as fws-shop-db-outbound-rest)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  shop-web-outbound-rest  ->  needs-review  (emitted as fws-shop-web-outbound-rest)
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  shop-web-in-1  ->  approximated  (emitted as fws-shop-web-in-1)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  shop-web-in-2  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  shop-web-in-3  ->  approximated  (emitted as fws-shop-web-in-3)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  shop-web-in-4  ->  approximated  (emitted as fws-shop-web-in-4)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  shop-web-in-5  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  shop-app-in-1  ->  approximated  (emitted as fws-shop-app-in-1)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  shop-bastion-in-4  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'sg-0f9e8d7c6b5a43001' holds members whose addresses are not known
+  shop-web-out-2  ->  approximated  (emitted as fws-shop-web-out-2)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+
+NAT rules
+  public-192.0.2.10  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  public-192.0.2.5  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change

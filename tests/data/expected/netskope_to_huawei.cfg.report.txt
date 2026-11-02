@@ -1,0 +1,42 @@
+FWShift conversion report
+  source: netskope
+  target: huawei
+
+Summary
+  Security rules:     16   exact 12, approximated 0, needs review 4 (4 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] HUAWEI_LOAD: the output is commands for the system view (section 10): new zones, address and service sets, rules, NAT; a USG adds new rules after the ones it has, and nat server and nat-policy take effect at once. Check, then save
+  [needs-review] HUAWEI_IPV6: IPv6 entries of address sets are written as ADDRESS/LENGTH; Huawei's documentation FWShift could read does not show their form: check them on the firewall
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  [info] INTRAZONE_RULES_ADDED: a USG passes traffic inside a zone that no rule matches; the source does not: rules that deny it were added at the end for client, ipsec, gre, internet
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have policy logging
+
+Security rules
+  Admins to jump hosts [app-ssh-jump]  ->  exact  (emitted as 1 rules of the security policy)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Admins to jump hosts [app-rdp-gw]  ->  exact  (emitted as 1 rules of the security policy)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Engineering to git  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+  Block BitTorrent  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  SaaS files from the office  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp-saas-domains': destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] ZONE_DYNAMIC: 'dp-saas-domains' holds members only its platform knows.
+  Contractors: nothing else  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.

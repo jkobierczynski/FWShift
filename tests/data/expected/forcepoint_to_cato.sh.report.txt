@@ -1,0 +1,105 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: cato
+
+Summary
+  Security rules:     32   exact 12, approximated 3, needs review 5 (4 emitted disabled), skipped 12
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: Internal, External
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): Internal, External
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  Rule @900.0  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: '$$ Management Servers' holds members whose addresses are not known
+  admins in  ->  exact  (emitted as fws-to admin sub-policy _ admins in)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  others out  ->  exact  (emitted as fws-to admin sub-policy _ others out)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  refuse admins 8443  ->  approximated  (emitted as fws-refuse admins 8443)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] REJECT_AS_DENY: action reset-client: written as BLOCK
+  internal zone out  ->  exact  (emitted as fws-internal zone out)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  updates by name  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: host names as the destination: Cato takes them as destinations on the internet only
+  zone or web host out  ->  exact  (emitted as fws-zone or web host out)
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  zone or web host out (2)  ->  exact  (emitted as fws-zone or web host out (2))
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  vpn only  ->  needs-review, emitted disabled  (emitted as fws-vpn only)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN).
+  ping out  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  no social  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: no port mapping for application(s) Facebook; supply one with --app-map This deny rule is NOT enforced; rules below it may let more through.
+  helpdesk to dmz  ->  needs-review, emitted disabled  (emitted as fws-helpdesk to dmz)
+      [needs-review] UNSUPPORTED_MATCH: source users helpdesk are not converted.
+  office web  ->  needs-review, emitted disabled  (emitted as fws-office web)
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times.
+  limited guests  ->  approximated  (emitted as fws-limited guests)
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  block list  ->  needs-review, emitted disabled  (emitted as fws-block list)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  gre to isp  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  lan but admins  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  Rule @1021.0  ->  needs-review  (emitted as fws-Rule _1021.0)
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  Rule @902.0  ->  approximated  (emitted as fws-Rule _902.0)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] REJECT_AS_DENY: action reset-client: written as BLOCK
+  v6 web  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  v6 ping  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  v6 mail  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  v6 guests  ->  skipped
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the destination This deny rule is NOT enforced; rules below it may let more through.
+  Rule @952.0  ->  skipped
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  Rule @953.0  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+
+NAT rules
+  publish web  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  no nat inside  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  lan out  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  mail static  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  guests hide  ->  skipped
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself

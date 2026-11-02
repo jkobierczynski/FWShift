@@ -1,0 +1,54 @@
+FWShift conversion report
+  source: vyos
+  target: zscaler
+
+Summary
+  Security rules:     13   exact 5, approximated 0, needs review 6 (4 emitted disabled), skipped 2
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 rule-set WAN_LOCAL on pppoe0 local filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] PARTS_NOT_READ: parts of the configuration this parser does not read: port-forward (EdgeOS)
+  [needs-review] ZSCALER_DEFAULT_RULE: the source allows what no rule matches; the default rule of the tenant decides that traffic, and the API cannot change it: set its action to Allow by hand if that was intended
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_INSIDE: no --inside-zone: every zone was taken as a location of ZIA, and every rule as one to the internet; ZIA does not filter traffic between locations or from the internet. Name the zones inside with --inside-zone
+  [needs-review] ZSCALER_LOST: ZIA filters traffic from locations to the internet only: 1 rules for traffic from the internet and 0 for traffic between or inside zones inside are not written, or only in part. That traffic needs a firewall of its own at the sites
+  [needs-review] ZSCALER_LOCATIONS_REQUIRED: rules name these locations, which must exist on the tenant under these names: eth1.10, pppoe0
+  [info] VYOS_FORMAT: read as the configuration of EdgeOS (Vyatta), release v2.0.9: rule-sets on interfaces, accept in a rule-set and the zone policy were read as VyOS 1.4 has them after its own migration (a jump from the forward filter for each rule-set on an interface, the in ones first; accept as return, so that the rule-set of the other interface still decides)
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+
+Security rules
+  no media from the guests  ->  needs-review  (emitted as fws-no media from the guests)
+      [needs-review] NAT_REDIRECT: NAT rule 'plex from outside' sends traffic for every destination to 192.168.1.30, and the source applied this rule to it after that translation. The converted rule still names the translated address: a platform that looks rules up before NAT will not match the redirected traffic with it
+  plex to the media box  ->  needs-review  (emitted as fws-plex to the media box)
+      [needs-review] NAT_REDIRECT: NAT rule 'plex from outside' sends traffic for every destination to 192.168.1.30, and the source applied this rule to it after that translation. The converted rule still names the translated address: a platform that looks rules up before NAT will not match the redirected traffic with it
+  ping the nas  ->  needs-review, emitted disabled  (emitted as fws-ping the nas)
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type: a network service of ZIA holds TCP and UDP ports, and the predefined ICMP_ANY, GRE_PROTOCOL and ESP_PROTOCOL.
+  no media from the guests-2  ->  needs-review, emitted disabled  (emitted as fws-no media from the guests-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sessions of the voip box  ->  needs-review, emitted disabled  (emitted as fws-sessions of the voip box)
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address).
+  only web and dns out  ->  needs-review, emitted disabled  (emitted as fws-only web and dns out)
+      [needs-review] SERVICE_NOT_WRITTEN: port 0, which ZIA does not take. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Allow IPv6 ping  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  ipv6-forward-5.default  ->  skipped
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+
+NAT rules
+  plex from outside  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  web on 8443 to the nas  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  nas leaves as its own address  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  masquerade for WAN  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only

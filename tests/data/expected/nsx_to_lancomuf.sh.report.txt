@@ -1,0 +1,40 @@
+FWShift conversion report
+  source: nsx
+  target: lancom-uf
+
+Summary
+  Security rules:     15   exact 9, approximated 0, needs review 3 (2 emitted disabled), skipped 3
+  Address groups:      9   exact 8, approximated 0, needs review 1, skipped 0
+  Services:           10   exact 9, approximated 1, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] DYNAMIC_MEMBERSHIP: groups whose members NSX finds itself (tags, names, virtual machines, segment ports) are kept as dynamic groups: only an NSX target writes them again; other targets write their rules disabled. Export the members (GET .../groups/ID/members/ip-addresses) and make them address groups to convert those rules
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [info] LAYER2_NOT_CONVERTED: 1 rules of the Ethernet category (layer 2, before every layer-3 rule) are not converted
+
+Security rules
+  Block quarantined  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Quarantine': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN block the rest  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: follows a conditional jump to the application rules (rule 'LAN to the application rules'), which cannot be expressed. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Inbound web  ->  needs-review  (emitted as fws-0.0.0.0_5-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-8.0.0.0_7-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.0.0.0_13-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.8.0.0_15-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.10.0.0_17-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.10.128.0_18-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.10.192.0_21-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.10.201.0_24-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.10.202.0_23-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.10.204.0_22-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.10.208.0_20-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.10.224.0_19-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.11.0.0_16-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.12.0.0_14-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.16.0.0_12-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.32.0.0_11-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.64.0.0_10-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-10.128.0.0_9-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-11.0.0.0_8-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-12.0.0.0_6-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-16.0.0.0_4-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-32.0.0.0_3-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-64.0.0.0_2-any > fws-Web servers: fws-tcp-443_tcp-8443, fws-128.0.0.0_1-any > fws-Web servers: fws-tcp-443_tcp-8443)
+      [needs-review] APPLIED_TO_ONE_END: applied to DMZ, which holds its destinations and not its sources: where its sources are workloads of NSX, NSX checks that end against the rules below this one, and may drop what this rule allows. The converted rule allows it at both ends
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  App to DB  ->  skipped
+      [needs-review] APPLIED_TO_ONE_END: applied to DMZ, which holds its sources and not its destinations: where its destinations are workloads of NSX, NSX checks that end against the rules below this one, and may drop what this rule allows. The converted rule allows it at both ends
+      [needs-review] UNSUPPORTED_MATCH: not converted: direction IN only: NSX checks the other end of the connection against the rules below it, which one rule cannot say; the rule is not written
+  Others no SSH  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  TLS out  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: context profile SSL (layer 7: applications, domain names), which the model has no place for; the rule is not written
+  Ping over IPv6  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+
+Address groups
+  OT cell  ->  needs-review
+      [needs-review] SEGMENT_AS_SUBNET: a segment in the group stands for its subnet here. NSX means the workloads attached to it: the subnet also holds the gateway and other addresses that are not members
+
+Services
+  FTP  ->  approximated
+      [approximated] ALG_SERVICE: application level gateway FTP: converted as its port. NSX also lets through the connections the protocol opens (an FTP data connection, RPC ports); a target without such a helper does not

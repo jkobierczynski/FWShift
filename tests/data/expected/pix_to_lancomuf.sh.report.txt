@@ -1,0 +1,93 @@
+FWShift conversion report
+  source: pix (PIX Version 6.3(5))
+  target: lancom-uf
+
+Summary
+  Security rules:     21   exact 9, approximated 3, needs review 5, skipped 4
+  NAT rules:          11   exact 0, approximated 0, needs review 0, skipped 11
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PIX_OUTBOUND: outbound lists (outbound and apply) limit what interfaces without an access list let out: partner: outbound list 10 (outgoing_src: deny 0.0.0.0 0.0.0.0 0 0; permit 10.30.0.0 255.255.255.0 80 tcp). The PIX decides them by the best match, not in order; they are not converted, and the implicit rules of those interfaces are written disabled. Write their restrictions as rules
+  [needs-review] PIX_ESTABLISHED: the established command lets connections in that belong to connections out (established tcp 6000 0 permitto tcp 6000). It is not converted: the result does not allow those connections; write rules for them if they are needed
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): dmz, inside, lab, outside, partner
+  [approximated] ICMP_STATELESS: a PIX 6.x keeps no state for ICMP: the reply to a permitted ICMP request got through only where an access list or conduit permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: 'sysopt connection permit-ipsec' lets traffic that arrives through VPN tunnels past the access lists and conduits. The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 3 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: inside_nat0, partner_nat, unused
+  [info] PIX_CONDUIT_IGNORED: the PIX ignores conduits for interfaces with an access list: outside, dmz
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; inside=10.10.0.0/16,10.11.0.0/16; lab=10.40.0.0/24; outside=0.0.0.0/0,203.0.113.0/24; partner=10.30.0.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] EGRESS_BY_ROUTE: a PIX access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the statics that publish them and from the interface addresses and static routes in the configuration
+  [info] PIX_NO_TRANSLATION: no translation (nat with a global, static, exemption) covers traffic from inside to lab, lab to outside, lab to dmz, lab to partner: the PIX passes none of it, and no implicit rule was written for it
+  [info] PIX_FIXUP: application inspection (fixup) is not converted; the targets inspect with helpers of their own. On: dns maximum-length, ftp 21, http 80, smtp 25, sqlnet 1521. Off: sip 5060.
+
+Security rules
+  outside_in-4  ->  skipped
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers outside to inside: destinations 0.0.0.0/0; outside to dmz: destinations 0.0.0.0-203.0.113.1, 203.0.113.3-203.0.113.9, 203.0.113.11-203.0.113.24 ...; outside to lab: destinations 0.0.0.0/0; outside to partner: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  outside_in-6  ->  needs-review  (emitted as fws-192.0.2.80_32-outside > fws-10.20.0.10_32-dmz: fws-tcp-22)
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers outside to dmz: destinations 10.20.0.10. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  dmz_in-1  ->  needs-review  (emitted as fws-10.20.0.10_32-dmz > fws-0.0.0.0_0-outside: fws-udp-53, fws-10.20.0.25_32-dmz > fws-0.0.0.0_0-outside: fws-udp-53, fws-10.20.0.10_32-dmz > fws-0.0.0.0_0-inside: fws-udp-53, fws-10.20.0.25_32-dmz > fws-0.0.0.0_0-inside: fws-udp-53, fws-10.20.0.10_32-dmz > fws-0.0.0.0_0-lab: fws-udp-53, fws-10.20.0.25_32-dmz > fws-0.0.0.0_0-lab: fws-udp-53, fws-10.20.0.10_32-dmz > fws-0.0.0.0_0-partner: fws-udp-53, fws-10.20.0.25_32-dmz > fws-0.0.0.0_0-partner: fws-udp-53)
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 0.0.0.0-10.10.0.49, 10.10.0.51-255.255.255.255; dmz to lab: destinations 0.0.0.0/0; dmz to partner: sources 10.20.0.10, 10.20.0.25. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  dmz_in-2  ->  needs-review  (emitted as fws-10.20.0.25_32-dmz > fws-0.0.0.0_0-outside: fws-tcp-25, fws-10.20.0.25_32-dmz > fws-0.0.0.0_0-inside: fws-tcp-25, fws-10.20.0.25_32-dmz > fws-0.0.0.0_0-lab: fws-tcp-25, fws-10.20.0.25_32-dmz > fws-0.0.0.0_0-partner: fws-tcp-25)
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 0.0.0.0-10.10.0.49, 10.10.0.51-255.255.255.255; dmz to lab: destinations 0.0.0.0/0; dmz to partner: sources 10.20.0.25. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  dmz_in-4  ->  needs-review  (emitted as fws-10.20.0.10_32-dmz > fws-10.10.0.0_16-inside: fws-tcp-445)
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 10.10.0.0-10.10.0.49, 10.10.0.51-10.10.255.255. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  implicit-inside-outside  ->  approximated  (emitted as fws-0.0.0.0_0-inside > fws-0.0.0.0_0-outside: fws-svc-8)
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'outside' (security level 0), for every source (NAT is mandatory). This rule says so
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  implicit-inside-dmz  ->  approximated  (emitted as fws-0.0.0.0_5-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-8.0.0.0_7-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.0.0.0_13-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.8.0.0_15-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.10.0.0_21-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.10.8.0_23-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.10.11.0_24-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.10.12.0_22-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.10.16.0_20-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.10.32.0_19-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.10.64.0_18-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.10.128.0_17-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.11.0.0_16-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.12.0.0_14-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.16.0.0_12-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.32.0.0_11-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.64.0.0_10-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-10.128.0.0_9-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-11.0.0.0_8-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-12.0.0.0_6-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-16.0.0.0_4-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-32.0.0.0_3-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-64.0.0.0_2-inside > fws-0.0.0.0_0-dmz: fws-svc-8, fws-128.0.0.0_1-inside > fws-0.0.0.0_0-dmz: fws-svc-8)
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'dmz' (security level 50), for the sources a translation covers (NAT is mandatory). This rule says so
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  implicit-inside-partner  ->  approximated  (emitted as fws-10.10.0.0_16-inside > fws-0.0.0.0_0-partner: fws-svc-8)
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'partner' (security level 20), for the sources a translation covers (NAT is mandatory). This rule says so
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  implicit-partner-outside  ->  skipped
+      [info] IMPLICIT_PERMIT: interface 'partner' (security level 20) has no access list: the PIX lets its traffic out to 'outside' (security level 0), for the sources a translation covers (NAT is mandatory). This rule says so
+      [needs-review] UNSUPPORTED_MATCH: not converted: outbound list 10 (outgoing_src: deny 0.0.0.0 0.0.0.0 0 0; permit 10.30.0.0 255.255.255.0 80 tcp) applied to partner, which is not converted; the rule is not written
+  conduit-1  ->  needs-review  (emitted as fws-10.30.0.0_24-lab > fws-10.10.0.60_32-inside: fws-tcp-3389, fws-10.30.0.0_24-partner > fws-10.10.0.60_32-inside: fws-tcp-3389)
+      [info] PIX_CONDUIT: from the conduit 'conduit permit tcp host terminal-srv eq 3389 10.30.0.0 255.255.255.0', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers lab to inside: destinations 10.10.0.60. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  conduit-2  ->  skipped
+      [info] PIX_CONDUIT: from the conduit 'conduit permit icmp any any echo-reply', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers lab to inside: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  conduit-2-2  ->  skipped
+      [info] PIX_CONDUIT: from the conduit 'conduit permit icmp any any echo-reply', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers partner to inside: destinations 0.0.0.0-10.9.255.255, 10.11.0.0-255.255.255.255; partner to dmz: destinations 0.0.0.0/0; partner to lab: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  conduit-3  ->  exact  (emitted as taken out of the rules below it)
+      [info] PIX_CONDUIT: from the conduit 'conduit deny tcp any eq telnet any', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+  conduit-3-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] PIX_CONDUIT: from the conduit 'conduit deny tcp any eq telnet any', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+
+NAT rules
+  nat0-inside-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  static-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  static-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  static-4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  static-5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  static-3  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the configuration, 203.0.113.2
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat3-inside-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat2-inside  ->  skipped
+      [approximated] PIX_PAT_FALLBACK: the PIX hands out the addresses of the pool and, when they run out, translates to the PAT address of global (outside) 2; only the pool is converted
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat1-inside-outside  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)
+  nat1-inside-dmz  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat1-partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)

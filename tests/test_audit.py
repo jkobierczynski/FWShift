@@ -835,7 +835,13 @@ SAMPLES = ["panos_sample.xml", "fortios_sample.conf", "checkpoint_sample.json", 
            "moxa_sample.ini",
            "scalance_sample.cfg",
            "hisecos_sample.cli", "mguard_sample.atv",
-           "kubernetes_sample.json", "calico_sample.json"]  # fmt: skip
+           "kubernetes_sample.json", "calico_sample.json",
+           "netskope_sample.json",
+           "zscaler_sample.json",
+           "securepoint_sample.cfg",
+           "lancomuf_sample.json",
+           "cato_sample.json",
+           "clavister_sample.sgs"]  # fmt: skip
 
 
 @pytest.mark.parametrize("sample", SAMPLES)

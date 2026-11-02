@@ -1,0 +1,102 @@
+configure terminal
+firewall
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_tcp_443 proto tcp src all dst port 443
+service name FWS_smtp-in proto tcp src all dst port 25
+service name FWS_tcp_8080-8090 proto tcp src all dst range 8080 - 8090
+service name FWS_tcp_53 proto tcp src all dst port 53
+service name FWS_udp_53 proto udp src all dst port 53
+service name FWS_tcp_22 proto tcp src all dst port 22
+service name FWS_syslog proto udp src range 1024 - 65535 dst port 514
+proto name FWS_gre num 47
+icmp name FWS_echo6 type 128 code 0 ver ipv6
+service name FWS_ftp-alg proto tcp src all dst port 21
+ipv4rule from wan to dmz srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_tcp_80 log info prior 1
+ipv4rule from wan to dmz srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_tcp_443 log info prior 1
+ipv4rule from wan to dmz srcip 198.51.100.0/24 dstip 203.0.113.10 action rej service FWS_smtp-in log info prior 2
+ipv4rule from lan to dmz srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_smtp-in log info prior 3
+ipv4rule from guest to dmz srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_smtp-in log info prior 3
+ipv4rule from wan to dmz srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_smtp-in log info prior 3
+ipv4rule from wan to dmz srcip 0.0.0.0/0 dstip 203.0.113.20/30 action acc service FWS_tcp_80 log info prior 3
+ipv4rule from wan to dmz srcip 0.0.0.0/0 dstip 203.0.113.20/30 action acc service FWS_tcp_443 log info prior 3
+ipv4rule from wan to dmz srcip 0.0.0.0/0 dstip 203.0.113.20/30 action acc service FWS_tcp_8080-8090 log info prior 3
+ipv4rule from guest to wan srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_53 log info prior 3
+ipv4rule from guest to wan srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS_udp_53 log info prior 3
+ipv4rule from guest to wan srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 3
+ipv4rule from guest to wan srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 3
+ipv4rule from lan to dmz srcip 192.168.10.5-192.168.10.6 dstip 172.16.20.25 action acc service FWS_tcp_22 log info prior 3
+ipv4rule from lan to dmz srcip 192.168.10.5-192.168.10.6 dstip 172.16.20.25 action acc service FWS_tcp_443 log info prior 3
+ipv4rule from lan to dmz srcip 192.168.10.5-192.168.10.6 dstip 172.16.20.80 action acc service FWS_tcp_22 log info prior 3
+ipv4rule from lan to dmz srcip 192.168.10.5-192.168.10.6 dstip 172.16.20.80 action acc service FWS_tcp_443 log info prior 3
+ipv4rule from lan to dmz srcip 192.168.10.32/28 dstip 172.16.20.25 action acc service FWS_tcp_22 log info prior 3
+ipv4rule from lan to dmz srcip 192.168.10.32/28 dstip 172.16.20.25 action acc service FWS_tcp_443 log info prior 3
+ipv4rule from lan to dmz srcip 192.168.10.32/28 dstip 172.16.20.80 action acc service FWS_tcp_22 log info prior 3
+ipv4rule from lan to dmz srcip 192.168.10.32/28 dstip 172.16.20.80 action acc service FWS_tcp_443 log info prior 3
+ipv4rule from lan to wan srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_53 log info prior 3
+ipv4rule from lan to wan srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_udp_53 log info prior 3
+ipv4rule from lan to wan srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 3
+ipv4rule from lan to wan srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 3
+ipv4rule from lan to wan srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_8080-8090 log info prior 3
+ipv4rule from lan to dmz srcip 192.168.10.0/24 dstip 172.16.20.0/24 action acc log info prior 3
+ipv4rule from dmz to lan srcip 172.16.20.0/24 dstip 192.168.10.50 action acc service FWS_syslog log no prior 4
+ipv6rule from lan to dmz srcip 2001:db8:10::/64 dstip 2001:db8:20::80 action acc service FWS_tcp_80 log info prior 5
+ipv6rule from lan to dmz srcip 2001:db8:10::/64 dstip 2001:db8:20::80 action acc service FWS_tcp_443 log info prior 5
+ipv6rule from lan to dmz srcip 2001:db8:10::/64 dstip ::/0 action acc service FWS_echo6 log info prior 5
+ipv6rule from lan to wan srcip 2001:db8:10::/64 dstip ::/0 action acc service FWS_echo6 log info prior 5
+ipv6rule from lan to guest srcip 2001:db8:10::/64 dstip ::/0 action acc service FWS_echo6 log info prior 5
+ipv4rule from wan to dmz srcip 0.0.0.0/0 dstip 203.0.113.12 action acc service FWS_tcp_443 log info prior 5
+ipv4rule from dmz to wan srcip 172.16.20.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 5
+ipv4rule from dmz to wan srcip 172.16.20.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 5
+ipv4rule from lan to dmz srcip 0.0.0.0/0 dstip 172.16.20.0/24 action rej service FWS_ftp-alg log info prior 6
+ipv4rule from wan to dmz srcip 0.0.0.0/0 dstip 172.16.20.0/24 action rej service FWS_ftp-alg log info prior 6
+ipv4rule from guest to dmz srcip 0.0.0.0/0 dstip 172.16.20.0/24 action rej service FWS_ftp-alg log info prior 6
+ipv4rule from lan to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from lan to wan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from lan to guest srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from dmz to lan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from dmz to wan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from dmz to guest srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from wan to lan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from wan to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from wan to guest srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from guest to lan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from guest to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from guest to wan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from lan to dmz srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv6rule from lan to wan srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv6rule from lan to guest srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv6rule from dmz to lan srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv6rule from dmz to wan srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv6rule from dmz to guest srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv6rule from wan to lan srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv6rule from wan to dmz srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv6rule from wan to guest srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv6rule from guest to lan srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv6rule from guest to dmz srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv6rule from guest to wan srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from lan to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from lan to dmz srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from lan to wan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from lan to wan srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from lan to guest srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from lan to guest srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from dmz to lan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from dmz to lan srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from dmz to wan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from dmz to wan srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from dmz to guest srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from dmz to guest srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from wan to lan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from wan to lan srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from wan to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from wan to dmz srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from wan to guest srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from wan to guest srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from guest to lan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from guest to lan srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from guest to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from guest to dmz srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from guest to wan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from guest to wan srcip ::/0 dstip ::/0 action drop log no prior 8
+exit
+end

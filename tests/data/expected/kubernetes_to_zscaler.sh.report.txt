@@ -1,0 +1,58 @@
+FWShift conversion report
+  source: kubernetes
+  target: zscaler
+
+Summary
+  Security rules:     33   exact 18, approximated 9, needs review 5 (2 emitted disabled), skipped 1
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     15   exact 15, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] ZSCALER_BLOCK_RULE: the source blocks what no rule matches. Rule fws-block the rest that does so follows the converted rules, disabled: until it is enabled, the rules of the tenant below it and its default rule decide that traffic
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_LOST: ZIA filters traffic from locations to the internet only: 33 rules for traffic from the internet and 0 for traffic between or inside zones inside are not written, or only in part. That traffic needs a firewall of its own at the sites
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+
+Security rules
+  node 10.0.0.11 to its pods  ->  approximated  (emitted as fws-node 10.0.0.11 to its pods)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  pods from node 10.0.0.11  ->  approximated  (emitted as fws-pods from node 10.0.0.11)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  node 10.0.0.12 to its pods  ->  approximated  (emitted as fws-node 10.0.0.12 to its pods)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  pods from node 10.0.0.12  ->  approximated  (emitted as fws-pods from node 10.0.0.12)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  shop/web-egress/egress-3  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  isolated/egress  ->  needs-review  (emitted as fws-isolated_egress)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  shop/allow-web/ingress-1  ->  approximated  (emitted as fws-shop_allow-web_ingress-1)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  shop/allow-web/ingress-1-2  ->  approximated  (emitted as fws-shop_allow-web_ingress-1-2)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  isolated/ingress  ->  needs-review  (emitted as fws-isolated_ingress)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  payments/api-ingress/ingress-1  ->  approximated  (emitted as fws-payments_api-ingress_ingres)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  payments/api-ingress/ingress-1-2  ->  needs-review, emitted disabled  (emitted as fws-payments_api-ingress_ingr_2)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] SERVICE_NOT_WRITTEN: SCTP: a network service of ZIA holds TCP and UDP ports, and the predefined ICMP_ANY, GRE_PROTOCOL and ESP_PROTOCOL.
+  payments/api-ingress/ingress-3  ->  needs-review, emitted disabled  (emitted as fws-payments_api-ingress_ingr_3)
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).
+  isolated/ingress-4  ->  needs-review  (emitted as fws-isolated_ingress-4)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  not isolated: from pods  ->  approximated  (emitted as fws-not isolated_ from pods)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  not isolated: to pods  ->  approximated  (emitted as fws-not isolated_ to pods)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less

@@ -1,0 +1,52 @@
+FWShift conversion report
+  source: netskope
+  target: sophos
+
+Summary
+  Security rules:     16   exact 12, approximated 0, needs review 4 (4 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] SOPHOS_LOAD: the output is an Entities.xml. Put it in a tar archive under that name (or let FWShift do it: give -o a name that ends in .tar) and import it under Backup & firmware > Import export. Rules are added below the rules the firewall has: a firewall rule or NAT rule that is there already, such as the default source NAT rule of a new firewall, comes first. An import can stop at the first object the firewall does not take: compare the number of rules and objects with this report, on a firewall that is not in production
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): client, ipsec, gre, internet. Zones are not created: an import would overwrite the device access of a zone that exists
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  [info] EXISTING_OBJECTS: an import overwrites what the firewall has under the same name: a host, a service or a rule that is in this output replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 7 rule(s) match IPv4 and IPv6 traffic and were written twice: Sophos Firewall keeps a rulebase per IP version. The name of the IPv6 rule ends in _v6
+  [info] SOPHOS_DROP_WEB: 4 rule(s) drop traffic that can be TCP to port 80 or 443 (Block known bad ranges, Block BitTorrent, Contractors_ nothing else, Default Action). Sophos Firewall hands such traffic to its web proxy, which completes the connection itself and answers with a block page: the host is not reached, but the client sees a connection and a page, not a silent drop, and the firewall log shows the connection allowed (the web filter log blocked). For a silent refusal on those ports, Reject answers with a reset
+
+Security rules
+  Admins to jump hosts [app-ssh-jump]  ->  exact  (emitted as Admins to jump hosts _app-ssh-jump_)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Admins to jump hosts [app-rdp-gw]  ->  exact  (emitted as Admins to jump hosts _app-rdp-gw_)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Engineering to git  ->  needs-review, emitted disabled  (emitted as Engineering to git, Engineering to git_v6)
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+  Block BitTorrent  ->  needs-review, emitted disabled  (emitted as Block BitTorrent, Block BitTorrent_v6)
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  SaaS files from the office  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp-saas-domains': destination profile dp-saas-domains: host name 'files.example.com'.
+  Contractors: nothing else  ->  needs-review, emitted disabled  (emitted as Contractors_ nothing else, Contractors_ nothing else_v6)
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+Address groups
+  dp-voice-provider  ->  exact  (emitted as dp-voice-provider, dp-voice-provider_v6)
+      [info] GROUP_SPLIT: Sophos Firewall keeps IPv4 hosts, IPv6 hosts and host names in groups of their own: written as 'dp-voice-provider', 'dp-voice-provider_v6'
+
+Services
+  HTTPS  ->  exact  (emitted as HTTPS_2)
+      [info] RENAMED: renamed to 'HTTPS_2' to fit the target's naming rules
+  DNS  ->  exact  (emitted as DNS_2)
+      [info] RENAMED: renamed to 'DNS_2' to fit the target's naming rules

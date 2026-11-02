@@ -1,0 +1,98 @@
+add Address IP4Address fws_198.51.100.0_24 Address=198.51.100.0/24
+add Address IP4Address fws_203.0.113.200-203.0.113.220 Address=203.0.113.200-203.0.113.220
+add Address IP4Address fws_10.10.5.0_24 Address=10.10.5.0/24
+add Address IP4Address fws_10.10.6.10 Address=10.10.6.10
+add Address IP6Address fws_2001_db8_10_5___64 Address=2001:db8:10:5::/64
+add Address IP4Address fws_203.0.113.53_32 Address=203.0.113.53
+add Service ServiceTCPUDP fws_udp-53 Type=UDP DestinationPorts=53
+add Service ServiceTCPUDP fws_web_ports Type=TCP DestinationPorts=80,443
+add Address IP4Address fws_10.10.0.0_16 Address=10.10.0.0/16
+add Address IP6Address fws_2001_db8_203__10_128 Address=2001:db8:203::10
+add Service ServiceTCPUDP fws_tcp-443 Type=TCP DestinationPorts=443
+add Address IP4Address fws_203.0.113.10_32 Address=203.0.113.10
+add Service ServiceTCPUDP fws_tcp-80 Type=TCP DestinationPorts=80
+add Address IP4Address fws_203.0.113.60_32 Address=203.0.113.60
+add Service ServiceTCPUDP fws_tcp-8080 Type=TCP DestinationPorts=8080
+add Address IP4Address fws_192.168.50.0_24 Address=192.168.50.0/24
+add Service ServiceTCPUDP fws_tcp-23 Type=TCP DestinationPorts=23
+add Service ServiceICMP fws_icmp-8-0 MessageTypes=Specific EchoRequest=Yes EchoRequestCodes=0
+add Service ServiceTCPUDP fws_tcp-21 Type=TCP DestinationPorts=21
+add Service ServiceTCPUDP fws_tcp-22 Type=TCP DestinationPorts=22
+add Service ServiceTCPUDP fws_mgmt_ports Type=TCP DestinationPorts=22,80,443,8443
+add Address IP6Address fws_2001_db8_ff___48 Address=2001:db8:ff::/48
+add Address IP4Address fws_192.0.2.0_24 Address=192.0.2.0/24
+add Address IP4Address fws_nothing Address=0.0.0.0
+add InterfaceGroup fws_zones Members=external,internal,dmz
+add Address IP4Group fws_blocklist Members=fws_198.51.100.0_24,fws_203.0.113.200-203.0.113.220
+add Address IP4Group fws_admins Members=fws_10.10.5.0_24,fws_10.10.6.10
+add Address IP6Group fws_admins_v6 Members=fws_2001_db8_10_5___64
+add Address IP4Group fws_inside Members=fws_10.10.0.0_16,fws_admins
+add Address IP6Group fws_inside_v6 Members=fws_admins_v6
+add InterfaceGroup fws_if_dmz_external Members=dmz,external
+add InterfaceGroup fws_if_dmz_internal Members=dmz,internal
+add IPRuleSet fws_rules Comments="Written by FWShift"
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_global_block_bad Action=Drop SourceInterface=fws_zones SourceNetwork=fws_blocklist DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+add IPRule Index=2 Name=fws_global_admins_continue_rd0_outbound_allow_dns_out_vs_dns Action=Allow SourceInterface=internal SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.53_32 Service=fws_udp-53 LogEnabled=No
+add IPRule Index=3 Name=fws_global_admins_continue_rd0_outbound_allow_dns_out_vs_outbou Action=Allow SourceInterface=internal SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_udp-53 LogEnabled=No
+add IPRule Index=4 Name=fws_global_admins_continue_rd0_outbound_allow_web_out_vs_outbou Action=Allow SourceInterface=internal SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_web_ports LogEnabled=Yes
+add IPRule Index=5 Name=fws_global_admins_continue_rd0_dmz_no_inside Action=Drop SourceInterface=dmz SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=fws_inside Service=all_services LogEnabled=No
+add IPRule Index=6 Name=fws_global_admins_continue_rd0_dmz_no_inside_v6 Action=Drop SourceInterface=dmz SourceNetwork=fws_admins_v6 DestinationInterface=fws_zones DestinationNetwork=fws_inside_v6 Service=all_services LogEnabled=No
+add IPRule Index=7 Name=fws_global_admins_continue_vs_web6_web_in Action=Allow SourceInterface=external SourceNetwork=fws_admins_v6 DestinationInterface=fws_zones DestinationNetwork=fws_2001_db8_203__10_128 Service=fws_tcp-443 LogEnabled=No
+add IPRule Index=8 Name=fws_global_admins_continue_vs_web6__default_ Action=Drop SourceInterface=external SourceNetwork=fws_admins_v6 DestinationInterface=fws_zones DestinationNetwork=fws_2001_db8_203__10_128 Service=fws_tcp-443 LogEnabled=No Comments="the default action"
+add IPRule Index=9 Name=fws_global_admins_continue_vs_web_web_in Action=Allow SourceInterface=external SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.10_32 Service=fws_tcp-443 LogEnabled=No
+add IPRule Index=10 Name=fws_global_admins_continue_vs_web__default_ Action=Drop SourceInterface=external SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.10_32 Service=fws_tcp-443 LogEnabled=No Comments="the default action"
+add IPRule Index=11 Name=fws_global_admins_continue_vs_web_http__refused_ Action=Drop SourceInterface=external SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.10_32 Service=fws_tcp-80 LogEnabled=No Comments="what the virtual server takes and lets nothing through"
+add IPRule Index=12 Name=fws_global_admins_continue_vs_dns__default_ Action=Drop SourceInterface=fws_zones SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.53_32 Service=fws_udp-53 LogEnabled=No Comments="the default action"
+add IPRule Index=13 Name=fws_global_admins_continue_vs_old_app__refused_ Action=Drop SourceInterface=fws_zones SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.60_32 Service=fws_tcp-8080 LogEnabled=No Comments="what the virtual server takes and lets nothing through"
+add IPRule Index=14 Name=fws_global_admins_continue_vs_inbound_dmz__default_ Action=Drop SourceInterface=fws_if_dmz_external SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=fws_192.168.50.0_24 Service=all_services LogEnabled=No Comments="the default action"
+add IPRule Index=15 Name=fws_global_admins_continue_vs_outbound__default_ Action=Drop SourceInterface=fws_if_dmz_internal SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="the default action"
+add IPRule Index=16 Name=fws_global_reject_telnet Action=Reject SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_tcp-23 LogEnabled=No
+add IPRule Index=17 Name=fws_global_reject_telnet_v6 Action=Reject SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=fws_tcp-23 LogEnabled=No
+add IPRule Index=18 Name=fws_global_ping_in_vs_outbound Action=Allow SourceInterface=fws_if_dmz_internal SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.10_32 Service=fws_icmp-8-0 LogEnabled=No
+add IPRule Index=19 Name=fws_global_old_rule Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_tcp-21 LogEnabled=No
+set IPRule 19 -disable
+add IPRule Index=20 Name=fws_global_old_rule_v6 Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=fws_tcp-21 LogEnabled=No
+set IPRule 20 -disable
+add IPRule Index=21 Name=fws_global_office_ssh_vs_outbound Action=Allow SourceInterface=internal SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.10_32 Service=fws_tcp-22 LogEnabled=No
+set IPRule 21 -disable
+add IPRule Index=22 Name=fws_global_partners_in_vs_web6 Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 22 -disable
+add IPRule Index=23 Name=fws_global_partners_in_vs_web Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 23 -disable
+add IPRule Index=24 Name=fws_global_partners_in_vs_web_http Action=Drop SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 24 -disable
+add IPRule Index=25 Name=fws_global_partners_in_vs_inbound_dmz Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 25 -disable
+add IPRule Index=26 Name=fws_global_partners_in_vs_outbound Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 26 -disable
+add IPRule Index=27 Name=fws_global_inspect_irule_rd0_dmz_no_inside Action=Drop SourceInterface=dmz SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_inside Service=fws_tcp-8080 LogEnabled=No
+add IPRule Index=28 Name=fws_global_inspect_irule_rd0_dmz_no_inside_v6 Action=Drop SourceInterface=dmz SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=fws_inside_v6 Service=fws_tcp-8080 LogEnabled=No
+add IPRule Index=29 Name=fws_global_inspect_irule_vs_old_app__refused_ Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.60_32 Service=fws_tcp-8080 LogEnabled=No Comments="what the virtual server takes and lets nothing through"
+add IPRule Index=30 Name=fws_global_inspect_irule_vs_inbound_dmz__default_ Action=Drop SourceInterface=fws_if_dmz_external SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_192.168.50.0_24 Service=fws_tcp-8080 LogEnabled=No Comments="the default action"
+add IPRule Index=31 Name=fws_global_inspect_irule_vs_outbound__default_ Action=Drop SourceInterface=fws_if_dmz_internal SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_tcp-8080 LogEnabled=No Comments="the default action"
+add IPRule Index=32 Name=fws_rd0_outbound_allow_dns_out_vs_dns Action=Allow SourceInterface=internal SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.53_32 Service=fws_udp-53 LogEnabled=No
+add IPRule Index=33 Name=fws_rd0_outbound_allow_dns_out_vs_outbound Action=Allow SourceInterface=internal SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_udp-53 LogEnabled=No
+add IPRule Index=34 Name=fws_rd0_outbound_allow_web_out_vs_outbound Action=Allow SourceInterface=internal SourceNetwork=fws_inside DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_web_ports LogEnabled=Yes
+add IPRule Index=35 Name=fws_rd0_dmz_no_inside Action=Drop SourceInterface=dmz SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_inside Service=all_services LogEnabled=No
+add IPRule Index=36 Name=fws_rd0_dmz_no_inside_v6 Action=Drop SourceInterface=dmz SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=fws_inside_v6 Service=all_services LogEnabled=No
+add IPRule Index=37 Name=fws_vs_web6_web_in Action=Allow SourceInterface=external SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=fws_2001_db8_203__10_128 Service=fws_tcp-443 LogEnabled=No
+add IPRule Index=38 Name=fws_vs_web6_web6_in Action=Allow SourceInterface=external SourceNetwork=fws_2001_db8_ff___48 DestinationInterface=fws_zones DestinationNetwork=fws_2001_db8_203__10_128 Service=fws_tcp-443 LogEnabled=No
+add IPRule Index=39 Name=fws_vs_web6__default_ Action=Drop SourceInterface=external SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=fws_2001_db8_203__10_128 Service=fws_tcp-443 LogEnabled=No Comments="the default action"
+add IPRule Index=40 Name=fws_vs_web_web_in Action=Allow SourceInterface=external SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.10_32 Service=fws_tcp-443 LogEnabled=No
+add IPRule Index=41 Name=fws_vs_web__default_ Action=Drop SourceInterface=external SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.10_32 Service=fws_tcp-443 LogEnabled=No Comments="the default action"
+add IPRule Index=42 Name=fws_vs_web_http__refused_ Action=Drop SourceInterface=external SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.10_32 Service=fws_tcp-80 LogEnabled=No Comments="what the virtual server takes and lets nothing through"
+add IPRule Index=43 Name=fws_vs_dns_dns_from_partners Action=Allow SourceInterface=fws_zones SourceNetwork=fws_192.0.2.0_24 DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.53_32 Service=fws_udp-53 LogEnabled=No
+add IPRule Index=44 Name=fws_vs_dns__default_ Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.53_32 Service=fws_udp-53 LogEnabled=No Comments="the default action"
+add IPRule Index=45 Name=fws_vs_old_app__refused_ Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.60_32 Service=fws_tcp-8080 LogEnabled=No Comments="what the virtual server takes and lets nothing through"
+add IPRule Index=46 Name=fws_vs_inbound_dmz__default_ Action=Drop SourceInterface=fws_if_dmz_external SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_192.168.50.0_24 Service=all_services LogEnabled=No Comments="the default action"
+add IPRule Index=47 Name=fws_vs_outbound__default_ Action=Drop SourceInterface=fws_if_dmz_internal SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="the default action"
+add IPRule Index=48 Name=fws_default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=49 Name=fws_default_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=50 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=51 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

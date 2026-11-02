@@ -1,0 +1,75 @@
+FWShift conversion report
+  source: securepoint
+  target: checkpoint
+
+Summary
+  Security rules:     19   exact 13, approximated 1, needs review 4 (3 emitted disabled), skipped 1
+  NAT rules:           6   exact 0, approximated 4, needs review 0, skipped 2
+  Addresses:          15   exact 15, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_IMPLIED: commands that change the implicit rules are not converted: group set implied_group "12" active "1"
+  [needs-review] CHECKPOINT_SCRIPT: the output is a shell script of mgmt_cli calls. It changes one session and publishes nothing: log in, run it, review the session in SmartConsole, then publish and install the policy yourself. It stops at the first call the server refuses; discard the session before running it again
+  [needs-review] IMPLIED_RULES: Check Point applies implied rules (Global Properties) next to the rulebase, and every ordered layer of the policy package must accept a connection. Neither is part of the conversion: check that they allow no more and no less than intended
+  [needs-review] ZONES_REQUIRED: the rules use these security zones, which must be assigned to the interfaces of the gateway (or renamed with --zone-map): internal, external, vpn-ipsec, dmz1. Rules that name a zone and addresses on the same side are sorted into 8 inline layers, one per pair of zones. An interface without a zone only reaches the rules that name no zone
+  [needs-review] NAT_MANUAL_RULES: 4 NAT rules are written as manual rules at the bottom of the NAT rulebase, below the automatic ones. Manual NAT does not answer ARP for translated addresses: add proxy ARP on the gateway for every translated address that is not routed to it
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] SECUREPOINT_SOURCE: 18 rules of the packet filter in 3 rule groups, first match in the order of the groups; zones from the network objects; what no rule matches is dropped (Default Drop)
+  [info] SECUREPOINT_IMPLIED_RULES: the UTM's implicit rules (Firewall > Implied rules: its own services, VPN, the threat intelligence filter) come before the packet filter and are not converted
+  [info] SECUREPOINT_LOCAL_RULES: 1 rules for the UTM's own services (to or from objects in zones of its own interfaces) are not converted
+  [info] SECUREPOINT_NAT_ORDER: NAT is part of the rules: each rule with NAT became a NAT rule, in the order of the rules. DESTNAT is done before the packet filter and HIDENAT after it (netfilter); a rule's NAT is read as applying whatever its action (assumed)
+  [info] SECUREPOINT_RANGE: network objects with an address range a-b (a form FWShift reads, not documented): printers
+  [info] LAYER_PLACEMENT: the rules are written to the top of access layer 'Network', in order, and end in a cleanup rule; rules the layer held before stay below it and are no longer reached. Choose another layer with --target-layer
+  [info] NAME_COLLISIONS: Check Point predefines several hundred objects (http, https, ssh, ...). If the script stops because a name exists already, convert again with --target-prefix to give every created object a prefix
+  [info] DOMAIN_OBJECTS: host names are written as domain objects, named after the domain with a leading dot; the gateway needs DNS to enforce them: .updates.example.com
+
+Security rules
+  rule-11  ->  approximated  (emitted as layer Network_internal_to_external)
+      [approximated] SECUREPOINT_STATELESS: action STATELESS allows packets whatever the state of their connection, and lets no replies through by itself; the model is stateful and allows the replies of what it allows
+  rule-14  ->  needs-review, emitted disabled  (emitted as layer Network_internal_to_vpn-ipsec)
+      [needs-review] UNSUPPORTED_MATCH: not converted: NETMAP on the rule: which addresses its packet filter rule names is not documented.
+  rule-18  ->  needs-review  (emitted as layer Network_external_to_dmz1)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'external-interface' next to 'webserver' because of NAT rule 'rule-2-nat'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'rule-2-nat' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  rule-2  ->  exact  (emitted as layer Network_external_to_dmz1)
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to external-interface (extern-https) and taken to webserver; that it also allows traffic sent to the server directly is not documented and is not read
+  rule-6  ->  exact  (emitted as layer Network_external_to_dmz1)
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to public-mail (smtp) and taken to mailserver; that it also allows traffic sent to the server directly is not documented and is not read
+  rule-7  ->  exact  (emitted as layer Network_internal_to_dmz1)
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 1 of 2)
+  rule-7-2  ->  exact  (emitted as layer Network_vpn-ipsec_to_dmz1)
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 2 of 2)
+  rule-12  ->  exact  (emitted as layer Network_internal_to_dmz1)
+      [info] SECUREPOINT_QOS: action QOS: read as ACCEPT; the bandwidth limit of its QoS profile is not converted
+  rule-16  ->  needs-review, emitted disabled  (emitted as layer Network_internal_to_dmz1)
+      [needs-review] UNSUPPORTED_MATCH: not converted: flag 'MIRROR' is not one FWShift reads.
+  rule-9  ->  needs-review, emitted disabled  (emitted as layer Network_internal_to_external)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-region': address 'geoip:XX' is not a form FWShift reads. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-5  ->  skipped
+      [info] SECUREPOINT_LOCAL_RULE: a rule for the UTM's own services (an object in a zone of its own interfaces, firewall-...): not converted
+
+NAT rules
+  rule-1-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: service 'default-internet' is not a single protocol and port; a NAT rule takes one service
+  rule-10-nat  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from vpn-ipsec only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to internal only; it is written without zones
+  rule-14-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NETMAP (a network mapped onto another of the same size, both ways) is not converted
+  rule-2-nat  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from external only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to external only; it is written without zones
+  rule-6-nat  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from external only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to external only; it is written without zones
+  rule-8-nat  ->  approximated
+      [approximated] NAT_INTERFACE_ADDRESS: hides behind 203.0.113.2, the address interface 'eth0' has in the source; check it is the address of the interface the traffic leaves by on the gateway
+      [approximated] NAT_ZONES: the rule applied to traffic from dmz1 only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to external only; it is written without zones
+
+Services
+  ssh  ->  exact
+      [info] SECUREPOINT_FACTORY_SERVICE: not defined in the input: read as the service of that name a UTM comes with, with the IANA port of the name (Securepoint does not publish the list; assumed)

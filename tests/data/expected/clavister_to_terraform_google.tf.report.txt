@@ -1,0 +1,101 @@
+FWShift conversion report
+  source: clavister
+  target: terraform-google
+
+Summary
+  Security rules:     25   exact 7, approximated 8, needs review 6 (3 emitted disabled), skipped 4
+  NAT rules:          12   exact 0, approximated 0, needs review 0, skipped 12
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var project=... shows what it creates, terraform apply creates a new global network firewall policy (fwshift) with its rules; a policy of the same name makes it fail. It is associated with no network: nothing changes until it is (google_compute_network_firewall_policy_association)
+  [needs-review] GCP_ORDER: the policy decides every connection of the network it is associated with: it ends in the default of the source. With the network's enforcement order AFTER_CLASSIC_FIREWALL (the default) the VPC firewall rules of the network decide first; set network_firewall_policy_enforcement_order = "BEFORE_CLASSIC_FIREWALL" on the network, or remove its VPC firewall rules
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: lan=192.168.10.0/24,2001:db8:10::/64; dmz=172.16.20.0/24,172.16.0.0/16; wan=203.0.113.0/24; guest=10.30.0.0/24. --no-source-networks takes none of them
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have logging enabled
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'pol_dmz_https' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  approximated  (emitted as 2 rules of the policy)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'web_srv' because of NAT rule 'allow_web+sat_web'; check that this rule is meant to cover the translated traffic
+  block_bad_mail+sat_mail  ->  approximated  (emitted as 2 rules of the policy)
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'allow_mail+sat_mail'; check that this rule is meant to cover the translated traffic
+      [info] REJECT_AS_DENY: action reset-client: a rule of Google Cloud denies without an answer
+  nat_mail+sat_mail  ->  approximated  (emitted as 2 rules of the policy)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'nat_mail+sat_mail'; check that this rule is meant to cover the translated traffic
+  allow_mail+sat_mail  ->  approximated  (emitted as 2 rules of the policy)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'allow_mail+sat_mail'; check that this rule is meant to cover the translated traffic
+  allow_pool+sat_pool  ->  approximated  (emitted as 2 rules of the policy)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'pub_pool' with post-NAT '172.16.20.100/30' because of NAT rule 'allow_pool+sat_pool'; check that this rule is meant to cover the translated traffic
+  to_guest/guest_never  ->  needs-review  (emitted as 2 rules of the policy)
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_srv', the address NAT rule 'nat_mail+sat_mail' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  lan_updates  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: the rules are written with addresses.
+  lan_to_dmz  ->  needs-review  (emitted as 2 rules of the policy)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_srv', the address NAT rule 'nat_mail+sat_mail' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  syslog_fast  ->  skipped
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+      [approximated] GCP_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some) and is not written: the converted rule allows less
+      [needs-review] GCP_NOT_WRITTEN: nothing of what the rule allows can be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some): not written
+  gre_tunnel  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  old_rule  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  lan6_web  ->  skipped
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones and the protocols of each IP version, the rule matches no connection here
+  lan6_ping  ->  skipped
+      [approximated] GCP_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some) and is not written: the converted rule allows less
+      [needs-review] GCP_NOT_WRITTEN: nothing of what the rule allows can be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some): not written
+  pol_dmz_https  ->  needs-review  (emitted as 2 rules of the policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip2' with post-NAT 'web_srv' because of NAT rule 'pol_dmz_https'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'pol_dmz_https' also translates the port to 8443: the service of this rule (https) named the pre-NAT port only, and now names 8443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web_srv', the address NAT rule 'allow_web+sat_web' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  pol_dmz_out  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+  pol_block_ftp  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+      [info] REJECT_AS_DENY: action reset-client: a rule of Google Cloud denies without an answer
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  allow_web+sat_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  nat_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  allow_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  to_guest/guest_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  to_guest/guest_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  lan_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  lan_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  lan_updates  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  pol_dmz_https  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  pol_dmz_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  sat_unused  ->  skipped
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees

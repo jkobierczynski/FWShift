@@ -1,0 +1,99 @@
+FWShift conversion report
+  source: cato
+  target: vyos
+
+Summary
+  Security rules:     32   exact 18, approximated 2, needs review 12 (12 emitted disabled), skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] VYOS_LOAD: load the commands in configuration mode: 'configure', paste them, 'compare', then 'commit-confirm 10' (unless 'confirm' follows within 10 minutes, VyOS goes back to the configuration before; older releases reboot to do so) and 'save'. A commit applies all of them or none. The policy is written as the zone-based firewall: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, internet, and a chain FWS-<from>-<to> for each pair of zones that needs one. Interfaces of the router in no zone: VyOS drops their traffic into a zone and leaves traffic from a zone to them to the forward filter; that traffic is decided by chain FWS-NO-ZONE (the rules for any destination and the default of the policy), jumped to from rule 10000 of the forward filter for what leaves by an interface not in interface group FWS-ZONES. Check that the forward filter has no rule 10000 (show firewall ipv4 forward filter), or give another number with --policy-id-start; its rules with lower numbers come first, and those after rule 10000 are no longer reached by what the chain decides, as it ends with the default of the policy. The forward filter of the router still applies before the zones (an accept there goes on to the zones, a drop is final). A zone of the same name that exists gets these interfaces and chains in addition to its own; a chain set for a pair that has one replaces it. NAT rules are numbered from 10000: rules of the router with lower numbers come first. To take a conversion away: delete the groups, chains, zones and NAT rules the commands name (all under FWS-, and the NAT rules from 10000 on). Assumed: names of up to 63 characters
+  [needs-review] INTERFACES_REQUIRED: zones need the interfaces of the router: these were written with their own name as interface, which matches no traffic until it is replaced (--interface-map, or --zone-map with zones of the router's interfaces): Antwerp-DC, Brussels-HQ, Ghent-Plant, Leuven-Lab, remote-users (interfaces of the source that are no names of Linux interfaces: Antwerp-DC: Antwerp DC; Brussels-HQ: Brussels HQ; Ghent-Plant: Ghent Plant; Leuven-Lab: Leuven Lab; remote-users: Cato client (remote users))
+  [needs-review] ZONES_REQUIRED: these zones are written with the interfaces of the source: check that they are interfaces of the router (or map them with --interface-map): internet=internet
+  [needs-review] VYOS_NO_ZONE: traffic from a zone to an interface in no zone is decided by chain FWS-NO-ZONE; its replies come in from an interface in no zone, which VyOS drops at the zones unless 'firewall global-options state-policy' accepts established and related packets (the commands do not set it, as it applies to the whole router)
+  [info] CATO_SOURCE: 4 sites as zones (Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab), remote-users and internet; the WAN Firewall (first match, implicit block) decides between sites and remote users, the Internet Firewall (first match, implicit allow, written as a last rule) from them to the internet; traffic inside one network range does not reach Cato and is allowed
+  [info] CATO_INTERNET_TOP: a hidden rule of Cato above the Internet Firewall blocks connections Cato deems illegal or malicious; it is not in the answer and not converted
+  [info] CATO_INBOUND: traffic from the internet to the sites is decided by Remote Port Forwarding, which is not read: in the model nothing from the internet is allowed
+  [info] CATO_REMOVED: rules marked removed in the revision read: left out: Retired rule
+  [info] VYOS_FQDN: host names are written as fqdn or domain-group, which the router resolves while it runs: ftp.example.net
+  [info] VYOS_TEXT: names and descriptions with characters VyOS does not take in them (or longer than it takes) were changed: FWS-Allow HQ to DC servers-dst, FWS-Modbus to the plant (2)-src, FWS-Block bad networks-dst
+
+Security rules
+  Allow HQ to DC servers  ->  approximated  (emitted as FWS-Brussels-HQ-Antwerp-DC rule 10)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Allow HQ to DC servers (2)'
+  Allow HQ to DC servers (2)  ->  exact  (emitted as FWS-Brussels-HQ-Brussels-HQ rule 30, FWS-Brussels-HQ-Antwerp-DC rule 20, FWS-Brussels-HQ-Ghent-Plant rule 10, FWS-Brussels-HQ-Leuven-Lab rule 10, FWS-Brussels-HQ-remote-users rule 10)
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  Block OT to HQ  ->  exact  (emitted as FWS-Ghent-Plant-Brussels-HQ rule 10, FWS-Ghent-Plant-Brussels-HQ rule 10 (IPv6), FWS-Leuven-Lab-Brussels-HQ rule 10, FWS-Leuven-Lab-Brussels-HQ rule 10 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  Historian both ways  ->  exact  (emitted as FWS-Ghent-Plant-Antwerp-DC rule 10, FWS-Ghent-Plant-Antwerp-DC rule 20)
+      [info] CATO_BOTH: direction BOTH: written as rules for each direction, the second set with source and destination swapped: 'Historian both ways (2)'
+  Remote users to DC  ->  exact  (emitted as FWS-remote-users-Antwerp-DC rule 10, FWS-remote-users-Antwerp-DC rule 20, FWS-remote-users-Antwerp-DC rule 10 (IPv6))
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+  Modbus to the plant  ->  exact  (emitted as FWS-Brussels-HQ-Ghent-Plant rule 20)
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Modbus to the plant (2)', 'Modbus to the plant (3)'
+  Modbus to the plant (2)  ->  exact  (emitted as FWS-Brussels-HQ-Ghent-Plant rule 30, FWS-Antwerp-DC-Ghent-Plant rule 30, FWS-Ghent-Plant-Ghent-Plant rule 20, FWS-Leuven-Lab-Ghent-Plant rule 10, FWS-remote-users-Ghent-Plant rule 10)
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  Finance to ERP  ->  needs-review, emitted disabled
+      [needs-review] CATO_USERS: users or user groups narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups Finance.
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  Prompt for SSH  ->  needs-review, emitted disabled
+      [needs-review] CATO_ACTION: action PROMPT: not converted (read as allow)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: action PROMPT: the user is asked on a web page.
+      [info] RULE_SPLIT: written in the chains of 25 pairs of zones
+  Old block  ->  exact  (emitted as FWS-Brussels-HQ-Brussels-HQ rule 40, FWS-Brussels-HQ-Antwerp-DC rule 30, FWS-Brussels-HQ-Ghent-Plant rule 40, FWS-Brussels-HQ-Leuven-Lab rule 20, FWS-Brussels-HQ-remote-users rule 20, FWS-Antwerp-DC-Brussels-HQ rule 10, FWS-Antwerp-DC-Antwerp-DC rule 30, FWS-Antwerp-DC-Ghent-Plant rule 40, FWS-Antwerp-DC-Leuven-Lab rule 10, FWS-Antwerp-DC-remote-users rule 10, FWS-Ghent-Plant-Brussels-HQ rule 20, FWS-Ghent-Plant-Antwerp-DC rule 30, FWS-Ghent-Plant-Ghent-Plant rule 40, FWS-Ghent-Plant-Leuven-Lab rule 10, FWS-Ghent-Plant-remote-users rule 10, FWS-Leuven-Lab-Brussels-HQ rule 20, FWS-Leuven-Lab-Antwerp-DC rule 10, FWS-Leuven-Lab-Ghent-Plant rule 20, FWS-Leuven-Lab-Leuven-Lab rule 20, FWS-Leuven-Lab-remote-users rule 10, FWS-remote-users-Brussels-HQ rule 10, FWS-remote-users-Antwerp-DC rule 30, FWS-remote-users-Ghent-Plant rule 20, FWS-remote-users-Leuven-Lab rule 10, FWS-remote-users-remote-users rule 10)
+      [info] RULE_SPLIT: written in the chains of 25 pairs of zones
+  Floating range  ->  needs-review, emitted disabled
+      [needs-review] CATO_OBJECT: floating ranges, system groups or group members whose addresses are not known: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: floating ranges Cloud floating.
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  Maintenance window  ->  needs-review, emitted disabled
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] SCHEDULE: schedule 'SATURDAY,SUNDAY 22:00:00-23:59:00' is not converted; the rule would apply at all times.
+  Teams between sites  ->  needs-review, emitted disabled
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application column (applications, categories, domains or addresses as applications).
+      [info] RULE_SPLIT: written in the chains of 25 pairs of zones
+  Unknown host  ->  needs-review, emitted disabled
+      [needs-review] CATO_UNRESOLVED: objects that are not in the lookups of the input: they match nothing until they are
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'host lab-printer': a host that is not in the lookups of the input.
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  Block guest except DNS  ->  needs-review, emitted disabled
+      [needs-review] CATO_EXCEPTION: exceptions that cannot be cut out of the rule: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: exception dns from one host: source, service (only an exception of one column of addresses or services is cut out). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] RULE_SPLIT: written in the chains of 25 pairs of zones
+  Block plant to remote users  ->  exact  (emitted as FWS-Ghent-Plant-Brussels-HQ rule 30, FWS-Ghent-Plant-Brussels-HQ rule 20 (IPv6), FWS-Ghent-Plant-Antwerp-DC rule 40, FWS-Ghent-Plant-Antwerp-DC rule 10 (IPv6), FWS-Ghent-Plant-Ghent-Plant rule 50, FWS-Ghent-Plant-Ghent-Plant rule 10 (IPv6), FWS-Ghent-Plant-Leuven-Lab rule 20, FWS-Ghent-Plant-Leuven-Lab rule 10 (IPv6), FWS-Ghent-Plant-remote-users rule 20, FWS-Ghent-Plant-remote-users rule 10 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  Block anonymizers  ->  needs-review, emitted disabled
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [info] CATO_SYSTEM_RULE: a system rule of Cato, which cannot be changed or removed
+      [needs-review] UNSUPPORTED_MATCH: not converted: appCategory Anonymizers. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  Block bad networks  ->  exact  (emitted as FWS-Brussels-HQ-internet rule 10, FWS-Antwerp-DC-internet rule 10, FWS-Ghent-Plant-internet rule 10, FWS-Leuven-Lab-internet rule 10, FWS-remote-users-internet rule 10)
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  Plant has no internet  ->  needs-review, emitted disabled
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [needs-review] NEGATION_NOT_STATIC: the destination is negated and holds a host name, which a rule of VyOS cannot negate. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  HQ web  ->  needs-review, emitted disabled
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: domains example.org.
+  Isolate unknown sites  ->  needs-review, emitted disabled
+      [needs-review] CATO_ACTION: action RBI: not converted (read as allow)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action RBI: remote browser isolation.
+      [needs-review] UNSUPPORTED_MATCH: not converted: customCategory Uncategorized.
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  Partner FTP  ->  approximated  (emitted as FWS-Brussels-HQ-internet rule 20, FWS-Antwerp-DC-internet rule 20, FWS-Ghent-Plant-internet rule 20, FWS-Leuven-Lab-internet rule 20, FWS-remote-users-internet rule 20)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  Block remote users to SMB  ->  needs-review, emitted disabled
+      [needs-review] CATO_ORIGIN: connection origins that are not all sites or all remote users: not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: connection origins REMOTE_CLIENT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones
+  Internet Firewall implicit allow  ->  exact  (emitted as FWS-Brussels-HQ-internet rule 30, FWS-Brussels-HQ-internet rule 10 (IPv6), FWS-Antwerp-DC-internet rule 30, FWS-Antwerp-DC-internet rule 10 (IPv6), FWS-Ghent-Plant-internet rule 30, FWS-Ghent-Plant-internet rule 10 (IPv6), FWS-Leuven-Lab-internet rule 30, FWS-Leuven-Lab-internet rule 10 (IPv6), FWS-remote-users-internet rule 30, FWS-remote-users-internet rule 10 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 5 pairs of zones

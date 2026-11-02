@@ -1,0 +1,66 @@
+FWShift conversion report
+  source: hisecos (IPv4)
+  target: lancom-uf
+
+Summary
+  Security rules:     14   exact 5, approximated 2, needs review 3 (1 emitted disabled), skipped 4
+  NAT rules:           5   exact 0, approximated 0, needs review 1, skipped 4
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HISECOS_NOT_CONVERTED: settings that change what passes and are not converted: deep packet inspection (enforcer profiles)
+  [needs-review] HISECOS_DIRECTION_ORDER: the policy mixes assignments for ingress only with assignments for egress only; the MIB does not say how they are ordered against each other, and they are read as one order by priority: rules assigned for ingress only and rules assigned for egress only
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): port1_1, port1_2, port1_3, vlan20
+  [info] HISECOS_SOURCE: 13 rules of the packet filter, 12 of them assigned and enabled, in the order of their priorities; zones are the routing interfaces (port1_1, port1_2, port1_3, vlan20); IPv4 only. The keywords of the commands are FWShift's reading of the MIB and the command list of the CLI reference, not confirmed by its Format lines
+  [info] HISECOS_DEFAULT: what no rule matches meets the default policy, drop (packet-filter l3 defaultpolicy)
+  [info] HISECOS_NAT_ORDER: destination NAT and 1:1 NAT are read as done before the packet filter, whose rules name the translated address (HiSecOS is built on netfilter; not confirmed): the rules were rewritten for the address as it arrives. Masquerading is done after it. The NAT rules are read in the order 1:1 NAT, double NAT, destination NAT, masquerading, each by priority (an assumption)
+  [info] HISECOS_MANAGEMENT: the device's own management access (network management access) is not converted; entries: entry 1
+  [info] HISECOS_EDITS: commands that change or delete rules, carried out in the order of the script: delrule 140
+
+Security rules
+  rule-10  ->  approximated  (emitted as fws-10.20.0.0_24-vlan20 > fws-10.10.0.0_24-any: fws-tcp-502, fws-10.20.0.0_24-vlan20 > fws-172.16.10.30_32-any: fws-tcp-502)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '172.16.10.30' next to '10.10.0.0/24' because of NAT rule 'doublenat-1-reverse'; check that this rule is meant to cover the translated traffic
+  rule-20  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content; the rule is not written
+  rule-40  ->  skipped
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  rule-40-2  ->  skipped
+      [info] HISECOS_SPLIT: rule 40 is assigned at more than one place in the order (interfaces, directions or priorities); this is its placement number 2
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  rule-100  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: parameter flags=SYN is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-50  ->  skipped
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  rule-60  ->  needs-review  (emitted as fws-0.0.0.0_0-port1_1 > fws-10.30.0.10_32-any: fws-tcp-80_tcp-443_tcp-8000-8010, fws-0.0.0.0_0-port1_1 > fws-192.0.2.10_32-any: fws-tcp-80_tcp-443_tcp-8000-8010)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '192.0.2.10' next to '10.30.0.10' because of NAT rule 'dnat-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'dnat-1' also translates the port to 80; the service of this rule still names the post-NAT port and must be adjusted
+  rule-110  ->  needs-review  (emitted as taken out of the rules below it)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+  rule-90  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  rule-80  ->  approximated
+      [info] HISECOS_NOT_ASSIGNED: rule 80 is assigned to no interface, so it applies to no traffic: read as disabled, at the end
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '172.16.20.40' next to '10.20.0.0/24' because of NAT rule 'doublenat-1'; check that this rule is meant to cover the translated traffic
+
+NAT rules
+  1to1nat-1  ->  skipped
+      [info] HISECOS_1TO1: 1:1 NAT read as a static translation in both directions: the new target addresses leave as the target addresses, and connections to the target addresses reach the new ones (not confirmed)
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  doublenat-1  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  doublenat-1-reverse  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  dnat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  masq-1  ->  needs-review
+      [needs-review] NAT_PARTIAL: the NAT rule translates part of the traffic of a connection service only: masquerading is set per service of a connection, and is not written for that part. Set it by hand where needed

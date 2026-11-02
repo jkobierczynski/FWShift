@@ -1,0 +1,101 @@
+add Address IP4Address fws_10.30.1.10 Address=10.30.1.10
+add Address IP4Address fws_10.30.9.5 Address=10.30.9.5
+add Address IP4Address fws_10.30.1.0_24 Address=10.30.1.0/24
+add Address IP4Address fws_10.30.3.0_24 Address=10.30.3.0/24
+add Service ServiceTCPUDP fws_shop-db-in-1 Type=TCP DestinationPorts=0-65535
+add Address IP4Address fws_0.0.0.0-10.29.255.255 Address=0.0.0.0-10.29.255.255
+add Address IP4Address fws_10.31.0.0-255.255.255.255 Address=10.31.0.0-255.255.255.255
+add Address IP4Address fws_10.30.0.0_24 Address=10.30.0.0/24
+add Address IP4Address fws_10.30.2.0_24 Address=10.30.2.0/24
+add Address IP4Address fws_10.30.4.0-10.30.255.255 Address=10.30.4.0-10.30.255.255
+add Address IP4Address fws_10.30.2.20_31 Address=10.30.2.20/31
+add Address IP4Address fws_10.30.3.30 Address=10.30.3.30
+add Service ServiceTCPUDP fws_tcp-5432 Type=TCP DestinationPorts=5432
+add Address IP4Address fws_10.30.0.0_16 Address=10.30.0.0/16
+add Address IP4Address fws_192.0.2.10 Address=192.0.2.10
+add Address IP4Address fws_192.0.2.5 Address=192.0.2.5
+add Address IP6Address fws_2001_db8_30___56 Address=2001:db8:30::/56
+add Service ServiceTCPUDP fws_tcp-8080 Type=TCP DestinationPorts=8080
+add Address IP6Address fws_2001_db8_30_1__10 Address=2001:db8:30:1::10
+add Service ServiceTCPUDP fws_tcp-443 Type=TCP DestinationPorts=443
+add Service ServiceTCPUDP fws_tcp-80 Type=TCP DestinationPorts=80
+add Service ServiceTCPUDP fws_tcp-22 Type=TCP DestinationPorts=22
+add Address IP4Address fws_10.0.0.0_8 Address=10.0.0.0/8
+add Service ServiceICMP fws_icmp-3-4 MessageTypes=Specific DestinationUnreachable=Yes DestinationUnreachableCodes=4
+add Address IP4Address fws_198.51.100.0_24 Address=198.51.100.0/24
+add Service ServiceICMP fws_icmp-all MessageTypes=All
+add Address IP4Address fws_10.30.9.0_24 Address=10.30.9.0/24
+add Address IP4Address fws_198.51.100.0_25 Address=198.51.100.0/25
+add Address IP4Address fws_203.0.113.64_26 Address=203.0.113.64/26
+add Address IP4Address fws_nothing Address=0.0.0.0
+add Address IP4Group fws_shop-db-in-shop-db-2_src Members=fws_0.0.0.0-10.29.255.255,fws_10.31.0.0-255.255.255.255
+add Address IP4Group fws_shop-db-in-shop-db-3_src Members=fws_10.30.0.0_24,fws_10.30.2.0_24,fws_10.30.4.0-10.30.255.255
+add Address IP4Group fws_shop-app_members Members=fws_10.30.2.20_31
+add Address IP4Group fws_shop Members=fws_10.30.0.0_16
+add Address IP4Group fws_shop-app-outbound-rest_dst Members=fws_shop,fws_192.0.2.10,fws_192.0.2.5
+add Address IP6Group fws_shop_v6 Members=fws_2001_db8_30___56
+add Address IP4Group fws_shop-db_members Members=fws_10.30.3.30
+add Address IP4Group fws_shop-db-outbound-rest_dst Members=fws_shop,fws_192.0.2.10,fws_192.0.2.5
+add Address IP4Group fws_shop-web_members Members=fws_10.30.1.10
+add Address IP6Group fws_shop-web_members_v6 Members=fws_2001_db8_30_1__10
+add Address IP4Group fws_shop-web-outbound-rest_dst Members=fws_shop,fws_192.0.2.10,fws_192.0.2.5
+add Address IP4Group fws_shop-web Members=fws_10.30.1.10
+add Address IP4Group fws_shop-web-in-1_dst Members=fws_shop-web,fws_192.0.2.10
+add Address IP6Group fws_shop-web_v6 Members=fws_2001_db8_30_1__10
+add Address IP4Group fws_shop-web-in-2_dst Members=fws_shop-web,fws_192.0.2.10
+add Address IP4Group fws_shop-web-in-3_dst Members=fws_shop-web,fws_192.0.2.10
+add Address IP4Group fws_shop-bastion Members=fws_10.30.9.5
+add Address IP4Group fws_shop-web-in-4_dst Members=fws_shop-web,fws_192.0.2.10
+add Address IP4Group fws_shop-web-in-5_dst Members=fws_shop-web,fws_192.0.2.10
+add Address IP4Group fws_shop-app Members=fws_10.30.2.20_31
+add Address IP4Group fws_shop-bastion-in-1_dst Members=fws_shop-bastion,fws_192.0.2.5
+add Address IP4Group fws_shop-bastion-in-3_dst Members=fws_shop-bastion,fws_192.0.2.5
+add Address IP4Group fws_shop-bastion-in-4_dst Members=fws_shop-bastion,fws_192.0.2.5
+add Address IP4Group fws_shop-db Members=fws_10.30.3.30
+add Address IP4Group fws_corp-offices Members=fws_198.51.100.0_25,fws_203.0.113.64_26
+add IPRuleSet fws_rules Comments="Written by FWShift"
+add IPRuleSet fws_snat Comments="Written by FWShift"
+cc IPRuleSet fws_snat
+add IPRule Index=1 Name=fws_public-192.0.2.10_sat Action=SAT SourceInterface=any SourceNetwork=fws_10.30.1.10 DestinationInterface=any DestinationNetwork=all-nets Service=all_services SATTranslate=SourceIP SATTranslateToIP=fws_192.0.2.10 LogEnabled=No
+add IPRule Index=2 Name=fws_public-192.0.2.10 Action=Allow SourceInterface=any SourceNetwork=fws_10.30.1.10 DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="public address of eni-0a1b2c3d4e5f63071"
+add IPRule Index=3 Name=fws_public-192.0.2.5_sat Action=SAT SourceInterface=any SourceNetwork=fws_10.30.9.5 DestinationInterface=any DestinationNetwork=all-nets Service=all_services SATTranslate=SourceIP SATTranslateToIP=fws_192.0.2.5 LogEnabled=No
+add IPRule Index=4 Name=fws_public-192.0.2.5 Action=Allow SourceInterface=any SourceNetwork=fws_10.30.9.5 DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="public address of eni-0a1b2c3d4e5f63074"
+add IPRule Index=5 Name=fws_snat_allow Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=6 Name=fws_snat_allow_v6 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_shop-db-in-shop-db Action=Drop SourceInterface=any SourceNetwork=fws_10.30.1.0_24 DestinationInterface=any DestinationNetwork=fws_10.30.3.0_24 Service=fws_shop-db-in-1 LogEnabled=No Comments="denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013"
+add IPRule Index=2 Name=fws_shop-db-in-shop-db-2 Action=Drop SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No Comments="denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013"
+set IPRule 2 -disable
+add IPRule Index=3 Name=fws_shop-db-in-shop-db-3 Action=Drop SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No Comments="denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013"
+set IPRule 3 -disable
+add IPRule Index=4 Name=fws_shop-db-in-shop-db-4 Action=Drop SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No Comments="denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013"
+set IPRule 4 -disable
+add IPRule Index=5 Name=fws_shop-app-to-shop-db Action=Allow SourceInterface=any SourceNetwork=fws_10.30.2.20_31 DestinationInterface=any DestinationNetwork=fws_10.30.3.30 Service=fws_tcp-5432 LogEnabled=No Comments="outbound rule of shop-app and inbound rule of shop-db"
+add IPRule Index=6 Name=fws_shop-app-outbound-rest Action=Drop SourceInterface=any SourceNetwork=fws_shop-app_members DestinationInterface=any DestinationNetwork=fws_shop-app-outbound-rest_dst Service=all_services LogEnabled=No Comments="what the outbound rules of shop-app do not allow inside the VPC"
+add IPRule Index=7 Name=fws_shop-db-outbound-rest Action=Drop SourceInterface=any SourceNetwork=fws_shop-db_members DestinationInterface=any DestinationNetwork=fws_shop-db-outbound-rest_dst Service=all_services LogEnabled=No Comments="what the outbound rules of shop-db do not allow inside the VPC"
+add GotoRule Index=8 Name=fws_shop-web-to-shop-app SourceInterface=any SourceNetwork=fws_10.30.1.10 DestinationInterface=any DestinationNetwork=fws_10.30.2.20_31 Service=fws_tcp-8080 RuleSet=fws_snat LogEnabled=No Comments="outbound rule of shop-web and inbound rule of shop-app"
+add IPRule Index=9 Name=fws_shop-web-outbound-rest Action=Drop SourceInterface=any SourceNetwork=fws_shop-web_members DestinationInterface=any DestinationNetwork=fws_shop-web-outbound-rest_dst Service=all_services LogEnabled=No Comments="what the outbound rules of shop-web do not allow inside the VPC"
+add IPRule Index=10 Name=fws_shop-web-outbound-rest_v6 Action=Drop SourceInterface=any SourceNetwork=fws_shop-web_members_v6 DestinationInterface=any DestinationNetwork=fws_shop_v6 Service=all_services LogEnabled=No Comments="what the outbound rules of shop-web do not allow inside the VPC"
+add GotoRule Index=11 Name=fws_shop-web-in-1 SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_shop-web-in-1_dst Service=fws_tcp-443 RuleSet=fws_snat LogEnabled=No Comments="https"
+add IPRule Index=12 Name=fws_shop-web-in-2 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=fws_shop-web_v6 Service=fws_tcp-443 LogEnabled=No Comments="https"
+add GotoRule Index=13 Name=fws_shop-web-in-3 SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_shop-web-in-3_dst Service=fws_tcp-80 RuleSet=fws_snat LogEnabled=No Comments="http"
+add GotoRule Index=14 Name=fws_shop-web-in-4 SourceInterface=any SourceNetwork=fws_shop-bastion DestinationInterface=any DestinationNetwork=fws_shop-web-in-4_dst Service=fws_tcp-22 RuleSet=fws_snat LogEnabled=No Comments="ssh from bastion"
+add GotoRule Index=15 Name=fws_shop-web-in-5 SourceInterface=any SourceNetwork=fws_10.0.0.0_8 DestinationInterface=any DestinationNetwork=fws_shop-web-in-5_dst Service=fws_icmp-3-4 RuleSet=fws_snat LogEnabled=No Comments="fragmentation needed"
+add GotoRule Index=16 Name=fws_shop-app-in-1 SourceInterface=any SourceNetwork=fws_shop-web DestinationInterface=any DestinationNetwork=fws_shop-app Service=fws_tcp-8080 RuleSet=fws_snat LogEnabled=No Comments="from web"
+add GotoRule Index=17 Name=fws_shop-app-in-2 SourceInterface=any SourceNetwork=fws_shop-bastion DestinationInterface=any DestinationNetwork=fws_shop-app Service=fws_tcp-22 RuleSet=fws_snat LogEnabled=No Comments="ssh"
+add IPRule Index=18 Name=fws_shop-app-in-3 Action=Allow SourceInterface=any SourceNetwork=fws_shop-app DestinationInterface=any DestinationNetwork=fws_shop-app Service=all_services LogEnabled=No Comments="cluster"
+add IPRule Index=19 Name=fws_shop-bastion-in-1 Action=Allow SourceInterface=any SourceNetwork=fws_198.51.100.0_24 DestinationInterface=any DestinationNetwork=fws_shop-bastion-in-1_dst Service=fws_tcp-22 LogEnabled=No Comments="admins"
+add IPRule Index=20 Name=fws_shop-bastion-in-3 Action=Allow SourceInterface=any SourceNetwork=fws_198.51.100.0_24 DestinationInterface=any DestinationNetwork=fws_shop-bastion-in-3_dst Service=fws_icmp-all LogEnabled=No
+add IPRule Index=21 Name=fws_shop-bastion-in-4 Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No Comments="audit account"
+set IPRule 21 -disable
+add IPRule Index=22 Name=fws_shop-db-in-1_2 Action=Allow SourceInterface=any SourceNetwork=fws_10.30.2.0_24 DestinationInterface=any DestinationNetwork=fws_shop-db Service=fws_tcp-5432 LogEnabled=No Comments="postgres"
+add GotoRule Index=23 Name=fws_shop-db-in-2 SourceInterface=any SourceNetwork=fws_10.30.9.0_24 DestinationInterface=any DestinationNetwork=fws_shop-db Service=fws_tcp-5432 RuleSet=fws_snat LogEnabled=No Comments="postgres"
+add GotoRule Index=24 Name=fws_shop-web-out-2 SourceInterface=any SourceNetwork=fws_shop-web DestinationInterface=any DestinationNetwork=fws_corp-offices Service=fws_tcp-443 RuleSet=fws_snat LogEnabled=No Comments="to the offices"
+add ReturnRule Index=25 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=26 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

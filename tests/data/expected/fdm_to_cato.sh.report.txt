@@ -1,0 +1,55 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: cato
+
+Summary
+  Security rules:      8   exact 1, approximated 1, needs review 2 (1 emitted disabled), skipped 4
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: outside_zone, inside_zone, iot
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): outside_zone, inside_zone, iot
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  Block_IoT_to_office  ->  approximated  (emitted as fws-Block_IoT_to_office)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-lan' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Inside_Outside_web  ->  exact  (emitted as fws-Inside_Outside_web)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  IoT_telemetry  ->  skipped
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] CATO_NOT_WRITTEN: not written: host names as the destination: Cato takes them as destinations on the internet only
+  NAS_from_Internet  ->  needs-review  (emitted as fws-NAS_from_Internet)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'outside-interface' next to 'nas' because of NAT rule 'NAS_published'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAS_published' also translates the port to 5001; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'nas' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Head_office_v6  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-devices' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  DNS_answers  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  Staff_streaming  ->  needs-review, emitted disabled  (emitted as fws-Staff_streaming)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests_by_time  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+
+NAT rules
+  NAS_published  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 192.0.2.2
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  nas_static  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  InsideOutsideNatRule  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  IoT_out  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself

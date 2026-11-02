@@ -1,0 +1,38 @@
+FWShift conversion report
+  source: vyos
+  target: clavister
+
+Summary
+  Security rules:     13   exact 8, approximated 0, needs review 5 (2 emitted disabled), skipped 0
+  NAT rules:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 rule-set WAN_LOCAL on pppoe0 local filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] PARTS_NOT_READ: parts of the configuration this parser does not read: port-forward (EdgeOS)
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 3 rule sets it sends traffic to; 32 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: pppoe0, eth1, eth1.10
+  [info] VYOS_FORMAT: read as the configuration of EdgeOS (Vyatta), release v2.0.9: rule-sets on interfaces, accept in a rule-set and the zone policy were read as VyOS 1.4 has them after its own migration (a jump from the forward filter for each rule-set on an interface, the in ones first; accept as return, so that the rule-set of the other interface still decides)
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  no media from the guests  ->  needs-review  (emitted as fws_rules 5 (fws_no_media_from_the_guests))
+      [needs-review] NAT_REDIRECT: NAT rule 'plex from outside' sends traffic for every destination to 192.168.1.30, and the source applied this rule to it after that translation. The converted rule still names the translated address: a platform that looks rules up before NAT will not match the redirected traffic with it
+      [needs-review] CLAVISTER_DNAT_ZONE: the zone NAT rule plex from outside translates to is not known (no network of a zone, --zone-network, holds it) or only partly among the zones of this rule: for the translated traffic the rule is written, and may block more
+  plex to the media box  ->  needs-review  (emitted as fws_rules 6 (fws_plex_to_the_media_box))
+      [needs-review] NAT_REDIRECT: NAT rule 'plex from outside' sends traffic for every destination to 192.168.1.30, and the source applied this rule to it after that translation. The converted rule still names the translated address: a platform that looks rules up before NAT will not match the redirected traffic with it
+  old rule  ->  exact  (emitted as fws_rules 8 (fws_old_rule))
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  no media from the guests-2  ->  needs-review, emitted disabled  (emitted as fws_rules 10 (fws_no_media_from_the_guests-2))
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sessions of the voip box  ->  needs-review, emitted disabled  (emitted as fws_rules 11 (fws_sessions_of_the_voip_box))
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address).
+  no media from the guests-3  ->  needs-review  (emitted as fws_rules 15 (fws_no_media_from_the_guests-3))
+      [needs-review] CLAVISTER_DNAT_ZONE: the zone NAT rule plex from outside translates to is not known (no network of a zone, --zone-network, holds it) or only partly among the zones of this rule: for the translated traffic the rule is written, and may block more

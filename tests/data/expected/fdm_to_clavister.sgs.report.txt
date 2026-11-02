@@ -1,0 +1,44 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: clavister
+
+Summary
+  Security rules:      8   exact 1, approximated 2, needs review 4 (3 emitted disabled), skipped 1
+  NAT rules:           4   exact 2, approximated 1, needs review 1, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 2 rule sets it sends traffic to; 22 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: outside, inside, iot
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  Block_IoT_to_office  ->  approximated  (emitted as fws_rules 3 (fws_Block_IoT_to_office))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-lan' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+  Inside_Outside_web  ->  approximated  (emitted as fws_rules 4 (fws_Inside_Outside_web))
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  IoT_telemetry  ->  needs-review, emitted disabled  (emitted as fws_rules 5 (fws_IoT_telemetry), a placeholder, disabled)
+      [needs-review] CLAVISTER_FQDN: the destination holds the host name vendor-cloud, which is not written.
+  NAS_from_Internet  ->  needs-review  (emitted as fws_rules 6 (fws_NAS_from_Internet))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'outside-interface' next to 'nas' because of NAT rule 'NAS_published'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAS_published' also translates the port to 5001; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'nas' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+  Head_office_v6  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-devices' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+      [info] MATCHES_NOTHING: the sources and destinations have no IP version in common: the rule matches nothing
+  Staff_streaming  ->  needs-review, emitted disabled  (emitted as fws_rules 9 (fws_Staff_streaming), fws_rules 10 (fws_Staff_streaming_v6))
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests_by_time  ->  needs-review, emitted disabled  (emitted as fws_rules 11 (fws_Guests_by_time))
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+
+NAT rules
+  NAS_published  ->  approximated  (emitted as fws_rules 1 (fws_NAS_published_sat))
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 192.0.2.2
+  nas_static  ->  needs-review  (emitted as fws_snat 1 (fws_nas_static_sat), fws_snat 2 (fws_nas_static))
+      [needs-review] CLAVISTER_BIDIRECTIONAL: a static translation in both directions: only the source SAT is written; connections to the translated address need a SAT rule of their own
+  IoT_out  ->  exact  (emitted as fws_snat 4 (fws_IoT_out))
+      [info] NAT_DISABLED: disabled in the source; written disabled

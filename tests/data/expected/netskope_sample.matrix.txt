@@ -1,0 +1,53 @@
+FWShift zone matrix
+  source: netskope
+  security rules: 16 (1 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+            client            ipsec             gre               internet
+  client    -                 -                 -                 any~
+  ipsec     -                 -                 -                 any~
+  gre       -                 -                 -                 any~
+  internet  -                 -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+client -> internet
+  allowed: any ~
+  cleartext or remote administration: rdp (rule 'Admins to jump hosts [app-rdp-gw]')
+  rule 'Admins to jump hosts [app-ssh-jump]': 10.99.0.0/24 -> app-ssh-jump: tcp/22
+  rule 'Admins to jump hosts [app-rdp-gw]': 10.99.0.0/24 -> app-rdp-gw: tcp/3389, udp/3389
+  rule 'Engineering to git': any -> any: any (only with user groups: Engineering, firewall app app-git: host name 'git.example.org', which is not in the model) ~
+  rule 'Block BitTorrent': any -> any: any (only with firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps, which is not in the model) ~
+  rule 'Time servers': any -> dp-time: udp/123
+  rule 'Ping out': any -> any: icmp
+  rule 'DNS out': any -> any: tcp/53, udp/53
+  rule 'Contractors: nothing else': any -> any: any (only with users: contractor1@example.com, which is not in the model) ~
+ipsec -> internet
+  allowed: any ~
+  rule 'Branch mail to partner': 10.20.0.0/16, 10.21.0.0/16 -> dp-partner-mail: tcp/587, tcp/993
+  rule 'Block BitTorrent': any -> any: any (only with firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps, which is not in the model) ~
+  rule 'Time servers': any -> dp-time: udp/123
+  rule 'Ping out': any -> any: icmp
+  rule 'DNS out': any -> any: tcp/53, udp/53
+  rule 'Lab network out': 10.40.0.0/16 -> any: any except udp/123
+gre -> internet
+  allowed: any ~
+  industrial protocols: dnp3 (rule 'Voice from sites')
+  rule 'Branch mail to partner': 10.20.0.0/16, 10.21.0.0/16 -> dp-partner-mail: tcp/587, tcp/993
+  rule 'Voice from sites': 10.30.0.0/16, fd00:30::/48 -> dp-voice-provider: tcp/5061, udp/5060, udp/10000-20000
+  rule 'Block BitTorrent': any -> any: any (only with firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps, which is not in the model) ~
+  rule 'Time servers': any -> dp-time: udp/123
+  rule 'SaaS files from the office': any -> dp-saas-domains: any (only with network locations (Source IP (Egress)): HQ egress, destination profile dp-saas-domains: host name 'files.example.com', which is not in the model) ~
+  rule 'Ping out': any -> any: icmp
+  rule 'DNS out': any -> any: tcp/53, udp/53
+
+From reading the configuration
+  NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+
+Notes
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

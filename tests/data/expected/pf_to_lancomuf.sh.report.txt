@@ -1,0 +1,137 @@
+FWShift conversion report
+  source: pf
+  target: lancom-uf
+
+Summary
+  Security rules:     31   exact 6, approximated 0, needs review 5 (4 emitted disabled), skipped 20
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 7, approximated 0, needs review 2, skipped 0
+  Services:           20   exact 20, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PF_ANCHOR: the rules of these anchors are not converted: 'relayd/*' (line 94). Rules loaded into an anchor decide where the anchor stands, before or after any converted rule; add them to the file to convert them
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERZONE_DEFAULT: the source allows what no rule matches; the firewall blocks what no connection allows. Add the connections that allow it if that was intended
+  [info] PF_LAST_MATCH: 22 rules are not quick: pf decides by the last rule that matches unless a quick rule matches first. The model is first match: the quick rules come first, in their order, then the others, the last one first
+  [info] PF_DEFAULT_PASS: pf passes what no rule matches; the model records that as its default action
+  [info] PF_HOST_NAMES: pfctl resolves host names once, when the rules are loaded: www.example.com. They are host name objects here
+  [info] PF_OVERLOAD: rules that add addresses to a table when they exceed a limit (overload): 'line 57'. The table they fill is empty in pf.conf
+
+Security rules
+  line 72  ->  exact  (emitted as taken out of the rules below it)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  line 75  ->  exact  (emitted as taken out of the rules below it)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  line 46 out  ->  needs-review  (emitted as taken out of the rules below it)
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by every interface: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic, less what the rules before it that decide pass ('line 50', 'line 74')
+      [needs-review] PF_OUT_UNNAMED: the rule blocks what leaves by any interface, less what rules for some interfaces pass; it is written for the interfaces this ruleset names, and traffic that leaves by another interface is not blocked by it
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  line 41  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  antispoof em1 network  ->  needs-review, emitted disabled
+      [needs-review] PF_NEGATED_INTERFACE: 'on ! em1' is every interface but em1; it is written for the other interfaces this ruleset names, em0, em2, and not for interfaces it does not name
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 network': the network of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  antispoof em1 address  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 address': the address of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  bogons  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  brute force  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'bruteforce': it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  line 49  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'spamd': its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  admin ssh  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em2 network': the network of em2 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS; the rule is not written
+  line 92  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: the user of the socket (user proxy), which only traffic of the firewall itself has; the rule is not written
+  line 91  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'egress address': the address of egress is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS; the rule is not written
+  line 90  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: a mark set by another rule (tagged INTERNAL); the rule is not written
+  line 87  ->  skipped
+      [needs-review] PF_ROUTE_TO: the rule sends what it matches elsewhere (route-to ( em3 10.30.0.1 )); the converted rule decides only whether it passes, and the traffic takes the route the target chooses
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  line 86  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  line 85  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: the destination 'www.example.com' holds a host name; a desktop object of the firewall names addresses; the rule is not written
+  line 84  ->  skipped
+      [approximated] PF_NO_STATE: the rule passes packets without keeping state (no state): the replies need a rule of their own on pf. The converted rule allows the connection, replies included
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  line 81  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action reset-client: the firewall drops what it does not allow
+  line 80  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  line 79  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  line 78  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  line 69  ->  skipped
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  line 69.2  ->  skipped
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  line 66  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  line 65  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  line 64  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  line 57  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.1.10' because of NAT rule 'line 39 rdr'; check that this rule is meant to cover the translated traffic
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  line 54  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  line 53  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  line 46  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  line 73  ->  skipped
+      [info] PF_OUT_SHADOWED: the rule blocks traffic that leaves, but the rules before it that decide ('line 74') pass all of it: it decides nothing for forwarded traffic and is not converted for that direction
+
+NAT rules
+  line 36 nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)
+  line 37 nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  line 39 rdr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  line 41 rdr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+
+Address groups
+  bruteforce  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <bruteforce> cannot be converted: it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload)
+  spamd  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <spamd> cannot be converted: its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf

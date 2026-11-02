@@ -1,0 +1,67 @@
+FWShift conversion report
+  source: fmc (Edge)
+  target: clavister
+
+Summary
+  Security rules:     22   exact 10, approximated 8, needs review 3 (3 emitted disabled), skipped 1
+  NAT rules:           7   exact 2, approximated 2, needs review 2, skipped 1
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           24   exact 24, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 3 rule sets it sends traffic to; 49 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: outside, inside, dmz
+  [approximated] OBJECT_OVERRIDES: 1 object(s) can have another value on a device than the one that was read (they allow overrides): ot-net. The values of the manager were converted; check them against the device the policy is for
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  pre-backup  ->  approximated  (emitted as fws_rules 5 (fws_pre-backup))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  pre-partner-gre  ->  approximated  (emitted as fws_rules 7 (fws_pre-partner-gre))
+      [approximated] TUNNEL_RULE: tunnel rule of the prefilter policy: it is converted as a rule for the protocol that carries the tunnel, between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+  pre-partner-gre-reverse  ->  exact  (emitted as fws_rules 8 (fws_pre-partner-gre-reverse))
+      [info] TUNNEL_RULE: the other direction of tunnel rule 'pre-partner-gre', which matches tunnels from source and destination
+  LAN web  ->  approximated  (emitted as fws_rules 12 (fws_LAN_web))
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (file=Block Malware, intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  Updates  ->  needs-review, emitted disabled  (emitted as fws_rules 14 (fws_Updates), a placeholder, disabled)
+      [needs-review] CLAVISTER_FQDN: the destination holds the host name updates, which is not written.
+  Inbound web  ->  approximated  (emitted as fws_rules 15 (fws_Inbound_web))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+  Inbound mail  ->  approximated  (emitted as fws_rules 16 (fws_Inbound_mail))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  Admin access  ->  approximated  (emitted as fws_rules 17 (fws_Admin_access))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  Helpdesk RDP  ->  needs-review, emitted disabled  (emitted as fws_rules 18 (fws_Helpdesk_RDP))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [needs-review] USER_MATCH: source user match CORP\helpdesk is not converted.
+  Staff social media  ->  needs-review, emitted disabled  (emitted as fws_rules 19 (fws_Staff_social_media), fws_rules 20 (fws_Staff_social_media_v6))
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Partner service  ->  approximated  (emitted as fws_rules 21 (fws_Partner_service))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+  Uncategorised web  ->  approximated  (emitted as fws_rules 22 (fws_Uncategorised_web))
+      [approximated] INTERACTIVE_BLOCK: the source showed web users a page from which they could go on to the site (Interactive Block); it is converted as a rule that blocks
+  Old FTP  ->  exact  (emitted as fws_rules 23 (fws_Old_FTP), fws_rules 24 (fws_Old_FTP_v6))
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  Reset the rest from inside  ->  exact  (emitted as fws_rules 29 (fws_Reset_the_rest_from_inside), fws_rules 30 (fws_Reset_the_rest_from_inside_v6))
+      [info] RESET_ACTION: action reset-both becomes Reject, which answers the sender only
+  Watch DMZ  ->  skipped
+      [info] MONITOR_RULE: rule with the action Monitor: it logs the traffic and leaves the decision to the rules below it. Nothing to convert
+
+NAT rules
+  nat-2  ->  approximated  (emitted as fws_rules 1 (fws_nat-2_sat))
+      [approximated] CLAVISTER_DNAT_ZONE_FROM_RULES: no network of a zone holds web-srv: the zone it is routed to is taken from the rules that allow traffic to it (dmz); give --zone-network to say it
+  nat-3  ->  approximated  (emitted as fws_rules 2 (fws_nat-3_sat))
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 203.0.113.2
+      [approximated] CLAVISTER_DNAT_ZONE_FROM_RULES: no network of a zone holds web-srv: the zone it is routed to is taken from the rules that allow traffic to it (dmz); give --zone-network to say it
+  nat-4  ->  skipped
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: round robin, flat port range, interface (as fallback)
+      [needs-review] CLAVISTER_NAT_FORM: a source translation to more than one address (a NAT pool, which is not written)
+  nat-mail-srv  ->  needs-review  (emitted as fws_snat 2 (fws_nat-mail-srv_sat), fws_snat 3 (fws_nat-mail-srv))
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: translate DNS replies
+      [needs-review] CLAVISTER_BIDIRECTIONAL: a static translation in both directions: only the source SAT is written; connections to the translated address need a SAT rule of their own
+  nat-after-auto-1  ->  needs-review  (emitted as fws_snat 5 (fws_nat-after-auto-1))
+      [needs-review] NAT_ORDER: NAT rule 'nat-4' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it

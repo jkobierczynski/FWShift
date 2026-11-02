@@ -1,0 +1,67 @@
+add Address IP4Address fws_outside-interface Address=192.0.2.2 Comments="address of interface outside when the configuration was read"
+add Service ServiceTCPUDP fws_nas-external Type=TCP DestinationPorts=8443
+add Address IP4Address fws_nas Address=10.40.0.10
+add Address IP4Address fws_iot-net Address=10.41.0.0/24
+add Address IP4Address fws_office-lan Address=10.40.0.0/24 Comments="Branch office"
+add Address IP4Address fws_nas-public Address=192.0.2.10
+add Service ServiceTCPUDP fws_web_1 Type=TCP DestinationPorts=443
+add Service ServiceTCPUDP fws_web_2 Type=TCP DestinationPorts=80
+add Service ServiceTCPUDP fws_DNS_over_UDP Type=UDP DestinationPorts=53
+add Service ServiceTCPUDP fws_HTTPS Type=TCP DestinationPorts=443
+add Service ServiceTCPUDP fws_nas-web Type=TCP DestinationPorts=5001
+add Address IP6Address fws_head-office-v6 Address=2001:db8:1::/48
+add Address IP4Address fws_printers Address=10.40.0.200-10.40.0.220
+add Service ServiceTCPUDP fws_rdp Type=TCP DestinationPorts=3389
+add Service ServiceICMP fws_echo-request MessageTypes=Specific EchoRequest=Yes
+add Service ServiceIPProto fws_gre IPProto=47
+add Service ServiceTCPUDP fws_udp-src-53-dst-1024-65535 Type=UDP DestinationPorts=1024-65535 SourcePorts=53
+add Service ServiceICMP fws_port-unreachable MessageTypes=Specific DestinationUnreachable=Yes DestinationUnreachableCodes=3
+add Address IP4Address fws_nothing Address=0.0.0.0
+add InterfaceGroup fws_zones Members=outside,inside,iot
+add Address IP4Group fws_Block_IoT_to_office_dst Members=fws_office-lan,fws_nas-public
+add Service ServiceGroup fws_web_grp Members=fws_web_1,fws_web_2
+add Service ServiceGroup fws_Inside_Outside_web_svc Members=fws_web_grp,fws_DNS_over_UDP
+add Address IP4Group fws_NAS_from_Internet_dst Members=fws_nas,fws_outside-interface,fws_nas-public
+add Address IP4Group fws_office-devices Members=fws_nas,fws_printers
+add Address IP4Group fws_Head_office_v6_dst Members=fws_office-devices,fws_nas-public
+add Service ServiceGroup fws_Head_office_v6_svc Members=fws_rdp,fws_echo-request,fws_gre
+add IPRuleSet fws_rules Comments="Written by FWShift"
+add IPRuleSet fws_snat Comments="Written by FWShift"
+add IPRuleSet fws_d_NAS_published Comments="Written by FWShift"
+cc IPRuleSet fws_snat
+add IPRule Index=1 Name=fws_nas_static_sat Action=SAT SourceInterface=inside SourceNetwork=fws_nas DestinationInterface=outside DestinationNetwork=all-nets Service=all_services SATTranslate=SourceIP SATTranslateToIP=fws_nas-public LogEnabled=No
+add IPRule Index=2 Name=fws_nas_static Action=Allow SourceInterface=inside SourceNetwork=fws_nas DestinationInterface=outside DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=3 Name=fws_InsideOutsideNatRule Action=NAT SourceInterface=inside SourceNetwork=all-nets DestinationInterface=outside DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=4 Name=fws_IoT_out Action=NAT SourceInterface=iot SourceNetwork=fws_iot-net DestinationInterface=outside DestinationNetwork=all-nets Service=all_services LogEnabled=No
+set IPRule 4 -disable
+add IPRule Index=5 Name=fws_snat_allow Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=6 Name=fws_snat_allow_v6 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_NAS_published
+add IPRule Index=1 Name=fws_NAS_published_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_NAS_published_sat Action=SAT SourceInterface=outside SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_outside-interface Service=fws_nas-external SATTranslate=DestinationIP SATTranslateToIP=fws_nas SATTranslateToPort=5001 LogEnabled=No Comments="NAS web interface on the outside address"
+add GotoRule Index=2 Name=fws_NAS_published_goto SourceInterface=outside SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_outside-interface Service=fws_nas-external RuleSet=fws_d_NAS_published LogEnabled=No
+add IPRule Index=3 Name=fws_Block_IoT_to_office Action=Drop SourceInterface=inside SourceNetwork=fws_iot-net DestinationInterface=inside DestinationNetwork=fws_Block_IoT_to_office_dst Service=all_services LogEnabled=Yes
+add GotoRule Index=4 Name=fws_Inside_Outside_web SourceInterface=inside SourceNetwork=fws_office-lan DestinationInterface=outside DestinationNetwork=all-nets Service=fws_Inside_Outside_web_svc RuleSet=fws_snat LogEnabled=Yes
+add IPRule Index=5 Name=fws_IoT_telemetry Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=Yes
+set IPRule 5 -disable
+add IPRule Index=6 Name=fws_NAS_from_Internet Action=Allow SourceInterface=outside SourceNetwork=all-nets DestinationInterface=inside DestinationNetwork=fws_NAS_from_Internet_dst Service=fws_nas-web LogEnabled=Yes
+add IPRule Index=7 Name=fws_DNS_answers Action=Allow SourceInterface=outside SourceNetwork=all-nets DestinationInterface=inside DestinationNetwork=all-nets Service=fws_udp-src-53-dst-1024-65535 LogEnabled=No
+add IPRule Index=8 Name=fws_DNS_answers_v6 Action=Allow SourceInterface=outside SourceNetwork=all-nets6 DestinationInterface=inside DestinationNetwork=all-nets6 Service=fws_udp-src-53-dst-1024-65535 LogEnabled=No
+add IPRule Index=9 Name=fws_Staff_streaming Action=Drop SourceInterface=inside SourceNetwork=all-nets DestinationInterface=outside DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+set IPRule 9 -disable
+add IPRule Index=10 Name=fws_Staff_streaming_v6 Action=Drop SourceInterface=inside SourceNetwork=all-nets6 DestinationInterface=outside DestinationNetwork=all-nets6 Service=all_services LogEnabled=Yes
+set IPRule 10 -disable
+add IPRule Index=11 Name=fws_Guests_by_time Action=Allow SourceInterface=inside SourceNetwork=fws_printers DestinationInterface=outside DestinationNetwork=all-nets Service=fws_port-unreachable LogEnabled=Yes
+set IPRule 11 -disable
+add IPRule Index=12 Name=fws_default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=13 Name=fws_default_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=14 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=15 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

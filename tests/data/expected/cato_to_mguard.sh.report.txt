@@ -1,0 +1,121 @@
+FWShift conversion report
+  source: cato
+  target: mguard
+
+Summary
+  Security rules:     32   exact 0, approximated 0, needs review 0, skipped 32
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): internet=external
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] CATO_SOURCE: 4 sites as zones (Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab), remote-users and internet; the WAN Firewall (first match, implicit block) decides between sites and remote users, the Internet Firewall (first match, implicit allow, written as a last rule) from them to the internet; traffic inside one network range does not reach Cato and is allowed
+  [info] CATO_INTERNET_TOP: a hidden rule of Cato above the Internet Firewall blocks connections Cato deems illegal or malicious; it is not in the answer and not converted
+  [info] CATO_INBOUND: traffic from the internet to the sites is decided by Remote Port Forwarding, which is not read: in the model nothing from the internet is allowed
+  [info] CATO_REMOVED: rules marked removed in the revision read: left out: Retired rule
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  inside Brussels-HQ range 1  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  inside Brussels-HQ range 2  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  inside Antwerp-DC range 1  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Antwerp-DC: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  inside Antwerp-DC range 2  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Antwerp-DC: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  inside Ghent-Plant range 1  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Ghent-Plant: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  inside Leuven-Lab range 1  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Leuven-Lab: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Allow HQ to DC servers  ->  skipped
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Allow HQ to DC servers (2)'
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Allow HQ to DC servers (2)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Block OT to HQ  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Ghent-Plant, Leuven-Lab, Brussels-HQ: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Historian both ways  ->  skipped
+      [info] CATO_BOTH: direction BOTH: written as rules for each direction, the second set with source and destination swapped: 'Historian both ways (2)'
+      [needs-review] MGUARD_ZONE_UNKNOWN: Ghent-Plant, Antwerp-DC: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Historian both ways (2)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Antwerp-DC, Ghent-Plant: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Remote users to DC  ->  skipped
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [needs-review] MGUARD_ZONE_UNKNOWN: remote-users, Antwerp-DC: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Modbus to the plant  ->  skipped
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Modbus to the plant (2)', 'Modbus to the plant (3)'
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Ghent-Plant: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Modbus to the plant (2)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Modbus to the plant (3)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Ghent-Plant: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Finance to ERP  ->  skipped
+      [needs-review] CATO_USERS: users or user groups narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups Finance.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Prompt for SSH  ->  skipped
+      [needs-review] CATO_ACTION: action PROMPT: not converted (read as allow)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: action PROMPT: the user is asked on a web page.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Old block  ->  skipped
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  Floating range  ->  skipped
+      [needs-review] CATO_OBJECT: floating ranges, system groups or group members whose addresses are not known: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: floating ranges Cloud floating.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Maintenance window  ->  skipped
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] SCHEDULE: schedule 'SATURDAY,SUNDAY 22:00:00-23:59:00' is not converted; the rule would apply at all times.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Antwerp-DC, Ghent-Plant: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Teams between sites  ->  skipped
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application column (applications, categories, domains or addresses as applications).
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Unknown host  ->  skipped
+      [needs-review] CATO_UNRESOLVED: objects that are not in the lookups of the input: they match nothing until they are
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'host lab-printer': a host that is not in the lookups of the input.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'host lab-printer' holds members only its platform knows, or an address the profile does not hold.
+  Block guest except DNS  ->  skipped
+      [needs-review] CATO_EXCEPTION: exceptions that cannot be cut out of the rule: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: exception dns from one host: source, service (only an exception of one column of addresses or services is cut out). This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Block plant to remote users  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Ghent-Plant, Brussels-HQ, Antwerp-DC, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Block anonymizers  ->  skipped
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [info] CATO_SYSTEM_RULE: a system rule of Cato, which cannot be changed or removed
+      [needs-review] UNSUPPORTED_MATCH: not converted: appCategory Anonymizers. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Block bad networks  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Plant has no internet  ->  skipped
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [needs-review] MGUARD_ZONE_UNKNOWN: Ghent-Plant: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] FQDN_NOT_SUPPORTED: every address but fqdn updates.example.com, which holds a host name. This deny rule is NOT enforced; rules below it may match more traffic.
+  HQ web  ->  skipped
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: domains example.org.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Isolate unknown sites  ->  skipped
+      [needs-review] CATO_ACTION: action RBI: not converted (read as allow)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action RBI: remote browser isolation.
+      [needs-review] UNSUPPORTED_MATCH: not converted: customCategory Uncategorized.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Partner FTP  ->  skipped
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Block remote users to SMB  ->  skipped
+      [needs-review] CATO_ORIGIN: connection origins that are not all sites or all remote users: not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: connection origins REMOTE_CLIENT. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Internet Firewall implicit allow  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.

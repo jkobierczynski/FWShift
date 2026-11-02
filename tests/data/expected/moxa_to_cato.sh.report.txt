@@ -1,0 +1,71 @@
+FWShift conversion report
+  source: moxa
+  target: cato
+
+Summary
+  Security rules:     10   exact 5, approximated 1, needs review 3 (2 emitted disabled), skipped 1
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MOXA_DEFAULT_ACCEPT: what no policy matches is read as passing: the configuration names no default action, and FWShift found none for the classic firmware in Moxa's documentation (not confirmed on a device). If the router drops it, add a policy at the end of the converted policy that drops everything
+  [needs-review] MOXA_NAT_ORDER: port forwarding and 1-to-1 NAT are read as done before the Layer 3 policy, whose policies name the inside address (as iptables does it on Linux; Moxa's documentation does not say, not confirmed): the policies were rewritten for the address as it arrives. N-to-1 NAT is done after it
+  [needs-review] MOXA_DPI: the Modbus filter (DPI) checks Modbus TCP traffic beyond addresses and ports; not converted: modbus-filter 1
+  [needs-review] MOXA_L2_POLICY: the Layer 2 policy filters bridged traffic before the Layer 3 policy; not converted: l2-filter 1 enable
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_WAN_DEFAULT: the source allows what no rule matches; the WAN Firewall blocks it (implicit any-any block). A last rule that allows the rest between sites is written switched off
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): lan, wan1, wan2
+  [info] MOXA_SOURCE: EDR-810-VPN-2GSFP: 10 policies of the Layer 3 policy, first match by index; zones are the interfaces lan, wan1 and wan2. IPv4 only
+  [info] MOXA_TRUSTED_ACCESS: trusted access, which limits who reaches the router itself; not converted: lan 192.168.127.0 255.255.255.0 enable
+  [info] MOXA_DOS: DoS defence settings; not converted: syn-flood 300, null-scan
+  [info] CATO_INTRAZONE: the source allows traffic inside a zone that no rule matches; between two network ranges of one site it passes the WAN Firewall, so a rule at the end allows it: lan, wan1, wan2
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+
+Security rules
+  firewall 1  ->  exact  (emitted as fws-firewall 1)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  firewall 2  ->  exact  (emitted as fws-firewall 2)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  firewall 3  ->  needs-review  (emitted as fws-firewall 3)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'wan1-address' next to '192.168.127.50' because of NAT rule 'ip nat 1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'ip nat 1' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  firewall 4  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  firewall 5  ->  exact  (emitted as fws-firewall 5)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  firewall 6  ->  exact  (emitted as fws-firewall 6)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  firewall 7  ->  needs-review, emitted disabled  (emitted as fws-firewall 7)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: source MAC address 00:90:e8:00:00:01, which the model cannot match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: mode MAC: the policy filters by source MAC address, which the model cannot match.
+  firewall 8  ->  needs-review, emitted disabled  (emitted as fws-firewall 8)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.60' next to '192.168.127.60-192.168.127.69' because of NAT rule 'ip nat 2'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'session-limit 50' is not converted.
+  firewall 9  ->  exact  (emitted as fws-firewall 9)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  firewall 10  ->  approximated  (emitted as fws-firewall 10)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.60' next to '192.168.127.60' because of NAT rule 'ip nat 2'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+
+NAT rules
+  ip nat 1  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  ip nat 2  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  ip nat 3  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  ip nat 4  ->  skipped
+      [info] MOXA_NAT_AUTO: outside wan auto: the address of whichever WAN interface the traffic leaves by
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself

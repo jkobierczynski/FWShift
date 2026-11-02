@@ -1,0 +1,119 @@
+FWShift conversion report
+  source: clavister
+  target: sonicwall
+
+Summary
+  Security rules:     25   exact 17, approximated 3, needs review 4 (4 emitted disabled), skipped 1
+  NAT rules:          12   exact 0, approximated 6, needs review 0, skipped 6
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 9, approximated 0, needs review 4, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] NAT_NOTHING_ELSE: SonicOS adds NAT policies of its own (an interface in a WAN zone hides the LAN and DMZ subnets behind its address), and the source translated only what its NAT rules say. The interfaces of the zones are not known (--interface-map), so no policy that translates nothing was written: disable the policies SonicOS added (Network, NAT Policies, Default & Custom), or check that the source's translations are all it does
+  [needs-review] IPV6_PRIORITY_AUTO: IPv6 rules are written without a priority, after every IPv4 rule: SonicOS keeps one list of priorities for the rules of every pair of zones, IPv4 first and with rules of its own among them, so the place of an IPv6 rule is not known beforehand (SonicOS 8.2.2 refused the places FWShift gave). SonicOS places them. Pairs with more than one IPv6 rule, whose order SonicOS decides: lan to dmz, lan to guest, lan to lan, lan to wan: check it
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, address-object ipv6, nat-policy name and comment, nat-policy priority manual, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): wan, dmz, lan, guest
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: lan=192.168.10.0/24,2001:db8:10::/64; dmz=172.16.20.0/24,172.16.0.0/16; wan=203.0.113.0/24; guest=10.30.0.0/24. --no-source-networks takes none of them
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv4' (all addresses, in two halves) instead of any
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv6' (all addresses, in two halves) instead of any
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled  (emitted as drop_netbios, drop_netbios 2, drop_netbios 3, drop_netbios 4, drop_netbios 5, drop_netbios 6, drop_netbios 7, drop_netbios 8, drop_netbios 9, drop_netbios 10, drop_netbios 11, drop_netbios 12, drop_netbios 13, drop_netbios 14, drop_netbios 15, drop_netbios 16)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 16 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  exact
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+  block_bad_mail+sat_mail  ->  exact
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [info] RESET_ACTION: action reset-client becomes deny
+  nat_mail+sat_mail  ->  exact  (emitted as nat_mail+sat_mail, nat_mail+sat_mail 2)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 2 rules
+  allow_mail+sat_mail  ->  exact
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+  allow_pool+sat_pool  ->  exact
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+  to_guest/guest_never  ->  exact
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+  syslog_fast  ->  needs-review, emitted disabled
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'syslog 2': source ports, which a SonicOS service object does not have.
+  gre_tunnel  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'gre': IP protocol 47, for which FWShift does not know the command of SonicOS.
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  old_rule  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  lan6_ping  ->  needs-review, emitted disabled  (emitted as lan6_ping, lan6_ping 2, lan6_ping 3, lan6_ping 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'echo6': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  pol_dmz_out  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+  pol_block_ftp  ->  approximated  (emitted as pol_block_ftp, pol_block_ftp 2, pol_block_ftp 3, pol_block_ftp 4)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [info] RESET_ACTION: action reset-client becomes deny
+  DropAll  ->  exact  (emitted as DropAll, DropAll 2, DropAll 3, DropAll 4, DropAll 5, DropAll 6, DropAll 7, DropAll 8, DropAll 9, DropAll 10, DropAll 11, DropAll 12, DropAll 13, DropAll 14, DropAll 15, DropAll 16)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 16 rules
+  DropAll6  ->  exact  (emitted as DropAll6, DropAll6 2, DropAll6 3, DropAll6 4, DropAll6 5, DropAll6 6, DropAll6 7, DropAll6 8, DropAll6 9, DropAll6 10, DropAll6 11, DropAll6 12, DropAll6 13, DropAll6 14, DropAll6 15, DropAll6 16)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 16 rules
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  allow_web+sat_web  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from wan only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  nat_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+  allow_mail+sat_mail  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from wan only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  allow_pool+sat_pool  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from wan only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  to_guest/guest_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+  to_guest/guest_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+  lan_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+  lan_web  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from lan only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [approximated] NAT_ZONES: the rule applied to traffic to wan only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  lan_updates  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+  pol_dmz_https  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from wan only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  pol_dmz_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+  sat_unused  ->  approximated
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [approximated] NAT_ZONES: the rule applied to traffic from wan only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+
+Services
+  web-ports  ->  exact  (emitted as web-ports, web-ports tcp 80, web-ports tcp 443, web-ports tcp 8080-8090)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'web-ports' of 'web-ports tcp 80', 'web-ports tcp 443', 'web-ports tcp 8080-8090'
+  dns-both  ->  exact  (emitted as dns-both, dns-both tcp 53, dns-both udp 53)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'dns-both' of 'dns-both tcp 53', 'dns-both udp 53'
+  syslog  ->  needs-review  (emitted as syslog 2)
+      [info] RENAMED: renamed to 'syslog 2' to fit the target's naming rules
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  echo-only  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  echo6  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  gre  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 47, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  http-all  ->  exact  (emitted as http-all, http-all tcp 80, http-all tcp 443)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'http-all' of 'http-all tcp 80', 'http-all tcp 443'
+  dns-all  ->  exact  (emitted as dns-all, dns-all tcp 53, dns-all udp 53)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'dns-all' of 'dns-all tcp 53', 'dns-all udp 53'
+  ssh  ->  exact  (emitted as ssh 2)
+      [info] RENAMED: renamed to 'ssh 2' to fit the target's naming rules
+  https  ->  exact  (emitted as https 2)
+      [info] RENAMED: renamed to 'https 2' to fit the target's naming rules

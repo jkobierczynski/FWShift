@@ -1,0 +1,73 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: lancom-uf
+
+Summary
+  Security rules:     17   exact 3, approximated 8, needs review 1 (1 emitted disabled), skipped 5
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): DMZ, LAN, OT, WAN
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  approximated  (emitted as fws-lan-net > fws-0.0.0.0_0-WAN: fws-svc-1)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+  Admins to DMZ  ->  approximated  (emitted as fws-10.10.5.10_31-LAN > fws-web-1: fws-tcp-22, fws-10.10.5.10_31-LAN > fws-mail-1: fws-tcp-22, fws-10.10.5.12_30-LAN > fws-web-1: fws-tcp-22, fws-10.10.5.12_30-LAN > fws-mail-1: fws-tcp-22, fws-10.10.5.16_30-LAN > fws-web-1: fws-tcp-22, fws-10.10.5.16_30-LAN > fws-mail-1: fws-tcp-22, fws-10.10.5.20_32-LAN > fws-web-1: fws-tcp-22, fws-10.10.5.20_32-LAN > fws-mail-1: fws-tcp-22)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  LAN to DMZ web not mail  ->  approximated  (emitted as fws-lan-net > fws-0.0.0.0_5-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-8.0.0.0_7-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.0.0.0_12-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.16.0.0_14-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.0.0_28-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.0.16_29-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.0.24_32-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.0.26_31-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.0.28_30-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.0.32_27-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.0.64_26-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.0.128_25-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.1.0_24-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.2.0_23-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.4.0_22-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.8.0_21-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.16.0_20-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.32.0_19-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.64.0_18-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.20.128.0_17-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.21.0.0_16-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.22.0.0_15-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.24.0.0_13-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.32.0.0_11-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.64.0.0_10-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-10.128.0.0_9-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-11.0.0.0_8-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-12.0.0.0_6-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-16.0.0.0_4-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-32.0.0.0_3-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-64.0.0.0_2-DMZ: fws-tcp-80_tcp-443, fws-lan-net > fws-128.0.0.0_1-DMZ: fws-tcp-80_tcp-443)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out  ->  approximated  (emitted as fws-lan-net > fws-0.0.0.0_0-OT: fws-tcp-22)
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out-2  ->  approximated  (emitted as fws-10.10.0.0_22-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.4.0_24-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.5.0_29-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.5.8_31-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.5.21_32-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.5.22_31-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.5.24_29-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.5.32_27-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.5.64_26-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.5.128_25-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.6.0_23-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.8.0_21-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.16.0_20-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.32.0_19-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.64.0_18-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.128.0_17-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.11.0.0_16-LAN > fws-0.0.0.0_0-DMZ: fws-tcp-22, fws-10.10.0.0_22-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.4.0_24-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.5.0_29-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.5.8_31-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.5.21_32-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.5.22_31-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.5.24_29-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.5.32_27-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.5.64_26-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.5.128_25-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.6.0_23-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.8.0_21-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.16.0_20-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.32.0_19-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.64.0_18-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.10.128.0_17-LAN > fws-0.0.0.0_0-OT: fws-tcp-22, fws-10.11.0.0_16-LAN > fws-0.0.0.0_0-OT: fws-tcp-22)
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Internet to web  ->  approximated  (emitted as fws-0.0.0.0_0-WAN > fws-web-public: fws-tcp-443)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+  Internet to mail  ->  approximated  (emitted as fws-0.0.0.0_0-WAN > fws-mail-public: fws-tcp-2525)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+  OT to SCADA  ->  approximated  (emitted as fws-plc-net > fws-scada-server: fws-tcp-502)
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  DMZ updates  ->  skipped
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+      [needs-review] UNCONVERTIBLE_OBJECT: the destination 'update-sites' holds addresses that are not known; a desktop object of the firewall names addresses; the rule is not written
+  Finance to app  ->  skipped
+      [needs-review] USER_MATCH: source user match Finance is not converted; the rule is not written
+  DNS in office hours  ->  skipped
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times; the rule is not written
+  Reject the rest from LAN  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action reset-client: the firewall drops what it does not allow
+  LAN6 to Internet  ->  skipped
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  Publish web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  Publish mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  Mail server out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  No NAT to partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  NAT of LAN to Internet web  ->  skipped
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)
+  Default SNAT IPv4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)
+
+Addresses
+  any-example-org  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+  Blocked countries  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted

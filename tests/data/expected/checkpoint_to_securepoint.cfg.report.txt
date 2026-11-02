@@ -1,0 +1,110 @@
+FWShift conversion report
+  source: checkpoint (Network)
+  target: securepoint
+
+Summary
+  Security rules:     22   exact 1, approximated 8, needs review 12 (7 emitted disabled), skipped 1
+  NAT rules:           9   exact 3, approximated 0, needs review 2, skipped 4
+  Addresses:          16   exact 13, approximated 1, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): InternalZone, ExternalZone, firewall-InternalZone, firewall-ExternalZone. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: InternalZone-interface, ExternalZone-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] SECUREPOINT_RESERVED_NAME: objects named like objects the UTM comes with were renamed: domain-udp -> domain-udp_2, domain-tcp -> domain-tcp_2, ssh -> ssh_2, http -> http_2, https -> https_2, smtp -> smtp_2
+  [info] SECUREPOINT_COMMENTED: 7 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  DNS  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+  rule-2  ->  needs-review  (emitted as 4 rules of group fwshift)
+      [needs-review] DEVICE_TARGET: the rule is installed only on gw-edge; decide whether it belongs on the target firewall
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+  Guests stay out  ->  needs-review  (emitted as 4 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  Social  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match a packet
+  Admins  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netadmins': access role whose networks and users are not in the export (add the output of 'show access-roles details-level full').
+  PLC access  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+  PLC access (plc-operators)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] ACCESS_ROLE: access role plc-operators: the rule matches the networks of the role for its users ad_group_PLC-Operators, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+      [needs-review] USER_MATCH: source user match ad_group_PLC-Operators is not converted.
+  PLC access (vendor-support)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] ACCESS_ROLE: access role vendor-support: the rule matches the networks of the role for its users ad_group_Vendor-Support, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+      [needs-review] USER_MATCH: source user match ad_group_Vendor-Support is not converted.
+  DMZ users  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] ACCESS_ROLE: access role all-identified: the rule matches the networks of the role for all identified users, written 'known-user' as PAN-OS calls them
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+      [needs-review] USER_MATCH: source user match known-user is not converted.
+  Updates  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+      [needs-review] SCHEDULE: schedule 'Work-Hours' is not converted; the rule would apply at all times.
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'updates.example.com'; that a network object of the UTM takes a host name is not documented.
+  Old rule  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'lan-without-guests': object of type 'group-with-exclusion'.
+  Partners  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+      [needs-review] UNSUPPORTED_MATCH: not converted: VPN community match Partner-VPN.
+  IPv6 out  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+  Public web  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+  DMZ access / Web in  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+  DMZ access / Mail in  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+  DMZ access / Ping from LAN  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+  DMZ access (cleanup of DMZ-Layer)  ->  needs-review  (emitted as 4 rules of group fwshift)
+      [info] INLINE_CLEANUP: added for the implicit cleanup of inline layer 'DMZ-Layer', which is drop
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  Tunnels  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] GATEWAY_OBJECT: matches gateway object gw-edge, which stood for every address of the gateway; only its main address is known, so the converted rule no longer applies to its other addresses
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched
+  No ident  ->  needs-review  (emitted as 4 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [info] RESET_ACTION: action reset-client becomes REJECT, which answers the sender with an ICMP message, not a TCP reset
+  Cleanup rule  ->  needs-review  (emitted as 4 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (InternalZone, ExternalZone); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: HIDENAT hides behind the address of an interface or of one network object; this source translation is none of them
+  nat-2  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT needs the one zone the traffic is sent to (the zone of its NAT network object, firewall-<zone>); the NAT rule names none
+  nat-6  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT needs the one zone the traffic is sent to (the zone of its NAT network object, firewall-<zone>); the NAT rule names none
+  nat-7  ->  needs-review  (emitted as 4 rules with HIDENAT)
+      [needs-review] NAT_ORDER: NAT rule 'nat-1' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: NAT rule 'nat-2' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: NAT rule 'nat-6' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+  nat-8  ->  needs-review  (emitted as 4 rules with HIDENAT)
+      [needs-review] NAT_ORDER: NAT rule 'nat-2' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: NAT rule 'nat-6' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+  nat-9  ->  skipped
+      [info] NAT_DISABLED: disabled in the source; not written
+
+Addresses
+  web-1  ->  exact
+      [info] AUTOMATIC_NAT: the object has automatic static NAT to 203.0.113.10: as on Check Point, rules and groups that name it also match that address, written as 'web-1_valid_address'
+  netadmins  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: access role whose networks and users are not in the export (add the output of 'show access-roles details-level full') cannot be converted
+  lan-without-guests  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'group-with-exclusion' cannot be converted
+  gw-edge  ->  approximated
+      [approximated] GATEWAY_OBJECT: a gateway object stands for every address of the gateway; only its main address 198.51.100.1 is in the export
+
+Services
+  Facebook  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: object of type 'application-site': not converted

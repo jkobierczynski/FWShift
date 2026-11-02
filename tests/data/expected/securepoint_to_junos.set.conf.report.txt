@@ -1,0 +1,62 @@
+FWShift conversion report
+  source: securepoint
+  target: junos
+
+Summary
+  Security rules:     19   exact 11, approximated 3, needs review 4 (3 emitted disabled), skipped 1
+  NAT rules:           6   exact 4, approximated 0, needs review 0, skipped 2
+  Addresses:          15   exact 15, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_IMPLIED: commands that change the implicit rules are not converted: group set implied_group "12" active "1"
+  [needs-review] JUNOS_LOAD: the output is set commands for 'load set' (section 10): 'configure private', 'load set terminal' or 'load set FILE', then 'show | compare', 'commit check' and 'commit confirmed'. New policies go to the end of their pair of zones, after the policies the firewall has there, and the global policies after those: move them with 'insert ... before' where the firewall's own should not come first. Objects go into the global address book, which a firewall with address books in its zones does not accept. Assumed: names of up to 63 characters, 'match from-zone' and 'match to-zone' in global policies, and the definitions of the predefined applications the policies use
+  [needs-review] ZONES_REQUIRED: the policies and NAT rules name these security zones, which must exist on the SRX (or be renamed with --zone-map): dmz1, external, internal, vpn-ipsec
+  [info] SECUREPOINT_SOURCE: 18 rules of the packet filter in 3 rule groups, first match in the order of the groups; zones from the network objects; what no rule matches is dropped (Default Drop)
+  [info] SECUREPOINT_IMPLIED_RULES: the UTM's implicit rules (Firewall > Implied rules: its own services, VPN, the threat intelligence filter) come before the packet filter and are not converted
+  [info] SECUREPOINT_LOCAL_RULES: 1 rules for the UTM's own services (to or from objects in zones of its own interfaces) are not converted
+  [info] SECUREPOINT_NAT_ORDER: NAT is part of the rules: each rule with NAT became a NAT rule, in the order of the rules. DESTNAT is done before the packet filter and HIDENAT after it (netfilter); a rule's NAT is read as applying whatever its action (assumed)
+  [info] SECUREPOINT_RANGE: network objects with an address range a-b (a form FWShift reads, not documented): printers
+
+Security rules
+  rule-11  ->  approximated
+      [approximated] SECUREPOINT_STATELESS: action STATELESS allows packets whatever the state of their connection, and lets no replies through by itself; the model is stateful and allows the replies of what it allows
+  rule-14  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: NETMAP on the rule: which addresses its packet filter rule names is not documented.
+  rule-18  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'external-interface' next to 'webserver' because of NAT rule 'rule-2-nat'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'rule-2-nat' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'webserver', the address NAT rule 'rule-2-nat' translates 'external-interface' to. The target looks rules up after that translation, so traffic sent to 'external-interface' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+  rule-2  ->  approximated
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to external-interface (extern-https) and taken to webserver; that it also allows traffic sent to the server directly is not documented and is not read
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'external-interface' with post-NAT 'webserver' because of NAT rule 'rule-2-nat'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'rule-2-nat' also translates the port to 443: the service of this rule (extern-https) named the pre-NAT port only, and now names 443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+  rule-6  ->  approximated
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to public-mail (smtp) and taken to mailserver; that it also allows traffic sent to the server directly is not documented and is not read
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'public-mail' with post-NAT 'mailserver' because of NAT rule 'rule-6-nat'; check that this rule is meant to cover the translated traffic
+  rule-7  ->  exact
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 1 of 2)
+  rule-7-2  ->  exact
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 2 of 2)
+  rule-12  ->  exact
+      [info] SECUREPOINT_QOS: action QOS: read as ACCEPT; the bandwidth limit of its QoS profile is not converted
+  rule-16  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: flag 'MIRROR' is not one FWShift reads.
+  rule-9  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-region': address 'geoip:XX' is not a form FWShift reads. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-5  ->  skipped
+      [info] SECUREPOINT_LOCAL_RULE: a rule for the UTM's own services (an object in a zone of its own interfaces, firewall-...): not converted
+
+NAT rules
+  rule-1-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NAT rule of Junos matches one port range of TCP or UDP
+  rule-10-nat  ->  exact  (emitted as source fwshift-source-vpn-ipsec-internal rule-10-nat)
+      [info] NAT_EXEMPTION: a rule without translation, written as 'source-nat off'
+  rule-14-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NETMAP (a network mapped onto another of the same size, both ways) is not converted; a NAT rule of Junos matches one port range of TCP or UDP
+
+Services
+  ssh  ->  exact
+      [info] SECUREPOINT_FACTORY_SERVICE: not defined in the input: read as the service of that name a UTM comes with, with the IANA port of the name (Securepoint does not publish the list; assumed)

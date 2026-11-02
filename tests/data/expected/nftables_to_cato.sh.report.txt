@@ -1,0 +1,68 @@
+FWShift conversion report
+  source: nftables
+  target: cato
+
+Summary
+  Security rules:     16   exact 7, approximated 1, needs review 4 (2 emitted disabled), skipped 4
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: eth1, eth0, eth2, eth3
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): eth1, eth0, eth2, eth3
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  Banned by fail2ban  ->  needs-review, emitted disabled  (emitted as fws-Banned by fail2ban)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  needs-review  (emitted as fws-Block bad hosts)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Guests stay in  ->  exact  (emitted as fws-Guests stay in)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Rate limited mail  ->  needs-review, emitted disabled  (emitted as fws-Rate limited mail)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.
+  Partner tunnel  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Admins  ->  exact  (emitted as fws-Admins)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Ping the DMZ  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  SCADA to PLCs  ->  exact  (emitted as fws-SCADA to PLCs)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Inbound web  ->  needs-review  (emitted as fws-Inbound web)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.0.10' because of NAT rule 'Web DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Web DNAT' also translates the port to 8443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Inbound mail  ->  approximated  (emitted as fws-Inbound mail)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to '10.20.0.25' because of NAT rule 'Mail DNAT'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Inbound IPv6  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the destination
+  DMZ updates  ->  exact  (emitted as fws-DMZ updates)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  ICMPv6 basics  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+
+NAT rules
+  Web DNAT  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  Mail DNAT  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  No NAT to partner  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  DMZ out  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  LAN out  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself

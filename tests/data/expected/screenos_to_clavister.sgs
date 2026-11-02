@@ -1,0 +1,133 @@
+add Address IP4Address fws_lan Address=10.10.0.0/16 Comments="office LAN"
+add Address IP4Address fws_10.20.0.10 Address=10.20.0.10
+add Address IP4Address fws_10.30.0.24_29 Address=10.30.0.24/29
+add Address IP4Address fws_VIP_203.0.113.20_ Address=203.0.113.20 Comments="VIP on ethernet0/0"
+add Service ServiceTCPUDP fws_tcp-80 Type=TCP DestinationPorts=80
+add Service ServiceTCPUDP fws_tcp-8443 Type=TCP DestinationPorts=8443
+add Service ServiceTCPUDP fws_web_1 Type=TCP DestinationPorts=8080-8081
+add Service ServiceTCPUDP fws_web_2 Type=TCP DestinationPorts=443
+add Service ServiceTCPUDP fws_web_3 Type=TCP DestinationPorts=80
+add Service ServiceTCPUDP fws_dns-split Type=TCPUDP DestinationPorts=53
+add Address IP4Address fws_admins Address=10.10.5.0/28
+add Address IP4Address fws_partner-net Address=198.51.100.0/24
+add Service ServiceTCPUDP fws_SSH Type=TCP DestinationPorts=22
+add Address IP4Address fws_bad-host Address=192.0.2.66
+add Address IP4Address fws_MIP_203.0.113.10_ Address=203.0.113.10 Comments="MIP on ethernet0/0: 10.20.0.10"
+add Service ServiceTCPUDP fws_HTTP Type=TCP DestinationPorts=80
+add Service ServiceTCPUDP fws_HTTPS Type=TCP DestinationPorts=443
+add Address IP4Address fws_MIP_203.0.113.24_ Address=203.0.113.24/29 Comments="MIP on ethernet0/0: 10.30.0.24"
+add Service ServiceTCPUDP fws_tcp-8080 Type=TCP DestinationPorts=8080-8081
+add Address IP4Address fws_policy-7_src_not_1 Address=0.0.0.0-192.0.2.65
+add Address IP4Address fws_policy-7_src_not_2 Address=192.0.2.67-198.51.99.255
+add Address IP4Address fws_policy-7_src_not_3 Address=198.51.101.0-255.255.255.255
+add Address IP4Address fws_mail1 Address=10.20.0.25
+add Service ServiceTCPUDP fws_SMTP Type=TCP DestinationPorts=25
+add Address IP4Address fws_web1 Address=10.20.0.10
+add Address IP4Address fws_db-net Address=10.30.0.0/24
+add Address IP4Address fws_app1 Address=10.30.0.24
+add Service ServiceTCPUDP fws_hi-src Type=TCP DestinationPorts=9000 SourcePorts=1024-2000
+add Address IP4Address fws_printer__Trust_ Address=10.10.9.9
+add Address IP6Address fws_lan-v6 Address=2001:db8:10::/64
+add Service ServiceICMP fws_PING MessageTypes=Specific EchoRequest=Yes
+add Service ServiceIPProto fws_esp IPProto=50
+add Address IP4Address fws_ntp-servers Address=192.0.2.123
+add Service ServiceICMP fws_echo-only MessageTypes=Specific EchoRequest=Yes EchoRequestCodes=0
+add Address IP4Address fws_mip-203.0.113.24_base Address=203.0.113.24
+add Address IP4Address fws_10.20.0.20 Address=10.20.0.20
+add Address IP4Address fws_10.20.0.21 Address=10.20.0.21
+add Address IP4Address fws_nothing Address=0.0.0.0
+add InterfaceGroup fws_zones Members=ethernet0_0,ethernet0_1,ethernet0_2,ethernet0_3,bgroup0
+add Service ServiceGroup fws_web_grp Members=fws_web_1,fws_web_2,fws_web_3
+add Service ServiceGroup fws_lan-out_svc Members=fws_web_grp,fws_dns-split
+add Service ServiceGroup fws_web-in_svc Members=fws_HTTP,fws_HTTPS
+add Address IP4Group fws_policy-7_src_not Members=fws_policy-7_src_not_1,fws_policy-7_src_not_2,fws_policy-7_src_not_3
+add Address IP4Group fws_policy-8_dst Members=fws_db-net,fws_app1
+add Address IP4Group fws_dmz-servers Members=fws_web1,fws_mail1
+add IPRuleSet fws_rules Comments="Written by FWShift"
+add IPRuleSet fws_snat Comments="Written by FWShift"
+add IPRuleSet fws_d_vip-203.0.113.20-80 Comments="Written by FWShift"
+add IPRuleSet fws_d_vip-203.0.113.20-8443 Comments="Written by FWShift"
+cc IPRuleSet fws_snat
+add IPRule Index=1 Name=fws_nat-policy-3 Action=NAT SourceInterface=bgroup0 SourceNetwork=fws_lan DestinationInterface=ethernet0_0 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="policy-based NAT of policy-3"
+add IPRule Index=2 Name=fws_mip-203.0.113.10_sat Action=SAT SourceInterface=ethernet0_1 SourceNetwork=fws_10.20.0.10 DestinationInterface=ethernet0_0 DestinationNetwork=all-nets Service=all_services SATTranslate=SourceIP SATTranslateToIP=fws_MIP_203.0.113.10_ LogEnabled=No
+add IPRule Index=3 Name=fws_mip-203.0.113.10 Action=Allow SourceInterface=ethernet0_1 SourceNetwork=fws_10.20.0.10 DestinationInterface=ethernet0_0 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="MIP 203.0.113.10 on ethernet0/0"
+add IPRule Index=4 Name=fws_mip-203.0.113.24_sat Action=SAT SourceInterface=ethernet0_2 SourceNetwork=fws_10.30.0.24_29 DestinationInterface=ethernet0_0 DestinationNetwork=all-nets Service=all_services SATTranslate=SourceIP SATTranslateToIP=fws_mip-203.0.113.24_base LogEnabled=No
+add IPRule Index=5 Name=fws_mip-203.0.113.24 Action=Allow SourceInterface=ethernet0_2 SourceNetwork=fws_10.30.0.24_29 DestinationInterface=ethernet0_0 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="MIP 203.0.113.24 on ethernet0/0"
+add IPRule Index=6 Name=fws_nat-mode-Trust Action=NAT SourceInterface=bgroup0 SourceNetwork=all-nets DestinationInterface=ethernet0_0 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="interfaces of zone Trust in NAT mode"
+add IPRule Index=7 Name=fws_snat_allow Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=8 Name=fws_snat_allow_v6 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_vip-203.0.113.20-80
+add IPRule Index=1 Name=fws_vip-203.0.113.20-80_policy-20 Action=Reject SourceInterface=ethernet0_0 SourceNetwork=fws_bad-host DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=2 Name=fws_vip-203.0.113.20-80_policy-5 Action=Allow SourceInterface=ethernet0_0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_VIP_203.0.113.20_ Service=fws_HTTP LogEnabled=No
+add IPRule Index=3 Name=fws_vip-203.0.113.20-80_policy-7 Action=Allow SourceInterface=ethernet0_0 SourceNetwork=fws_policy-7_src_not DestinationInterface=any DestinationNetwork=fws_mail1 Service=fws_SMTP LogEnabled=Yes
+add IPRule Index=4 Name=fws_vip-203.0.113.20-80_policy-18 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+add IPRule Index=5 Name=fws_vip-203.0.113.20-80_inside Action=Allow SourceInterface=ethernet0_1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=6 Name=fws_vip-203.0.113.20-80_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_vip-203.0.113.20-8443
+add IPRule Index=1 Name=fws_vip-203.0.113.20-8443_policy-20 Action=Reject SourceInterface=ethernet0_0 SourceNetwork=fws_bad-host DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=2 Name=fws_vip-203.0.113.20-8443_policy-7 Action=Allow SourceInterface=ethernet0_0 SourceNetwork=fws_policy-7_src_not DestinationInterface=any DestinationNetwork=fws_mail1 Service=fws_SMTP LogEnabled=Yes
+add IPRule Index=3 Name=fws_vip-203.0.113.20-8443_policy-18 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+add IPRule Index=4 Name=fws_vip-203.0.113.20-8443_inside Action=Allow SourceInterface=ethernet0_1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=5 Name=fws_vip-203.0.113.20-8443_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_vip-203.0.113.20-80_sat Action=SAT SourceInterface=ethernet0_0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_VIP_203.0.113.20_ Service=fws_tcp-80 SATTranslate=DestinationIP SATTranslateToIP=fws_10.20.0.20 LogEnabled=No Comments="VIP 203.0.113.20 port 80 to HTTP on 10.20.0.20"
+add IPRule Index=2 Name=fws_vip-203.0.113.20-8443_sat Action=SAT SourceInterface=ethernet0_0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_VIP_203.0.113.20_ Service=fws_tcp-8443 SATTranslate=DestinationIP SATTranslateToIP=fws_10.20.0.21 SATTranslateToPort=443 LogEnabled=No Comments="VIP 203.0.113.20 port 8443 to HTTPS on 10.20.0.21"
+add GotoRule Index=3 Name=fws_vip-203.0.113.20-80_goto SourceInterface=ethernet0_0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_VIP_203.0.113.20_ Service=fws_tcp-80 RuleSet=fws_d_vip-203.0.113.20-80 LogEnabled=No
+add GotoRule Index=4 Name=fws_vip-203.0.113.20-8443_goto SourceInterface=ethernet0_0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_VIP_203.0.113.20_ Service=fws_tcp-8443 RuleSet=fws_d_vip-203.0.113.20-8443 LogEnabled=No
+add IPRule Index=5 Name=fws_intrazone-DMZ Action=Allow SourceInterface=ethernet0_1 SourceNetwork=all-nets DestinationInterface=ethernet0_1 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="ScreenOS: traffic inside zone DMZ, which does not block it, passes without a policy"
+add IPRule Index=6 Name=fws_intrazone-DMZ_v6 Action=Allow SourceInterface=ethernet0_1 SourceNetwork=all-nets6 DestinationInterface=ethernet0_1 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="ScreenOS: traffic inside zone DMZ, which does not block it, passes without a policy"
+add IPRule Index=7 Name=fws_intrazone-Lab Action=Allow SourceInterface=ethernet0_3 SourceNetwork=all-nets DestinationInterface=ethernet0_3 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="ScreenOS: traffic inside zone Lab, which does not block it, passes without a policy"
+add IPRule Index=8 Name=fws_intrazone-Lab_v6 Action=Allow SourceInterface=ethernet0_3 SourceNetwork=all-nets6 DestinationInterface=ethernet0_3 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="ScreenOS: traffic inside zone Lab, which does not block it, passes without a policy"
+add IPRule Index=9 Name=fws_intrazone-Trust Action=Allow SourceInterface=bgroup0 SourceNetwork=all-nets DestinationInterface=bgroup0 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="ScreenOS: traffic inside zone Trust, which does not block it, passes without a policy"
+add IPRule Index=10 Name=fws_intrazone-Trust_v6 Action=Allow SourceInterface=bgroup0 SourceNetwork=all-nets6 DestinationInterface=bgroup0 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="ScreenOS: traffic inside zone Trust, which does not block it, passes without a policy"
+add GotoRule Index=11 Name=fws_lan-out SourceInterface=bgroup0 SourceNetwork=fws_lan DestinationInterface=ethernet0_0 DestinationNetwork=all-nets Service=fws_lan-out_svc RuleSet=fws_snat LogEnabled=Yes
+add GotoRule Index=12 Name=fws_policy-2 SourceInterface=bgroup0 SourceNetwork=fws_admins DestinationInterface=ethernet0_0 DestinationNetwork=fws_partner-net Service=fws_SSH RuleSet=fws_snat LogEnabled=Yes
+add GotoRule Index=13 Name=fws_policy-3 SourceInterface=bgroup0 SourceNetwork=fws_lan DestinationInterface=ethernet0_0 DestinationNetwork=all-nets Service=all_services RuleSet=fws_snat LogEnabled=No
+add IPRule Index=14 Name=fws_policy-20 Action=Reject SourceInterface=ethernet0_0 SourceNetwork=fws_bad-host DestinationInterface=ethernet0_1 DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=15 Name=fws_web-in Action=Allow SourceInterface=ethernet0_0 SourceNetwork=all-nets DestinationInterface=ethernet0_1 DestinationNetwork=fws_MIP_203.0.113.10_ Service=fws_web-in_svc LogEnabled=Yes
+add IPRule Index=16 Name=fws_policy-5 Action=Allow SourceInterface=ethernet0_0 SourceNetwork=all-nets DestinationInterface=ethernet0_1 DestinationNetwork=fws_VIP_203.0.113.20_ Service=fws_HTTP LogEnabled=No
+add IPRule Index=17 Name=fws_policy-6 Action=Allow SourceInterface=ethernet0_0 SourceNetwork=fws_partner-net DestinationInterface=ethernet0_2 DestinationNetwork=fws_MIP_203.0.113.24_ Service=fws_tcp-8080 LogEnabled=No
+add GotoRule Index=18 Name=fws_policy-7 SourceInterface=ethernet0_0 SourceNetwork=fws_policy-7_src_not DestinationInterface=ethernet0_1 DestinationNetwork=fws_mail1 Service=fws_SMTP RuleSet=fws_snat LogEnabled=Yes
+add IPRule Index=19 Name=fws_policy-8 Action=Allow SourceInterface=ethernet0_1 SourceNetwork=fws_web1 DestinationInterface=ethernet0_2 DestinationNetwork=fws_policy-8_dst Service=fws_hi-src LogEnabled=No
+add IPRule Index=20 Name=fws_policy-9 Action=Drop SourceInterface=bgroup0 SourceNetwork=fws_lan DestinationInterface=bgroup0 DestinationNetwork=fws_printer__Trust_ Service=all_services LogEnabled=No
+set IPRule 20 -disable
+add IPRule Index=21 Name=fws_policy-10 Action=Allow SourceInterface=ethernet0_2 SourceNetwork=fws_db-net DestinationInterface=ethernet0_2 DestinationNetwork=fws_db-net Service=all_services LogEnabled=No
+add IPRule Index=22 Name=fws_policy-11 Action=Allow SourceInterface=bgroup0 SourceNetwork=fws_admins DestinationInterface=ethernet0_1 DestinationNetwork=fws_dmz-servers Service=fws_SSH LogEnabled=No
+add IPRule Index=23 Name=fws_policy-12 Action=Allow SourceInterface=bgroup0 SourceNetwork=all-nets DestinationInterface=ethernet0_3 DestinationNetwork=all-nets Service=fws_PING LogEnabled=No
+set IPRule 23 -disable
+add IPRule Index=24 Name=fws_policy-12_v6 Action=Allow SourceInterface=bgroup0 SourceNetwork=all-nets6 DestinationInterface=ethernet0_3 DestinationNetwork=all-nets6 Service=fws_PING LogEnabled=No
+set IPRule 24 -disable
+add IPRule Index=25 Name=fws_policy-13 Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 25 -disable
+add IPRule Index=26 Name=fws_policy-14 Action=Allow SourceInterface=bgroup0 SourceNetwork=fws_lan DestinationInterface=ethernet0_0 DestinationNetwork=fws_partner-net Service=fws_esp LogEnabled=No
+set IPRule 26 -disable
+add IPRule Index=27 Name=fws_policy-15 Action=Allow SourceInterface=ethernet0_3 SourceNetwork=all-nets DestinationInterface=ethernet0_0 DestinationNetwork=all-nets Service=fws_HTTP LogEnabled=No
+set IPRule 27 -disable
+add IPRule Index=28 Name=fws_policy-15_v6 Action=Allow SourceInterface=ethernet0_3 SourceNetwork=all-nets6 DestinationInterface=ethernet0_0 DestinationNetwork=all-nets6 Service=fws_HTTP LogEnabled=No
+set IPRule 28 -disable
+add IPRule Index=29 Name=fws_policy-16 Action=Drop SourceInterface=ethernet0_1 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+set IPRule 29 -disable
+add IPRule Index=30 Name=fws_policy-16_v6 Action=Drop SourceInterface=ethernet0_1 SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+set IPRule 30 -disable
+add IPRule Index=31 Name=fws_policy-19 Action=Allow SourceInterface=bgroup0 SourceNetwork=all-nets DestinationInterface=ethernet0_1 DestinationNetwork=fws_web1 Service=fws_HTTP LogEnabled=No
+add GotoRule Index=32 Name=fws_policy-17 SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_ntp-servers Service=fws_echo-only RuleSet=fws_snat LogEnabled=No
+add IPRule Index=33 Name=fws_policy-18 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+add IPRule Index=34 Name=fws_policy-18_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=Yes
+add IPRule Index=35 Name=fws_inside_DMZ Action=Allow SourceInterface=ethernet0_1 SourceNetwork=all-nets DestinationInterface=ethernet0_1 DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=36 Name=fws_inside_DMZ_v6 Action=Allow SourceInterface=ethernet0_1 SourceNetwork=all-nets6 DestinationInterface=ethernet0_1 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add IPRule Index=37 Name=fws_inside_Lab Action=Allow SourceInterface=ethernet0_3 SourceNetwork=all-nets DestinationInterface=ethernet0_3 DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=38 Name=fws_inside_Lab_v6 Action=Allow SourceInterface=ethernet0_3 SourceNetwork=all-nets6 DestinationInterface=ethernet0_3 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add IPRule Index=39 Name=fws_inside_Trust Action=Allow SourceInterface=bgroup0 SourceNetwork=all-nets DestinationInterface=bgroup0 DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=40 Name=fws_inside_Trust_v6 Action=Allow SourceInterface=bgroup0 SourceNetwork=all-nets6 DestinationInterface=bgroup0 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add IPRule Index=41 Name=fws_default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=42 Name=fws_default_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=43 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=44 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

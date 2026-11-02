@@ -1,0 +1,89 @@
+configure terminal
+firewall
+service name FWS_tcp_587 proto tcp src all dst port 587
+service name FWS_tcp_993 proto tcp src all dst port 993
+service name FWS_tcp_5061 proto tcp src all dst port 5061
+service name FWS_udp_5060 proto udp src all dst port 5060
+service name FWS_udp_10000-20000 proto udp src all dst range 10000 - 20000
+service name FWS_app-ssh-jump proto tcp src all dst port 22
+service name FWS_tcp_3389 proto tcp src all dst port 3389
+service name FWS_udp_3389 proto udp src all dst port 3389
+service name FWS_tcp_9418 proto tcp src all dst port 9418
+service name FWS_svc-ntp proto udp src all dst port 123
+service name FWS_HTTPS proto tcp src all dst port 443
+proto name FWS_svc-ping num 1
+service name FWS_tcp_53 proto tcp src all dst port 53
+service name FWS_udp_53 proto udp src all dst port 53
+ipv4rule from client to internet srcip 0.0.0.0/0 dstip 192.0.2.128/26 action drop log info prior 1
+ipv4rule from client to internet srcip 0.0.0.0/0 dstip 203.0.113.200 action drop log info prior 1
+ipv4rule from ipsec to internet srcip 0.0.0.0/0 dstip 192.0.2.128/26 action drop log info prior 1
+ipv4rule from ipsec to internet srcip 0.0.0.0/0 dstip 203.0.113.200 action drop log info prior 1
+ipv4rule from gre to internet srcip 0.0.0.0/0 dstip 192.0.2.128/26 action drop log info prior 1
+ipv4rule from gre to internet srcip 0.0.0.0/0 dstip 203.0.113.200 action drop log info prior 1
+ipv4rule from ipsec to internet srcip 10.20.0.0/15 dstip 198.51.100.25-198.51.100.26 action acc service FWS_tcp_587 log info prior 2
+ipv4rule from ipsec to internet srcip 10.20.0.0/15 dstip 198.51.100.25-198.51.100.26 action acc service FWS_tcp_993 log info prior 2
+ipv4rule from gre to internet srcip 10.20.0.0/15 dstip 198.51.100.25-198.51.100.26 action acc service FWS_tcp_587 log info prior 2
+ipv4rule from gre to internet srcip 10.20.0.0/15 dstip 198.51.100.25-198.51.100.26 action acc service FWS_tcp_993 log info prior 2
+ipv4rule from gre to internet srcip 10.30.0.0/16 dstip 203.0.113.0/26 action acc service FWS_tcp_5061 log info prior 2
+ipv4rule from gre to internet srcip 10.30.0.0/16 dstip 203.0.113.0/26 action acc service FWS_udp_5060 log info prior 2
+ipv4rule from gre to internet srcip 10.30.0.0/16 dstip 203.0.113.0/26 action acc service FWS_udp_10000-20000 log info prior 2
+ipv6rule from gre to internet srcip fd00:30::/48 dstip 2001:db8:5::/48 action acc service FWS_tcp_5061 log info prior 2
+ipv6rule from gre to internet srcip fd00:30::/48 dstip 2001:db8:5::/48 action acc service FWS_udp_5060 log info prior 2
+ipv6rule from gre to internet srcip fd00:30::/48 dstip 2001:db8:5::/48 action acc service FWS_udp_10000-20000 log info prior 2
+ipv4rule from client to internet srcip 10.99.0.0/24 dstip 198.51.100.10/31 action acc service FWS_app-ssh-jump log info prior 2
+ipv4rule from client to internet srcip 10.99.0.0/24 dstip 203.0.113.40 action acc service FWS_tcp_3389 log info prior 2
+ipv4rule from client to internet srcip 10.99.0.0/24 dstip 203.0.113.40 action acc service FWS_udp_3389 log info prior 2
+ipv4rule from ipsec to internet srcip 0.0.0.0-10.20.9.255 dstip 0.0.0.0/0 action drop service FWS_svc-ntp log info prior 3
+ipv4rule from ipsec to internet srcip 10.20.11.128-255.255.255.255 dstip 0.0.0.0/0 action drop service FWS_svc-ntp log info prior 3
+ipv6rule from ipsec to internet srcip ::/0 dstip ::/0 action drop service FWS_svc-ntp log info prior 3
+ipv4rule from client to internet srcip 0.0.0.0/0 dstip 198.51.100.123 action acc service FWS_svc-ntp log info prior 4
+ipv4rule from ipsec to internet srcip 0.0.0.0/0 dstip 198.51.100.123 action acc service FWS_svc-ntp log info prior 4
+ipv4rule from gre to internet srcip 0.0.0.0/0 dstip 198.51.100.123 action acc service FWS_svc-ntp log info prior 4
+ipv4rule from client to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_svc-ping log info prior 4
+ipv4rule from ipsec to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_svc-ping log info prior 4
+ipv4rule from gre to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_svc-ping log info prior 4
+ipv4rule from client to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_53 log info prior 4
+ipv4rule from client to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_udp_53 log info prior 4
+ipv6rule from client to internet srcip ::/0 dstip ::/0 action acc service FWS_tcp_53 log info prior 4
+ipv6rule from client to internet srcip ::/0 dstip ::/0 action acc service FWS_udp_53 log info prior 4
+ipv4rule from ipsec to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_53 log info prior 4
+ipv4rule from ipsec to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_udp_53 log info prior 4
+ipv6rule from ipsec to internet srcip ::/0 dstip ::/0 action acc service FWS_tcp_53 log info prior 4
+ipv6rule from ipsec to internet srcip ::/0 dstip ::/0 action acc service FWS_udp_53 log info prior 4
+ipv4rule from gre to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_53 log info prior 4
+ipv4rule from gre to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_udp_53 log info prior 4
+ipv6rule from gre to internet srcip ::/0 dstip ::/0 action acc service FWS_tcp_53 log info prior 4
+ipv6rule from gre to internet srcip ::/0 dstip ::/0 action acc service FWS_udp_53 log info prior 4
+ipv4rule from ipsec to internet srcip 10.40.0.0/16 dstip 0.0.0.0/0 action acc log info prior 4
+ipv4rule from client to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 5
+ipv6rule from client to internet srcip ::/0 dstip ::/0 action drop log info prior 5
+ipv4rule from ipsec to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 5
+ipv6rule from ipsec to internet srcip ::/0 dstip ::/0 action drop log info prior 5
+ipv4rule from gre to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 5
+ipv6rule from gre to internet srcip ::/0 dstip ::/0 action drop log info prior 5
+ipv4rule from client to ipsec srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from client to ipsec srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from client to gre srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from client to gre srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from client to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from client to internet srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from ipsec to client srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from ipsec to client srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from ipsec to gre srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from ipsec to gre srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from ipsec to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from ipsec to internet srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from gre to client srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from gre to client srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from gre to ipsec srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from gre to ipsec srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from gre to internet srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from gre to internet srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from internet to client srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from internet to client srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from internet to ipsec srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from internet to ipsec srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from internet to gre srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from internet to gre srcip ::/0 dstip ::/0 action drop log no prior 6
+exit
+end

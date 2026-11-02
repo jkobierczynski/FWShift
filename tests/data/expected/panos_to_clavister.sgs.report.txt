@@ -1,0 +1,59 @@
+FWShift conversion report
+  source: panos (vsys1)
+  target: clavister
+
+Summary
+  Security rules:     14   exact 3, approximated 6, needs review 5 (5 emitted disabled), skipped 0
+  NAT rules:           5   exact 2, approximated 1, needs review 1, skipped 1
+  Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:            5   exact 5, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 2 rule sets it sends traffic to; 40 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: ethernet1_2, ethernet1_1, ethernet1_3, ethernet1_4
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  Allow-Web-Out  ->  approximated  (emitted as fws_rules 3 (fws_Allow-Web-Out))
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (group=default-profiles); attach equivalent inspection on the target
+      [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Allow-DNS  ->  approximated  (emitted as fws_rules 4 (fws_Allow-DNS))
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Inbound-Web  ->  approximated  (emitted as fws_rules 5 (fws_Inbound-Web))
+      [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
+  Inbound-Mail  ->  approximated  (emitted as fws_rules 6 (fws_Inbound-Mail))
+      [approximated] APP_TO_PORTS: applications smtp reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Admin-SSH  ->  needs-review, emitted disabled  (emitted as fws_rules 7 (fws_Admin-SSH))
+      [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] USER_MATCH: source user match example\netadmins is not converted.
+  Engineering to PLCs  ->  approximated  (emitted as fws_rules 8 (fws_Engineering_to_PLCs))
+      [approximated] APP_TO_PORTS: applications modbus, siemens-s7 reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Block-Torrents  ->  needs-review, emitted disabled  (emitted as fws_rules 11 (fws_Block-Torrents), a placeholder, disabled)
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Region  ->  needs-review, emitted disabled  (emitted as fws_rules 12 (fws_Block-Region))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'KP': not defined in the input. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Tagged-Servers-Updates  ->  needs-review, emitted disabled  (emitted as fws_rules 14 (fws_Tagged-Servers-Updates), a placeholder, disabled)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tagged-servers': dynamic address group, members are not known statically.
+      [needs-review] CLAVISTER_FQDN: the destination holds the host name updates.example.com, which is not written.
+  Not-From-Guests  ->  approximated  (emitted as fws_rules 15 (fws_Not-From-Guests))
+      [approximated] APP_TO_PORTS: applications ping reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Old-Rule  ->  needs-review, emitted disabled  (emitted as fws_rules 18 (fws_Old-Rule), a placeholder, disabled)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'odd-hosts': wildcard mask 10.20.1.2/0.0.254.0.
+
+NAT rules
+  Inbound-Web-DNAT  ->  approximated  (emitted as fws_rules 1 (fws_Inbound-Web-DNAT_sat))
+      [approximated] CLAVISTER_DNAT_ZONE_FROM_RULES: no network of a zone holds web-1: the zone it is routed to is taken from the rules that allow traffic to it (dmz); give --zone-network to say it
+  Mail-Static  ->  needs-review  (emitted as fws_snat 2 (fws_Mail-Static_sat), fws_snat 3 (fws_Mail-Static))
+      [needs-review] CLAVISTER_BIDIRECTIONAL: a static translation in both directions: only the source SAT is written; connections to the translated address need a SAT rule of their own
+  DMZ-Out-Pool  ->  skipped
+      [needs-review] CLAVISTER_NAT_FORM: a source translation to more than one address (a NAT pool, which is not written)
+
+Addresses
+  odd-hosts  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
+  KP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'Block-Region' but not an address object in the input (a region, an external list or a missing object); emitted as a placeholder that matches nothing

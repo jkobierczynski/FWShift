@@ -1,0 +1,46 @@
+FWShift conversion report
+  source: moxa
+  target: lancom-uf
+
+Summary
+  Security rules:     10   exact 5, approximated 1, needs review 1, skipped 3
+  NAT rules:           4   exact 1, approximated 0, needs review 0, skipped 3
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MOXA_DEFAULT_ACCEPT: what no policy matches is read as passing: the configuration names no default action, and FWShift found none for the classic firmware in Moxa's documentation (not confirmed on a device). If the router drops it, add a policy at the end of the converted policy that drops everything
+  [needs-review] MOXA_NAT_ORDER: port forwarding and 1-to-1 NAT are read as done before the Layer 3 policy, whose policies name the inside address (as iptables does it on Linux; Moxa's documentation does not say, not confirmed): the policies were rewritten for the address as it arrives. N-to-1 NAT is done after it
+  [needs-review] MOXA_DPI: the Modbus filter (DPI) checks Modbus TCP traffic beyond addresses and ports; not converted: modbus-filter 1
+  [needs-review] MOXA_L2_POLICY: the Layer 2 policy filters bridged traffic before the Layer 3 policy; not converted: l2-filter 1 enable
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERZONE_DEFAULT: the source allows what no rule matches; the firewall blocks what no connection allows. Add the connections that allow it if that was intended
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): lan, wan1, wan2
+  [info] MOXA_SOURCE: EDR-810-VPN-2GSFP: 10 policies of the Layer 3 policy, first match by index; zones are the interfaces lan, wan1 and wan2. IPv4 only
+  [info] MOXA_TRUSTED_ACCESS: trusted access, which limits who reaches the router itself; not converted: lan 192.168.127.0 255.255.255.0 enable
+  [info] MOXA_DOS: DoS defence settings; not converted: syn-flood 300, null-scan
+
+Security rules
+  firewall 3  ->  needs-review  (emitted as fws-198.51.100.0_24-wan1 > fws-192.168.127.50_32-lan: fws-tcp-443, fws-198.51.100.0_24-wan1 > fws-wan1-address: fws-tcp-443)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'wan1-address' next to '192.168.127.50' because of NAT rule 'ip nat 1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'ip nat 1' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  firewall 4  ->  skipped
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  firewall 7  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: source MAC address 00:90:e8:00:00:01, which the model cannot match; the rule is not written
+      [needs-review] UNSUPPORTED_MATCH: not converted: mode MAC: the policy filters by source MAC address, which the model cannot match; the rule is not written
+  firewall 8  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.60' next to '192.168.127.60-192.168.127.69' because of NAT rule 'ip nat 2'; check that this rule is meant to cover the translated traffic
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'session-limit 50' is not converted; the rule is not written
+  firewall 10  ->  approximated  (emitted as fws-0.0.0.0_0-wan2 > fws-192.168.127.60_32-lan: fws-tcp-22, fws-0.0.0.0_0-wan2 > fws-198.51.100.60_32-lan: fws-tcp-22)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.60' next to '192.168.127.60' because of NAT rule 'ip nat 2'; check that this rule is meant to cover the translated traffic
+
+NAT rules
+  ip nat 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  ip nat 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  ip nat 4  ->  skipped
+      [info] MOXA_NAT_AUTO: outside wan auto: the address of whichever WAN interface the traffic leaves by
+      [info] NAT_NOT_CONVERTED: not converted: it is disabled. Set NAT on the service of the connection by hand (Advanced tab)

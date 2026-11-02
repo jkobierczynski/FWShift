@@ -1,0 +1,106 @@
+FWShift conversion report
+  source: securepoint
+  target: cato
+
+Summary
+  Security rules:     19   exact 7, approximated 0, needs review 1, skipped 11
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Addresses:          15   exact 15, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_IMPLIED: commands that change the implicit rules are not converted: group set implied_group "12" active "1"
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: external, internal, dmz1, vpn-ipsec
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): vpn-ipsec
+  [info] SECUREPOINT_SOURCE: 18 rules of the packet filter in 3 rule groups, first match in the order of the groups; zones from the network objects; what no rule matches is dropped (Default Drop)
+  [info] SECUREPOINT_IMPLIED_RULES: the UTM's implicit rules (Firewall > Implied rules: its own services, VPN, the threat intelligence filter) come before the packet filter and are not converted
+  [info] SECUREPOINT_LOCAL_RULES: 1 rules for the UTM's own services (to or from objects in zones of its own interfaces) are not converted
+  [info] SECUREPOINT_NAT_ORDER: NAT is part of the rules: each rule with NAT became a NAT rule, in the order of the rules. DESTNAT is done before the packet filter and HIDENAT after it (netfilter); a rule's NAT is read as applying whatever its action (assumed)
+  [info] SECUREPOINT_RANGE: network objects with an address range a-b (a form FWShift reads, not documented): printers
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: external=203.0.113.0/29; internal=192.168.10.0/24; dmz1=172.16.20.0/24. --no-source-networks takes none of them
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  rule-1  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  rule-4  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  rule-10  ->  exact  (emitted as fws-rule-10)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written as the addresses of the networks given for it
+  rule-11  ->  skipped
+      [approximated] SECUREPOINT_STATELESS: action STATELESS allows packets whatever the state of their connection, and lets no replies through by itself; the model is stateful and allows the replies of what it allows
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it
+      [needs-review] CATO_NOT_WRITTEN: not written: host names as the destination: Cato takes them as destinations on the internet only
+  rule-13  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  rule-14  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  rule-15  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  rule-18  ->  needs-review  (emitted as fws-rule-18)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'external-interface' next to 'webserver' because of NAT rule 'rule-2-nat'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'rule-2-nat' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] ZONE_BY_NETWORKS: the source in zone external is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz1 is written as the addresses of the networks given for it
+  rule-2  ->  skipped
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to external-interface (extern-https) and taken to webserver; that it also allows traffic sent to the server directly is not documented and is not read
+      [info] ZONE_BY_NETWORKS: the source in zone external is written as the addresses of the networks given for it
+      [needs-review] CATO_NOT_WRITTEN: not written: none of the addresses of the destination lies in the networks of its zones
+  rule-6  ->  skipped
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to public-mail (smtp) and taken to mailserver; that it also allows traffic sent to the server directly is not documented and is not read
+      [info] ZONE_BY_NETWORKS: the source in zone external is written as the addresses of the networks given for it
+      [needs-review] CATO_NOT_WRITTEN: not written: none of the addresses of the destination lies in the networks of its zones
+  rule-7  ->  exact  (emitted as fws-rule-7)
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 1 of 2)
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz1 is written as the addresses of the networks given for it
+  rule-7-2  ->  exact  (emitted as fws-rule-7-2)
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 2 of 2)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz1 is written as the addresses of the networks given for it
+  rule-8  ->  exact  (emitted as fws-rule-8)
+      [info] ZONE_BY_NETWORKS: the source in zone dmz1 is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone external is written as the addresses of the networks given for it
+  rule-12  ->  exact  (emitted as fws-rule-12)
+      [info] SECUREPOINT_QOS: action QOS: read as ACCEPT; the bandwidth limit of its QoS profile is not converted
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz1 is written as the addresses of the networks given for it
+  rule-16  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  rule-3  ->  exact  (emitted as fws-rule-3)
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone external is written as the addresses of the networks given for it
+  rule-9  ->  skipped
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it
+      [needs-review] CATO_NOT_WRITTEN: not written: 'blocked-region' holds members whose addresses are not known This deny rule is NOT enforced; rules below it may let more through.
+  rule-17  ->  exact  (emitted as fws-rule-17)
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz1 is written as the addresses of the networks given for it
+  rule-5  ->  skipped
+      [info] SECUREPOINT_LOCAL_RULE: a rule for the UTM's own services (an object in a zone of its own interfaces, firewall-...): not converted
+
+NAT rules
+  rule-1-nat  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  rule-10-nat  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  rule-14-nat  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  rule-2-nat  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  rule-6-nat  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  rule-8-nat  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+
+Services
+  ssh  ->  exact
+      [info] SECUREPOINT_FACTORY_SERVICE: not defined in the input: read as the service of that name a UTM comes with, with the IANA port of the name (Securepoint does not publish the list; assumed)

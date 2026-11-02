@@ -1,0 +1,122 @@
+FWShift conversion report
+  source: cato
+  target: nsx
+
+Summary
+  Security rules:     32   exact 10, approximated 5, needs review 17 (17 emitted disabled), skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NSX_LOAD: the output is the body of one hierarchical PATCH of the Policy API: curl -X PATCH -H 'Content-Type: application/json' --data @FILE https://MANAGER/policy/api/v1/infra. It creates or updates the services, the groups and one security policy of category Application (sequence number 1: give it the place you want), and leaves everything else alone, except objects of the same id, which it changes: give --target-prefix to keep the new ones apart. There is no dry run: load it on a lab manager first
+  [needs-review] NSX_DEFAULT_DENY: the source denies what no rule allows: the policy ends in fwshift-default-deny, which drops every connection no rule above it allows, for all workloads. It ends the Application category: policies after it and the default layer-3 rule are never reached
+  [info] CATO_SOURCE: 4 sites as zones (Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab), remote-users and internet; the WAN Firewall (first match, implicit block) decides between sites and remote users, the Internet Firewall (first match, implicit allow, written as a last rule) from them to the internet; traffic inside one network range does not reach Cato and is allowed
+  [info] CATO_INTERNET_TOP: a hidden rule of Cato above the Internet Firewall blocks connections Cato deems illegal or malicious; it is not in the answer and not converted
+  [info] CATO_INBOUND: traffic from the internet to the sites is decided by Remote Port Forwarding, which is not read: in the model nothing from the internet is allowed
+  [info] CATO_REMOVED: rules marked removed in the revision read: left out: Retired rule
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: Brussels-HQ=10.10.0.0/24,10.10.20.0/24; Antwerp-DC=10.20.0.0/24,10.20.30.0/24; Ghent-Plant=10.30.0.0/24; Leuven-Lab=10.40.0.0/24. --no-source-networks takes none of them
+
+Security rules
+  Allow HQ to DC servers  ->  approximated  (emitted as rule Allow_HQ_to_DC_servers)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Allow HQ to DC servers (2)'
+      [info] ZONE_BY_NETWORKS: the source in zone Brussels-HQ is written as the addresses of the networks given for it with --zone-network
+  Allow HQ to DC servers (2)  ->  needs-review, emitted disabled  (emitted as rule Allow_HQ_to_DC_servers_2)
+      [info] ZONE_BY_NETWORKS: the source in zone Brussels-HQ is written as the addresses of the networks given for it with --zone-network
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a rule of the distributed firewall names no zone: give the networks behind remote-users with --zone-network.
+  Block OT to HQ  ->  approximated  (emitted as rule Block_OT_to_HQ)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Ghent-Plant, Leuven-Lab; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Brussels-HQ; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Historian both ways  ->  exact  (emitted as rule Historian_both_ways)
+      [info] CATO_BOTH: direction BOTH: written as rules for each direction, the second set with source and destination swapped: 'Historian both ways (2)'
+  Remote users to DC  ->  needs-review, emitted disabled  (emitted as rule Remote_users_to_DC)
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [info] ZONE_BY_NETWORKS: the destination in zone Antwerp-DC is written as the addresses of the networks given for it with --zone-network
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone remote-users, and a rule of the distributed firewall names no zone: give the networks behind remote-users with --zone-network.
+  Modbus to the plant  ->  exact  (emitted as rule Modbus_to_the_plant)
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Modbus to the plant (2)', 'Modbus to the plant (3)'
+      [info] ZONE_BY_NETWORKS: the source in zone Brussels-HQ is written as the addresses of the networks given for it with --zone-network
+  Modbus to the plant (2)  ->  needs-review, emitted disabled  (emitted as rule Modbus_to_the_plant_2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a rule of the distributed firewall names no zone: give the networks behind remote-users with --zone-network.
+  Finance to ERP  ->  needs-review, emitted disabled  (emitted as rule Finance_to_ERP)
+      [needs-review] CATO_USERS: users or user groups narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups Finance.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a rule of the distributed firewall names no zone: give the networks behind remote-users with --zone-network.
+  Prompt for SSH  ->  needs-review, emitted disabled  (emitted as rule Prompt_for_SSH)
+      [needs-review] CATO_ACTION: action PROMPT: not converted (read as allow)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: action PROMPT: the user is asked on a web page.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a rule of the distributed firewall names no zone: give the networks behind remote-users with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a rule of the distributed firewall names no zone: give the networks behind remote-users with --zone-network.
+  Old block  ->  approximated  (emitted as rule Old_block)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Floating range  ->  needs-review, emitted disabled  (emitted as rule Floating_range)
+      [needs-review] CATO_OBJECT: floating ranges, system groups or group members whose addresses are not known: not converted
+      [info] ZONE_BY_NETWORKS: the destination in zone Antwerp-DC is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: floating ranges Cloud floating.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a rule of the distributed firewall names no zone: give the networks behind remote-users with --zone-network.
+  Maintenance window  ->  needs-review, emitted disabled  (emitted as rule Maintenance_window)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] ZONE_BY_NETWORKS: the source in zone Antwerp-DC is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone Ghent-Plant is written as the addresses of the networks given for it with --zone-network
+      [needs-review] SCHEDULE: schedule 'SATURDAY,SUNDAY 22:00:00-23:59:00' is not converted; the rule would apply at all times.
+  Teams between sites  ->  needs-review, emitted disabled  (emitted as rule Teams_between_sites)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application column (applications, categories, domains or addresses as applications).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a rule of the distributed firewall names no zone: give the networks behind remote-users with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a rule of the distributed firewall names no zone: give the networks behind remote-users with --zone-network.
+  Unknown host  ->  needs-review, emitted disabled  (emitted as rule Unknown_host)
+      [needs-review] CATO_UNRESOLVED: objects that are not in the lookups of the input: they match nothing until they are
+      [info] ZONE_BY_NETWORKS: the source in zone Brussels-HQ is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'host lab-printer': a host that is not in the lookups of the input.
+      [needs-review] ZONE_DYNAMIC: the destination 'host lab-printer' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks.
+  Block guest except DNS  ->  needs-review, emitted disabled  (emitted as rule Block_guest_except_DNS)
+      [needs-review] CATO_EXCEPTION: exceptions that cannot be cut out of the rule: not converted
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: exception dns from one host: source, service (only an exception of one column of addresses or services is cut out). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block plant to remote users  ->  approximated  (emitted as rule Block_plant_to_remote_users)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Ghent-Plant; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Block anonymizers  ->  needs-review, emitted disabled  (emitted as rule Block_anonymizers)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [info] CATO_SYSTEM_RULE: a system rule of Cato, which cannot be changed or removed
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: appCategory Anonymizers. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad networks  ->  approximated  (emitted as rule Block_bad_networks)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Plant has no internet  ->  needs-review, emitted disabled  (emitted as rule Plant_has_no_internet)
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Ghent-Plant; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] FQDN_NOT_SUPPORTED: host name object fqdn updates.example.com: a group of NSX holds addresses; a domain name needs a context profile, which is not written. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: the destination 'fqdn updates.example.com' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  HQ web  ->  needs-review, emitted disabled  (emitted as rule HQ_web)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] ZONE_BY_NETWORKS: the source in zone Brussels-HQ is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: domains example.org.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the distributed firewall names no zone: give the networks behind internet with --zone-network.
+  Isolate unknown sites  ->  needs-review, emitted disabled  (emitted as rule Isolate_unknown_sites)
+      [needs-review] CATO_ACTION: action RBI: not converted (read as allow)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action RBI: remote browser isolation.
+      [needs-review] UNSUPPORTED_MATCH: not converted: customCategory Uncategorized.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a rule of the distributed firewall names no zone: give the networks behind remote-users with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the distributed firewall names no zone: give the networks behind internet with --zone-network.
+  Partner FTP  ->  needs-review, emitted disabled  (emitted as rule Partner_FTP)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] FQDN_NOT_SUPPORTED: host name object fqdn ftp.example.net: a group of NSX holds addresses; a domain name needs a context profile, which is not written.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a rule of the distributed firewall names no zone: give the networks behind remote-users with --zone-network.
+      [needs-review] ZONE_DYNAMIC: the destination 'fqdn ftp.example.net' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks.
+  Block remote users to SMB  ->  needs-review, emitted disabled  (emitted as rule Block_remote_users_to_SMB)
+      [needs-review] CATO_ORIGIN: connection origins that are not all sites or all remote users: not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: connection origins REMOTE_CLIENT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Internet Firewall implicit allow  ->  needs-review, emitted disabled  (emitted as rule Internet_Firewall_implicit_allow)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a rule of the distributed firewall names no zone: give the networks behind remote-users with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the distributed firewall names no zone: give the networks behind internet with --zone-network.

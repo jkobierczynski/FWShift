@@ -1,0 +1,66 @@
+FWShift conversion report
+  source: zscaler
+  target: sophos
+
+Summary
+  Security rules:     17   exact 8, approximated 0, needs review 9 (8 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZSCALER_OUTBOUND_ONLY: ZIA filters traffic to the internet only: traffic between locations, inside one and from the internet does not pass it, and the model blocks it (no rule allows it). A target that sees such traffic needs rules for it
+  [needs-review] ZSCALER_FIREWALL_OFF: locations whose firewall is off (ofwEnabled false): the rules do not decide their traffic on ZIA, the model applies them anyway: Guest-WiFi
+  [needs-review] ZSCALER_RANK: admin ranks out of the rule order: read in the rule order: Ranked web (rank 3 below rank 7)
+  [needs-review] SOPHOS_LOAD: the output is an Entities.xml. Put it in a tar archive under that name (or let FWShift do it: give -o a name that ends in .tar) and import it under Backup & firmware > Import export. Rules are added below the rules the firewall has: a firewall rule or NAT rule that is there already, such as the default source NAT rule of a new firewall, comes first. An import can stop at the first object the firewall does not take: compare the number of rules and objects with this report, on a firewall that is not in production
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): HQ-Brussels, internet, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior. Zones are not created: an import would overwrite the device access of a zone that exists
+  [info] ZSCALER_SOURCE: 4 locations (HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi), road-warrior (Client Connector outside a location) and internet; the rules decide traffic from the locations to the internet, first match in ascending order, and the default rule decides the rest
+  [info] EXISTING_OBJECTS: an import overwrites what the firewall has under the same name: a host, a service or a rule that is in this output replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 11 rule(s) match IPv4 and IPv6 traffic and were written twice: Sophos Firewall keeps a rulebase per IP version. The name of the IPv6 rule ends in _v6
+  [info] SOPHOS_DROP_WEB: 4 rule(s) drop traffic that can be TCP to port 80 or 443 (Block malicious IPs and domains, No embargoed countries, Evaluate apps, Default Firewall Filtering Rule). Sophos Firewall hands such traffic to its web proxy, which completes the connection itself and answers with a block page: the host is not reached, but the client sees a connection and a page, not a silent drop, and the firewall log shows the connection allowed (the web filter log blocked). For a silent refusal on those ports, Reject answers with a reset
+
+Security rules
+  Allow DNS to resolvers  ->  needs-review
+      [needs-review] ZSCALER_SUBLOCATION: location HQ-Brussels has sub-locations (HQ-Servers): read as the location without them, which may be narrower than ZIA
+  Block malicious IPs and domains  ->  needs-review, emitted disabled  (emitted as Block malicious IPs and domains, Block malicious IPs and domains_v6)
+      [needs-review] ZSCALER_CATEGORY: destination IP categories BOTNET, MALWARE_SITE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination IP categories BOTNET, MALWARE_SITE. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Office 365 One Click Rule  ->  needs-review, emitted disabled  (emitted as Office 365 One Click Rule, Office 365 One Click Rule_v6)
+      [needs-review] ZSCALER_APPLICATION: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE.
+  Branch web  ->  needs-review, emitted disabled  (emitted as Branch web, Branch web_v6)
+      [needs-review] SCHEDULE: schedule 'Work hours' is not converted; the rule would apply at all times.
+  Engineers to SaaS  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_FQDN: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold
+      [needs-review] ZSCALER_IDENTITY: groups Engineering: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups Engineering.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'SaaS-Domains': a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+  No embargoed countries  ->  needs-review, emitted disabled  (emitted as No embargoed countries, No embargoed countries_v6)
+      [needs-review] ZSCALER_COUNTRY: destination countries COUNTRY_KP: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination countries COUNTRY_KP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block GRE and ESP  ->  exact  (emitted as Block GRE and ESP, Block GRE and ESP_v6)
+      [info] ZSCALER_BLOCK_ICMP: BLOCK_ICMP drops and answers with an ICMP unreachable: read as deny
+  Evaluate apps  ->  needs-review, emitted disabled  (emitted as Evaluate apps, Evaluate apps_v6)
+      [needs-review] ZSCALER_EVAL_NWAPP: action EVAL_NWAPP hands the decision to the network application of the traffic: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action EVAL_NWAPP: the decision waits for the network application, which is not modelled. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Ranked web  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_FQDN: destination files.example.org: ZIA matches a domain by the names it sees in the traffic; not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination FQDN files.example.org.
+  Ghent and corporate  ->  needs-review, emitted disabled  (emitted as Ghent and corporate, Ghent and corporate_v6)
+      [needs-review] ZSCALER_LOCATION_GROUP: the rule names locations and location groups: whether ZIA takes either or both is not documented
+      [needs-review] UNSUPPORTED_MATCH: not converted: both locations and location groups: how ZIA combines them is not known.
+
+Services
+  ICMP_ANY  ->  exact  (emitted as ICMP_ANY_2)
+      [info] RENAMED: renamed to 'ICMP_ANY_2' to fit the target's naming rules
+  DNS  ->  exact  (emitted as DNS_2)
+      [info] RENAMED: renamed to 'DNS_2' to fit the target's naming rules
+  HTTP  ->  exact  (emitted as HTTP_2)
+      [info] RENAMED: renamed to 'HTTP_2' to fit the target's naming rules
+  HTTPS  ->  exact  (emitted as HTTPS_2)
+      [info] RENAMED: renamed to 'HTTPS_2' to fit the target's naming rules
+  NTP  ->  exact  (emitted as NTP_2)
+      [info] RENAMED: renamed to 'NTP_2' to fit the target's naming rules
+  SSH  ->  exact  (emitted as SSH_2)
+      [info] RENAMED: renamed to 'SSH_2' to fit the target's naming rules

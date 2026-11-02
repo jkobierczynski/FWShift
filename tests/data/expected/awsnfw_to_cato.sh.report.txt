@@ -1,0 +1,126 @@
+FWShift conversion report
+  source: aws-network-firewall (pol-inspection)
+  target: cato
+
+Summary
+  Security rules:     41   exact 9, approximated 7, needs review 11 (6 emitted disabled), skipped 14
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           21   exact 21, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWSNFW_ASYMMETRIC: one direction of some connections is passed by the stateless rules and the other forwarded to the stateful engine, which then sees half a flow and may drop it (sl-edge-8, the stateless default action aws:forward_to_sfe). The converted policy leaves those connections to the stateful rules
+  [needs-review] AWSNFW_STATELESS_NOT_WORKED_OUT: some stateless rules cannot be read (TCP flags, a rule group not in the input, a value that cannot be read): they are not converted, and what the rules after them and the replies meet was worked out as if they matched nothing
+  [needs-review] AWSNFW_GROUP_MISSING: the policy names rule groups that are not in the input: ThreatSignaturesMalwareStrictOrder. Their rules are not converted; add the answers of describe-rule-group
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [info] AWSNFW_FRAGMENTS: UDP fragments that no stateless rule matches are handled by aws:drop, other packets by the default for full packets; the model has no fragments, and the converted policy follows the default for full packets. Fragments of other protocols are dropped
+  [info] AWSNFW_STATELESS_FORWARD: these stateless rules forward what they match to the stateful engine, so the stateless rules below them do not see it: sl-edge-10
+  [info] AWSNFW_ALERT_RULES: 1 alert rule decides nothing (an alert only logs) and was left out
+  [info] AWSNFW_CUSTOM_ACTIONS: custom actions publish metrics to CloudWatch; they decide nothing and are not converted
+  [info] AWSNFW_HOME_NET: HOME_NET is 10.20.0.0/16, 2001:db8:20::/56 (the CIDR blocks of VPC vpc-0a1b2c3d4e5f60789); EXTERNAL_NET is everything else, unless a rule group sets it
+  [info] AWSNFW_NO_ZONES: the firewall sits in a route path and names no zones or interfaces: the converted policy has none. A target with zones needs the networks behind them (--zone-network)
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  sl-edge-1-replies  ->  skipped
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-1, which drops them, so the connections are blocked whatever else would allow them
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only This deny rule is NOT enforced; rules below it may let more through.
+  sl-edge-20-replies  ->  skipped
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  sl-edge-20-replies-2  ->  skipped
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  sl-edge-6  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  sl-edge-12  ->  needs-review, emitted disabled  (emitted as fws-sl-edge-12)
+      [needs-review] UNSUPPORTED_MATCH: not converted: TCP flags: the rule matches some packets of a connection and not others. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-20  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  ThreatSignaturesMalwareStrictOrder-1  ->  needs-review, emitted disabled  (emitted as fws-ThreatSignaturesMalwareStrictOrder-1)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule group ThreatSignaturesMalwareStrictOrder is not in the input; add the answer of describe-rule-group for arn:aws:network-firewall:eu-west-1:aws-managed:stateful-rulegroup/ThreatSignaturesMalwareStrictOrder (an AWS managed rule group, whose rules AWS may not show). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-100  ->  approximated  (emitted as fws-sf-baseline-100)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  sf-baseline-101  ->  approximated  (emitted as fws-sf-baseline-101)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  sf-baseline-102-rev  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only This deny rule is NOT enforced; rules below it may let more through.
+  sf-baseline-103  ->  exact  (emitted as fws-sf-baseline-103)
+      [info] REJECT_AS_DENY: action reset-client: written as BLOCK
+  sf-baseline-105  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  sf-baseline-106  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  sf-baseline-107  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  sf-app-1000  ->  approximated  (emitted as fws-sf-app-1000)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  sf-app-1003  ->  approximated  (emitted as fws-sf-app-1003)
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  sf-app-1004  ->  needs-review  (emitted as fws-sf-app-1004)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  sf-app-1005  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'branches' holds members whose addresses are not known
+  sf-app-1005-rev  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'branches' holds members whose addresses are not known
+  sf-app-1007  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  sf-app-1011  ->  exact  (emitted as fws-sf-app-1011)
+      [info] AWSNFW_REJECT_NOT_TCP: reject sends a TCP reset, and is for TCP only; the rule, which matches other protocols too, is read as drop
+  sf-app-1013  ->  needs-review  (emitted as fws-sf-app-1013)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule now matches them as well
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  sf-baseline-100-reply  ->  skipped
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-100 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  sf-baseline-103-reply  ->  skipped
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-103 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only This deny rule is NOT enforced; rules below it may let more through.
+  sf-app-1003-reply  ->  approximated  (emitted as fws-sf-app-1003-reply)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1003 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  sf-app-1009-reply  ->  approximated  (emitted as fws-sf-app-1009-reply)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1009 matches packets in the direction of its header, so also the first reply of a connection opened the other way; this rule is what it decides then
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  sf-app-1001  ->  approximated  (emitted as fws-sf-app-1001)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  sf-app-1002  ->  needs-review  (emitted as fws-sf-app-1002)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule now matches them as well
+  sf-app-1006  ->  needs-review, emitted disabled  (emitted as fws-sf-app-1006)
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword http.uri. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword content:"/admin". This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-block-1  ->  needs-review, emitted disabled  (emitted as fws-dl-block-1)
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule now matches them as well
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-egress-1  ->  needs-review, emitted disabled  (emitted as fws-dl-egress-1)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule now matches them as well
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address.
+  dl-egress-2  ->  needs-review  (emitted as fws-dl-egress-2)
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule now matches them as well
+  dl-egress-3  ->  needs-review, emitted disabled  (emitted as fws-dl-egress-3)
+      [approximated] APP_TO_PORTS: applications web-browsing reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule now matches them as well
+      [needs-review] UNSUPPORTED_MATCH: not converted: http.host: the rule matches by domain name, which is not an address.
+  dl-egress-4  ->  needs-review  (emitted as fws-dl-egress-4)
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule now matches them as well
+  sf-app-1010  ->  exact  (emitted as fws-sf-app-1010)
+      [info] AWSNFW_NEVER_MATCHES: with aws:drop_established a flow that no rule passed is dropped before this rule can match; the rule is disabled in the converted policy: pass tcp any any -> $HOME_NET any (msg:"established to clients"; flow:established,to_client; sid:1010;)

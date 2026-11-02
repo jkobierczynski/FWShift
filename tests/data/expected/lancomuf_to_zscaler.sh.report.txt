@@ -1,0 +1,76 @@
+FWShift conversion report
+  source: lancom-uf (desktop)
+  target: zscaler
+
+Summary
+  Security rules:     25   exact 14, approximated 0, needs review 10 (8 emitted disabled), skipped 1
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          11   exact 11, approximated 0, needs review 0, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OBJECTS_MISSING: objects and services the connections name are not in the input, and the rules that name them are not used: '0e5f1a2b-0000-4000-8000-000000000999'. Save the answers of every collection (section 3)
+  [needs-review] CONNECTION_KEYS_NOT_READ: desktop connections hold keys the parser does not know: 'nat'. They are kept with the rules as how they handle traffic, and not converted; if one of them narrows what a connection lets through, the converted rules allow more
+  [needs-review] ZSCALER_BLOCK_RULE: the source blocks what no rule matches. Rule fws-block the rest that does so follows the converted rules, disabled: until it is enabled, the rules of the tenant below it and its default rule decide that traffic
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_INSIDE: no --inside-zone: every zone was taken as a location of ZIA, and every rule as one to the internet; ZIA does not filter traffic between locations or from the internet. Name the zones inside with --inside-zone
+  [needs-review] ZSCALER_LOST: ZIA filters traffic from locations to the internet only: 3 rules for traffic from the internet and 0 for traffic between or inside zones inside are not written, or only in part. That traffic needs a firewall of its own at the sites
+  [needs-review] ZSCALER_LOCATIONS_REQUIRED: rules name these locations, which must exist on the tenant under these names: WAN, eth1, eth2, eth3
+  [info] LANCOM_UF_FORMAT: read 14 desktop connections, 15 desktop objects and 13 services from the answers of the REST API. LANCOM publishes the keys of that API only by the examples of its LMC add-ins (networks, desktop connections, user-defined services); the keys of hosts, IP ranges, groups, Internet objects and of a rule other than those are assumed, and an object, service or rule with a key the parser does not know is not used. The desktop only allows: what no connection allows is blocked
+  [info] VPN_USER_OBJECTS: VPN and user objects are not read: the rules of connections to and from them are not used
+  [info] MASQUERADING_READ: masquerading set on services was read as NAT rules to the address of the outgoing interface. A NAT source address other than that, the NAT of a connection and DMZ (port forwarding) are not read
+
+Security rules
+  Internet to Webserver - internet.https  ->  needs-review  (emitted as fws-Internet to Webserver - int)
+      [needs-review] DMZ_NOT_READ: DMZ / port forwarding is set for the service; its keys are not known and the translation is not read: the rule allows the connections that reach the host by its own address, not those forwarded to it
+  Admin-PCs to Servers - remote.rdp  ->  exact  (emitted as fws-Admin-PCs to Servers - remo)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+  Servers to Admin-PCs - remote.rdp  ->  exact  (emitted as fws-Servers to Admin-PCs - remo)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth1 to eth3)  ->  exact  (emitted as fws-Jump-Hosts to OT-Cell - Mod)
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth3 to eth3)  ->  exact  (emitted as fws-Jump-Hosts to OT-Cell - M_2)
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+  HMI to OT-Cell - OPC-UA  ->  needs-review, emitted disabled  (emitted as fws-HMI to OT-Cell - OPC-UA)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+  OT-Cell to HMI - OPC-UA  ->  needs-review, emitted disabled  (emitted as fws-OT-Cell to HMI - OPC-UA)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+  Monitoring to OT-Cell - standard.ping  ->  exact  (emitted as fws-Monitoring to OT-Cell - sta)
+      [info] RULE_ALWAYS_OFF: the rule has no time range (Always Off): read as disabled
+  LAN to Mailserver - internet.smtp  ->  needs-review  (emitted as fws-LAN to Mailserver - interne)
+      [needs-review] CONNECTION_NAT_NOT_READ: the rule takes the NAT settings of its connection, whose keys are not known: whether and how the connection translates is not read. Look at the NAT tab of the connection
+  Branch Sites to LAN - remote.rdp  ->  needs-review, emitted disabled  (emitted as fws-Branch Sites to LAN - remot)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'Branch Sites' is a VPN object, which is not converted.
+  LAN to Lab-v6 - internet.http  ->  needs-review, emitted disabled  (emitted as fws-LAN to Lab-v6 - internet.ht)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Lab-v6' cannot be read: attribute 'ipv6', which this parser does not read.
+  DMZ to Internet - Legacy-App  ->  needs-review, emitted disabled  (emitted as fws-DMZ to Internet - Legacy-Ap)
+      [needs-review] UNSUPPORTED_MATCH: not converted: service 'Legacy-App' cannot be read: an entry with 'sourceport', which this parser does not read.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Legacy-App': an entry with 'sourceport', which this parser does not read.
+  DMZ to Internet - standard.ssh  ->  needs-review, emitted disabled  (emitted as fws-DMZ to Internet - standard.)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action 'drop', which is not a direction (LANCOM documents no rule that blocks).
+  Internet to ? - internet.https  ->  needs-review, emitted disabled  (emitted as fws-Internet to _ - internet.ht)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object '0e5f1a2b-0000-4000-8000-000000000999' is not in the input.
+  LAN to DMZ - Web  ->  exact  (emitted as fws-LAN to DMZ - Web)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+  DMZ to LAN - Web  ->  exact  (emitted as fws-DMZ to LAN - Web)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+  Printer to DMZ - internet.http  ->  needs-review, emitted disabled  (emitted as fws-Printer to DMZ - internet.h)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Printer' cannot be read: a host that names no interface.
+  LAN to Firewall - traffic to the firewall  ->  skipped
+      [info] FIREWALL_TRAFFIC: the connection is between a desktop object and the firewall itself: traffic to the firewall (its services, its administration) is not forwarded traffic and is not converted
+
+NAT rules
+  LAN to Internet - internet.http (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  LAN to Internet - internet.https (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  LAN to Internet - standard.dns (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  LAN to Internet - standard.ping (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  DMZ to Internet - GRE-Tunnel (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only

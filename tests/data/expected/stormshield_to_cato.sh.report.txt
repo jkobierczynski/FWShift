@@ -1,0 +1,58 @@
+FWShift conversion report
+  source: stormshield
+  target: cato
+
+Summary
+  Security rules:     18   exact 6, approximated 0, needs review 6 (1 emitted disabled), skipped 6
+  Addresses:          22   exact 22, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  [needs-review] STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  [needs-review] STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  [needs-review] STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: out, in, dmz1, lab, labbridge
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): out, in, dmz1, lab, labbridge
+  [info] STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  [info] STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  local 1  ->  needs-review  (emitted as fws-local 1)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  local 2  ->  needs-review  (emitted as fws-local 2)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 4  ->  needs-review  (emitted as fws-local 4)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 5  ->  exact  (emitted as fws-local 5)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  local 6  ->  needs-review  (emitted as fws-local 6)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [info] REJECT_AS_DENY: action reset-client: written as BLOCK
+  local 10  ->  needs-review  (emitted as fws-local 10)
+      [needs-review] STORMSHIELD_BRIDGE: names a bridge or a port of one: read as that interface only; whether the firewall matches the bridge for its ports, or the reverse, is not documented
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  local 11  ->  needs-review, emitted disabled  (emitted as fws-local 11)
+      [needs-review] UNSUPPORTED_MATCH: source users staff@corp.example are not converted.
+  local 12  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  local 13  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: host names as the destination: Cato takes them as destinations on the internet only
+  local 14  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  local 15  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: host names as the destination: Cato takes them as destinations on the internet only
+  global 2  ->  skipped
+      [info] STORMSHIELD_DELEG: deleg of everything: the rest goes to the local policy
+  local 7  ->  skipped
+      [info] STORMSHIELD_NON_TERMINAL: action decrypt: the firewall goes on to the next rule; nothing is decided here

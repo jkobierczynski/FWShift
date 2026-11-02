@@ -1,0 +1,46 @@
+FWShift conversion report
+  source: barracuda (forwarding firewall)
+  target: zscaler
+
+Summary
+  Security rules:     17   exact 11, approximated 1, needs review 3 (3 emitted disabled), skipped 2
+  Addresses:           8   exact 8, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CONNECTION_NOT_READ: rules whose connection object translates the source address: 'LAN-2-INTERNET'. Source NAT is not read; the rules are, as they match
+  [needs-review] ZSCALER_BLOCK_RULE: the source blocks what no rule matches. Rule fws-block the rest that does so follows the converted rules, disabled: until it is enabled, the rules of the tenant below it and its default rule decide that traffic
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_INSIDE: no --inside-zone: every zone was taken as a location of ZIA, and every rule as one to the internet; ZIA does not filter traffic between locations or from the internet. Name the zones inside with --inside-zone
+  [needs-review] ZSCALER_LOST: ZIA filters traffic from locations to the internet only: 15 rules for traffic from the internet and 0 for traffic between or inside zones inside are not written, or only in part. That traffic needs a firewall of its own at the sites
+  [needs-review] ZSCALER_LOCATIONS_REQUIRED: rules name these locations, which must exist on the tenant under these names: port1, port2
+  [info] BARRACUDA_FORMAT: read 15 forwarding rules, 10 network objects and 8 service objects from 19 answers of the REST API. Barracuda documents that API by examples only: the keys read are those its examples and published tools show, and a key of a rule, an object or an entry this parser does not know makes it unusable
+  [info] ICMP_LIMITS: service objects that limit the size or rate of ICMP echo requests: 'Ping'. The limits are not converted: the rules allow ICMP of any size and rate
+
+Security rules
+  BLOCK-BAD-V6  ->  skipped
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  ADMIN-SSH (port2)  ->  exact  (emitted as fws-ADMIN-SSH _port2_)
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+  ADMIN-SSH (port1)  ->  exact  (emitted as fws-ADMIN-SSH _port1_)
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+  WEB-IN  ->  needs-review, emitted disabled  (emitted as fws-WEB-IN)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Dst NAT: how the API spells its target list is not known, so the translation is not read.
+  SERVER-SYNC  ->  exact  (emitted as fws-SERVER-SYNC)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  SERVER-SYNC (back)  ->  exact  (emitted as fws-SERVER-SYNC _back_)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  PING-ALL  ->  approximated  (emitted as fws-PING-ALL)
+      [approximated] ICMP_LIMITS: service 'Ping' limits the size or rate of ICMP echo requests; the limits are not converted
+  V6-WEB  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  TO-LAB  ->  needs-review, emitted disabled  (emitted as fws-TO-LAB)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Cascade: the rules of the rule list it hands traffic to are not read, and they decide that traffic. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ODD  ->  needs-review, emitted disabled  (emitted as fws-ODD)
+      [needs-review] SCHEDULE: schedule '{"type": "recurring", "name": "Work-Hours"}' is not converted; the rule would apply at all times.

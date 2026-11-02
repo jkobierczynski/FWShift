@@ -1,0 +1,123 @@
+FWShift conversion report
+  source: lancom-uf (desktop)
+  target: windows-firewall
+
+Summary
+  Security rules:     25   exact 1, approximated 0, needs review 23 (23 emitted disabled), skipped 1
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          11   exact 11, approximated 0, needs review 0, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OBJECTS_MISSING: objects and services the connections name are not in the input, and the rules that name them are not used: '0e5f1a2b-0000-4000-8000-000000000999'. Save the answers of every collection (section 3)
+  [needs-review] CONNECTION_KEYS_NOT_READ: desktop connections hold keys the parser does not know: 'nat'. They are kept with the rules as how they handle traffic, and not converted; if one of them narrows what a connection lets through, the converted rules allow more
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] LANCOM_UF_FORMAT: read 14 desktop connections, 15 desktop objects and 13 services from the answers of the REST API. LANCOM publishes the keys of that API only by the examples of its LMC add-ins (networks, desktop connections, user-defined services); the keys of hosts, IP ranges, groups, Internet objects and of a rule other than those are assumed, and an object, service or rule with a key the parser does not know is not used. The desktop only allows: what no connection allows is blocked
+  [info] VPN_USER_OBJECTS: VPN and user objects are not read: the rules of connections to and from them are not used
+  [info] MASQUERADING_READ: masquerading set on services was read as NAT rules to the address of the outgoing interface. A NAT source address other than that, the NAT of a connection and DMZ (port forwarding) are not read
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  LAN to Internet - internet.http  ->  needs-review, emitted disabled  (emitted as FWShift-LAN_to_Internet_-_internet.http-1, FWShift-LAN_to_Internet_-_internet.http-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  LAN to Internet - internet.https  ->  needs-review, emitted disabled  (emitted as FWShift-LAN_to_Internet_-_internet.https-1, FWShift-LAN_to_Internet_-_internet.https-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  LAN to Internet - standard.dns  ->  needs-review, emitted disabled  (emitted as FWShift-LAN_to_Internet_-_standard.dns-1, FWShift-LAN_to_Internet_-_standard.dns-2, FWShift-LAN_to_Internet_-_standard.dns-3, FWShift-LAN_to_Internet_-_standard.dns-4)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  LAN to Internet - standard.ping  ->  needs-review, emitted disabled  (emitted as FWShift-LAN_to_Internet_-_standard.ping-1, FWShift-LAN_to_Internet_-_standard.ping-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  Internet to Webserver - internet.https  ->  needs-review, emitted disabled  (emitted as FWShift-Internet_to_Webserver_-_internet.https-1, FWShift-Internet_to_Webserver_-_internet.https-2)
+      [needs-review] DMZ_NOT_READ: DMZ / port forwarding is set for the service; its keys are not known and the translation is not read: the rule allows the connections that reach the host by its own address, not those forwarded to it
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of Windows Firewall names no zone: give the networks behind eth2 with --zone-network (or --zone-map it to Host or a profile).
+  Admin-PCs to Servers - standard.ssh  ->  needs-review, emitted disabled  (emitted as FWShift-Admin-PCs_to_Servers_-_standard.ssh-1, FWShift-Admin-PCs_to_Servers_-_standard.ssh-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of Windows Firewall names no zone: give the networks behind eth2 with --zone-network (or --zone-map it to Host or a profile).
+  Admin-PCs to Servers - remote.rdp  ->  needs-review, emitted disabled  (emitted as FWShift-Admin-PCs_to_Servers_-_remote.rdp-1, FWShift-Admin-PCs_to_Servers_-_remote.rdp-2)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of Windows Firewall names no zone: give the networks behind eth2 with --zone-network (or --zone-map it to Host or a profile).
+  Servers to Admin-PCs - remote.rdp  ->  needs-review, emitted disabled  (emitted as FWShift-Servers_to_Admin-PCs_-_remote.rdp-1, FWShift-Servers_to_Admin-PCs_-_remote.rdp-2)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a rule of Windows Firewall names no zone: give the networks behind eth2 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth1 to eth3)  ->  needs-review, emitted disabled  (emitted as FWShift-Jump-Hosts_to_OT-Cell_-_Modbus-TCP__eth1_to_eth3_-1, FWShift-Jump-Hosts_to_OT-Cell_-_Modbus-TCP__eth1_to_eth3_-2)
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth3, and a rule of Windows Firewall names no zone: give the networks behind eth3 with --zone-network (or --zone-map it to Host or a profile).
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth3 to eth3)  ->  needs-review, emitted disabled  (emitted as FWShift-Jump-Hosts_to_OT-Cell_-_Modbus-TCP__eth3_to_eth3_-1, FWShift-Jump-Hosts_to_OT-Cell_-_Modbus-TCP__eth3_to_eth3_-2)
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth3, and a rule of Windows Firewall names no zone: give the networks behind eth3 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth3, and a rule of Windows Firewall names no zone: give the networks behind eth3 with --zone-network (or --zone-map it to Host or a profile).
+  HMI to OT-Cell - OPC-UA  ->  needs-review, emitted disabled  (emitted as FWShift-HMI_to_OT-Cell_-_OPC-UA-1, FWShift-HMI_to_OT-Cell_-_OPC-UA-2)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth3, and a rule of Windows Firewall names no zone: give the networks behind eth3 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth3, and a rule of Windows Firewall names no zone: give the networks behind eth3 with --zone-network (or --zone-map it to Host or a profile).
+  OT-Cell to HMI - OPC-UA  ->  needs-review, emitted disabled  (emitted as FWShift-OT-Cell_to_HMI_-_OPC-UA-1, FWShift-OT-Cell_to_HMI_-_OPC-UA-2)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth3, and a rule of Windows Firewall names no zone: give the networks behind eth3 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth3, and a rule of Windows Firewall names no zone: give the networks behind eth3 with --zone-network (or --zone-map it to Host or a profile).
+  Monitoring to OT-Cell - standard.ping  ->  exact
+      [info] RULE_ALWAYS_OFF: the rule has no time range (Always Off): read as disabled
+  LAN to Mailserver - internet.smtp  ->  needs-review, emitted disabled  (emitted as FWShift-LAN_to_Mailserver_-_internet.smtp-1, FWShift-LAN_to_Mailserver_-_internet.smtp-2)
+      [needs-review] CONNECTION_NAT_NOT_READ: the rule takes the NAT settings of its connection, whose keys are not known: whether and how the connection translates is not read. Look at the NAT tab of the connection
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of Windows Firewall names no zone: give the networks behind eth2 with --zone-network (or --zone-map it to Host or a profile).
+  Branch Sites to LAN - remote.rdp  ->  needs-review, emitted disabled  (emitted as FWShift-Branch_Sites_to_LAN_-_remote.rdp-1, FWShift-Branch_Sites_to_LAN_-_remote.rdp-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'Branch Sites' is a VPN object, which is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+  LAN to Lab-v6 - internet.http  ->  needs-review, emitted disabled  (emitted as FWShift-LAN_to_Lab-v6_-_internet.http-1, FWShift-LAN_to_Lab-v6_-_internet.http-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Lab-v6' cannot be read: attribute 'ipv6', which this parser does not read.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+  DMZ to Internet - GRE-Tunnel  ->  needs-review, emitted disabled  (emitted as FWShift-DMZ_to_Internet_-_GRE-Tunnel-1, FWShift-DMZ_to_Internet_-_GRE-Tunnel-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a rule of Windows Firewall names no zone: give the networks behind eth2 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  DMZ to Internet - Legacy-App  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: service 'Legacy-App' cannot be read: an entry with 'sourceport', which this parser does not read.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Legacy-App': an entry with 'sourceport', which this parser does not read.
+  DMZ to Internet - standard.ssh  ->  needs-review, emitted disabled  (emitted as FWShift-DMZ_to_Internet_-_standard.ssh-1, FWShift-DMZ_to_Internet_-_standard.ssh-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action 'drop', which is not a direction (LANCOM documents no rule that blocks).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a rule of Windows Firewall names no zone: give the networks behind eth2 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  Internet to ? - internet.https  ->  needs-review, emitted disabled  (emitted as FWShift-Internet_to___-_internet.https-1, FWShift-Internet_to___-_internet.https-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object '0e5f1a2b-0000-4000-8000-000000000999' is not in the input.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Windows Firewall names no zone: give the networks behind WAN with --zone-network (or --zone-map it to Host or a profile).
+  LAN to DMZ - Web  ->  needs-review, emitted disabled  (emitted as FWShift-LAN_to_DMZ_-_Web-1, FWShift-LAN_to_DMZ_-_Web-2)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of Windows Firewall names no zone: give the networks behind eth2 with --zone-network (or --zone-map it to Host or a profile).
+  DMZ to LAN - Web  ->  needs-review, emitted disabled  (emitted as FWShift-DMZ_to_LAN_-_Web-1, FWShift-DMZ_to_LAN_-_Web-2)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a rule of Windows Firewall names no zone: give the networks behind eth2 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+  DMZ to LAN - vpn.ipsec  ->  needs-review, emitted disabled  (emitted as FWShift-DMZ_to_LAN_-_vpn.ipsec-1, FWShift-DMZ_to_LAN_-_vpn.ipsec-2, FWShift-DMZ_to_LAN_-_vpn.ipsec-3, FWShift-DMZ_to_LAN_-_vpn.ipsec-4)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a rule of Windows Firewall names no zone: give the networks behind eth2 with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth1, and a rule of Windows Firewall names no zone: give the networks behind eth1 with --zone-network (or --zone-map it to Host or a profile).
+  Printer to DMZ - internet.http  ->  needs-review, emitted disabled  (emitted as FWShift-Printer_to_DMZ_-_internet.http-1, FWShift-Printer_to_DMZ_-_internet.http-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Printer' cannot be read: a host that names no interface.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of Windows Firewall names no zone: give the networks behind eth2 with --zone-network (or --zone-map it to Host or a profile).
+  LAN to Firewall - traffic to the firewall  ->  skipped
+      [info] FIREWALL_TRAFFIC: the connection is between a desktop object and the firewall itself: traffic to the firewall (its services, its administration) is not forwarded traffic and is not converted
+
+NAT rules
+  LAN to Internet - internet.http (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  LAN to Internet - internet.https (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  LAN to Internet - standard.dns (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  LAN to Internet - standard.ping (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  DMZ to Internet - GRE-Tunnel (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation

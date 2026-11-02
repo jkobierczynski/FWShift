@@ -1,0 +1,42 @@
+FWShift conversion report
+  source: netskope
+  target: hisecos
+
+Summary
+  Security rules:     16   exact 12, approximated 0, needs review 4 (4 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] HISECOS_LOAD: the output is a CLI script of HiSecOS (section 10): commands of the Global Config mode that add rules 1001 to 1045 of the packet filter (they must be free) with their interface assignments, and NAT rules, and that delete nothing. The keywords are FWShift's reading of Belden's MIBs and command list, not confirmed on a device: check the script with 'script validate' first. Nothing applies until you commit: read 'show packet-filter l3 pending', then 'packet-filter l3 commit' (and 'nat dnat commit', 'nat masq commit', 'nat 1to1nat commit'). Rules of the device with lower priorities on the same interfaces come first, and its default policy is not changed. To take the rules away again: 'packet-filter l3 delif' for each assignment, then 'packet-filter l3 delrule N' for N from 1001 to 1045
+  [needs-review] INTERFACES_REQUIRED: zones are written as the routing interfaces of the device (1/1, vlan/10): these names are not such interfaces, and the device refuses the assignments that name them. Map the zones with --zone-map, or their interfaces with --interface-map: Client, IPSec, GRE, egress
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  [info] HISECOS_IPV4_ONLY: HiSecOS filters IPv4: the IPv6 addresses and ICMPv6 of these rules are not written: Voice from sites
+
+Security rules
+  Admins to jump hosts [app-ssh-jump]  ->  exact  (emitted as rule 1007)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Admins to jump hosts [app-rdp-gw]  ->  exact  (emitted as rules 1008-1009)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Engineering to git  ->  needs-review, emitted disabled  (emitted as rule 1010)
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+  Block BitTorrent  ->  needs-review, emitted disabled  (emitted as rule 1011)
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Old FTP exception  ->  exact  (emitted as rule 1037)
+      [info] HISECOS_DISABLED: disabled in the source; written with disablerule
+  SaaS files from the office  ->  needs-review, emitted disabled  (emitted as rule 1038 (a placeholder, disabled))
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp-saas-domains': destination profile dp-saas-domains: host name 'files.example.com'.
+  Contractors: nothing else  ->  needs-review, emitted disabled  (emitted as rule 1042)
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.

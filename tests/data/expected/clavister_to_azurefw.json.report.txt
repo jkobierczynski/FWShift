@@ -1,0 +1,101 @@
+FWShift conversion report
+  source: clavister
+  target: azure-firewall
+
+Summary
+  Security rules:     25   exact 8, approximated 3, needs review 3 (3 emitted disabled), skipped 11
+  NAT rules:          12   exact 0, approximated 0, needs review 0, skipped 12
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] AZFW_LOAD: the output is an ARM template (section 10) that creates firewall policy FWShift with its rule collection groups; look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode), then associate the policy with a firewall or a secured hub. Nothing changes before that. Deploying it where a policy of that name exists changes that policy
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: lan=192.168.10.0/24,2001:db8:10::/64; dmz=172.16.20.0/24,172.16.0.0/16; wan=203.0.113.0/24; guest=10.30.0.0/24. --no-source-networks takes none of them
+  [info] AZFW_TARGET_SNAT: Azure Firewall translates the source of what goes to a public address (outside RFC 1918 and RFC 6598, or the private ranges set on the policy) to its own public address, and, community sources say, the source of DNAT traffic to one of its private addresses: servers may see other source addresses than with the source
+  [info] AZFW_TARGET_DEFAULTS: the policy is written with network rules only; after them Azure Firewall still allows the FQDNs of its built-in infrastructure rule collection, then denies. Threat intelligence is set to Alert, which blocks nothing
+  [info] AZFW_TARGET_IPV6: the policy holds IPv6; Azure Firewall filters IPv4 only, and the IPv6 parts of the rules are not written (blocking rules lose nothing by it: the firewall forwards no IPv6)
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Azure Firewall does not choose: its diagnostic settings send the logs of every rule (AZFWNetworkRule, AZFWNatRule) to a workspace
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  block_bad_mail+sat_mail  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [info] REJECT_AS_DENY: action reset-client: a rule of Azure Firewall denies, and whether it answers is not documented
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  nat_mail+sat_mail  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  allow_mail+sat_mail  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  allow_pool+sat_pool  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  to_guest/guest_never  ->  exact
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+  lan_updates  ->  needs-review, emitted disabled
+      [needs-review] ZONE_DYNAMIC: the destination of the rule is in zone wan, and an FQDN, a service tag or an IP group cannot be cut down to the networks of a zone.
+  syslog_fast  ->  skipped
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  gre_tunnel  ->  needs-review, emitted disabled
+      [approximated] AZFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a network rule of Azure Firewall (source ports, ICMP types, protocols other than TCP, UDP and ICMP unless every one) and is not written: the converted rule allows less
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  old_rule  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  lan6_web  ->  skipped
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  lan6_ping  ->  skipped
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows ICMPv6; Azure Firewall filters IPv4 only, and that part is not written
+      [approximated] AZFW_IPV6_NOT_WRITTEN: the rule allows IPv6 too; Azure Firewall filters IPv4 only, and the IPv6 part is not written
+      [needs-review] AZFW_NOT_WRITTEN: nothing of what the rule allows can be said by a network rule of Azure Firewall (IPv6, source ports, ICMP types, some protocols): not written
+  pol_dmz_https  ->  skipped
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  pol_dmz_out  ->  approximated  (emitted as rule collection pol_dmz_out of group fwshift-network-1)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+  pol_block_ftp  ->  approximated  (emitted as rule collection pol_block_ftp of group fwshift-network-1)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+      [info] REJECT_AS_DENY: action reset-client: a rule of Azure Firewall denies, and whether it answers is not documented
+  DropAll6  ->  skipped
+      [info] MATCHES_NOTHING: after the negation, the networks of its zones, IPv4 and what a network rule can say, the rule matches no connection here
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  allow_web+sat_web  ->  skipped
+      [needs-review] AZFW_DNAT_NOT_ALLOWED: Azure Firewall allows what a DNAT rule translates, before any network rule; the policy does not allow all this NAT rule translates (rule drop_netbios may block part of it), so it is not written. Write the DNAT rule by hand for what the policy allows
+  nat_mail+sat_mail  ->  skipped
+      [needs-review] AZFW_DNAT_NOT_ALLOWED: Azure Firewall allows what a DNAT rule translates, before any network rule; the policy does not allow all this NAT rule translates (rule drop_netbios may block part of it), so it is not written. Write the DNAT rule by hand for what the policy allows
+  allow_mail+sat_mail  ->  skipped
+      [needs-review] AZFW_DNAT_NOT_ALLOWED: Azure Firewall allows what a DNAT rule translates, before any network rule; the policy does not allow all this NAT rule translates (rule drop_netbios may block part of it), so it is not written. Write the DNAT rule by hand for what the policy allows
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] AZFW_NAT_NOT_WRITTEN: not written: it translates to '172.16.20.100/30', and a DNAT rule translates to one IPv4 address or an FQDN
+  to_guest/guest_dns  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  to_guest/guest_web  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  lan_dns  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  lan_web  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  lan_updates  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  pol_dmz_https  ->  skipped
+      [needs-review] AZFW_DNAT_NOT_ALLOWED: Azure Firewall allows what a DNAT rule translates, before any network rule; the policy does not allow all this NAT rule translates (rule drop_netbios may block part of it), so it is not written. Write the DNAT rule by hand for what the policy allows
+  pol_dmz_out  ->  skipped
+      [needs-review] AZFW_SNAT_NOT_WRITTEN: source NAT is not a rule of Azure Firewall: it translates the source of what goes to public addresses (outside its private ranges) to its own public address by itself. Not written
+  sat_unused  ->  skipped
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [info] AZFW_NAT_NOT_WRITTEN: disabled in the source; Azure Firewall has no rule that is off

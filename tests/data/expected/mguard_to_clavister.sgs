@@ -1,0 +1,102 @@
+add Address IP4Address fws_mguard-extern Address=203.0.113.2 Comments="the external address of the mGuard"
+add Service ServiceTCPUDP fws_tcp-8443 Type=TCP DestinationPorts=8443
+add Address IP4Address fws_198.51.100.64_27 Address=198.51.100.64/27
+add Address IP4Address fws_203.0.113.3 Address=203.0.113.3
+add Service ServiceTCPUDP fws_udp-47808 Type=UDP DestinationPorts=47808
+add Address IP4Address fws_192.168.10.48_29 Address=192.168.10.48/29
+add Address IP4Address fws_192.168.10.0_24 Address=192.168.10.0/24
+add Address IP4Address fws_172.16.30.0_24 Address=172.16.30.0/24
+add Address IP4Address fws_198.51.100.0_28 Address=198.51.100.0/28
+add Address IP4Address fws_192.168.10.20-192.168.10.29 Address=192.168.10.20-192.168.10.29
+add Address IP4Address fws_192.168.10.40 Address=192.168.10.40
+add Service ServiceTCPUDP fws_tcp-502 Type=TCP DestinationPorts=502
+add Address IP4Address fws_198.51.100.0_24 Address=198.51.100.0/24
+add Address IP4Address fws_203.0.113.8_29 Address=203.0.113.8/29
+add Service ServiceICMP fws_icmp MessageTypes=All
+add Service ServiceTCPUDP fws_tcp-web Type=TCP DestinationPorts=80,443
+add Service ServiceTCPUDP fws_udp-161 Type=UDP DestinationPorts=161
+add Service ServiceTCPUDP fws_tcp-22 Type=TCP DestinationPorts=22
+add Service ServiceTCPUDP fws_tcp-s7_iso Type=TCP DestinationPorts=102,20000-20010
+add Address IP4Address fws_198.51.100.7 Address=198.51.100.7
+add Address IP4Address fws_192.168.10.5 Address=192.168.10.5
+add Service ServiceIPProto fws_gre IPProto=47
+add Address IP4Address fws_192.168.10.50 Address=192.168.10.50
+add Address IP4Address fws_203.0.113.10 Address=203.0.113.10
+add Service ServiceTCPUDP fws_tcp-8000-8080-from-1024-65535 Type=TCP DestinationPorts=8000-8080 SourcePorts=1024-65535
+add Address IP4Address fws_192.168.10.1 Address=192.168.10.1
+add Service ServiceTCPUDP fws_udp-53 Type=UDP DestinationPorts=53
+add Address IP4Address fws_192.168.20.0_24 Address=192.168.20.0/24
+add Service ServiceTCPUDP fws_tcp-102 Type=TCP DestinationPorts=102
+add Address IP4Address fws_172.16.30.10 Address=172.16.30.10
+add Address IP4Address fws_192.168.10.60 Address=192.168.10.60
+add Service ServiceTCPUDP fws_tcp-1433 Type=TCP DestinationPorts=1433
+add Address IP4Address fws_1to1-1_base Address=203.0.113.8
+add Address IP4Address fws_192.168.10.30 Address=192.168.10.30
+add Address IP4Address fws_172.16.30.20 Address=172.16.30.20
+add InterfaceGroup fws_zones Members=int,ext1,dmz0
+add Address IP4Group fws_vendor_vpn Members=fws_198.51.100.64_27
+add Address IP4Group fws_scada Members=fws_198.51.100.0_28
+add Address IP4Group fws_plc_cell1 Members=fws_192.168.10.20-192.168.10.29,fws_192.168.10.40
+add Address IP4Group fws_incoming-2_dst Members=fws_192.168.10.0_24,fws_203.0.113.8_29
+add Address IP4Group fws_incoming-3_dst Members=fws_192.168.10.0_24,fws_203.0.113.8_29
+add Address IP4Group fws_incoming-5.maintenance-1_dst Members=fws_192.168.10.0_24,fws_203.0.113.8_29
+add Address IP4Group fws_incoming-6.vendor-1_dst Members=fws_192.168.10.0_24,fws_203.0.113.8_29
+add Address IP4Group fws_incoming-8_dst Members=fws_192.168.10.50,fws_203.0.113.10
+add Address IP4Group fws_incoming-9_dst Members=fws_192.168.10.0_24,fws_203.0.113.8_29
+add InterfaceGroup fws_if_ext1_int Members=ext1,int
+add IPRuleSet fws_rules Comments="Written by FWShift"
+add IPRuleSet fws_snat Comments="Written by FWShift"
+add IPRuleSet fws_d_portforward-1 Comments="Written by FWShift"
+add IPRuleSet fws_d_portforward-2 Comments="Written by FWShift"
+cc IPRuleSet fws_snat
+add IPRule Index=1 Name=fws_1to1-1_sat Action=SAT SourceInterface=int SourceNetwork=fws_192.168.10.48_29 DestinationInterface=ext1 DestinationNetwork=all-nets Service=all_services SATTranslate=SourceIP SATTranslateToIP=fws_1to1-1_base LogEnabled=No
+add IPRule Index=2 Name=fws_1to1-1 Action=Allow SourceInterface=int SourceNetwork=fws_192.168.10.48_29 DestinationInterface=ext1 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="HMI subnet published"
+add IPRule Index=3 Name=fws_masquerade-1 Action=NAT SourceInterface=fws_zones SourceNetwork=fws_192.168.10.0_24 DestinationInterface=ext1 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="LAN out to the WAN"
+add IPRule Index=4 Name=fws_masquerade-2 Action=NAT SourceInterface=fws_zones SourceNetwork=fws_172.16.30.0_24 DestinationInterface=int DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="DMZ hosts reach the LAN as the mGuard"
+add IPRule Index=5 Name=fws_snat_allow Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=6 Name=fws_snat_allow_v6 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_portforward-1
+add IPRule Index=1 Name=fws_portforward-1_portforward-1 Action=Allow SourceInterface=ext1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_mguard-extern Service=fws_tcp-8443 LogEnabled=Yes Comments="port forwarding portforward-1: it skips the packet filter"
+add IPRule Index=2 Name=fws_portforward-1_incoming-6.vendor-2 Action=Drop SourceInterface=ext1 SourceNetwork=fws_vendor_vpn DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=Yes Comments="nothing else from the vendor"
+add IPRule Index=3 Name=fws_portforward-1_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_portforward-2
+add IPRule Index=1 Name=fws_portforward-2_portforward-2 Action=Allow SourceInterface=ext1 SourceNetwork=fws_vendor_vpn DestinationInterface=any DestinationNetwork=fws_203.0.113.3 Service=fws_udp-47808 LogEnabled=No Comments="port forwarding portforward-2: it skips the packet filter"
+add IPRule Index=2 Name=fws_portforward-2_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_portforward-1_sat Action=SAT SourceInterface=ext1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_mguard-extern Service=fws_tcp-8443 SATTranslate=DestinationIP SATTranslateToIP=fws_192.168.10.30 SATTranslateToPort=443 LogEnabled=No Comments="remote HMI"
+add IPRule Index=2 Name=fws_portforward-2_sat Action=SAT SourceInterface=ext1 SourceNetwork=fws_vendor_vpn DestinationInterface=any DestinationNetwork=fws_203.0.113.3 Service=fws_udp-47808 SATTranslate=DestinationIP SATTranslateToIP=fws_172.16.30.20 LogEnabled=No Comments="BACnet gateway in the DMZ"
+add GotoRule Index=3 Name=fws_portforward-1_goto SourceInterface=ext1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_mguard-extern Service=fws_tcp-8443 RuleSet=fws_d_portforward-1 LogEnabled=No
+add GotoRule Index=4 Name=fws_portforward-2_goto SourceInterface=ext1 SourceNetwork=fws_vendor_vpn DestinationInterface=any DestinationNetwork=fws_203.0.113.3 Service=fws_udp-47808 RuleSet=fws_d_portforward-2 LogEnabled=No
+add GotoRule Index=5 Name=fws_portforward-1 SourceInterface=ext1 SourceNetwork=all-nets DestinationInterface=int DestinationNetwork=fws_mguard-extern Service=fws_tcp-8443 RuleSet=fws_snat LogEnabled=Yes Comments="port forwarding portforward-1: it skips the packet filter"
+add IPRule Index=6 Name=fws_portforward-2 Action=Allow SourceInterface=ext1 SourceNetwork=fws_vendor_vpn DestinationInterface=dmz0 DestinationNetwork=fws_203.0.113.3 Service=fws_udp-47808 LogEnabled=No Comments="port forwarding portforward-2: it skips the packet filter"
+add GotoRule Index=7 Name=fws_incoming-1 SourceInterface=ext1 SourceNetwork=fws_scada DestinationInterface=int DestinationNetwork=fws_plc_cell1 Service=fws_tcp-502 RuleSet=fws_snat LogEnabled=Yes Comments="Modbus/TCP from _SCADA_ to the PLCs"
+add IPRule Index=8 Name=fws_incoming-2 Action=Allow SourceInterface=ext1 SourceNetwork=fws_198.51.100.0_24 DestinationInterface=int DestinationNetwork=fws_incoming-2_dst Service=fws_icmp LogEnabled=No Comments="ping from the control centre"
+add IPRule Index=9 Name=fws_incoming-3 Action=Drop SourceInterface=ext1 SourceNetwork=all-nets DestinationInterface=int DestinationNetwork=fws_incoming-3_dst Service=fws_tcp-web LogEnabled=Yes Comments="no web from outside"
+add IPRule Index=10 Name=fws_incoming-4 Action=Reject SourceInterface=ext1 SourceNetwork=all-nets DestinationInterface=int DestinationNetwork=all-nets Service=fws_udp-161 LogEnabled=No Comments="SNMP refused"
+add IPRule Index=11 Name=fws_incoming-5.maintenance-1 Action=Allow SourceInterface=ext1 SourceNetwork=all-nets DestinationInterface=int DestinationNetwork=fws_incoming-5.maintenance-1_dst Service=fws_tcp-22 LogEnabled=Yes Comments="SSH while the key switch is on"
+set IPRule 11 -disable
+add IPRule Index=12 Name=fws_incoming-6.vendor-1 Action=Allow SourceInterface=ext1 SourceNetwork=fws_vendor_vpn DestinationInterface=int DestinationNetwork=fws_incoming-6.vendor-1_dst Service=fws_tcp-s7_iso LogEnabled=No Comments="S7 for the vendor"
+add IPRule Index=13 Name=fws_incoming-6.vendor-2 Action=Drop SourceInterface=ext1 SourceNetwork=fws_vendor_vpn DestinationInterface=int DestinationNetwork=all-nets Service=all_services LogEnabled=Yes Comments="nothing else from the vendor"
+add IPRule Index=14 Name=fws_incoming-7 Action=Allow SourceInterface=ext1 SourceNetwork=fws_198.51.100.7 DestinationInterface=int DestinationNetwork=fws_192.168.10.5 Service=fws_gre LogEnabled=No Comments="GRE of a legacy tunnel; the port is ignored"
+add IPRule Index=15 Name=fws_incoming-8 Action=Allow SourceInterface=ext1 SourceNetwork=fws_198.51.100.0_24 DestinationInterface=int DestinationNetwork=fws_incoming-8_dst Service=fws_tcp-8000-8080-from-1024-65535 LogEnabled=No Comments="HMI web, published by 1:1 NAT (the rule names the real address)"
+add IPRule Index=16 Name=fws_incoming-9 Action=Allow SourceInterface=ext1 SourceNetwork=all-nets DestinationInterface=int DestinationNetwork=fws_incoming-9_dst Service=all_services LogEnabled=No Comments="names a group the profile does not have"
+set IPRule 16 -disable
+add IPRule Index=17 Name=fws_outgoing-1 Action=Drop SourceInterface=int SourceNetwork=fws_plc_cell1 DestinationInterface=fws_if_ext1_int DestinationNetwork=all-nets Service=all_services LogEnabled=Yes Comments="the PLCs do not talk out"
+add GotoRule Index=18 Name=fws_outgoing-2 SourceInterface=int SourceNetwork=fws_192.168.10.0_24 DestinationInterface=fws_if_ext1_int DestinationNetwork=fws_192.168.10.1 Service=fws_udp-53 RuleSet=fws_snat LogEnabled=No Comments="DNS"
+add GotoRule Index=19 Name=fws_outgoing-3 SourceInterface=int SourceNetwork=fws_192.168.10.0_24 DestinationInterface=fws_if_ext1_int DestinationNetwork=all-nets Service=fws_tcp-web RuleSet=fws_snat LogEnabled=No Comments="web out"
+add IPRule Index=20 Name=fws_outgoing-4 Action=Allow SourceInterface=int SourceNetwork=fws_192.168.20.0_24 DestinationInterface=fws_if_ext1_int DestinationNetwork=fws_192.168.10.0_24 Service=fws_tcp-102 LogEnabled=No Comments="engineering VLAN 20 to the S7 PLCs"
+add IPRule Index=21 Name=fws_wan-dmz-1 Action=Allow SourceInterface=ext1 SourceNetwork=all-nets DestinationInterface=dmz0 DestinationNetwork=fws_172.16.30.10 Service=fws_tcp-web LogEnabled=No Comments="the DMZ web server"
+add GotoRule Index=22 Name=fws_dmz-lan-1 SourceInterface=dmz0 SourceNetwork=fws_172.16.30.10 DestinationInterface=int DestinationNetwork=fws_192.168.10.60 Service=fws_tcp-1433 RuleSet=fws_snat LogEnabled=No Comments="web server to the historian database"
+add IPRule Index=23 Name=fws_lan-dmz-1 Action=Allow SourceInterface=int SourceNetwork=all-nets DestinationInterface=dmz0 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="LAN to DMZ: everything (the factory rule)"
+add IPRule Index=24 Name=fws_default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=25 Name=fws_default_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=26 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=27 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

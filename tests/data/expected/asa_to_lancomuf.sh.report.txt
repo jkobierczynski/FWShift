@@ -1,0 +1,64 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: lancom-uf
+
+Summary
+  Security rules:     18   exact 8, approximated 3, needs review 1, skipped 6
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): dmz, guest, inside, outside
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them. Behind interfaces that are in no zone of the policy, so behind none of its zones (an allow for the zone of the default route does not reach them): mgmt=192.168.1.0/24
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+
+Security rules
+  outside_access_in-1  ->  needs-review  (emitted as fws-0.0.0.0_0-outside > fws-web-srv: fws-tcp-8080, fws-0.0.0.0_0-outside > fws-web-public: fws-tcp-8080)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-public' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-2' also translates the port to 8080; the service of this rule still names the post-NAT port and must be adjusted
+  outside_access_in-2  ->  approximated  (emitted as fws-0.0.0.0_0-outside > fws-mail-srv: fws-tcp-25_tcp-587_tcp-8443, fws-0.0.0.0_0-outside > fws-203.0.113.25_32-dmz: fws-tcp-25_tcp-587_tcp-8443)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  outside_access_in-3  ->  skipped
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  inside_access_in-3  ->  approximated  (emitted as fws-10.10.5.10_31-inside > fws-web-srv: fws-tcp-22, fws-10.10.5.10_31-inside > fws-mail-srv: fws-tcp-22, fws-10.10.5.10_31-inside > fws-10.20.0.50_32-dmz: fws-tcp-22, fws-10.10.5.10_31-inside > fws-203.0.113.25_32-dmz: fws-tcp-22, fws-10.10.5.12_30-inside > fws-web-srv: fws-tcp-22, fws-10.10.5.12_30-inside > fws-mail-srv: fws-tcp-22, fws-10.10.5.12_30-inside > fws-10.20.0.50_32-dmz: fws-tcp-22, fws-10.10.5.12_30-inside > fws-203.0.113.25_32-dmz: fws-tcp-22, fws-10.10.5.16_30-inside > fws-web-srv: fws-tcp-22, fws-10.10.5.16_30-inside > fws-mail-srv: fws-tcp-22, fws-10.10.5.16_30-inside > fws-10.20.0.50_32-dmz: fws-tcp-22, fws-10.10.5.16_30-inside > fws-203.0.113.25_32-dmz: fws-tcp-22, fws-10.10.5.20_32-inside > fws-web-srv: fws-tcp-22, fws-10.10.5.20_32-inside > fws-mail-srv: fws-tcp-22, fws-10.10.5.20_32-inside > fws-10.20.0.50_32-dmz: fws-tcp-22, fws-10.10.5.20_32-inside > fws-203.0.113.25_32-dmz: fws-tcp-22)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to 'dmz-servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  inside_access_in-4  ->  skipped
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times; the rule is not written
+      [needs-review] UNCONVERTIBLE_OBJECT: the destination 'updates' holds a host name; a desktop object of the firewall names addresses; the rule is not written
+  inside_access_in-5  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  inside_access_in-7  ->  skipped
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted; the rule is not written
+  inside_access_in-9  ->  skipped
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  dmz_access_in-2  ->  skipped
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  dmz_access_in-4  ->  exact  (emitted as fws-web-srv > fws-0.0.0.0_5-outside: fws-tcp-443, fws-web-srv > fws-8.0.0.0_7-outside: fws-tcp-443, fws-web-srv > fws-10.0.0.0_13-outside: fws-tcp-443, fws-web-srv > fws-10.8.0.0_15-outside: fws-tcp-443, fws-web-srv > fws-10.11.0.0_16-outside: fws-tcp-443, fws-web-srv > fws-10.12.0.0_14-outside: fws-tcp-443, fws-web-srv > fws-10.16.0.0_12-outside: fws-tcp-443, fws-web-srv > fws-10.32.0.0_11-outside: fws-tcp-443, fws-web-srv > fws-10.64.0.0_10-outside: fws-tcp-443, fws-web-srv > fws-10.128.0.0_9-outside: fws-tcp-443, fws-web-srv > fws-11.0.0.0_8-outside: fws-tcp-443, fws-web-srv > fws-12.0.0.0_6-outside: fws-tcp-443, fws-web-srv > fws-16.0.0.0_4-outside: fws-tcp-443, fws-web-srv > fws-32.0.0.0_3-outside: fws-tcp-443, fws-web-srv > fws-64.0.0.0_2-outside: fws-tcp-443, fws-web-srv > fws-128.0.0.0_1-outside: fws-tcp-443, fws-web-srv > fws-0.0.0.0_5-inside: fws-tcp-443, fws-web-srv > fws-8.0.0.0_7-inside: fws-tcp-443, fws-web-srv > fws-10.0.0.0_13-inside: fws-tcp-443, fws-web-srv > fws-10.8.0.0_15-inside: fws-tcp-443, fws-web-srv > fws-10.11.0.0_16-inside: fws-tcp-443, fws-web-srv > fws-10.12.0.0_14-inside: fws-tcp-443, fws-web-srv > fws-10.16.0.0_12-inside: fws-tcp-443, fws-web-srv > fws-10.32.0.0_11-inside: fws-tcp-443, fws-web-srv > fws-10.64.0.0_10-inside: fws-tcp-443, fws-web-srv > fws-10.128.0.0_9-inside: fws-tcp-443, fws-web-srv > fws-11.0.0.0_8-inside: fws-tcp-443, fws-web-srv > fws-12.0.0.0_6-inside: fws-tcp-443, fws-web-srv > fws-16.0.0.0_4-inside: fws-tcp-443, fws-web-srv > fws-32.0.0.0_3-inside: fws-tcp-443, fws-web-srv > fws-64.0.0.0_2-inside: fws-tcp-443, fws-web-srv > fws-128.0.0.0_1-inside: fws-tcp-443, fws-web-srv > fws-0.0.0.0_5-guest: fws-tcp-443, fws-web-srv > fws-8.0.0.0_7-guest: fws-tcp-443, fws-web-srv > fws-10.0.0.0_13-guest: fws-tcp-443, fws-web-srv > fws-10.8.0.0_15-guest: fws-tcp-443, fws-web-srv > fws-10.11.0.0_16-guest: fws-tcp-443, fws-web-srv > fws-10.12.0.0_14-guest: fws-tcp-443, fws-web-srv > fws-10.16.0.0_12-guest: fws-tcp-443, fws-web-srv > fws-10.32.0.0_11-guest: fws-tcp-443, fws-web-srv > fws-10.64.0.0_10-guest: fws-tcp-443, fws-web-srv > fws-10.128.0.0_9-guest: fws-tcp-443, fws-web-srv > fws-11.0.0.0_8-guest: fws-tcp-443, fws-web-srv > fws-12.0.0.0_6-guest: fws-tcp-443, fws-web-srv > fws-16.0.0.0_4-guest: fws-tcp-443, fws-web-srv > fws-32.0.0.0_3-guest: fws-tcp-443, fws-web-srv > fws-64.0.0.0_2-guest: fws-tcp-443, fws-web-srv > fws-128.0.0.0_1-guest: fws-tcp-443)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  implicit-guest  ->  approximated  (emitted as fws-0.0.0.0_0-guest > fws-0.0.0.0_0-outside: fws-svc-9)
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-mail-srv  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-inside-net  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-after-auto-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)

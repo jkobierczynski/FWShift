@@ -1,0 +1,61 @@
+FWShift conversion report
+  source: lancom-uf (desktop)
+  target: lancom-uf
+
+Summary
+  Security rules:     25   exact 16, approximated 0, needs review 2, skipped 7
+  NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
+  Addresses:          11   exact 11, approximated 0, needs review 0, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OBJECTS_MISSING: objects and services the connections name are not in the input, and the rules that name them are not used: '0e5f1a2b-0000-4000-8000-000000000999'. Save the answers of every collection (section 3)
+  [needs-review] CONNECTION_KEYS_NOT_READ: desktop connections hold keys the parser does not know: 'nat'. They are kept with the rules as how they handle traffic, and not converted; if one of them narrows what a connection lets through, the converted rules allow more
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): WAN, eth1, eth2, eth3
+  [info] LANCOM_UF_FORMAT: read 14 desktop connections, 15 desktop objects and 13 services from the answers of the REST API. LANCOM publishes the keys of that API only by the examples of its LMC add-ins (networks, desktop connections, user-defined services); the keys of hosts, IP ranges, groups, Internet objects and of a rule other than those are assumed, and an object, service or rule with a key the parser does not know is not used. The desktop only allows: what no connection allows is blocked
+  [info] VPN_USER_OBJECTS: VPN and user objects are not read: the rules of connections to and from them are not used
+  [info] MASQUERADING_READ: masquerading set on services was read as NAT rules to the address of the outgoing interface. A NAT source address other than that, the NAT of a connection and DMZ (port forwarding) are not read
+
+Security rules
+  Internet to Webserver - internet.https  ->  needs-review  (emitted as fws-Internet > fws-Webserver: fws-tcp-443)
+      [needs-review] DMZ_NOT_READ: DMZ / port forwarding is set for the service; its keys are not known and the translation is not read: the rule allows the connections that reach the host by its own address, not those forwarded to it
+  Admin-PCs to Servers - remote.rdp  ->  exact  (emitted as fws-192.168.10.200_29-eth1 > fws-Webserver: fws-tcp-3389, fws-192.168.10.200_29-eth1 > fws-Mailserver: fws-tcp-3389, fws-192.168.10.208_29-eth1 > fws-Webserver: fws-tcp-3389, fws-192.168.10.208_29-eth1 > fws-Mailserver: fws-tcp-3389, fws-192.168.10.216_30-eth1 > fws-Webserver: fws-tcp-3389, fws-192.168.10.216_30-eth1 > fws-Mailserver: fws-tcp-3389, fws-192.168.10.220_32-eth1 > fws-Webserver: fws-tcp-3389, fws-192.168.10.220_32-eth1 > fws-Mailserver: fws-tcp-3389)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+  Servers to Admin-PCs - remote.rdp  ->  exact  (emitted as fws-Webserver > fws-192.168.10.200_29-eth1: fws-tcp-3389, fws-Webserver > fws-192.168.10.208_29-eth1: fws-tcp-3389, fws-Webserver > fws-192.168.10.216_30-eth1: fws-tcp-3389, fws-Webserver > fws-192.168.10.220_32-eth1: fws-tcp-3389, fws-Mailserver > fws-192.168.10.200_29-eth1: fws-tcp-3389, fws-Mailserver > fws-192.168.10.208_29-eth1: fws-tcp-3389, fws-Mailserver > fws-192.168.10.216_30-eth1: fws-tcp-3389, fws-Mailserver > fws-192.168.10.220_32-eth1: fws-tcp-3389)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth1 to eth3)  ->  exact  (emitted as fws-Jump-Hosts _eth1_ > fws-OT-Cell: fws-tcp-502)
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth3 to eth3)  ->  exact  (emitted as fws-Jump-Hosts _eth3_ > fws-OT-Cell: fws-tcp-502)
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+  HMI to OT-Cell - OPC-UA  ->  exact  (emitted as fws-HMI > fws-OT-Cell: fws-tcp-4840-4843)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [info] SCHEDULE_KEPT: the schedule of the rule is written as the time ranges of the service on its connections
+  OT-Cell to HMI - OPC-UA  ->  exact  (emitted as fws-OT-Cell > fws-HMI: fws-tcp-4840-4843)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [info] SCHEDULE_KEPT: the schedule of the rule is written as the time ranges of the service on its connections
+  Monitoring to OT-Cell - standard.ping  ->  exact
+      [info] RULE_ALWAYS_OFF: the rule has no time range (Always Off): read as disabled
+  LAN to Mailserver - internet.smtp  ->  needs-review  (emitted as fws-LAN > fws-Mailserver: fws-tcp-25)
+      [needs-review] CONNECTION_NAT_NOT_READ: the rule takes the NAT settings of its connection, whose keys are not known: whether and how the connection translates is not read. Look at the NAT tab of the connection
+  Branch Sites to LAN - remote.rdp  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'Branch Sites' is a VPN object, which is not converted; the rule is not written
+  LAN to Lab-v6 - internet.http  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Lab-v6' cannot be read: attribute 'ipv6', which this parser does not read; the rule is not written
+  DMZ to Internet - Legacy-App  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: service 'Legacy-App' cannot be read: an entry with 'sourceport', which this parser does not read; the rule is not written
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Legacy-App': an entry with 'sourceport', which this parser does not read; the rule is not written
+  DMZ to Internet - standard.ssh  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: action 'drop', which is not a direction (LANCOM documents no rule that blocks); the rule is not written
+  Internet to ? - internet.https  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object '0e5f1a2b-0000-4000-8000-000000000999' is not in the input; the rule is not written
+  LAN to DMZ - Web  ->  exact  (emitted as fws-LAN > fws-DMZ: fws-tcp-80_tcp-443)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+  DMZ to LAN - Web  ->  exact  (emitted as fws-DMZ > fws-LAN: fws-tcp-80_tcp-443)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+  Printer to DMZ - internet.http  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Printer' cannot be read: a host that names no interface; the rule is not written
+  LAN to Firewall - traffic to the firewall  ->  skipped
+      [info] FIREWALL_TRAFFIC: the connection is between a desktop object and the firewall itself: traffic to the firewall (its services, its administration) is not forwarded traffic and is not converted

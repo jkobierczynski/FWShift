@@ -1,0 +1,80 @@
+FWShift conversion report
+  source: vyos
+  target: securepoint
+
+Summary
+  Security rules:     42   exact 30, approximated 1, needs review 11 (4 emitted disabled), skipped 0
+  NAT rules:           6   exact 4, approximated 0, needs review 0, skipped 2
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): GUEST, LAN, WAN, DMZ, VPN, br0, firewall-WAN. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: WAN-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] SECUREPOINT_DEFAULT_WRITTEN: the source lets through traffic no rule matches; 36 rules after the converted ones do the same between the zones of the policy (the UTM drops it otherwise)
+  [info] SECUREPOINT_COMMENTED: 5 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  drop the blocklist  ->  needs-review  (emitted as 36 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (GUEST, LAN, WAN, DMZ, VPN, br0); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  spoofed inside sources  ->  needs-review  (emitted as 12 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (GUEST, LAN, WAN, DMZ, VPN, br0); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  forward-30  ->  needs-review  (emitted as 36 rules of group fwshift)
+      [needs-review] NAT_REDIRECT: NAT rule 'ssh on 2222 to the jump host' sends traffic for every destination to 192.168.30.22:22, and the source applied this rule to it after that translation. The converted rule still names the translated address and port: a platform that looks rules up before NAT will not match the redirected traffic with it
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (GUEST, LAN, WAN, DMZ, VPN, br0); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [info] SECUREPOINT_DISABLED: disabled in the source: written as comment lines, which are not loaded
+  forward-40  ->  needs-review  (emitted as 30 rules of group fwshift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (GUEST, LAN, WAN, DMZ, VPN, br0); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  zone-WAN.from-LAN.LAN-WAN-20  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'updates.example.com'; that a network object of the UTM takes a host name is not documented.
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'mirror.example.org'; that a network object of the UTM takes a host name is not documented.
+  zone-WAN.default  ->  exact  (emitted as 5 rules of group fwshift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-LAN.default  ->  needs-review  (emitted as 6 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (GUEST, LAN, WAN, DMZ, VPN, br0); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  zone-GUEST.default  ->  exact  (emitted as 5 rules of group fwshift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  approximated  (emitted as 1 rule of group fwshift)
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'https to web1 destination' with post-NAT '192.168.30.10' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review  (emitted as 1 rule of group fwshift)
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+  office hours only  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit).
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.default  ->  exact  (emitted as 5 rules of group fwshift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-VPN.default  ->  exact  (emitted as 5 rules of group fwshift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-WAN.default  ->  exact  (emitted as 5 rules of group fwshift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-LAN.default  ->  needs-review  (emitted as 6 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (GUEST, LAN, WAN, DMZ, VPN, br0); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  ipv6-zone-GUEST.default  ->  exact  (emitted as 5 rules of group fwshift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-DMZ.default  ->  exact  (emitted as 5 rules of group fwshift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-VPN.default  ->  exact  (emitted as 5 rules of group fwshift)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+
+NAT rules
+  ssh on 2222 to the jump host  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT names one address the traffic is sent to (its NAT network object)
+  destination-30  ->  skipped
+      [info] NAT_DISABLED: disabled in the source; not written

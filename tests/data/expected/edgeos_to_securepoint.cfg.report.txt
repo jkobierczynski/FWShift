@@ -1,0 +1,62 @@
+FWShift conversion report
+  source: vyos
+  target: securepoint
+
+Summary
+  Security rules:     13   exact 0, approximated 4, needs review 9 (2 emitted disabled), skipped 0
+  NAT rules:           4   exact 2, approximated 0, needs review 0, skipped 2
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 rule-set WAN_LOCAL on pppoe0 local filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] PARTS_NOT_READ: parts of the configuration this parser does not read: port-forward (EdgeOS)
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): pppoe0, eth1, eth1.10, firewall-pppoe0. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: pppoe0-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] VYOS_FORMAT: read as the configuration of EdgeOS (Vyatta), release v2.0.9: rule-sets on interfaces, accept in a rule-set and the zone policy were read as VyOS 1.4 has them after its own migration (a jump from the forward filter for each rule-set on an interface, the in ones first; accept as return, so that the rule-set of the other interface still decides)
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] SECUREPOINT_DEFAULT_WRITTEN: the source lets through traffic no rule matches; 9 rules after the converted ones do the same between the zones of the policy (the UTM drops it otherwise)
+  [info] SECUREPOINT_COMMENTED: 3 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  no media from the guests  ->  needs-review  (emitted as 1 rule of group fwshift)
+      [needs-review] NAT_REDIRECT: NAT rule 'plex from outside' sends traffic for every destination to 192.168.1.30, and the source applied this rule to it after that translation. The converted rule still names the translated address: a platform that looks rules up before NAT will not match the redirected traffic with it
+  plex to the media box  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] NAT_REDIRECT: NAT rule 'plex from outside' sends traffic for every destination to 192.168.1.30, and the source applied this rule to it after that translation. The converted rule still names the translated address: a platform that looks rules up before NAT will not match the redirected traffic with it
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (pppoe0, eth1, eth1.10); traffic of other zones of the UTM is not matched
+  ping the nas  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (pppoe0, eth1, eth1.10); traffic of other zones of the UTM is not matched
+  old rule  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (pppoe0, eth1, eth1.10); traffic of other zones of the UTM is not matched
+      [info] SECUREPOINT_DISABLED: disabled in the source: written as comment lines, which are not loaded
+  syn to the mail server  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (pppoe0, eth1, eth1.10); traffic of other zones of the UTM is not matched
+  no media from the guests-2  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sessions of the voip box  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (pppoe0, eth1, eth1.10); traffic of other zones of the UTM is not matched
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source).
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address).
+  forward-5.default  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (pppoe0, eth1, eth1.10); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  no way into the LAN  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (pppoe0, eth1, eth1.10); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  only web and dns out  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (pppoe0, eth1, eth1.10); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  no media from the guests-3  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (pppoe0, eth1, eth1.10); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  Allow IPv6 ping  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (pppoe0, eth1, eth1.10); traffic of other zones of the UTM is not matched
+  ipv6-forward-5.default  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (pppoe0, eth1, eth1.10); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+
+NAT rules
+  plex from outside  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT names one address the traffic is sent to (its NAT network object)
+  web on 8443 to the nas  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: the zone of the translated address 192.168.1.20 is not known: give the networks of the zones with --zone-network

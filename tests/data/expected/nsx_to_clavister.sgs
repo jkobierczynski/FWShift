@@ -1,0 +1,72 @@
+add Address IP4Address fws_10.10.0.0_16 Address=10.10.0.0/16
+add Address IP4Address fws_192.0.2.53 Address=192.0.2.53
+add Service ServiceTCPUDP fws_DNS Type=TCP DestinationPorts=53
+add Service ServiceTCPUDP fws_DNS-UDP Type=UDP DestinationPorts=53
+add Address IP4Address fws_192.0.2.123 Address=192.0.2.123
+add Service ServiceTCPUDP fws_NTP.services Type=UDP DestinationPorts=123
+add Address IP4Address fws_10.10.200.0_24 Address=10.10.200.0/24
+add Address IP4Address fws_10.0.0.0_8 Address=10.0.0.0/8
+add Service ServiceTCPUDP fws_SSH Type=TCP DestinationPorts=22
+add Address IP4Address fws_10.20.0.10 Address=10.20.0.10
+add Address IP4Address fws_10.20.0.11 Address=10.20.0.11
+add Service ServiceTCPUDP fws_Web_all_1 Type=TCP DestinationPorts=8443
+add Service ServiceTCPUDP fws_Web_all_2 Type=TCP DestinationPorts=443
+add Address IP4Address fws_10.20.1.0_24 Address=10.20.1.0/24
+add Service ServiceTCPUDP fws_app-8443 Type=TCP DestinationPorts=8443
+add Address IP4Address fws_10.20.2.0_24 Address=10.20.2.0/24
+add Address IP6Address fws_2001_db8_20_2___64 Address=2001:db8:20:2::/64
+add Service ServiceTCPUDP fws_MySQL Type=TCP DestinationPorts=3306
+add Address IP4Address fws_10.10.5.10-10.10.5.20 Address=10.10.5.10-10.10.5.20
+add Address IP4Address fws_Others_no_SSH_src_not_1 Address=0.0.0.0-10.10.5.9
+add Address IP4Address fws_Others_no_SSH_src_not_2 Address=10.10.5.21-255.255.255.255
+add Address IP4Address fws_10.10.7.15 Address=10.10.7.15
+add Address IP4Address fws_10.30.1.0_24 Address=10.30.1.0/24
+add Service ServiceTCPUDP fws_Modbus Type=TCP DestinationPorts=502
+add Address IP4Address fws_198.51.100.40 Address=198.51.100.40
+add Service ServiceTCPUDP fws_FTP Type=TCP DestinationPorts=21
+add Service ServiceTCPUDP fws_HTTPS Type=TCP DestinationPorts=443
+add Service ServiceICMP fws_ICMP-ALL_1 MessageTypes=All
+add Service ServiceICMPv6 fws_ICMP-ALL_2 MessageTypes=All
+add Address IP4Address fws_nothing Address=0.0.0.0
+add Address IP4Group fws_LAN Members=fws_10.10.0.0_16
+add Service ServiceGroup fws_DNS_to_resolvers_svc Members=fws_DNS,fws_DNS-UDP
+add Address IP4Group fws_Guests Members=fws_10.10.200.0_24
+add Address IP4Group fws_Web_servers Members=fws_10.20.0.10,fws_10.20.0.11
+add Service ServiceGroup fws_Web_all_grp Members=fws_Web_all_1,fws_Web_all_2
+add Address IP4Group fws_App_servers Members=fws_10.20.1.0_24
+add Address IP4Group fws_DB_servers Members=fws_10.20.2.0_24
+add Address IP6Group fws_DB_servers_v6 Members=fws_2001_db8_20_2___64
+add Address IP4Group fws_Admins Members=fws_10.10.5.10-10.10.5.20
+add Address IP4Group fws_DMZ Members=fws_Web_servers,fws_App_servers
+add Address IP4Group fws_Others_no_SSH_src_not Members=fws_Others_no_SSH_src_not_1,fws_Others_no_SSH_src_not_2
+add Address IP4Group fws_OT_cell Members=fws_10.30.1.0_24
+add Service ServiceGroup fws_ICMP-ALL_grp Members=fws_ICMP-ALL_1,fws_ICMP-ALL_2
+add IPRuleSet fws_rules Comments="Written by FWShift"
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_Block_quarantined Action=Drop SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=Yes
+set IPRule 1 -disable
+add IPRule Index=2 Name=fws_DNS_to_resolvers Action=Allow SourceInterface=any SourceNetwork=fws_LAN DestinationInterface=any DestinationNetwork=fws_192.0.2.53 Service=fws_DNS_to_resolvers_svc LogEnabled=No
+add IPRule Index=3 Name=fws_NTP Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_192.0.2.123 Service=fws_NTP.services LogEnabled=No
+add IPRule Index=4 Name=fws_Guests_stay_out Action=Drop SourceInterface=any SourceNetwork=fws_Guests DestinationInterface=any DestinationNetwork=fws_10.0.0.0_8 Service=all_services LogEnabled=No
+add IPRule Index=5 Name=fws_LAN_block_the_rest Action=Drop SourceInterface=any SourceNetwork=fws_LAN DestinationInterface=any DestinationNetwork=all-nets Service=fws_SSH LogEnabled=No
+set IPRule 5 -disable
+add IPRule Index=6 Name=fws_Inbound_web Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_Web_servers Service=fws_Web_all_grp LogEnabled=Yes
+add IPRule Index=7 Name=fws_Web_to_app Action=Allow SourceInterface=any SourceNetwork=fws_Web_servers DestinationInterface=any DestinationNetwork=fws_App_servers Service=fws_app-8443 LogEnabled=No
+add IPRule Index=8 Name=fws_App_to_DB Action=Allow SourceInterface=any SourceNetwork=fws_App_servers DestinationInterface=any DestinationNetwork=fws_DB_servers Service=fws_MySQL LogEnabled=No
+set IPRule 8 -disable
+add IPRule Index=9 Name=fws_Admins_SSH Action=Allow SourceInterface=any SourceNetwork=fws_Admins DestinationInterface=any DestinationNetwork=fws_DMZ Service=fws_SSH LogEnabled=No
+add IPRule Index=10 Name=fws_Others_no_SSH Action=Drop SourceInterface=any SourceNetwork=fws_Others_no_SSH_src_not DestinationInterface=any DestinationNetwork=fws_DMZ Service=fws_SSH LogEnabled=No
+add IPRule Index=11 Name=fws_Engineering_to_PLCs Action=Allow SourceInterface=any SourceNetwork=fws_10.10.7.15 DestinationInterface=any DestinationNetwork=fws_OT_cell Service=fws_Modbus LogEnabled=No
+add IPRule Index=12 Name=fws_FTP_to_partner Action=Allow SourceInterface=any SourceNetwork=fws_LAN DestinationInterface=any DestinationNetwork=fws_198.51.100.40 Service=fws_FTP LogEnabled=No
+add IPRule Index=13 Name=fws_TLS_out Action=Allow SourceInterface=any SourceNetwork=fws_LAN DestinationInterface=any DestinationNetwork=all-nets Service=fws_HTTPS LogEnabled=No
+set IPRule 13 -disable
+add IPRule Index=14 Name=fws_Ping_over_IPv6 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=fws_ICMP-ALL_grp LogEnabled=No
+add IPRule Index=15 Name=fws_Old_rule Action=Allow SourceInterface=any SourceNetwork=fws_LAN DestinationInterface=any DestinationNetwork=fws_DB_servers Service=fws_MySQL LogEnabled=No
+set IPRule 15 -disable
+add ReturnRule Index=16 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=17 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

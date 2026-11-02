@@ -1,0 +1,118 @@
+FWShift conversion report
+  source: securepoint
+  target: pfsense
+
+Summary
+  Security rules:     19   exact 1, approximated 6, needs review 11 (10 emitted disabled), skipped 1
+  NAT rules:           6   exact 2, approximated 2, needs review 0, skipped 2
+  Addresses:          15   exact 15, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_IMPLIED: commands that change the implicit rules are not converted: group set implied_group "12" active "1"
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
+  [needs-review] PFSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of a pfSense configuration. Under Diagnostics > Backup & Restore, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every rule, every alias, every NAT rule that is there now is gone, with the separators, the rules pfSense linked to port forwards and the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. The NAT area holds 2 port forwards and 0 1:1 rules, and sets outbound NAT to manual mode with the 2 rules of the source. Keep a backup, and look at the rules before anything depends on them: pfSense does not check what it restores, and a rule it cannot resolve is not loaded. Written for pfSense 2.7 and later
+  [needs-review] INTERFACES_REQUIRED: pfSense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: internal, external
+  [info] SECUREPOINT_SOURCE: 18 rules of the packet filter in 3 rule groups, first match in the order of the groups; zones from the network objects; what no rule matches is dropped (Default Drop)
+  [info] SECUREPOINT_IMPLIED_RULES: the UTM's implicit rules (Firewall > Implied rules: its own services, VPN, the threat intelligence filter) come before the packet filter and are not converted
+  [info] SECUREPOINT_LOCAL_RULES: 1 rules for the UTM's own services (to or from objects in zones of its own interfaces) are not converted
+  [info] SECUREPOINT_NAT_ORDER: NAT is part of the rules: each rule with NAT became a NAT rule, in the order of the rules. DESTNAT is done before the packet filter and HIDENAT after it (netfilter); a rule's NAT is read as applying whatever its action (assumed)
+  [info] SECUREPOINT_RANGE: network objects with an address range a-b (a form FWShift reads, not documented): printers
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: external=203.0.113.0/29; internal=192.168.10.0/24; dmz1=172.16.20.0/24. --no-source-networks takes none of them
+  [info] SELF_EXCLUDED: on pfSense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  rule-1  ->  needs-review, emitted disabled  (emitted as internal)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by external, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind vpn-ipsec with --zone-network.
+  rule-4  ->  needs-review, emitted disabled  (emitted as internal)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by external, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind vpn-ipsec with --zone-network.
+  rule-10  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internal. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'vpn-ipsec' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  rule-11  ->  approximated  (emitted as internal)
+      [approximated] SECUREPOINT_STATELESS: action STATELESS allows packets whatever the state of their connection, and lets no replies through by itself; the model is stateful and allows the replies of what it allows
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by external. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  rule-14  ->  needs-review, emitted disabled  (emitted as internal)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vpn-ipsec. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNSUPPORTED_MATCH: not converted: NETMAP on the rule: which addresses its packet filter rule names is not documented.
+  rule-15  ->  needs-review, emitted disabled  (emitted as internal)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by external, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind vpn-ipsec with --zone-network.
+  rule-18  ->  needs-review  (emitted as external)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'external-interface' next to 'webserver' because of NAT rule 'rule-2-nat'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'rule-2-nat' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'webserver', the address NAT rule 'rule-2-nat' translates 'external_interface' to. The target looks rules up after that translation, so traffic sent to 'external_interface' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  rule-2  ->  approximated  (emitted as external)
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to external-interface (extern-https) and taken to webserver; that it also allows traffic sent to the server directly is not documented and is not read
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'external_interface' with post-NAT 'webserver' because of NAT rule 'rule-2-nat'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'rule-2-nat' also translates the port to 443: the service of this rule (extern-https) named the pre-NAT port only, and now names 443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  rule-6  ->  approximated  (emitted as external)
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to public-mail (smtp) and taken to mailserver; that it also allows traffic sent to the server directly is not documented and is not read
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'public_mail' with post-NAT 'mailserver' because of NAT rule 'rule-6-nat'; check that this rule is meant to cover the translated traffic
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  rule-7  ->  approximated  (emitted as internal)
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 1 of 2)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  rule-7-2  ->  needs-review, emitted disabled
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 2 of 2)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'vpn-ipsec' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  rule-8  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by external, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind vpn-ipsec with --zone-network.
+      [needs-review] INTERFACE_NAME: 'dmz1' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  rule-12  ->  approximated  (emitted as internal)
+      [info] SECUREPOINT_QOS: action QOS: read as ACCEPT; the bandwidth limit of its QoS profile is not converted
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  rule-16  ->  needs-review, emitted disabled  (emitted as internal)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNSUPPORTED_MATCH: not converted: flag 'MIRROR' is not one FWShift reads.
+  rule-3  ->  needs-review, emitted disabled  (emitted as internal)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by external, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind vpn-ipsec with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-9  ->  needs-review, emitted disabled  (emitted as internal)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by external. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked_region': address 'geoip:XX' is not a form FWShift reads. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-17  ->  approximated  (emitted as internal)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  rule-5  ->  skipped
+      [info] SECUREPOINT_LOCAL_RULE: a rule for the UTM's own services (an object in a zone of its own interfaces, firewall-...): not converted
+
+NAT rules
+  rule-1-nat  ->  skipped
+      [needs-review] NAT_SERVICE: service 'default-internet' is not a TCP, UDP or SCTP service
+  rule-10-nat  ->  approximated  (emitted as 1 outbound NAT rule)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from vpn-ipsec only; outbound NAT of pfSense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+  rule-14-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NETMAP (a network mapped onto another of the same size, both ways) is not converted
+  rule-8-nat  ->  approximated  (emitted as 1 outbound NAT rule)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from dmz1 only; outbound NAT of pfSense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+
+Addresses
+  internal-network  ->  exact  (emitted as internal_network)
+      [info] RENAMED: renamed to 'internal_network' to fit the target's naming rules
+  internal-interface  ->  exact  (emitted as internal_interface)
+      [info] RENAMED: renamed to 'internal_interface' to fit the target's naming rules
+  external-interface  ->  exact  (emitted as external_interface)
+      [info] RENAMED: renamed to 'external_interface' to fit the target's naming rules
+  dmz1-network  ->  exact  (emitted as dmz1_network)
+      [info] RENAMED: renamed to 'dmz1_network' to fit the target's naming rules
+  public-mail  ->  exact  (emitted as public_mail)
+      [info] RENAMED: renamed to 'public_mail' to fit the target's naming rules
+  admin-pc  ->  exact  (emitted as admin_pc)
+      [info] RENAMED: renamed to 'admin_pc' to fit the target's naming rules
+  partner-net  ->  exact  (emitted as partner_net)
+      [info] RENAMED: renamed to 'partner_net' to fit the target's naming rules
+  update-host  ->  exact  (emitted as update_host)
+      [info] RENAMED: renamed to 'update_host' to fit the target's naming rules
+  blocked-region  ->  exact  (emitted as blocked_region)
+      [info] RENAMED: renamed to 'blocked_region' to fit the target's naming rules
+
+Address groups
+  admins-and-partner  ->  exact  (emitted as admins_and_partner)
+      [info] RENAMED: renamed to 'admins_and_partner' to fit the target's naming rules
+
+Services
+  ssh  ->  exact
+      [info] SECUREPOINT_FACTORY_SERVICE: not defined in the input: read as the service of that name a UTM comes with, with the IANA port of the name (Securepoint does not publish the list; assumed)

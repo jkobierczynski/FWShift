@@ -1,0 +1,91 @@
+FWShift conversion report
+  source: windows-firewall (Group Policy, local)
+  target: cato
+
+Summary
+  Security rules:     31   exact 12, approximated 3, needs review 7 (5 emitted disabled), skipped 9
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           23   exact 23, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] WINFW_BYPASS: rules with authenticated bypass let IPsec-authenticated connections through block rules; they are first in the converted policy and not converted: Management over IPsec, overriding block rules
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: Host, Domain, Private, Public
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): Host, Domain, Private, Public
+  [info] WINFW_DEFAULT_ASSUMED: settings that no store of the input holds were taken as Windows's defaults (firewall on, inbound blocked, outbound allowed): Private defaultinboundaction, Public defaultinboundaction, Public defaultoutboundaction
+  [info] WINFW_HOST_POLICY: a host firewall: the zone Host is the host itself, the zones Domain, Private and Public the networks of the interfaces in each profile. Windows has no rule order: block rules decide before allow rules, then the default of the profile; the converted policy says that in first-match order (block rules, allow rules, the defaults that allow). Traffic between the networks is not the host's to decide and is denied
+  [info] WINFW_STORES: stores read: Group Policy 8 rules, local 22 rules
+  [info] WINFW_PROFILES: Domain: inbound blocked (Group Policy), outbound allowed (Group Policy), local rules not merged (Group Policy); Private: inbound blocked (default), outbound blocked (Group Policy); Public: inbound blocked (default), outbound allowed (default)
+  [info] WINFW_LOCAL_NOT_MERGED: Group Policy (or MDM) does not merge local rules in the profile Domain: the local rules are left out there (16 rules named it)
+  [info] WINFW_SETTING_NOT_CONVERTED: profile settings that decide traffic no rule names are not converted: Public: unicast responses to multicast and broadcast traffic are blocked
+  [info] WINFW_ADDRESS_KEYWORDS: rules name address keywords, whose addresses only Windows knows at run time: DNS, LocalSubnet, LocalSubnet4, LocalSubnet6. They are dynamic groups; only a Windows target writes them again
+  [info] WINFW_NOT_READ: not read: 1 connection security (IPsec) rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\ConSecRules; 1 Windows Service Hardening rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Static\System
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+
+Security rules
+  Management over IPsec, overriding block rules  ->  needs-review, emitted disabled  (emitted as fws-Management over IPsec_ overriding block rules)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: remote computers; IPsec (Authenticate): only connections IPsec protects match; authenticated bypass: only IPsec-authenticated connections match, and they override block rules. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: remote computers.
+      [needs-review] UNSUPPORTED_MATCH: not converted: IPsec (Authenticate): only connections IPsec protects match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: authenticated bypass: only IPsec-authenticated connections match, and they override block rules.
+  Block a known bad host  ->  needs-review  (emitted as fws-Block a known bad host)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Block RDP from the guest half of the admin network  ->  exact  (emitted as fws-Block RDP from the guest half of the admin network)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Block the scanner networks  ->  exact  (emitted as fws-Block the scanner networks)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Allow WinRM from management  ->  exact  (emitted as fws-Allow WinRM from management)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  DNS out on private networks  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'DNS' holds members whose addresses are not known
+  SMB from the local subnet  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'LocalSubnet' holds members whose addresses are not known
+  SSH from the IPv6 jump hosts  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  DNS server  ->  exact  (emitted as fws-DNS server)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Echo request (ICMPv4-In)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Echo request (ICMPv6-In)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Fragmentation needed and time exceeded  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Remote Desktop from the admin networks  ->  approximated  (emitted as fws-Remote Desktop from the admin networks)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Web server  ->  approximated  (emitted as fws-Web server)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  FTP passive ports  ->  exact  (emitted as fws-FTP passive ports)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  SNMP from the local subnet  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  GRE from the tunnel peer  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Example application server  ->  needs-review, emitted disabled  (emitted as fws-Example application server)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: program C:\Program Files\Example\server.exe. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: program C:\Program Files\Example\server.exe.
+  Print spooler (RPC)  ->  needs-review, emitted disabled  (emitted as fws-Print spooler (RPC))
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the local port keyword RPC; service Spooler. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the local port keyword RPC.
+      [needs-review] UNSUPPORTED_MATCH: not converted: service Spooler.
+  mDNS on wireless  ->  needs-review, emitted disabled  (emitted as fws-mDNS on wireless)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: interface types wireless. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: interface types wireless.
+  Game server through edge traversal  ->  approximated  (emitted as fws-Game server through edge traversal)
+      [approximated] WINFW_EDGE_TRAVERSAL: the rule also accepts traffic that came through edge traversal (Teredo); the model has no such path: the converted rule does not let it in
+  Printer port  ->  needs-review, emitted disabled  (emitted as fws-Printer port)
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the field 'newfield2_40', which FWShift does not know. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the field 'newfield2_40', which FWShift does not know.
+  A rule Windows cannot parse  ->  needs-review  (emitted as fws-A rule Windows cannot parse)
+      [needs-review] WINFW_RULE_INVALID: Windows does not enforce a rule it cannot parse (local ports without protocol TCP or UDP): it is kept disabled
+  SSDP discovery  ->  skipped
+      [info] WINFW_PLATFORM: the rule applies on Windows NT 6.2 and later; it is taken as applying on this host
+      [needs-review] CATO_NOT_WRITTEN: not written: 'LocalSubnet' holds members whose addresses are not known
+  DNS server (local copy)  ->  exact  (emitted as fws-DNS server (local copy))
+      [info] WINFW_OVERRIDDEN: the Group Policy store has a rule of the same id ('Shared-Id'), which replaces this one: it is kept disabled
+  Backup agent to the backup server  ->  exact  (emitted as fws-Backup agent to the backup server)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)

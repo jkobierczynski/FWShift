@@ -1,0 +1,99 @@
+FWShift conversion report
+  source: mguard
+  target: cato
+
+Summary
+  Security rules:     19   exact 6, approximated 0, needs review 0, skipped 13
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_USER_FIREWALL: the user firewall is on, with 1 templates (service technicians): rules that apply to users who log in; not converted. With it on, the mGuard lets through more than the converted policy
+  [needs-review] MGUARD_VPN_FIREWALL: 1 VPN connections have firewall rules of their own (FW_INCOMING, FW_OUTGOING of the connection): not converted, nor the VPN traffic they decide
+  [needs-review] CATO_INTERNET_DEFAULT: the source blocks what no rule matches; the Internet Firewall allows it (implicit any-any allow). A last rule that blocks the rest to the internet is written switched off: with it on, everything to the internet that no rule above it allows is blocked, also what existing rules below the position do not block
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: internal, dmz
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] MGUARD_SOURCE: mGuard profile 8.6.1.default, router mode; zones internal, external, dmz; tables read: FW_INCOMING, FW_OUTGOING, FW_INCOMING_WAN_DMZ, FW_INCOMING_DMZ_LAN, FW_OUTGOING_LANDMZ. Each table is first match; what no rule matches is dropped; port forwarding skips the packet filter
+  [info] MGUARD_INTERNAL_ROUTED: the internal side has more than one network (LOCAL_ALIASES): the outgoing rules also decide connections from one of them to another, so they are read for internal -> internal as well
+  [info] MGUARD_IPV4_ONLY: the packet filter of the mGuard is IPv4: 0.0.0.0/0 is read as every IPv4 address, and the rules match no IPv6
+  [info] MGUARD_DEFAULT_LOG: connection attempts no rule covers are logged (LOG_DEFAULT_INCOMING); the model has no place for that
+  [info] MGUARD_MANAGEMENT_ACCESS: access to the mGuard itself is not converted (it protects the device, not forwarded traffic): HTTPS_REMOTE_ACCESS_RULES (1 rows); HTTPS_REMOTE_ENABLE yes; FW_ICMP ping
+  [info] MGUARD_HOSTNAME: host names in IP groups, resolved by the DNS settings of the mGuard; read as names resolved for IPv4: scada: historian.example.com
+  [info] MGUARD_REJECT: Reject: the mGuard sends the packets back and tells the sender; read as reset-both: FW_INCOMING row 4
+  [info] MGUARD_PORTS_IGNORED: ports in rules for a protocol other than tcp and udp, which the mGuard ignores: FW_INCOMING row 7
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. --no-source-networks takes none of them
+  [info] CATO_INTERNET_BY_ROUTE: no --inside-zone: the zones behind the default route (or named internet) are the internet, the others sites: external
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  portforward-1  ->  skipped
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+      [needs-review] CATO_FROM_INTERNET: traffic from zone external is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in, which is not written
+  portforward-2  ->  skipped
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+      [needs-review] CATO_FROM_INTERNET: traffic from zone external is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in, which is not written
+  incoming-1  ->  skipped
+      [needs-review] CATO_FROM_INTERNET: traffic from zone external is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in, which is not written
+  incoming-2  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] CATO_FROM_INTERNET: traffic from zone external is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in, which is not written
+  incoming-3  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [info] CATO_FROM_INTERNET: traffic from zone external is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in
+  incoming-4  ->  skipped
+      [info] CATO_FROM_INTERNET: traffic from zone external is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in
+  incoming-5.maintenance-1  ->  skipped
+      [needs-review] MGUARD_RULESET_SWITCHED: a rule of rule set maintenance, which cmd1 switches on and off: not converted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] CATO_FROM_INTERNET: traffic from zone external is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in, which is not written
+  incoming-6.vendor-1  ->  skipped
+      [info] MGUARD_RULESET: rule 1 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] CATO_FROM_INTERNET: traffic from zone external is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in, which is not written
+  incoming-6.vendor-2  ->  skipped
+      [info] MGUARD_RULESET: rule 2 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+      [info] CATO_FROM_INTERNET: traffic from zone external is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in
+  incoming-7  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  incoming-8  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '192.168.10.50' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  incoming-9  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_UNREAD: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group
+      [needs-review] CATO_FROM_INTERNET: traffic from zone external is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in, which is not written
+  outgoing-1  ->  exact  (emitted as fws-outgoing-1, fws-outgoing-1)
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written as the addresses of the networks given for it
+  outgoing-2  ->  exact  (emitted as fws-outgoing-2, fws-outgoing-2)
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written as the addresses of the networks given for it
+  outgoing-3  ->  exact  (emitted as fws-outgoing-3, fws-outgoing-3)
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written as the addresses of the networks given for it
+  outgoing-4  ->  exact  (emitted as fws-outgoing-4, fws-outgoing-4)
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written as the addresses of the networks given for it
+  wan-dmz-1  ->  skipped
+      [needs-review] CATO_FROM_INTERNET: traffic from zone external is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in, which is not written
+  dmz-lan-1  ->  exact  (emitted as fws-dmz-lan-1)
+      [info] ZONE_BY_NETWORKS: the source in zone dmz is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written as the addresses of the networks given for it
+  lan-dmz-1  ->  exact  (emitted as fws-lan-dmz-1)
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it
+
+NAT rules
+  portforward-1  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  portforward-2  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  1to1-1  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  masquerade-1  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  masquerade-2  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself

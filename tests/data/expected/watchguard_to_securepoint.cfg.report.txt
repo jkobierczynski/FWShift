@@ -1,0 +1,44 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: securepoint
+
+Summary
+  Security rules:     10   exact 3, approximated 4, needs review 3 (2 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): Trusted, External, DMZ, Guests, Lab. Map other names with --zone-map
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] SECUREPOINT_COMMENTED: 3 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  Block Bad  ->  needs-review  (emitted as 10 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (External, Trusted, DMZ, Guests, Lab); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  Web Out  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+  Web In  ->  approximated  (emitted as 5 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (External, Trusted, DMZ, Guests, Lab); traffic of other zones of the UTM is not matched
+  Mail In  ->  approximated  (emitted as 5 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (External, Trusted, DMZ, Guests, Lab); traffic of other zones of the UTM is not matched
+  DMZ Updates  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (External, Trusted, DMZ, Guests, Lab); traffic of other zones of the UTM is not matched
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'updates.example.com'; that a network object of the UTM takes a host name is not documented.
+  Guests Out  ->  exact  (emitted as 1 rule of group fwshift)
+      [info] SECUREPOINT_DISABLED: disabled in the source: written as comment lines, which are not loaded
+  Staff Only  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (External, Trusted, DMZ, Guests, Lab); traffic of other zones of the UTM is not matched
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+  Ping  ->  approximated  (emitted as 10 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (External, Trusted, DMZ, Guests, Lab); traffic of other zones of the UTM is not matched
+
+NAT rules
+  Web-Public (Web In)  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: the zone of the translated address Web-Public.2.snat is not known: give the networks of the zones with --zone-network
+  Mail-Public (Mail In)  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: the zone of the translated address Mail-Public.2.snat is not known: give the networks of the zones with --zone-network

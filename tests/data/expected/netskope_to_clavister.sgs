@@ -1,0 +1,88 @@
+add Address IP4Address fws_192.0.2.128_26 Address=192.0.2.128/26
+add Address IP4Address fws_203.0.113.200 Address=203.0.113.200
+add Address IP4Address fws_10.20.0.0_16 Address=10.20.0.0/16
+add Address IP4Address fws_10.21.0.0_16 Address=10.21.0.0/16
+add Address IP4Address fws_198.51.100.25 Address=198.51.100.25
+add Address IP4Address fws_198.51.100.26 Address=198.51.100.26
+add Service ServiceTCPUDP fws_svc-mail Type=TCP DestinationPorts=587,993
+add Address IP4Address fws_10.30.0.0_16 Address=10.30.0.0/16
+add Address IP6Address fws_fd00_30___48 Address=fd00:30::/48
+add Address IP4Address fws_203.0.113.0_26 Address=203.0.113.0/26
+add Address IP6Address fws_2001_db8_5___48 Address=2001:db8:5::/48
+add Service ServiceTCPUDP fws_svc-voice_1 Type=UDP DestinationPorts=5060,10000-20000
+add Service ServiceTCPUDP fws_svc-voice_2 Type=TCP DestinationPorts=5061
+add Address IP4Address fws_10.99.0.0_24 Address=10.99.0.0/24
+add Address IP4Address fws_198.51.100.10 Address=198.51.100.10
+add Address IP4Address fws_198.51.100.11 Address=198.51.100.11
+add Service ServiceTCPUDP fws_app-ssh-jump_2 Type=TCP DestinationPorts=22
+add Address IP4Address fws_203.0.113.40 Address=203.0.113.40
+add Service ServiceTCPUDP fws_app-rdp-gw_2 Type=TCPUDP DestinationPorts=3389
+add Service ServiceTCPUDP fws_app-git Type=TCP DestinationPorts=22,9418
+add Address IP4Address fws_Not_from_the_server_networks__no_NTP_src_not_1 Address=0.0.0.0-10.20.9.255
+add Address IP4Address fws_Not_from_the_server_networks__no_NTP_src_not_2 Address=10.20.11.128-255.255.255.255
+add Service ServiceTCPUDP fws_svc-ntp Type=UDP DestinationPorts=123
+add Address IP4Address fws_198.51.100.123 Address=198.51.100.123
+add Address IP4Address fws_10.20.5.0_24 Address=10.20.5.0/24
+add Service ServiceTCPUDP fws_app-any-ftp Type=TCP DestinationPorts=20-21
+add Address IP4Address fws_198.51.100.80 Address=198.51.100.80
+add Service ServiceTCPUDP fws_HTTPS Type=TCP DestinationPorts=443
+add Service ServiceICMP fws_svc-ping MessageTypes=All
+add Service ServiceTCPUDP fws_DNS Type=TCPUDP DestinationPorts=53
+add Address IP4Address fws_10.40.0.0_16 Address=10.40.0.0/16
+add InterfaceGroup fws_zones Members=Client,IPSec,GRE,egress
+add Address IP4Group fws_dp-blocked-ranges Members=fws_192.0.2.128_26,fws_203.0.113.200
+add Address IP4Group fws_Branch_mail_to_partner_src Members=fws_10.20.0.0_16,fws_10.21.0.0_16
+add Address IP4Group fws_dp-partner-mail Members=fws_198.51.100.25,fws_198.51.100.26
+add Address IP4Group fws_dp-voice-provider Members=fws_203.0.113.0_26
+add Address IP6Group fws_dp-voice-provider_v6 Members=fws_2001_db8_5___48
+add Service ServiceGroup fws_svc-voice_grp Members=fws_svc-voice_1,fws_svc-voice_2
+add Address IP4Group fws_app-ssh-jump Members=fws_198.51.100.10,fws_198.51.100.11
+add Address IP4Group fws_app-rdp-gw Members=fws_203.0.113.40
+add Address IP4Group fws_Not_from_the_server_networks__no_NTP_src_not Members=fws_Not_from_the_server_networks__no_NTP_src_not_1,fws_Not_from_the_server_networks__no_NTP_src_not_2
+add Address IP4Group fws_dp-time Members=fws_198.51.100.123
+add Address IP4Group fws_dp-saas-domains Members=fws_198.51.100.80
+add InterfaceGroup fws_if_Client_GRE_IPSec Members=Client,IPSec,GRE
+add InterfaceGroup fws_if_GRE_IPSec Members=IPSec,GRE
+add IPRuleSet fws_rules Comments="Written by FWShift"
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_Block_known_bad_ranges Action=Drop SourceInterface=fws_if_Client_GRE_IPSec SourceNetwork=all-nets DestinationInterface=egress DestinationNetwork=fws_dp-blocked-ranges Service=all_services LogEnabled=Yes
+add IPRule Index=2 Name=fws_Branch_mail_to_partner Action=Allow SourceInterface=fws_if_GRE_IPSec SourceNetwork=fws_Branch_mail_to_partner_src DestinationInterface=egress DestinationNetwork=fws_dp-partner-mail Service=fws_svc-mail LogEnabled=Yes
+add IPRule Index=3 Name=fws_Voice_from_sites Action=Allow SourceInterface=GRE SourceNetwork=fws_10.30.0.0_16 DestinationInterface=egress DestinationNetwork=fws_dp-voice-provider Service=fws_svc-voice_grp LogEnabled=Yes
+add IPRule Index=4 Name=fws_Voice_from_sites_v6 Action=Allow SourceInterface=GRE SourceNetwork=fws_fd00_30___48 DestinationInterface=egress DestinationNetwork=fws_dp-voice-provider_v6 Service=fws_svc-voice_grp LogEnabled=Yes
+add IPRule Index=5 Name=fws_Admins_to_jump_hosts__app-ssh-jump_ Action=Allow SourceInterface=Client SourceNetwork=fws_10.99.0.0_24 DestinationInterface=egress DestinationNetwork=fws_app-ssh-jump Service=fws_app-ssh-jump_2 LogEnabled=Yes
+add IPRule Index=6 Name=fws_Admins_to_jump_hosts__app-rdp-gw_ Action=Allow SourceInterface=Client SourceNetwork=fws_10.99.0.0_24 DestinationInterface=egress DestinationNetwork=fws_app-rdp-gw Service=fws_app-rdp-gw_2 LogEnabled=Yes
+add IPRule Index=7 Name=fws_Engineering_to_git Action=Allow SourceInterface=Client SourceNetwork=all-nets DestinationInterface=egress DestinationNetwork=all-nets Service=fws_app-git LogEnabled=Yes
+set IPRule 7 -disable
+add IPRule Index=8 Name=fws_Engineering_to_git_v6 Action=Allow SourceInterface=Client SourceNetwork=all-nets6 DestinationInterface=egress DestinationNetwork=all-nets6 Service=fws_app-git LogEnabled=Yes
+set IPRule 8 -disable
+add IPRule Index=9 Name=fws_Block_BitTorrent Action=Drop SourceInterface=fws_if_Client_GRE_IPSec SourceNetwork=all-nets DestinationInterface=egress DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+set IPRule 9 -disable
+add IPRule Index=10 Name=fws_Block_BitTorrent_v6 Action=Drop SourceInterface=fws_if_Client_GRE_IPSec SourceNetwork=all-nets6 DestinationInterface=egress DestinationNetwork=all-nets6 Service=all_services LogEnabled=Yes
+set IPRule 10 -disable
+add IPRule Index=11 Name=fws_Not_from_the_server_networks__no_NTP Action=Drop SourceInterface=IPSec SourceNetwork=fws_Not_from_the_server_networks__no_NTP_src_not DestinationInterface=egress DestinationNetwork=all-nets Service=fws_svc-ntp LogEnabled=Yes
+add IPRule Index=12 Name=fws_Not_from_the_server_networks__no_NTP_v6 Action=Drop SourceInterface=IPSec SourceNetwork=all-nets6 DestinationInterface=egress DestinationNetwork=all-nets6 Service=fws_svc-ntp LogEnabled=Yes
+add IPRule Index=13 Name=fws_Time_servers Action=Allow SourceInterface=fws_if_Client_GRE_IPSec SourceNetwork=all-nets DestinationInterface=egress DestinationNetwork=fws_dp-time Service=fws_svc-ntp LogEnabled=Yes
+add IPRule Index=14 Name=fws_Old_FTP_exception Action=Allow SourceInterface=IPSec SourceNetwork=fws_10.20.5.0_24 DestinationInterface=egress DestinationNetwork=all-nets Service=fws_app-any-ftp LogEnabled=Yes
+set IPRule 14 -disable
+add IPRule Index=15 Name=fws_SaaS_files_from_the_office Action=Allow SourceInterface=GRE SourceNetwork=all-nets DestinationInterface=egress DestinationNetwork=fws_dp-saas-domains Service=fws_HTTPS LogEnabled=Yes
+set IPRule 15 -disable
+add IPRule Index=16 Name=fws_Ping_out Action=Allow SourceInterface=fws_if_Client_GRE_IPSec SourceNetwork=all-nets DestinationInterface=egress DestinationNetwork=all-nets Service=fws_svc-ping LogEnabled=Yes
+add IPRule Index=17 Name=fws_Ping_out_v6 Action=Allow SourceInterface=fws_if_Client_GRE_IPSec SourceNetwork=all-nets6 DestinationInterface=egress DestinationNetwork=all-nets6 Service=fws_svc-ping LogEnabled=Yes
+add IPRule Index=18 Name=fws_DNS_out Action=Allow SourceInterface=fws_if_Client_GRE_IPSec SourceNetwork=all-nets DestinationInterface=egress DestinationNetwork=all-nets Service=fws_DNS LogEnabled=Yes
+add IPRule Index=19 Name=fws_DNS_out_v6 Action=Allow SourceInterface=fws_if_Client_GRE_IPSec SourceNetwork=all-nets6 DestinationInterface=egress DestinationNetwork=all-nets6 Service=fws_DNS LogEnabled=Yes
+add IPRule Index=20 Name=fws_Contractors__nothing_else Action=Drop SourceInterface=Client SourceNetwork=all-nets DestinationInterface=egress DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+set IPRule 20 -disable
+add IPRule Index=21 Name=fws_Contractors__nothing_else_v6 Action=Drop SourceInterface=Client SourceNetwork=all-nets6 DestinationInterface=egress DestinationNetwork=all-nets6 Service=all_services LogEnabled=Yes
+set IPRule 21 -disable
+add IPRule Index=22 Name=fws_Lab_network_out Action=Allow SourceInterface=IPSec SourceNetwork=fws_10.40.0.0_16 DestinationInterface=egress DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+add IPRule Index=23 Name=fws_Default_Action Action=Drop SourceInterface=fws_if_Client_GRE_IPSec SourceNetwork=all-nets DestinationInterface=egress DestinationNetwork=all-nets Service=all_services LogEnabled=Yes Comments="the Default Action of the firewall policy: what no rule matches"
+add IPRule Index=24 Name=fws_Default_Action_v6 Action=Drop SourceInterface=fws_if_Client_GRE_IPSec SourceNetwork=all-nets6 DestinationInterface=egress DestinationNetwork=all-nets6 Service=all_services LogEnabled=Yes Comments="the Default Action of the firewall policy: what no rule matches"
+add IPRule Index=25 Name=fws_default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=26 Name=fws_default_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=27 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=28 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

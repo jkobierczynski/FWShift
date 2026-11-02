@@ -1,0 +1,273 @@
+configure terminal
+address-object ipv4 "internal-network" network 192.168.10.0 255.255.255.0 zone internal
+address-object ipv4 "internal-interface" host 192.168.10.1 zone internal
+address-object ipv4 "external-interface" host 203.0.113.2 zone external
+address-object ipv4 "dmz1-network" network 172.16.20.0 255.255.255.0 zone dmz1
+address-object ipv4 "public-mail" host 203.0.113.5 zone external
+address-object ipv4 "webserver" host 172.16.20.10 zone dmz1
+address-object ipv4 "mailserver" host 172.16.20.25 zone dmz1
+address-object ipv4 "admin-pc" host 192.168.10.50 zone internal
+address-object ipv4 "printers" range 192.168.10.200 192.168.10.220 zone internal
+address-object ipv6 "lan6" network 2001:db8:10:: /64 zone internal
+address-object ipv4 "partner-net" network 10.20.0.0 255.255.0.0 zone vpn-ipsec
+address-object fqdn "update-host" domain "updates.example.com" zone external
+address-object ipv4 "blocked-region" host 192.0.0.8 zone external
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone dmz1
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone dmz1
+address-object ipv6 "n ::_1" network :: /1 zone dmz1
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone dmz1
+address-group ipv4 "servers"
+    address-object ipv4 "webserver"
+    address-object ipv4 "mailserver"
+    exit
+address-group ipv4 "admins-and-partner"
+    address-object ipv4 "admin-pc"
+    address-object ipv4 "partner-net"
+    exit
+address-group ipv4 "dst rule-18"
+    address-object ipv4 "webserver"
+    address-object ipv4 "external-interface"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
+service-object "http 2" TCP 80 80
+service-object "https 2" TCP 443 443
+service-object "extern-https" TCP 8443 8443
+service-object "smtp" TCP 25 25
+service-object "domain-udp" UDP 53 53
+service-object "app-ports" TCP 8000 8010
+service-object "ftp 2" TCP 21 21
+service-object "ssh 2" TCP 22 22
+service-object "tcp 443" TCP 443 443
+service-group "web"
+    service-object "http 2"
+    service-object "https 2"
+    exit
+service-group "default-internet"
+    service-object "http 2"
+    service-object "https 2"
+    service-object "domain-udp"
+    service-object "Ping"
+    service-object "ftp 2"
+    exit
+nat-policy ipv4 inbound any outbound any source name "partner-net" translated-source original destination name "internal-network" translated-destination original service any translated-service original
+    name "rule-10-nat"
+    comment "HIDENAT_EXCLUDE of rule-10"
+    priority manual 1
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "external-interface" translated-destination name "webserver" service name "extern-https" translated-service name "tcp 443"
+    name "rule-2-nat"
+    comment "DESTNAT of rule-2"
+    priority manual 2
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "public-mail" translated-destination name "mailserver" service name "smtp" translated-service original
+    name "rule-6-nat"
+    comment "DESTNAT of rule-6"
+    priority manual 3
+    exit
+access-rule ipv4 from internal to external action allow source address name "internal-network" service group "default-internet" destination address any
+    name "rule-1"
+    priority manual 1
+    exit
+access-rule ipv4 from vpn-ipsec to internal action allow source address name "partner-net" service any destination address name "internal-network"
+    name "rule-10"
+    priority manual 2
+    exit
+access-rule ipv4 from internal to external action allow source address name "internal-network" service name "https 2" destination address name "update-host"
+    name "rule-11"
+    priority manual 3
+    exit
+access-rule ipv4 from internal to dmz1 action allow source address name "admin-pc" service name "Ping" destination address any
+    name "rule-13"
+    priority manual 4
+    exit
+access-rule ipv4 from internal to external action allow source address name "admin-pc" service name "Ping" destination address any
+    name "rule-13 2"
+    priority manual 5
+    exit
+access-rule ipv4 from internal to internal action allow source address name "admin-pc" service name "Ping" destination address any
+    name "rule-13 3"
+    priority manual 6
+    exit
+access-rule ipv4 from internal to vpn-ipsec action allow source address name "admin-pc" service name "Ping" destination address any
+    name "rule-13 4"
+    priority manual 7
+    exit
+access-rule ipv4 from internal to vpn-ipsec action allow source address name "internal-network" service any destination address name "partner-net"
+    name "rule-14"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from external to dmz1 action discard source address any service name "https 2" destination address group "dst rule-18"
+    name "rule-18"
+    priority manual 9
+    exit
+access-rule ipv4 from external to dmz1 action allow source address any service name "extern-https" destination address name "external-interface"
+    name "rule-2"
+    priority manual 10
+    exit
+access-rule ipv4 from external to dmz1 action allow source address any service name "smtp" destination address name "public-mail"
+    name "rule-6"
+    priority manual 11
+    exit
+access-rule ipv4 from internal to dmz1 action allow source address name "admin-pc" service name "ssh 2" destination address group "servers"
+    name "rule-7"
+    priority manual 12
+    exit
+access-rule ipv4 from vpn-ipsec to dmz1 action allow source address name "partner-net" service name "ssh 2" destination address group "servers"
+    name "rule-7-2"
+    priority manual 13
+    exit
+access-rule ipv4 from dmz1 to external action allow source address name "dmz1-network" service any destination address any
+    name "rule-8"
+    priority manual 14
+    exit
+access-rule ipv4 from internal to dmz1 action allow source address name "internal-network" service name "app-ports" destination address name "dmz1-network"
+    name "rule-12"
+    priority manual 15
+    exit
+access-rule ipv4 from internal to dmz1 action allow source address name "internal-network" service any destination address name "webserver"
+    name "rule-16"
+    priority manual 16
+    no enable
+    exit
+access-rule ipv4 from internal to external action deny source address name "printers" service any destination address any
+    name "rule-3"
+    priority manual 17
+    exit
+access-rule ipv4 from internal to external action discard source address name "internal-network" service any destination address name "blocked-region"
+    name "rule-9"
+    priority manual 18
+    no enable
+    exit
+access-rule ipv4 from internal to dmz1 action discard source address name "internal-network" service name "smtp" destination address name "mailserver"
+    name "rule-17"
+    priority manual 19
+    exit
+access-rule ipv4 from dmz1 to dmz1 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT dmz1 to dmz1"
+    priority manual 20
+    exit
+access-rule ipv4 from dmz1 to external action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT dmz1 to external"
+    priority manual 21
+    exit
+access-rule ipv4 from dmz1 to internal action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT dmz1 to internal"
+    priority manual 22
+    exit
+access-rule ipv4 from dmz1 to vpn-ipsec action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT dmz1 to vpn-ipsec"
+    priority manual 23
+    exit
+access-rule ipv4 from external to dmz1 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT external to dmz1"
+    priority manual 24
+    exit
+access-rule ipv4 from external to external action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT external to external"
+    priority manual 25
+    exit
+access-rule ipv4 from external to internal action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT external to internal"
+    priority manual 26
+    exit
+access-rule ipv4 from external to vpn-ipsec action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT external to vpn-ipsec"
+    priority manual 27
+    exit
+access-rule ipv4 from internal to dmz1 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internal to dmz1"
+    priority manual 28
+    exit
+access-rule ipv4 from internal to external action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internal to external"
+    priority manual 29
+    exit
+access-rule ipv4 from internal to internal action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internal to internal"
+    priority manual 30
+    exit
+access-rule ipv4 from internal to vpn-ipsec action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT internal to vpn-ipsec"
+    priority manual 31
+    exit
+access-rule ipv4 from vpn-ipsec to dmz1 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT vpn-ipsec to dmz1"
+    priority manual 32
+    exit
+access-rule ipv4 from vpn-ipsec to external action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT vpn-ipsec to external"
+    priority manual 33
+    exit
+access-rule ipv4 from vpn-ipsec to internal action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT vpn-ipsec to internal"
+    priority manual 34
+    exit
+access-rule ipv4 from vpn-ipsec to vpn-ipsec action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT vpn-ipsec to vpn-ipsec"
+    priority manual 35
+    exit
+access-rule ipv6 from internal to external action allow source address name "lan6" service group "web" destination address any
+    name "rule-4"
+    exit
+access-rule ipv6 from internal to external action allow source address name "lan6" service any destination address any
+    name "rule-15"
+    no enable
+    exit
+access-rule ipv6 from dmz1 to dmz1 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz1 to dmz1 v6"
+    exit
+access-rule ipv6 from dmz1 to external action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz1 to external v6"
+    exit
+access-rule ipv6 from dmz1 to internal action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz1 to internal v6"
+    exit
+access-rule ipv6 from dmz1 to vpn-ipsec action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz1 to vpn-ipsec v6"
+    exit
+access-rule ipv6 from external to dmz1 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT external to dmz1 v6"
+    exit
+access-rule ipv6 from external to external action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT external to external v6"
+    exit
+access-rule ipv6 from external to internal action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT external to internal v6"
+    exit
+access-rule ipv6 from external to vpn-ipsec action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT external to vpn-ipsec v6"
+    exit
+access-rule ipv6 from internal to dmz1 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internal to dmz1 v6"
+    exit
+access-rule ipv6 from internal to external action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internal to external v6"
+    exit
+access-rule ipv6 from internal to internal action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internal to internal v6"
+    exit
+access-rule ipv6 from internal to vpn-ipsec action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internal to vpn-ipsec v6"
+    exit
+access-rule ipv6 from vpn-ipsec to dmz1 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT vpn-ipsec to dmz1 v6"
+    exit
+access-rule ipv6 from vpn-ipsec to external action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT vpn-ipsec to external v6"
+    exit
+access-rule ipv6 from vpn-ipsec to internal action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT vpn-ipsec to internal v6"
+    exit
+access-rule ipv6 from vpn-ipsec to vpn-ipsec action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT vpn-ipsec to vpn-ipsec v"
+    exit
+commit
+exit

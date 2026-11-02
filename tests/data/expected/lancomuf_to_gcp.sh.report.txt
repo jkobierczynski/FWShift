@@ -1,0 +1,124 @@
+FWShift conversion report
+  source: lancom-uf (desktop)
+  target: gcp
+
+Summary
+  Security rules:     25   exact 0, approximated 0, needs review 24 (24 emitted disabled), skipped 1
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          11   exact 11, approximated 0, needs review 0, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OBJECTS_MISSING: objects and services the connections name are not in the input, and the rules that name them are not used: '0e5f1a2b-0000-4000-8000-000000000999'. Save the answers of every collection (section 3)
+  [needs-review] CONNECTION_KEYS_NOT_READ: desktop connections hold keys the parser does not know: 'nat'. They are kept with the rules as how they handle traffic, and not converted; if one of them narrows what a connection lets through, the converted rules allow more
+  [needs-review] GCP_LOAD: the output is a shell script of gcloud commands (section 10): DRY_RUN=1 prints them, without it it creates a new global network firewall policy (fwshift) with its rules, and stops if a policy of that name exists. It is associated with no network: nothing changes until you associate it
+  [needs-review] GCP_ORDER: the policy decides every connection of the network it is associated with: it ends in the default of the source. With the network's enforcement order AFTER_CLASSIC_FIREWALL (the default) the VPC firewall rules of the network decide first; set it to BEFORE_CLASSIC_FIREWALL (gcloud compute networks update NETWORK --network-firewall-policy-enforcement-order=BEFORE_CLASSIC_FIREWALL), or remove the VPC firewall rules
+  [info] LANCOM_UF_FORMAT: read 14 desktop connections, 15 desktop objects and 13 services from the answers of the REST API. LANCOM publishes the keys of that API only by the examples of its LMC add-ins (networks, desktop connections, user-defined services); the keys of hosts, IP ranges, groups, Internet objects and of a rule other than those are assumed, and an object, service or rule with a key the parser does not know is not used. The desktop only allows: what no connection allows is blocked
+  [info] VPN_USER_OBJECTS: VPN and user objects are not read: the rules of connections to and from them are not used
+  [info] MASQUERADING_READ: masquerading set on services was read as NAT rules to the address of the outgoing interface. A NAT source address other than that, the NAT of a connection and DMZ (port forwarding) are not read
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have logging enabled
+
+Security rules
+  LAN to Internet - internet.http  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  LAN to Internet - internet.https  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  LAN to Internet - standard.dns  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  LAN to Internet - standard.ping  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  Internet to Webserver - internet.https  ->  needs-review, emitted disabled
+      [needs-review] DMZ_NOT_READ: DMZ / port forwarding is set for the service; its keys are not known and the translation is not read: the rule allows the connections that reach the host by its own address, not those forwarded to it
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of Google Cloud names no zone: give the networks behind eth2 with --zone-network.
+  Admin-PCs to Servers - standard.ssh  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of Google Cloud names no zone: give the networks behind eth2 with --zone-network.
+  Admin-PCs to Servers - remote.rdp  ->  needs-review, emitted disabled
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of Google Cloud names no zone: give the networks behind eth2 with --zone-network.
+  Servers to Admin-PCs - remote.rdp  ->  needs-review, emitted disabled
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a rule of Google Cloud names no zone: give the networks behind eth2 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth1 to eth3)  ->  needs-review, emitted disabled
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth3, and a rule of Google Cloud names no zone: give the networks behind eth3 with --zone-network.
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth3 to eth3)  ->  needs-review, emitted disabled
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth3, and a rule of Google Cloud names no zone: give the networks behind eth3 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth3, and a rule of Google Cloud names no zone: give the networks behind eth3 with --zone-network.
+  HMI to OT-Cell - OPC-UA  ->  needs-review, emitted disabled
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth3, and a rule of Google Cloud names no zone: give the networks behind eth3 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth3, and a rule of Google Cloud names no zone: give the networks behind eth3 with --zone-network.
+  OT-Cell to HMI - OPC-UA  ->  needs-review, emitted disabled
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth3, and a rule of Google Cloud names no zone: give the networks behind eth3 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth3, and a rule of Google Cloud names no zone: give the networks behind eth3 with --zone-network.
+  Monitoring to OT-Cell - standard.ping  ->  needs-review, emitted disabled
+      [info] RULE_ALWAYS_OFF: the rule has no time range (Always Off): read as disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth3, and a rule of Google Cloud names no zone: give the networks behind eth3 with --zone-network.
+  LAN to Mailserver - internet.smtp  ->  needs-review, emitted disabled
+      [needs-review] CONNECTION_NAT_NOT_READ: the rule takes the NAT settings of its connection, whose keys are not known: whether and how the connection translates is not read. Look at the NAT tab of the connection
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of Google Cloud names no zone: give the networks behind eth2 with --zone-network.
+  Branch Sites to LAN - remote.rdp  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'Branch Sites' is a VPN object, which is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+  LAN to Lab-v6 - internet.http  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Lab-v6' cannot be read: attribute 'ipv6', which this parser does not read.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+  DMZ to Internet - GRE-Tunnel  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a rule of Google Cloud names no zone: give the networks behind eth2 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  DMZ to Internet - Legacy-App  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: service 'Legacy-App' cannot be read: an entry with 'sourceport', which this parser does not read.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Legacy-App': an entry with 'sourceport', which this parser does not read.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a rule of Google Cloud names no zone: give the networks behind eth2 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  DMZ to Internet - standard.ssh  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action 'drop', which is not a direction (LANCOM documents no rule that blocks).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a rule of Google Cloud names no zone: give the networks behind eth2 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  Internet to ? - internet.https  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object '0e5f1a2b-0000-4000-8000-000000000999' is not in the input.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  LAN to DMZ - Web  ->  needs-review, emitted disabled
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of Google Cloud names no zone: give the networks behind eth2 with --zone-network.
+  DMZ to LAN - Web  ->  needs-review, emitted disabled
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a rule of Google Cloud names no zone: give the networks behind eth2 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+  DMZ to LAN - vpn.ipsec  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a rule of Google Cloud names no zone: give the networks behind eth2 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth1, and a rule of Google Cloud names no zone: give the networks behind eth1 with --zone-network.
+  Printer to DMZ - internet.http  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Printer' cannot be read: a host that names no interface.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of Google Cloud names no zone: give the networks behind eth2 with --zone-network.
+  LAN to Firewall - traffic to the firewall  ->  skipped
+      [info] FIREWALL_TRAFFIC: the connection is between a desktop object and the firewall itself: traffic to the firewall (its services, its administration) is not forwarded traffic and is not converted
+
+NAT rules
+  LAN to Internet - internet.http (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  LAN to Internet - internet.https (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  LAN to Internet - standard.dns (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  LAN to Internet - standard.ping (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  DMZ to Internet - GRE-Tunnel (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees

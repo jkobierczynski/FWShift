@@ -1,0 +1,226 @@
+FWShift zone matrix
+  source: cato
+  security rules: 32 (1 disabled, 1 never match)
+
+What each zone may reach (rows: from, columns: to)
+                Brussels-HQ       Antwerp-DC        Ghent-Plant       Leuven-Lab        remote-users      internet
+  Brussels-HQ   any~              any~              any~              any~              any~              any~
+  Antwerp-DC    any~              any~              any~              any~              any~              any~
+  Ghent-Plant   -                 any~              any~              any~              any~              any~
+  Leuven-Lab    -                 any~              any~              any~              any~              any~
+  remote-users  any~              any~              any~              any~              any~              any~
+  internet      -                 -                 -                 -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+Brussels-HQ -> Brussels-HQ (inside the zone)
+  allowed: any ~
+  rule 'inside Brussels-HQ range 1': 10.10.0.0/24 -> 10.10.0.0/24: any
+  rule 'inside Brussels-HQ range 2': 10.10.20.0/24 -> 10.10.20.0/24: any
+  rule 'Allow HQ to DC servers (2)': any -> Monitoring: tcp/443, tcp/8443
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Unknown host': any -> host lab-printer: tcp/9100 ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Brussels-HQ -> Antwerp-DC
+  allowed: any ~
+  rule 'Allow HQ to DC servers': any -> fileserver, erp-db: tcp/443, tcp/8443 ~
+  rule 'Allow HQ to DC servers (2)': any -> Monitoring: tcp/443, tcp/8443
+  rule 'Finance to ERP': any -> erp-db: any (only with user groups Finance, which is not in the model) ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Floating range': any -> any: any (only with floating ranges Cloud floating, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Unknown host': any -> host lab-printer: tcp/9100 ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Brussels-HQ -> Ghent-Plant
+  allowed: any ~
+  industrial protocols: modbus (rule 'Modbus to the plant', 'Modbus to the plant (2)')
+  rule 'Allow HQ to DC servers (2)': any -> Monitoring: tcp/443, tcp/8443
+  rule 'Modbus to the plant': any -> Ghent Plant \ LAN: tcp/502
+  rule 'Modbus to the plant (2)': 10.20.0.99, 10.10.20.100-10.10.20.120 -> Ghent Plant \ LAN: tcp/502
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Unknown host': any -> host lab-printer: tcp/9100 ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Brussels-HQ -> Leuven-Lab
+  allowed: any ~
+  rule 'Allow HQ to DC servers (2)': any -> Monitoring: tcp/443, tcp/8443
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Unknown host': any -> host lab-printer: tcp/9100 ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Brussels-HQ -> remote-users
+  allowed: any ~
+  rule 'Allow HQ to DC servers (2)': any -> Monitoring: tcp/443, tcp/8443
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Unknown host': any -> host lab-printer: tcp/9100 ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Brussels-HQ -> internet
+  allowed: any ~
+  cleartext or remote administration: ftp (rule 'Partner FTP')
+  rule 'Block anonymizers': any -> any: any (only with appCategory Anonymizers, which is not in the model) ~
+  rule 'HQ web': any -> any: any (only with domains example.org, which is not in the model) ~
+  rule 'Isolate unknown sites': any -> any: any (only with action RBI: remote browser isolation, customCategory Uncategorized, which is not in the model) ~
+  rule 'Partner FTP': Partner net -> fqdn ftp.example.net: tcp/21 ~
+  rule 'Block remote users to SMB': any -> any: any (only with connection origins REMOTE_CLIENT, which is not in the model) ~
+  rule 'Internet Firewall implicit allow': any -> any: any
+Antwerp-DC -> Brussels-HQ
+  allowed: any ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Antwerp-DC -> Antwerp-DC (inside the zone)
+  allowed: any ~
+  rule 'inside Antwerp-DC range 1': 10.20.0.0/24 -> 10.20.0.0/24: any
+  rule 'inside Antwerp-DC range 2': 10.20.30.0/24 -> 10.20.30.0/24: any
+  rule 'Finance to ERP': any -> erp-db: any (only with user groups Finance, which is not in the model) ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Floating range': any -> any: any (only with floating ranges Cloud floating, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Antwerp-DC -> Ghent-Plant
+  allowed: any ~
+  cleartext or remote administration: rdp (rule 'Maintenance window')
+  industrial protocols: modbus (rule 'Modbus to the plant (2)')
+  rule 'Historian both ways (2)': Antwerp DC \ Routed lab -> historian: tcp/1433, udp/5000-5010
+  rule 'Modbus to the plant (2)': 10.20.0.99, 10.10.20.100-10.10.20.120 -> Ghent Plant \ LAN: tcp/502
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Maintenance window': any -> any: tcp/3389 (schedule SATURDAY,SUNDAY 22:00:00-23:59:00) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Antwerp-DC -> Leuven-Lab
+  allowed: any ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Antwerp-DC -> remote-users
+  allowed: any ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Antwerp-DC -> internet
+  allowed: any ~
+  cleartext or remote administration: ftp (rule 'Partner FTP')
+  rule 'Block anonymizers': any -> any: any (only with appCategory Anonymizers, which is not in the model) ~
+  rule 'Isolate unknown sites': any -> any: any (only with action RBI: remote browser isolation, customCategory Uncategorized, which is not in the model) ~
+  rule 'Partner FTP': Partner net -> fqdn ftp.example.net: tcp/21 ~
+  rule 'Block remote users to SMB': any -> any: any (only with connection origins REMOTE_CLIENT, which is not in the model) ~
+  rule 'Internet Firewall implicit allow': any -> any: any
+Ghent-Plant -> Antwerp-DC
+  allowed: any ~
+  rule 'Historian both ways': historian -> Antwerp DC \ Routed lab: tcp/1433, udp/5000-5010
+  rule 'Finance to ERP': any -> erp-db: any (only with user groups Finance, which is not in the model) ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Floating range': any -> any: any (only with floating ranges Cloud floating, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Ghent-Plant -> Ghent-Plant (inside the zone)
+  allowed: any ~
+  industrial protocols: modbus (rule 'Modbus to the plant (2)')
+  rule 'inside Ghent-Plant range 1': 10.30.0.0/24 -> 10.30.0.0/24: any
+  rule 'Modbus to the plant (2)': 10.20.0.99, 10.10.20.100-10.10.20.120 -> Ghent Plant \ LAN: tcp/502
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Ghent-Plant -> Leuven-Lab
+  allowed: any ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Ghent-Plant -> remote-users
+  allowed: any ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Ghent-Plant -> internet
+  allowed: any ~
+  cleartext or remote administration: ftp (rule 'Partner FTP')
+  rule 'Block anonymizers': any -> any: any (only with appCategory Anonymizers, which is not in the model) ~
+  rule 'Isolate unknown sites': any -> any: any (only with action RBI: remote browser isolation, customCategory Uncategorized, which is not in the model) ~
+  rule 'Partner FTP': Partner net -> fqdn ftp.example.net: tcp/21 ~
+  rule 'Block remote users to SMB': any -> any: any (only with connection origins REMOTE_CLIENT, which is not in the model) ~
+  rule 'Internet Firewall implicit allow': any -> any: any
+Leuven-Lab -> Antwerp-DC
+  allowed: any ~
+  rule 'Finance to ERP': any -> erp-db: any (only with user groups Finance, which is not in the model) ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Floating range': any -> any: any (only with floating ranges Cloud floating, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Leuven-Lab -> Ghent-Plant
+  allowed: any ~
+  industrial protocols: modbus (rule 'Modbus to the plant (2)')
+  rule 'Modbus to the plant (2)': 10.20.0.99, 10.10.20.100-10.10.20.120 -> Ghent Plant \ LAN: tcp/502
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Leuven-Lab -> Leuven-Lab (inside the zone)
+  allowed: any ~
+  rule 'inside Leuven-Lab range 1': 10.40.0.0/24 -> 10.40.0.0/24: any
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Leuven-Lab -> remote-users
+  allowed: any ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+Leuven-Lab -> internet
+  allowed: any ~
+  cleartext or remote administration: ftp (rule 'Partner FTP')
+  rule 'Block anonymizers': any -> any: any (only with appCategory Anonymizers, which is not in the model) ~
+  rule 'Isolate unknown sites': any -> any: any (only with action RBI: remote browser isolation, customCategory Uncategorized, which is not in the model) ~
+  rule 'Partner FTP': Partner net -> fqdn ftp.example.net: tcp/21 ~
+  rule 'Block remote users to SMB': any -> any: any (only with connection origins REMOTE_CLIENT, which is not in the model) ~
+  rule 'Internet Firewall implicit allow': any -> any: any
+remote-users -> Brussels-HQ
+  allowed: any ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+remote-users -> Antwerp-DC
+  allowed: any ~
+  rule 'Remote users to DC': any -> not erp-db: icmp, tcp/53, udp/53
+  rule 'Finance to ERP': any -> erp-db: any (only with user groups Finance, which is not in the model) ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Floating range': any -> any: any (only with floating ranges Cloud floating, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+remote-users -> Ghent-Plant
+  allowed: any ~
+  industrial protocols: modbus (rule 'Modbus to the plant (2)')
+  rule 'Modbus to the plant (2)': 10.20.0.99, 10.10.20.100-10.10.20.120 -> Ghent Plant \ LAN: tcp/502
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+remote-users -> Leuven-Lab
+  allowed: any ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+remote-users -> remote-users (inside the zone)
+  allowed: any ~
+  rule 'Prompt for SSH': any -> 10.20.0.0/24: any (only with action PROMPT: the user is asked on a web page, which is not in the model) ~
+  rule 'Teams between sites': any -> any: any (only with an application column (applications, categories, domains or addresses as applications), which is not in the model) ~
+  rule 'Block guest except DNS': 10.10.20.0/24 -> any: any (only with exception dns from one host: source, service (only an exception of one column of addresses or services is cut out), which is not in the model) ~
+remote-users -> internet
+  allowed: any ~
+  cleartext or remote administration: ftp (rule 'Partner FTP')
+  rule 'Block anonymizers': any -> any: any (only with appCategory Anonymizers, which is not in the model) ~
+  rule 'Isolate unknown sites': any -> any: any (only with action RBI: remote browser isolation, customCategory Uncategorized, which is not in the model) ~
+  rule 'Partner FTP': Partner net -> fqdn ftp.example.net: tcp/21 ~
+  rule 'Block remote users to SMB': any -> any: any (only with connection origins REMOTE_CLIENT, which is not in the model) ~
+  rule 'Internet Firewall implicit allow': any -> any: any
+
+From reading the configuration
+  CATO_SOURCE: 4 sites as zones (Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab), remote-users and internet; the WAN Firewall (first match, implicit block) decides between sites and remote users, the Internet Firewall (first match, implicit allow, written as a last rule) from them to the internet; traffic inside one network range does not reach Cato and is allowed
+  CATO_INTERNET_TOP: a hidden rule of Cato above the Internet Firewall blocks connections Cato deems illegal or malicious; it is not in the answer and not converted
+  CATO_INBOUND: traffic from the internet to the sites is decided by Remote Port Forwarding, which is not read: in the model nothing from the internet is allowed
+  CATO_REMOVED: rules marked removed in the revision read: left out: Retired rule
+
+Notes
+  1 rule(s) never match and are left out; 'fwshift audit' names them.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

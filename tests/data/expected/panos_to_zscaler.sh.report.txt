@@ -1,0 +1,69 @@
+FWShift conversion report
+  source: panos (vsys1)
+  target: zscaler
+
+Summary
+  Security rules:     14   exact 1, approximated 6, needs review 6 (6 emitted disabled), skipped 1
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:            5   exact 5, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZSCALER_BLOCK_RULE: the source blocks what no rule matches. Rule fws-block the rest that does so follows the converted rules, disabled: until it is enabled, the rules of the tenant below it and its default rule decide that traffic
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_INSIDE: no --inside-zone: every zone was taken as a location of ZIA, and every rule as one to the internet; ZIA does not filter traffic between locations or from the internet. Name the zones inside with --inside-zone
+  [needs-review] ZSCALER_LOST: ZIA filters traffic from locations to the internet only: 1 rules for traffic from the internet and 1 for traffic between or inside zones inside are not written, or only in part. That traffic needs a firewall of its own at the sites
+  [needs-review] ZSCALER_LOCATIONS_REQUIRED: rules name these locations, which must exist on the tenant under these names: dmz, ot, trust, untrust
+
+Security rules
+  Allow-Web-Out  ->  approximated  (emitted as fws-Allow-Web-Out)
+      [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Allow-DNS  ->  approximated  (emitted as fws-Allow-DNS)
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Inbound-Web  ->  approximated  (emitted as fws-Inbound-Web)
+      [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
+  Inbound-Mail  ->  approximated  (emitted as fws-Inbound-Mail)
+      [approximated] APP_TO_PORTS: applications smtp reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Admin-SSH  ->  needs-review, emitted disabled  (emitted as fws-Admin-SSH)
+      [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] USER_MATCH: source user match example\netadmins is not converted.
+  Engineering to PLCs  ->  approximated  (emitted as fws-Engineering to PLCs)
+      [approximated] APP_TO_PORTS: applications modbus, siemens-s7 reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Block-Torrents  ->  needs-review, emitted disabled  (emitted as fws-Block-Torrents)
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Region  ->  needs-review, emitted disabled  (emitted as fws-Block-Region)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'KP': not defined in the input. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  App-Server-Ports  ->  approximated  (emitted as fws-App-Server-Ports)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  Tagged-Servers-Updates  ->  needs-review, emitted disabled  (emitted as fws-Tagged-Servers-Updates)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tagged-servers': dynamic address group, members are not known statically.
+  Not-From-Guests  ->  needs-review, emitted disabled  (emitted as fws-Not-From-Guests)
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not source 10.10.200.0/24' is written as the addresses that are left
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] APP_TO_PORTS: applications ping reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type: a network service of ZIA holds TCP and UDP ports, and the predefined ICMP_ANY, GRE_PROTOCOL and ESP_PROTOCOL.
+  DMZ-Intrazone  ->  skipped
+      [needs-review] ZSCALER_INTERNAL: a rule for traffic inside a zone, which does not pass ZIA
+  Old-Rule  ->  needs-review, emitted disabled  (emitted as fws-Old-Rule)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'odd-hosts': wildcard mask 10.20.1.2/0.0.254.0.
+
+NAT rules
+  No-NAT-Partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  Inbound-Web-DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  Mail-Static  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  DMZ-Out-Pool  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  Outbound-PAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+
+Addresses
+  odd-hosts  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
+  KP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'Block-Region' but not an address object in the input (a region, an external list or a missing object); emitted as a placeholder that matches nothing

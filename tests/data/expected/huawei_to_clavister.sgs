@@ -1,0 +1,116 @@
+add Address IP4Address fws_203.0.113.3 Address=203.0.113.3
+add Service ServiceTCPUDP fws_http Type=TCP DestinationPorts=80
+add Service ServiceTCPUDP fws_https Type=TCP DestinationPorts=443
+add Address IP4Address fws_10.20.0.25 Address=10.20.0.25
+add Address IP4Address fws_192.0.2.0_24 Address=192.0.2.0/24
+add Address IP4Address fws_10.30.0.0_24 Address=10.30.0.0/24
+add Address IP4Address fws_198.51.100.0_24 Address=198.51.100.0/24
+add Address IP4Address fws_10.20.0.10_31 Address=10.20.0.10/31
+add Address IP4Address fws_203.0.113.6 Address=203.0.113.6
+add Service ServiceTCPUDP fws_smtp Type=TCP DestinationPorts=25
+add Address IP4Address fws_10.10.0.0-10.10.0.199 Address=10.10.0.0-10.10.0.199
+add Address IP4Address fws_10.10.0.221-10.10.0.255 Address=10.10.0.221-10.10.0.255
+add Address IP6Address fws_2001_db8_10___64 Address=2001:db8:10::/64
+add Service ServiceTCPUDP fws_dns Type=TCPUDP DestinationPorts=53
+add Service ServiceTCPUDP fws_ntp Type=UDP DestinationPorts=123
+add Address IP4Address fws_10.10.0.0_24 Address=10.10.0.0/24
+add Service ServiceTCPUDP fws_web-alt Type=TCP DestinationPorts=8080,8443
+add Address IP4Address fws_10.10.0.50_31 Address=10.10.0.50/31
+add Service ServiceTCPUDP fws_ssh Type=TCP DestinationPorts=22
+add Address IP4Address fws_10.10.0.60 Address=10.10.0.60
+add Service ServiceTCPUDP fws_syslog Type=UDP DestinationPorts=514
+add Service ServiceTCPUDP fws_lab-all_1 Type=TCP DestinationPorts=8080,8443
+add Service ServiceTCPUDP fws_lab-all_2 Type=UDP DestinationPorts=6000 SourcePorts=1024-65535
+add Service ServiceTCPUDP fws_lab-all_3 Type=TCP DestinationPorts=5000-5010
+add Service ServiceICMP fws_lab-all_4 MessageTypes=Specific EchoRequest=Yes EchoRequestCodes=0
+add Service ServiceTCPUDP fws_tcp-destination-port-443 Type=TCP DestinationPorts=443
+add Service ServiceTCPUDP fws_udp-destination-port-53 Type=UDP DestinationPorts=53
+add Service ServiceICMP fws_icmp MessageTypes=All
+add Service ServiceTCPUDP fws_ftp Type=TCP DestinationPorts=21
+add Address IP4Address fws_10.20.0.10 Address=10.20.0.10
+add Address IP4Address fws_nothing Address=0.0.0.0
+add InterfaceGroup fws_zones Members=GigabitEthernet1_0_1,GigabitEthernet1_0_0,GigabitEthernet1_0_2,GigabitEthernet1_0_3
+add Address IP4Group fws_blocked-nets Members=fws_198.51.100.0_24
+add Address IP4Group fws_web-servers Members=fws_10.20.0.10_31
+add Address IP4Group fws_web-in_dst Members=fws_web-servers,fws_203.0.113.3
+add Service ServiceGroup fws_web-in_svc Members=fws_http,fws_https
+add Address IP4Group fws_mail-server Members=fws_10.20.0.25
+add Address IP4Group fws_mail-in_dst Members=fws_mail-server,fws_203.0.113.6
+add Address IP4Group fws_office-out_src Members=fws_10.10.0.0-10.10.0.199,fws_10.10.0.221-10.10.0.255
+add Service ServiceGroup fws_office-out_svc Members=fws_http,fws_https,fws_dns,fws_ntp
+add Address IP4Group fws_office-lan Members=fws_10.10.0.0_24
+add Address IP6Group fws_office-lan_v6 Members=fws_2001_db8_10___64
+add Address IP4Group fws_dmz-servers Members=fws_10.20.0.10_31,fws_10.20.0.25
+add Address IP4Group fws_office-dmz_dst Members=fws_dmz-servers,fws_203.0.113.6
+add Service ServiceGroup fws_office-dmz_svc Members=fws_http,fws_https,fws_smtp,fws_web-alt
+add Address IP4Group fws_admin-hosts Members=fws_10.10.0.50_31
+add Address IP4Group fws_lab-net Members=fws_10.30.0.0_24
+add Service ServiceGroup fws_lab-all_grp Members=fws_lab-all_1,fws_lab-all_2,fws_lab-all_3,fws_lab-all_4
+add Service ServiceGroup fws_lab-out_svc Members=fws_tcp-destination-port-443,fws_udp-destination-port-53
+add InterfaceGroup fws_if_GigabitEthernet1_0_2_GigabitEthernet1_0_ Members=GigabitEthernet1_0_2,GigabitEthernet1_0_3
+add IPRuleSet fws_rules Comments="Written by FWShift"
+add IPRuleSet fws_snat Comments="Written by FWShift"
+add IPRuleSet fws_d_nat-server-web Comments="Written by FWShift"
+add IPRuleSet fws_d_nat-server-web-tls Comments="Written by FWShift"
+cc IPRuleSet fws_snat
+add IPRule Index=1 Name=fws_nat-server-mail_sat Action=SAT SourceInterface=fws_zones SourceNetwork=fws_10.20.0.25 DestinationInterface=any DestinationNetwork=all-nets Service=all_services SATTranslate=SourceIP SATTranslateToIP=fws_203.0.113.6 LogEnabled=No
+add IPRule Index=2 Name=fws_nat-server-mail Action=Allow SourceInterface=fws_zones SourceNetwork=fws_10.20.0.25 DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="nat server mail 2 global 203.0.113.6 inside 10.20.0.25"
+add IPRule Index=3 Name=fws_no-nat-vpn Action=Allow SourceInterface=GigabitEthernet1_0_1 SourceNetwork=all-nets DestinationInterface=GigabitEthernet1_0_0 DestinationNetwork=fws_192.0.2.0_24 Service=all_services LogEnabled=No
+add IPRule Index=4 Name=fws_lab-easy-ip Action=NAT SourceInterface=GigabitEthernet1_0_3 SourceNetwork=fws_10.30.0.0_24 DestinationInterface=GigabitEthernet1_0_0 DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=5 Name=fws_snat_allow Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=6 Name=fws_snat_allow_v6 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_nat-server-web
+add IPRule Index=1 Name=fws_nat-server-web_block-bad-nets Action=Drop SourceInterface=GigabitEthernet1_0_0 SourceNetwork=fws_blocked-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=2 Name=fws_nat-server-web_web-in Action=Allow SourceInterface=GigabitEthernet1_0_0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_web-in_dst Service=fws_web-in_svc LogEnabled=No Comments="published web servers"
+add IPRule Index=3 Name=fws_nat-server-web_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_nat-server-web-tls
+add IPRule Index=1 Name=fws_nat-server-web-tls_block-bad-nets Action=Drop SourceInterface=GigabitEthernet1_0_0 SourceNetwork=fws_blocked-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=2 Name=fws_nat-server-web-tls_web-in Action=Allow SourceInterface=GigabitEthernet1_0_0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_web-in_dst Service=fws_web-in_svc LogEnabled=No Comments="published web servers"
+add IPRule Index=3 Name=fws_nat-server-web-tls_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_nat-server-web_sat Action=SAT SourceInterface=GigabitEthernet1_0_0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.3 Service=fws_http SATTranslate=DestinationIP SATTranslateToIP=fws_10.20.0.10 SATTranslateToPort=80 LogEnabled=No Comments="nat server web 0 zone untrust protocol tcp global 203.0.113.3 www inside 10.20.0.10 www no-reverse unr-route"
+add IPRule Index=2 Name=fws_nat-server-web-tls_sat Action=SAT SourceInterface=GigabitEthernet1_0_0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.3 Service=fws_https SATTranslate=DestinationIP SATTranslateToIP=fws_10.20.0.10 SATTranslateToPort=443 LogEnabled=No Comments="nat server web-tls 1 zone untrust protocol tcp global 203.0.113.3 443 inside 10.20.0.10 443 no-reverse"
+add GotoRule Index=3 Name=fws_nat-server-web_goto SourceInterface=GigabitEthernet1_0_0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.3 Service=fws_http RuleSet=fws_d_nat-server-web LogEnabled=No
+add GotoRule Index=4 Name=fws_nat-server-web-tls_goto SourceInterface=GigabitEthernet1_0_0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.3 Service=fws_https RuleSet=fws_d_nat-server-web-tls LogEnabled=No
+add IPRule Index=5 Name=fws_block-bad-nets Action=Drop SourceInterface=GigabitEthernet1_0_0 SourceNetwork=fws_blocked-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add GotoRule Index=6 Name=fws_web-in SourceInterface=GigabitEthernet1_0_0 SourceNetwork=all-nets DestinationInterface=GigabitEthernet1_0_2 DestinationNetwork=fws_web-in_dst Service=fws_web-in_svc RuleSet=fws_snat LogEnabled=No Comments="published web servers"
+add GotoRule Index=7 Name=fws_mail-in SourceInterface=GigabitEthernet1_0_0 SourceNetwork=all-nets DestinationInterface=GigabitEthernet1_0_2 DestinationNetwork=fws_mail-in_dst Service=fws_smtp RuleSet=fws_snat LogEnabled=Yes
+add GotoRule Index=8 Name=fws_office-out SourceInterface=GigabitEthernet1_0_1 SourceNetwork=fws_office-out_src DestinationInterface=GigabitEthernet1_0_0 DestinationNetwork=all-nets Service=fws_office-out_svc RuleSet=fws_snat LogEnabled=No
+add IPRule Index=9 Name=fws_office-out_v6 Action=Allow SourceInterface=GigabitEthernet1_0_1 SourceNetwork=fws_2001_db8_10___64 DestinationInterface=GigabitEthernet1_0_0 DestinationNetwork=all-nets6 Service=fws_office-out_svc LogEnabled=No
+add IPRule Index=10 Name=fws_office-dmz Action=Allow SourceInterface=GigabitEthernet1_0_1 SourceNetwork=fws_office-lan DestinationInterface=GigabitEthernet1_0_2 DestinationNetwork=fws_office-dmz_dst Service=fws_office-dmz_svc LogEnabled=No
+add IPRule Index=11 Name=fws_admin-ssh Action=Allow SourceInterface=GigabitEthernet1_0_1 SourceNetwork=fws_admin-hosts DestinationInterface=fws_if_GigabitEthernet1_0_2_GigabitEthernet1_0_ DestinationNetwork=all-nets Service=fws_ssh LogEnabled=No
+add GotoRule Index=12 Name=fws_dmz-syslog SourceInterface=GigabitEthernet1_0_2 SourceNetwork=all-nets DestinationInterface=GigabitEthernet1_0_1 DestinationNetwork=fws_10.10.0.60 Service=fws_syslog RuleSet=fws_snat LogEnabled=No
+add IPRule Index=13 Name=fws_lab-tools Action=Allow SourceInterface=GigabitEthernet1_0_1 SourceNetwork=fws_10.10.0.0_24 DestinationInterface=GigabitEthernet1_0_3 DestinationNetwork=fws_lab-net Service=fws_lab-all_grp LogEnabled=No
+set IPRule 13 -disable
+add GotoRule Index=14 Name=fws_lab-out SourceInterface=GigabitEthernet1_0_3 SourceNetwork=fws_lab-net DestinationInterface=GigabitEthernet1_0_0 DestinationNetwork=all-nets Service=fws_lab-out_svc RuleSet=fws_snat LogEnabled=No
+add GotoRule Index=15 Name=fws_ping-dmz SourceInterface=GigabitEthernet1_0_1 SourceNetwork=all-nets DestinationInterface=GigabitEthernet1_0_2 DestinationNetwork=all-nets Service=fws_icmp RuleSet=fws_snat LogEnabled=No
+add IPRule Index=16 Name=fws_ping-dmz_v6 Action=Allow SourceInterface=GigabitEthernet1_0_1 SourceNetwork=all-nets6 DestinationInterface=GigabitEthernet1_0_2 DestinationNetwork=all-nets6 Service=fws_icmp LogEnabled=No
+add IPRule Index=17 Name=fws_ipv6-out Action=Allow SourceInterface=GigabitEthernet1_0_1 SourceNetwork=fws_2001_db8_10___64 DestinationInterface=GigabitEthernet1_0_0 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add IPRule Index=18 Name=fws_video Action=Drop SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 18 -disable
+add IPRule Index=19 Name=fws_old-ftp Action=Allow SourceInterface=GigabitEthernet1_0_1 SourceNetwork=all-nets DestinationInterface=GigabitEthernet1_0_2 DestinationNetwork=all-nets Service=fws_ftp LogEnabled=No
+set IPRule 19 -disable
+add IPRule Index=20 Name=fws_old-ftp_v6 Action=Allow SourceInterface=GigabitEthernet1_0_1 SourceNetwork=all-nets6 DestinationInterface=GigabitEthernet1_0_2 DestinationNetwork=all-nets6 Service=fws_ftp LogEnabled=No
+set IPRule 20 -disable
+add IPRule Index=21 Name=fws_lab-deny Action=Drop SourceInterface=GigabitEthernet1_0_3 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=22 Name=fws_lab-deny_v6 Action=Drop SourceInterface=GigabitEthernet1_0_3 SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add GotoRule Index=23 Name=fws_intrazone_default SourceInterface=GigabitEthernet1_0_1 SourceNetwork=all-nets DestinationInterface=GigabitEthernet1_0_1 DestinationNetwork=all-nets Service=all_services RuleSet=fws_snat LogEnabled=No Comments="traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)"
+add IPRule Index=24 Name=fws_intrazone_default_v6 Action=Allow SourceInterface=GigabitEthernet1_0_1 SourceNetwork=all-nets6 DestinationInterface=GigabitEthernet1_0_1 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)"
+add GotoRule Index=25 Name=fws_intrazone_default_2 SourceInterface=GigabitEthernet1_0_0 SourceNetwork=all-nets DestinationInterface=GigabitEthernet1_0_0 DestinationNetwork=all-nets Service=all_services RuleSet=fws_snat LogEnabled=No Comments="traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)"
+add IPRule Index=26 Name=fws_intrazone_default_v6_2 Action=Allow SourceInterface=GigabitEthernet1_0_0 SourceNetwork=all-nets6 DestinationInterface=GigabitEthernet1_0_0 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)"
+add GotoRule Index=27 Name=fws_intrazone_default_3 SourceInterface=GigabitEthernet1_0_2 SourceNetwork=all-nets DestinationInterface=GigabitEthernet1_0_2 DestinationNetwork=all-nets Service=all_services RuleSet=fws_snat LogEnabled=No Comments="traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)"
+add IPRule Index=28 Name=fws_intrazone_default_v6_3 Action=Allow SourceInterface=GigabitEthernet1_0_2 SourceNetwork=all-nets6 DestinationInterface=GigabitEthernet1_0_2 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)"
+add GotoRule Index=29 Name=fws_intrazone_default_4 SourceInterface=GigabitEthernet1_0_3 SourceNetwork=all-nets DestinationInterface=GigabitEthernet1_0_3 DestinationNetwork=all-nets Service=all_services RuleSet=fws_snat LogEnabled=No Comments="traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)"
+add IPRule Index=30 Name=fws_intrazone_default_v6_4 Action=Allow SourceInterface=GigabitEthernet1_0_3 SourceNetwork=all-nets6 DestinationInterface=GigabitEthernet1_0_3 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)"
+add IPRule Index=31 Name=fws_default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=32 Name=fws_default_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=33 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=34 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

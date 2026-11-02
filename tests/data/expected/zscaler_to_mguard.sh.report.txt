@@ -1,0 +1,75 @@
+FWShift conversion report
+  source: zscaler
+  target: mguard
+
+Summary
+  Security rules:     17   exact 0, approximated 0, needs review 0, skipped 17
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZSCALER_OUTBOUND_ONLY: ZIA filters traffic to the internet only: traffic between locations, inside one and from the internet does not pass it, and the model blocks it (no rule allows it). A target that sees such traffic needs rules for it
+  [needs-review] ZSCALER_FIREWALL_OFF: locations whose firewall is off (ofwEnabled false): the rules do not decide their traffic on ZIA, the model applies them anyway: Guest-WiFi
+  [needs-review] ZSCALER_RANK: admin ranks out of the rule order: read in the rule order: Ranked web (rank 3 below rank 7)
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): internet=external
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] ZSCALER_SOURCE: 4 locations (HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi), road-warrior (Client Connector outside a location) and internet; the rules decide traffic from the locations to the internet, first match in ascending order, and the default rule decides the rest
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  Allow DNS to resolvers  ->  skipped
+      [needs-review] ZSCALER_SUBLOCATION: location HQ-Brussels has sub-locations (HQ-Servers): read as the location without them, which may be narrower than ZIA
+      [needs-review] MGUARD_ZONE_UNKNOWN: HQ-Brussels: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Block SSH out  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Block malicious IPs and domains  ->  skipped
+      [needs-review] ZSCALER_CATEGORY: destination IP categories BOTNET, MALWARE_SITE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination IP categories BOTNET, MALWARE_SITE. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Office 365 One Click Rule  ->  skipped
+      [needs-review] ZSCALER_APPLICATION: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE: narrows the match and is not modelled
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  Partner app  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: HQ-Servers: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Branch web  ->  skipped
+      [needs-review] SCHEDULE: schedule 'Work hours' is not converted; the rule would apply at all times.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Branch-Ghent: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Engineers to SaaS  ->  skipped
+      [needs-review] ZSCALER_FQDN: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold
+      [needs-review] ZSCALER_IDENTITY: groups Engineering: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups Engineering.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'SaaS-Domains': a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] MGUARD_ZONE_UNKNOWN: HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'SaaS-Domains' holds members only its platform knows, or an address the profile does not hold.
+  No embargoed countries  ->  skipped
+      [needs-review] ZSCALER_COUNTRY: destination countries COUNTRY_KP: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination countries COUNTRY_KP. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Printers syslog  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Infra out  ->  skipped
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  Block GRE and ESP  ->  skipped
+      [info] ZSCALER_BLOCK_ICMP: BLOCK_ICMP drops and answers with an ICMP unreachable: read as deny
+      [needs-review] MGUARD_ZONE_UNKNOWN: HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Evaluate apps  ->  skipped
+      [needs-review] ZSCALER_EVAL_NWAPP: action EVAL_NWAPP hands the decision to the network application of the traffic: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action EVAL_NWAPP: the decision waits for the network application, which is not modelled. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Ranked web  ->  skipped
+      [needs-review] ZSCALER_FQDN: destination files.example.org: ZIA matches a domain by the names it sees in the traffic; not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination FQDN files.example.org.
+      [needs-review] MGUARD_ZONE_UNKNOWN: HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Ghent and corporate  ->  skipped
+      [needs-review] ZSCALER_LOCATION_GROUP: the rule names locations and location groups: whether ZIA takes either or both is not documented
+      [needs-review] UNSUPPORTED_MATCH: not converted: both locations and location groups: how ZIA combines them is not known.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Branch-Ghent, HQ-Brussels: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Web for all  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Guest ICMP  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Guest-WiFi: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Default Firewall Filtering Rule  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.

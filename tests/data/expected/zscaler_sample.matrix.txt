@@ -1,0 +1,77 @@
+FWShift zone matrix
+  source: zscaler
+  security rules: 17 (2 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+                HQ-Brussels       Branch-Ghent      HQ-Servers        Guest-WiFi        road-warrior      internet
+  HQ-Brussels   -                 -                 -                 -                 -                 any except tcp…~
+  Branch-Ghent  -                 -                 -                 -                 -                 any except tcp…~
+  HQ-Servers    -                 -                 -                 -                 -                 any except tcp…~
+  Guest-WiFi    -                 -                 -                 -                 -                 any except tcp…~
+  road-warrior  -                 -                 -                 -                 -                 any except tcp…~
+  internet      -                 -                 -                 -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+HQ-Brussels -> internet
+  allowed: any except tcp/22 ~
+  rule 'Allow DNS to resolvers': Engineering-Nets -> 198.51.100.53: tcp/53, udp/53 ~
+  rule 'Block malicious IPs and domains': any -> any: any except tcp/22 (only with destination IP categories BOTNET, MALWARE_SITE, which is not in the model) ~
+  rule 'Engineers to SaaS': any -> SaaS-Domains: any except tcp/22 (only with destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold, groups Engineering, which is not in the model) ~
+  rule 'No embargoed countries': any -> any: any except tcp/22 (only with destination countries COUNTRY_KP, which is not in the model) ~
+  rule 'Printers syslog': Printers -> 192.0.2.10-192.0.2.20: udp/514 from port 1024-65535
+  rule 'Evaluate apps': any -> any: any except tcp/22, ip/47 (gre), ip/50 (esp) (only with action EVAL_NWAPP: the decision waits for the network application, which is not modelled, which is not in the model) ~
+  rule 'Ranked web': any -> 203.0.113.0/24: any except tcp/22, ip/47 (gre), ip/50 (esp) (only with destination FQDN files.example.org, which is not in the model) ~
+  rule 'Ghent and corporate': any -> any: any except tcp/22, ip/47 (gre), ip/50 (esp) (only with both locations and location groups: how ZIA combines them is not known, which is not in the model) ~
+  rule 'Web for all': 10.10.0.0/16, 10.30.0.1-10.30.0.99 -> any: tcp/80, tcp/443
+Branch-Ghent -> internet
+  allowed: any except tcp/22 ~
+  rule 'Block malicious IPs and domains': any -> any: any except tcp/22 (only with destination IP categories BOTNET, MALWARE_SITE, which is not in the model) ~
+  rule 'Branch web': any -> any: tcp/80, tcp/443 (schedule Work hours)
+  rule 'Engineers to SaaS': any -> SaaS-Domains: any except tcp/22 (only with destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold, groups Engineering, which is not in the model) ~
+  rule 'No embargoed countries': any -> any: any except tcp/22 (only with destination countries COUNTRY_KP, which is not in the model) ~
+  rule 'Printers syslog': Printers -> 192.0.2.10-192.0.2.20: udp/514 from port 1024-65535
+  rule 'Evaluate apps': any -> any: any except tcp/22, ip/47 (gre), ip/50 (esp) (only with action EVAL_NWAPP: the decision waits for the network application, which is not modelled, which is not in the model) ~
+  rule 'Ranked web': any -> 203.0.113.0/24: any except tcp/22, ip/47 (gre), ip/50 (esp) (only with destination FQDN files.example.org, which is not in the model) ~
+  rule 'Ghent and corporate': any -> any: any except tcp/22, ip/47 (gre), ip/50 (esp) (only with both locations and location groups: how ZIA combines them is not known, which is not in the model) ~
+  rule 'Web for all': 10.10.0.0/16, 10.30.0.1-10.30.0.99 -> any: tcp/80, tcp/443
+HQ-Servers -> internet
+  allowed: any except tcp/22 ~
+  rule 'Block malicious IPs and domains': any -> any: any except tcp/22 (only with destination IP categories BOTNET, MALWARE_SITE, which is not in the model) ~
+  rule 'Partner app': 10.10.20.0/24, Eng-v6 -> Partner-Servers, Partner-v6: tcp/8000-8010, tcp/8443
+  rule 'Engineers to SaaS': any -> SaaS-Domains: any except tcp/22 (only with destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold, groups Engineering, which is not in the model) ~
+  rule 'No embargoed countries': any -> any: any except tcp/22 (only with destination countries COUNTRY_KP, which is not in the model) ~
+  rule 'Printers syslog': Printers -> 192.0.2.10-192.0.2.20: udp/514 from port 1024-65535
+  rule 'Evaluate apps': any -> any: any except tcp/22, ip/47 (gre), ip/50 (esp) (only with action EVAL_NWAPP: the decision waits for the network application, which is not modelled, which is not in the model) ~
+  rule 'Ranked web': any -> 203.0.113.0/24: any except tcp/22, ip/47 (gre), ip/50 (esp) (only with destination FQDN files.example.org, which is not in the model) ~
+  rule 'Web for all': 10.10.0.0/16, 10.30.0.1-10.30.0.99 -> any: tcp/80, tcp/443
+Guest-WiFi -> internet
+  allowed: any except tcp/22 ~
+  rule 'Block malicious IPs and domains': any -> any: any except tcp/22 (only with destination IP categories BOTNET, MALWARE_SITE, which is not in the model) ~
+  rule 'Engineers to SaaS': any -> SaaS-Domains: any except tcp/22 (only with destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold, groups Engineering, which is not in the model) ~
+  rule 'No embargoed countries': any -> any: any except tcp/22 (only with destination countries COUNTRY_KP, which is not in the model) ~
+  rule 'Printers syslog': Printers -> 192.0.2.10-192.0.2.20: udp/514 from port 1024-65535
+  rule 'Evaluate apps': any -> any: any except tcp/22, ip/47 (gre), ip/50 (esp) (only with action EVAL_NWAPP: the decision waits for the network application, which is not modelled, which is not in the model) ~
+  rule 'Ranked web': any -> 203.0.113.0/24: any except tcp/22, ip/47 (gre), ip/50 (esp) (only with destination FQDN files.example.org, which is not in the model) ~
+  rule 'Web for all': 10.10.0.0/16, 10.30.0.1-10.30.0.99 -> any: tcp/80, tcp/443
+  rule 'Guest ICMP': any -> any: icmp
+road-warrior -> internet
+  allowed: any except tcp/22 ~
+  rule 'Block malicious IPs and domains': any -> any: any except tcp/22 (only with destination IP categories BOTNET, MALWARE_SITE, which is not in the model) ~
+  rule 'Engineers to SaaS': any -> SaaS-Domains: any except tcp/22 (only with destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold, groups Engineering, which is not in the model) ~
+  rule 'No embargoed countries': any -> any: any except tcp/22 (only with destination countries COUNTRY_KP, which is not in the model) ~
+  rule 'Printers syslog': Printers -> 192.0.2.10-192.0.2.20: udp/514 from port 1024-65535
+  rule 'Evaluate apps': any -> any: any except tcp/22, ip/47 (gre), ip/50 (esp) (only with action EVAL_NWAPP: the decision waits for the network application, which is not modelled, which is not in the model) ~
+  rule 'Ranked web': any -> 203.0.113.0/24: any except tcp/22, ip/47 (gre), ip/50 (esp) (only with destination FQDN files.example.org, which is not in the model) ~
+  rule 'Web for all': 10.10.0.0/16, 10.30.0.1-10.30.0.99 -> any: tcp/80, tcp/443
+
+From reading the configuration
+  ZSCALER_SOURCE: 4 locations (HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi), road-warrior (Client Connector outside a location) and internet; the rules decide traffic from the locations to the internet, first match in ascending order, and the default rule decides the rest
+  ZSCALER_OUTBOUND_ONLY: ZIA filters traffic to the internet only: traffic between locations, inside one and from the internet does not pass it, and the model blocks it (no rule allows it). A target that sees such traffic needs rules for it
+  ZSCALER_FIREWALL_OFF: locations whose firewall is off (ofwEnabled false): the rules do not decide their traffic on ZIA, the model applies them anyway: Guest-WiFi
+  ZSCALER_RANK: admin ranks out of the rule order: read in the rule order: Ranked web (rank 3 below rank 7)
+
+Notes
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

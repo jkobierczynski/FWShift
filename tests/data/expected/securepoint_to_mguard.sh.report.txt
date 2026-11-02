@@ -1,0 +1,82 @@
+FWShift conversion report
+  source: securepoint
+  target: mguard
+
+Summary
+  Security rules:     19   exact 7, approximated 1, needs review 2, skipped 9
+  NAT rules:           6   exact 2, approximated 0, needs review 0, skipped 4
+  Addresses:          15   exact 15, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_IMPLIED: commands that change the implicit rules are not converted: group set implied_group "12" active "1"
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): dmz1=dmz
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] SECUREPOINT_SOURCE: 18 rules of the packet filter in 3 rule groups, first match in the order of the groups; zones from the network objects; what no rule matches is dropped (Default Drop)
+  [info] SECUREPOINT_IMPLIED_RULES: the UTM's implicit rules (Firewall > Implied rules: its own services, VPN, the threat intelligence filter) come before the packet filter and are not converted
+  [info] SECUREPOINT_LOCAL_RULES: 1 rules for the UTM's own services (to or from objects in zones of its own interfaces) are not converted
+  [info] SECUREPOINT_NAT_ORDER: NAT is part of the rules: each rule with NAT became a NAT rule, in the order of the rules. DESTNAT is done before the packet filter and HIDENAT after it (netfilter); a rule's NAT is read as applying whatever its action (assumed)
+  [info] SECUREPOINT_RANGE: network objects with an address range a-b (a form FWShift reads, not documented): printers
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  rule-1  ->  needs-review  (emitted as 2 rows of FW_OUTGOING)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: the ICMP of the rule is left out, so it allows less
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as 2 rows of FW_OUTGOING
+  rule-4  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  rule-10  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vpn-ipsec: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  rule-11  ->  approximated  (emitted as 1 row of FW_OUTGOING)
+      [approximated] SECUREPOINT_STATELESS: action STATELESS allows packets whatever the state of their connection, and lets no replies through by itself; the model is stateful and allows the replies of what it allows
+      [approximated] MGUARD_HOSTNAME: host names are written into an IP group: the mGuard resolves them for IPv4 with its own DNS settings (an FL MGUARD 2000 takes none)
+  rule-13  ->  skipped
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  rule-14  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: NETMAP on the rule: which addresses its packet filter rule names is not documented.
+      [needs-review] MGUARD_ZONE_UNKNOWN: vpn-ipsec: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  rule-15  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  rule-18  ->  needs-review  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'external-interface' next to 'webserver' because of NAT rule 'rule-2-nat'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'rule-2-nat' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  rule-2  ->  exact  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to external-interface (extern-https) and taken to webserver; that it also allows traffic sent to the server directly is not documented and is not read
+  rule-6  ->  exact  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to public-mail (smtp) and taken to mailserver; that it also allows traffic sent to the server directly is not documented and is not read
+  rule-7  ->  exact  (emitted as 1 row of FW_OUTGOING_LANDMZ)
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 1 of 2)
+  rule-7-2  ->  skipped
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 2 of 2)
+      [needs-review] MGUARD_ZONE_UNKNOWN: vpn-ipsec: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  rule-12  ->  exact  (emitted as 1 row of FW_OUTGOING_LANDMZ)
+      [info] SECUREPOINT_QOS: action QOS: read as ACCEPT; the bandwidth limit of its QoS profile is not converted
+  rule-16  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: flag 'MIRROR' is not one FWShift reads.
+  rule-9  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-region': address 'geoip:XX' is not a form FWShift reads. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'blocked-region' holds members only its platform knows, or an address the profile does not hold. This deny rule is NOT enforced; rules below it may match more traffic.
+  rule-5  ->  skipped
+      [info] SECUREPOINT_LOCAL_RULE: a rule for the UTM's own services (an object in a zone of its own interfaces, firewall-...): not converted
+
+NAT rules
+  rule-1-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IP masquerading has no destination or service
+  rule-10-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule that translates nothing (an exemption): the mGuard has none
+  rule-14-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: not converted on the source: NETMAP (a network mapped onto another of the same size, both ways) is not converted
+  rule-2-nat  ->  exact  (emitted as port forwarding)
+      [info] MGUARD_FORWARD_ALLOWED: port forwarding skips the packet filter; the rules of the model allow all of what it forwards
+  rule-6-nat  ->  exact  (emitted as port forwarding)
+      [info] MGUARD_FORWARD_ALLOWED: port forwarding skips the packet filter; the rules of the model allow all of what it forwards
+  rule-8-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IP masquerading has no destination or service
+
+Services
+  ssh  ->  exact
+      [info] SECUREPOINT_FACTORY_SERVICE: not defined in the input: read as the service of that name a UTM comes with, with the IANA port of the name (Securepoint does not publish the list; assumed)

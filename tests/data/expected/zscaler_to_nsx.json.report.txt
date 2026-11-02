@@ -1,0 +1,91 @@
+FWShift conversion report
+  source: zscaler
+  target: nsx
+
+Summary
+  Security rules:     17   exact 0, approximated 3, needs review 14 (14 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZSCALER_OUTBOUND_ONLY: ZIA filters traffic to the internet only: traffic between locations, inside one and from the internet does not pass it, and the model blocks it (no rule allows it). A target that sees such traffic needs rules for it
+  [needs-review] ZSCALER_FIREWALL_OFF: locations whose firewall is off (ofwEnabled false): the rules do not decide their traffic on ZIA, the model applies them anyway: Guest-WiFi
+  [needs-review] ZSCALER_RANK: admin ranks out of the rule order: read in the rule order: Ranked web (rank 3 below rank 7)
+  [needs-review] NSX_LOAD: the output is the body of one hierarchical PATCH of the Policy API: curl -X PATCH -H 'Content-Type: application/json' --data @FILE https://MANAGER/policy/api/v1/infra. It creates or updates the services, the groups and one security policy of category Application (sequence number 1: give it the place you want), and leaves everything else alone, except objects of the same id, which it changes: give --target-prefix to keep the new ones apart. There is no dry run: load it on a lab manager first
+  [needs-review] NSX_DEFAULT_DENY: the source denies what no rule allows: the policy ends in fwshift-default-deny, which drops every connection no rule above it allows, for all workloads. It ends the Application category: policies after it and the default layer-3 rule are never reached
+  [info] ZSCALER_SOURCE: 4 locations (HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi), road-warrior (Client Connector outside a location) and internet; the rules decide traffic from the locations to the internet, first match in ascending order, and the default rule decides the rest
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: HQ-Servers=10.10.20.0/24. --no-source-networks takes none of them
+
+Security rules
+  Allow DNS to resolvers  ->  needs-review, emitted disabled  (emitted as rule Allow_DNS_to_resolvers)
+      [needs-review] ZSCALER_SUBLOCATION: location HQ-Brussels has sub-locations (HQ-Servers): read as the location without them, which may be narrower than ZIA
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone HQ-Brussels, and a rule of the distributed firewall names no zone: give the networks behind HQ-Brussels with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the distributed firewall names no zone: give the networks behind internet with --zone-network.
+  Block SSH out  ->  approximated  (emitted as rule Block_SSH_out)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Block malicious IPs and domains  ->  needs-review, emitted disabled  (emitted as rule Block_malicious_IPs_and_domains)
+      [needs-review] ZSCALER_CATEGORY: destination IP categories BOTNET, MALWARE_SITE: narrows the match and is not modelled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination IP categories BOTNET, MALWARE_SITE. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Office 365 One Click Rule  ->  needs-review, emitted disabled  (emitted as rule Office_365_One_Click_Rule)
+      [needs-review] ZSCALER_APPLICATION: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior, and a rule of the distributed firewall names no zone: give the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the distributed firewall names no zone: give the networks behind internet with --zone-network.
+  Partner app  ->  needs-review, emitted disabled  (emitted as rule Partner_app)
+      [info] ZONE_BY_NETWORKS: the source in zone HQ-Servers is written as the addresses of the networks given for it with --zone-network
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the distributed firewall names no zone: give the networks behind internet with --zone-network.
+  Branch web  ->  needs-review, emitted disabled  (emitted as rule Branch_web)
+      [needs-review] SCHEDULE: schedule 'Work hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Branch-Ghent, and a rule of the distributed firewall names no zone: give the networks behind Branch-Ghent with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the distributed firewall names no zone: give the networks behind internet with --zone-network.
+  Engineers to SaaS  ->  needs-review, emitted disabled  (emitted as rule Engineers_to_SaaS)
+      [needs-review] ZSCALER_FQDN: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold
+      [needs-review] ZSCALER_IDENTITY: groups Engineering: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups Engineering.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'SaaS-Domains': a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior, and a rule of the distributed firewall names no zone: give the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior with --zone-network.
+      [needs-review] ZONE_DYNAMIC: the destination 'SaaS-Domains' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks.
+  No embargoed countries  ->  needs-review, emitted disabled  (emitted as rule No_embargoed_countries)
+      [needs-review] ZSCALER_COUNTRY: destination countries COUNTRY_KP: narrows the match and is not modelled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination countries COUNTRY_KP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Printers syslog  ->  needs-review, emitted disabled  (emitted as rule Printers_syslog)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior, and a rule of the distributed firewall names no zone: give the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the distributed firewall names no zone: give the networks behind internet with --zone-network.
+  Infra out  ->  needs-review, emitted disabled  (emitted as rule Infra_out)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior, and a rule of the distributed firewall names no zone: give the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the distributed firewall names no zone: give the networks behind internet with --zone-network.
+  Block GRE and ESP  ->  approximated  (emitted as rule Block_GRE_and_ESP)
+      [info] ZSCALER_BLOCK_ICMP: BLOCK_ICMP drops and answers with an ICMP unreachable: read as deny
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Evaluate apps  ->  needs-review, emitted disabled  (emitted as rule Evaluate_apps)
+      [needs-review] ZSCALER_EVAL_NWAPP: action EVAL_NWAPP hands the decision to the network application of the traffic: not converted
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: action EVAL_NWAPP: the decision waits for the network application, which is not modelled. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Ranked web  ->  needs-review, emitted disabled  (emitted as rule Ranked_web)
+      [needs-review] ZSCALER_FQDN: destination files.example.org: ZIA matches a domain by the names it sees in the traffic; not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination FQDN files.example.org.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior, and a rule of the distributed firewall names no zone: give the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the distributed firewall names no zone: give the networks behind internet with --zone-network.
+  Ghent and corporate  ->  needs-review, emitted disabled  (emitted as rule Ghent_and_corporate)
+      [needs-review] ZSCALER_LOCATION_GROUP: the rule names locations and location groups: whether ZIA takes either or both is not documented
+      [needs-review] UNSUPPORTED_MATCH: not converted: both locations and location groups: how ZIA combines them is not known.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Branch-Ghent, HQ-Brussels, and a rule of the distributed firewall names no zone: give the networks behind Branch-Ghent, HQ-Brussels with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the distributed firewall names no zone: give the networks behind internet with --zone-network.
+  Web for all  ->  needs-review, emitted disabled  (emitted as rule Web_for_all)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior, and a rule of the distributed firewall names no zone: give the networks behind HQ-Brussels, Branch-Ghent, Guest-WiFi, road-warrior with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the distributed firewall names no zone: give the networks behind internet with --zone-network.
+  Guest ICMP  ->  needs-review, emitted disabled  (emitted as rule Guest_ICMP)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Guest-WiFi, and a rule of the distributed firewall names no zone: give the networks behind Guest-WiFi with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the distributed firewall names no zone: give the networks behind internet with --zone-network.
+  Default Firewall Filtering Rule  ->  approximated  (emitted as rule Default_Firewall_Filtering_Rule)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones

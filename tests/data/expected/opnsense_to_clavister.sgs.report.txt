@@ -1,0 +1,52 @@
+FWShift conversion report
+  source: opnsense
+  target: clavister
+
+Summary
+  Security rules:     25   exact 19, approximated 1, needs review 5 (4 emitted disabled), skipped 0
+  NAT rules:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:     14   exact 14, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NPT_NOT_CONVERTED: 1 IPv6 prefix translation (NPt) of the configuration is not converted
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: OPNsense drops what arrives there from addresses nobody has been given, by a list it downloads, which is not in the configuration
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 4 rule sets it sends traffic to; 51 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: wan, lan, opt1, opt2, opt4, OpenVPN
+  [info] FLOATING_LAST_MATCH: 2 rules are not 'quick' (floating rules, and rules of an interface with 'quick' off): such a rule decides only where no quick rule matched, and of several the last one. In the converted policy they stand behind the quick rules, the last one first: 'LAN to test net (not quick)', 'Time for everyone (floating, not quick)'
+  [info] OPNSENSE_VERSION: the configuration was written by OPNsense 26.7 (firewall model 1.0.6), and read as that series reads it
+  [info] OPNSENSE_RULE_EMPTY: rules that match nothing on OPNsense (a protocol of the other IP version, a disabled alias) were left out: 'ICMP for IPv6 only (matches nothing)' (ICMP in a rule for IPv6 only)
+  [info] OPNSENSE_DISABLED_ALIAS: disabled aliases are empty tables on OPNsense: rules that name one match nothing (and 'not' one everything): Old_partner
+  [info] OPNSENSE_REGISTERED_RULE: 1 port forward registers a rule of its own ('Register rule'), which OPNsense puts after every other rule; so does the converted policy
+  [info] OPNSENSE_AUTOMATIC_RULES: OPNsense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof) and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without (RFC 4890), DHCP, and the web interface on its first interface (anti-lockout); and it lets out whatever the firewall itself sends. Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  Never to the blocklist (floating) 2  ->  needs-review, emitted disabled  (emitted as fws_rules 8 (fws_Never_to_the_blocklist__floating__2), a placeholder, disabled)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Geo_block': an alias of type 'geoip' (the countries of a GeoIP database), whose addresses are not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests never to the blocklist  ->  needs-review, emitted disabled  (emitted as fws_rules 9 (fws_Guests_never_to_the_blocklist))
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the source of traffic that leaves, which is the source after outbound NAT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Voice from the partner - pass  ->  approximated  (emitted as fws_rules 11 (fws_Voice_from_the_partner_-_pass))
+      [approximated] AUTOMATIC_RULE: port forward 'Voice from the partner' passes what it forwards without a rule ('Pass' as its filter rule association): OPNsense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '172.16.20.20' because of NAT rule 'Voice from the partner'; check that this rule is meant to cover the translated traffic
+  Block private networks from WAN  ->  exact  (emitted as fws_rules 12 (fws_Block_private_networks_from_WAN), fws_rules 13 (fws_Block_private_networks_from_WAN_v6))
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks' set: OPNsense drops what arrives there from those networks (the list of 26.7) before any rule of the configuration. This rule stands for that
+  DMZ anywhere but LAN (disabled)  ->  exact  (emitted as fws_rules 21 (fws_DMZ_anywhere_but_LAN__disabled_))
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  DMZ ICMPv6  ->  needs-review, emitted disabled  (emitted as fws_rules 22 (fws_DMZ_ICMPv6), a placeholder, disabled)
+      [needs-review] CLAVISTER_SERVICE: service 'icmp6-echoreq-neighbrsol-neighbradv' cannot be written (an ICMP type cOS Core does not name, an ICMP code without a type, or SCTP ports).
+  Guests to the portal (no protocol, both IP versions)  ->  exact  (emitted as fws_rules 28 (fws_Guests_to_the_portal__no_protocol__both_IP_versions_))
+      [info] RULE_HALF_NOT_LOADED: the rule is for IPv4 and IPv6, and there is no IPv6 rule for it on OPNsense (source: interface GUEST has no IPv6 network; the rule matches nothing of IPv6 there; destination: '192.0.2.80' is not an IPv6 address): it is converted for the other IP version only
+  DMZ anywhere but LAN (disabled) 2  ->  exact  (emitted as fws_rules 29 (fws_DMZ_anywhere_but_LAN__disabled__2))
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  Guests interactive (tos)  ->  needs-review, emitted disabled  (emitted as fws_rules 30 (fws_Guests_interactive__tos_))
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the type of service (tos) '0x10'.
+  SSH to bastion (rule the port forward registers)  ->  needs-review  (emitted as fws_rules 32 (fws_SSH_to_bastion__rule_the_port_forward_registers_))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '172.16.20.10' because of NAT rule 'SSH to bastion'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'SSH to bastion' also translates the port to 22; the service of this rule still names the post-NAT port and must be adjusted
+
+NAT rules
+  Automatic outbound NAT on WAN  ->  exact  (emitted as fws_snat 5 (fws_Automatic_outbound_NAT_on_WAN))
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: OPNsense translates what leaves by an interface with an IPv4 gateway and comes from the networks of its other interfaces, or from the firewall itself. This rule stands for that

@@ -1,0 +1,76 @@
+FWShift conversion report
+  source: zyxel
+  target: securepoint
+
+Summary
+  Security rules:     19   exact 9, approximated 5, needs review 4 (4 emitted disabled), skipped 1
+  NAT rules:           9   exact 1, approximated 0, needs review 0, skipped 8
+  Addresses:          17   exact 17, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           16   exact 16, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZYXEL_DEFAULT_SNAT: the default SNAT of the WAN trunk (connections from internal interfaces leave with the address of the WAN interface) is not a rule of the configuration and is not converted: give the target the source NAT it needs
+  [needs-review] ZYXEL_BLOCK_INTRAZONE: zones that block traffic between their members: read as a rule at the top that denies inside the zone, whatever the rules say (not confirmed on a device): DMZ
+  [needs-review] ZYXEL_FQDN: address objects of a host name (fqdn), read as names resolved for IPv4; the form is not in the CLI Reference Guide FWShift could read: PORTAL
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): DMZ, LAN1, WAN, LAB. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: WAN-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] ZYXEL_SOURCE: 4 zones (WAN, LAN1, DMZ, LAB); 18 rules of the security policy, first match, IPv4 and IPv6 lists one after the other. Rules to and from the firewall itself (ZyWALL) are not converted
+  [info] ZYXEL_NAT_ORDER: virtual servers and 1:1 NAT are done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT of policy routes is done after it
+  [info] ZYXEL_UNZONED: interfaces in no zone, which only rules from any or to any match: ge7
+  [info] ZYXEL_INTERFACE_OBJECT: address objects of an interface, read with the static address the configuration gives the interface: interface-subnet ge3, interface-subnet ge4, interface-ip ge1
+  [info] ZYXEL_ICMP_NAMES: ICMP types by name, read with the numbers of the IANA registry: echo, echo-request
+  [info] ZYXEL_DEFAULTS: what no rule matches (secure-policy default-rule): IPv4 deny, IPv6 deny
+  [info] SECUREPOINT_COMMENTED: 5 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  WAN_to_Web  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'PUBLIC_WEB' next to 'WEB_SRV' because of NAT rule 'virtual-server WEB_VS'; check that this rule is meant to cover the translated traffic
+  WAN_to_Mail  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to 'MAIL_SRV' because of NAT rule 'virtual-server MAIL_VS'; check that this rule is meant to cover the translated traffic
+  Admin_Mgmt  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default_av); attach equivalent inspection on the target
+  LAN1_to_DMZ_Reject  ->  exact  (emitted as 1 rule of group fwshift)
+      [info] RESET_ACTION: action reset-client becomes REJECT, which answers the sender with an ICMP message, not a TCP reset
+  Monitor_Ping  ->  approximated  (emitted as 16 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (WAN, LAN1, DMZ, LAB); traffic of other zones of the UTM is not matched
+  Old_Rule  ->  exact  (emitted as 1 rule of group fwshift)
+      [info] SECUREPOINT_DISABLED: disabled in the source: written as comment lines, which are not loaded
+  Alice_Workhours  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SCHEDULE: schedule 'WORKHOURS' is not converted; the rule would apply at all times.
+      [needs-review] USER_MATCH: source user match alice is not converted.
+  Country_Block  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (WAN, LAN1, DMZ, LAB); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'COUNTRY_X': geography XX: not an address FWShift can read. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Portal_Access  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'portal.example.com'; that a network object of the UTM takes a host name is not documented.
+  VS_Only  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: ctmatch dnat: matches only connections that a virtual server translated.
+  V6_Ping  ->  approximated  (emitted as 16 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (WAN, LAN1, DMZ, LAB); traffic of other zones of the UTM is not matched
+  LAN1_to_Device  ->  skipped
+      [info] ZYXEL_DEVICE_RULE: a rule for traffic to the firewall itself (LAN1 to ZyWALL): not converted
+
+NAT rules
+  virtual-server WEB_VS  ->  skipped
+      [approximated] ZYXEL_NAT_LOOPBACK: nat-loopback: hosts behind the firewall that use the original address are translated as well (and their source is translated to the firewall); only the translation for traffic that arrives on the interface is converted
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT needs the one zone the traffic is sent to (the zone of its NAT network object, firewall-<zone>); the NAT rule names none
+  virtual-server MAIL_VS  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT needs the one zone the traffic is sent to (the zone of its NAT network object, firewall-<zone>); the NAT rule names none
+  virtual-server ALT_VS  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT names one address the traffic is sent to (its NAT network object)
+  virtual-server ONE2ONE  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: the UTM writes HIDENAT, HIDENAT_EXCLUDE and DESTNAT on a rule; a rule that translates source and destination, a static translation both ways or a pool is none of them
+  virtual-server MANY2ONE  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: the UTM writes HIDENAT, HIDENAT_EXCLUDE and DESTNAT on a rule; a rule that translates source and destination, a static translation both ways or a pool is none of them
+  virtual-server OLD_VS  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT needs the one zone the traffic is sent to (the zone of its NAT network object, firewall-<zone>); the NAT rule names none
+  policy-route 1  ->  skipped
+      [info] ZYXEL_ROUTE_NO_SNAT: a policy route without SNAT above one with SNAT: kept as a rule that translates nothing, so that the SNAT of the routes below it does not apply to its traffic
+      [needs-review] NAT_NOT_CONVERTED: not converted: references 'LAB_SUBNET': interface-subnet ge6: interface-subnet of ge6: the interface gets its address by dhcp
+  policy-route 3  ->  skipped
+      [info] ZYXEL_SNAT_POOL: SNAT to the addresses of PUBLIC_RANGE, read as translation with port translation (the documentation does not say)
+      [needs-review] SECUREPOINT_NAT_FORM: HIDENAT hides behind one address; the translated address is not one

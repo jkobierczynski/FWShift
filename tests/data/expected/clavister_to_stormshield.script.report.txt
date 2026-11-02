@@ -1,0 +1,79 @@
+FWShift conversion report
+  source: clavister
+  target: stormshield
+
+Summary
+  Security rules:     25   exact 16, approximated 4, needs review 4 (4 emitted disabled), skipped 1
+  NAT rules:          12   exact 2, approximated 0, needs review 0, skipped 10
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] STORMSHIELD_LOAD: the output is a script of serverd commands (section 10): it creates objects (and changes those of the same names, also where an active slot uses them), empties filter slot 9 and writes the rules there; the slot is not made active. snscli goes on after a command that fails: read its output, and check the slot with CONFIG FILTER CHECK before it is made active
+  [needs-review] STORMSHIELD_INTERFACES: rules name interfaces by the zone names of the source: each must be the name of an interface of the firewall (in, out, dmz1 ...); rename the zones with --zone-map ZONE=INTERFACE
+  [needs-review] STORMSHIELD_IPV6: IPv6 objects are written with ipv6= and prefixlenv6=, the names CONFIG OBJECT LIST answers with; that the commands that create objects take them is not documented: check them
+  [needs-review] STORMSHIELD_NAT_ARP: translated addresses are published by ARP (natsrcarp, natdstarp); leave that out where the address is one of the firewall
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have loglevel=log where the source logs the start of a connection, and the standard connection log otherwise
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  exact  (emitted as 1 rules of slot 9)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+  block_bad_mail+sat_mail  ->  exact  (emitted as 1 rules of slot 9)
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+  nat_mail+sat_mail  ->  exact  (emitted as 2 rules of slot 9)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+  allow_mail+sat_mail  ->  exact  (emitted as 1 rules of slot 9)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+  allow_pool+sat_pool  ->  exact  (emitted as 1 rules of slot 9)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+  to_guest/guest_never  ->  exact  (emitted as 1 rules of slot 9)
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+  lan_updates  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: written with addresses only.
+  syslog_fast  ->  approximated  (emitted as 1 rules of slot 9)
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+  gre_tunnel  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule office_hours is not converted.
+  old_rule  ->  approximated  (emitted as 1 rules of slot 9)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  lan6_ping  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMPv6 type: the target writes ICMPv6 as a protocol only.
+  pol_dmz_out  ->  approximated  (emitted as 1 rules of slot 9)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+  pol_block_ftp  ->  approximated  (emitted as 1 rules of slot 9)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  allow_web+sat_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  nat_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  to_guest/guest_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  to_guest/guest_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  lan_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  lan_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  lan_updates  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  pol_dmz_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  sat_unused  ->  skipped
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written

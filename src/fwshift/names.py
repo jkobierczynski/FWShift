@@ -166,3 +166,31 @@ MGUARD = NameRules(32, re.compile(r"[^A-Za-z0-9_.-]"), True, True)
 # lower-case names and take what is not alphanumeric off the end.
 KUBERNETES = NameRules(253, re.compile(r"[^a-z0-9.-]"), True)
 KUBERNETES_LABEL = NameRules(63, re.compile(r"[^A-Za-z0-9._-]"), True)
+
+# Zscaler Internet Access: a firewall filtering rule has a name of up to 31 characters (assumed from the admin portal;
+# the API reference publishes no limit); IP groups and network services are kept to 63. Names written are kept to
+# letters, digits, space, ".", "_" and "-", which every object of ZIA takes.
+ZSCALER = NameRules(63, re.compile(r"[^A-Za-z0-9 ._-]"), True)
+ZSCALER_RULE = NameRules(31, ZSCALER.invalid, True)
+
+# Securepoint UTM: names are given in double quotes on its CLI, and the names it comes with and its users write hold spaces,
+# hyphens and parentheses ("3CX-SBC (udp)"); no character set or length is published. Names written are kept to letters,
+# digits, space, ".", "_", "-" and parentheses, alphanumeric first, and to 50 characters. The comment of a rule is free text
+# without double quotes and backslashes.
+SECUREPOINT = NameRules(50, re.compile(r"[^A-Za-z0-9 ._()-]"), True)
+SECUREPOINT_TEXT = NameRules(120, re.compile(r"[\x00-\x1f\x7f\"\\]"), False)
+
+# LANCOM R&S Unified Firewall (LCOS FX): LANCOM publishes no character set or length for the name of a desktop object or a
+# user-defined service (the reference manual: "Name"). Names written are kept to letters, digits, spaces, ".", "_" and "-",
+# and to 64 characters.
+LANCOM_UF = NameRules(64, re.compile(r"[^A-Za-z0-9 ._-]"), True)
+
+# Cato Networks: rule names must be unique in a policy; Cato publishes no character set or length. Names written are kept to
+# letters, digits, space, ".", "_", "-", "(", ")" and ":", and to 100 characters.
+CATO = NameRules(100, re.compile(r"[^A-Za-z0-9 ._():-]"), True)
+
+# Clavister cOS Core: objects are named by an Identifier; Clavister publishes no character set or length for it, and the
+# names of rules need not be unique (Administration Guide 3.6.2). Names written are a letter, then letters, digits, "_",
+# "-" and ".", up to 63 characters; comments are free text without quotes, backslashes or "$" (a script parameter).
+CLAVISTER = NameRules(63, re.compile(r"[^A-Za-z0-9_.-]"), True, True)
+CLAVISTER_TEXT = NameRules(200, re.compile(r"[\x00-\x1f\x7f\"\\$]"), False)

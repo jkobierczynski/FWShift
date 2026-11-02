@@ -1,0 +1,131 @@
+FWShift conversion report
+  source: aws-network-firewall (pol-inspection)
+  target: zscaler
+
+Summary
+  Security rules:     41   exact 14, approximated 9, needs review 15 (11 emitted disabled), skipped 3
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           21   exact 21, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWSNFW_ASYMMETRIC: one direction of some connections is passed by the stateless rules and the other forwarded to the stateful engine, which then sees half a flow and may drop it (sl-edge-8, the stateless default action aws:forward_to_sfe). The converted policy leaves those connections to the stateful rules
+  [needs-review] AWSNFW_STATELESS_NOT_WORKED_OUT: some stateless rules cannot be read (TCP flags, a rule group not in the input, a value that cannot be read): they are not converted, and what the rules after them and the replies meet was worked out as if they matched nothing
+  [needs-review] AWSNFW_GROUP_MISSING: the policy names rule groups that are not in the input: ThreatSignaturesMalwareStrictOrder. Their rules are not converted; add the answers of describe-rule-group
+  [needs-review] ZSCALER_BLOCK_RULE: the source blocks what no rule matches. Rule fws-block the rest that does so follows the converted rules, disabled: until it is enabled, the rules of the tenant below it and its default rule decide that traffic
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_LOST: ZIA filters traffic from locations to the internet only: 41 rules for traffic from the internet and 0 for traffic between or inside zones inside are not written, or only in part. That traffic needs a firewall of its own at the sites
+  [info] AWSNFW_FRAGMENTS: UDP fragments that no stateless rule matches are handled by aws:drop, other packets by the default for full packets; the model has no fragments, and the converted policy follows the default for full packets. Fragments of other protocols are dropped
+  [info] AWSNFW_STATELESS_FORWARD: these stateless rules forward what they match to the stateful engine, so the stateless rules below them do not see it: sl-edge-10
+  [info] AWSNFW_ALERT_RULES: 1 alert rule decides nothing (an alert only logs) and was left out
+  [info] AWSNFW_CUSTOM_ACTIONS: custom actions publish metrics to CloudWatch; they decide nothing and are not converted
+  [info] AWSNFW_HOME_NET: HOME_NET is 10.20.0.0/16, 2001:db8:20::/56 (the CIDR blocks of VPC vpc-0a1b2c3d4e5f60789); EXTERNAL_NET is everything else, unless a rule group sets it
+  [info] AWSNFW_NO_ZONES: the firewall sits in a route path and names no zones or interfaces: the converted policy has none. A target with zones needs the networks behind them (--zone-network)
+
+Security rules
+  sl-edge-1-replies  ->  exact  (emitted as fws-sl-edge-1-replies)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-1, which drops them, so the connections are blocked whatever else would allow them
+  sl-edge-20-replies  ->  needs-review, emitted disabled  (emitted as fws-sl-edge-20-replies)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] SERVICE_NEGATE: every service but some: ZIA has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-20-replies-2  ->  skipped
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  sl-edge-12  ->  needs-review, emitted disabled  (emitted as fws-sl-edge-12)
+      [needs-review] UNSUPPORTED_MATCH: not converted: TCP flags: the rule matches some packets of a connection and not others. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-20  ->  skipped
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  ThreatSignaturesMalwareStrictOrder-1  ->  needs-review, emitted disabled  (emitted as fws-ThreatSignaturesMalwareStri)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule group ThreatSignaturesMalwareStrictOrder is not in the input; add the answer of describe-rule-group for arn:aws:network-firewall:eu-west-1:aws-managed:stateful-rulegroup/ThreatSignaturesMalwareStrictOrder (an AWS managed rule group, whose rules AWS may not show). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-100  ->  approximated  (emitted as fws-sf-baseline-100)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  sf-baseline-101  ->  approximated  (emitted as fws-sf-baseline-101)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  sf-baseline-105  ->  needs-review, emitted disabled  (emitted as fws-sf-baseline-105)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type: a network service of ZIA holds TCP and UDP ports, and the predefined ICMP_ANY, GRE_PROTOCOL and ESP_PROTOCOL.
+  sf-baseline-106  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  sf-app-1000  ->  approximated  (emitted as fws-sf-app-1000)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  sf-app-1003  ->  approximated  (emitted as fws-sf-app-1003)
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+  sf-app-1004  ->  needs-review  (emitted as fws-sf-app-1004)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  sf-app-1005  ->  needs-review, emitted disabled  (emitted as fws-sf-app-1005)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+  sf-app-1005-rev  ->  needs-review, emitted disabled  (emitted as fws-sf-app-1005-rev)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+  sf-app-1011  ->  exact  (emitted as fws-sf-app-1011)
+      [info] AWSNFW_REJECT_NOT_TCP: reject sends a TCP reset, and is for TCP only; the rule, which matches other protocols too, is read as drop
+  sf-app-1013  ->  needs-review  (emitted as fws-sf-app-1013)
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not source HOME_NET' is written as the addresses that are left
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  stateful-default-not-tcp  ->  needs-review, emitted disabled  (emitted as fws-stateful-default-not-tcp)
+      [needs-review] SERVICE_NEGATE: every service but some: ZIA has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-100-reply  ->  approximated  (emitted as fws-sf-baseline-100-reply)
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-100 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  sf-baseline-103-reply  ->  exact  (emitted as fws-sf-baseline-103-reply)
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-103 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [info] RESET_ACTION: action reset-server: written as BLOCK_RESET
+  sf-app-1003-reply  ->  approximated  (emitted as fws-sf-app-1003-reply)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1003 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+  sf-app-1009-reply  ->  approximated  (emitted as fws-sf-app-1009-reply)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1009 matches packets in the direction of its header, so also the first reply of a connection opened the other way; this rule is what it decides then
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  sf-app-1001  ->  approximated  (emitted as fws-sf-app-1001)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  sf-app-1002  ->  approximated  (emitted as fws-sf-app-1002)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not destination HOME_NET' is written as the addresses that are left
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+  sf-app-1006  ->  needs-review, emitted disabled  (emitted as fws-sf-app-1006)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword http.uri. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword content:"/admin". This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-block-1  ->  needs-review, emitted disabled  (emitted as fws-dl-block-1)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not destination HOME_NET' is written as the addresses that are left
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-egress-1  ->  needs-review, emitted disabled  (emitted as fws-dl-egress-1)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not destination HOME_NET' is written as the addresses that are left
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address.
+  dl-egress-2  ->  needs-review  (emitted as fws-dl-egress-2)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not destination HOME_NET' is written as the addresses that are left
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+  dl-egress-3  ->  needs-review, emitted disabled  (emitted as fws-dl-egress-3)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not destination HOME_NET' is written as the addresses that are left
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] APP_TO_PORTS: applications web-browsing reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: http.host: the rule matches by domain name, which is not an address.
+  dl-egress-4  ->  needs-review  (emitted as fws-dl-egress-4)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not destination HOME_NET' is written as the addresses that are left
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+  sf-app-1010  ->  exact  (emitted as fws-sf-app-1010)
+      [info] AWSNFW_NEVER_MATCHES: with aws:drop_established a flow that no rule passed is dropped before this rule can match; the rule is disabled in the converted policy: pass tcp any any -> $HOME_NET any (msg:"established to clients"; flow:established,to_client; sid:1010;)

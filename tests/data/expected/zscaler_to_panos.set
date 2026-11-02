@@ -1,0 +1,247 @@
+set tag dns
+set address n-10.10.0.0_16 ip-netmask 10.10.0.0/16
+set address r-10.20.1.1-10.20.1.50 ip-range 10.20.1.1-10.20.1.50
+set address-group Engineering-Nets static [ n-10.10.0.0_16 r-10.20.1.1-10.20.1.50 ]
+set address-group Engineering-Nets description engineering
+set address h-10.10.5.10 ip-netmask 10.10.5.10
+set address h-10.10.5.11 ip-netmask 10.10.5.11
+set address-group Printers static [ h-10.10.5.10 h-10.10.5.11 ]
+set address n-2001_db8_10___48 ip-netmask 2001:db8:10::/48
+set address-group Eng-v6 static n-2001_db8_10___48
+set address n-198.51.100.0_25 ip-netmask 198.51.100.0/25
+set address h-203.0.113.50 ip-netmask 203.0.113.50
+set address-group Partner-Servers static [ n-198.51.100.0_25 h-203.0.113.50 ]
+set address-group Partner-Servers description partner
+set address SaaS-Domains ip-netmask 0.0.0.0/32
+set address SaaS-Domains description "FWSHIFT PLACEHOLDER, matches nothing: a destination group of FQDNs (DSTN_FQDN), which the model does not hold"
+set address Embargo ip-netmask 0.0.0.0/32
+set address Embargo description "FWSHIFT PLACEHOLDER, matches nothing: a destination group of countries and categories (DSTN_OTHER), which the model does not hold"
+set address n-2001_db8_200___64 ip-netmask 2001:db8:200::/64
+set address-group Partner-v6 static n-2001_db8_200___64
+set service UDP_ANY protocol udp port 1-65535
+set service TCP_ANY protocol tcp port 1-65535
+set service DNS-tcp protocol tcp port 53
+set service DNS-udp protocol udp port 53
+set service-group DNS members [ DNS-tcp DNS-udp ]
+set service HTTP protocol tcp port 80
+set service HTTPS protocol tcp port 443
+set service App-8443 protocol tcp port 8443,8000-8010
+set service App-8443 description "partner application"
+set service Syslog-From-Highport protocol udp port 514
+set service Syslog-From-Highport protocol udp source-port 1024-65535
+set service NTP protocol udp port 123
+set service SSH protocol tcp port 22
+set service-group Web members [ HTTP HTTPS ]
+set service-group Infra members [ DNS NTP ]
+set rulebase security rules "Allow DNS to resolvers" from HQ-Brussels
+set rulebase security rules "Allow DNS to resolvers" to internet
+set rulebase security rules "Allow DNS to resolvers" source Engineering-Nets
+set rulebase security rules "Allow DNS to resolvers" destination 198.51.100.53
+set rulebase security rules "Allow DNS to resolvers" source-user any
+set rulebase security rules "Allow DNS to resolvers" category any
+set rulebase security rules "Allow DNS to resolvers" application any
+set rulebase security rules "Allow DNS to resolvers" service DNS
+set rulebase security rules "Allow DNS to resolvers" action allow
+set rulebase security rules "Allow DNS to resolvers" log-end yes
+set rulebase security rules "Allow DNS to resolvers" tag dns
+set rulebase security rules "Block SSH out" from [ HQ-Brussels Branch-Ghent HQ-Servers Guest-WiFi road-warrior ]
+set rulebase security rules "Block SSH out" to internet
+set rulebase security rules "Block SSH out" source any
+set rulebase security rules "Block SSH out" destination any
+set rulebase security rules "Block SSH out" source-user any
+set rulebase security rules "Block SSH out" category any
+set rulebase security rules "Block SSH out" application any
+set rulebase security rules "Block SSH out" service SSH
+set rulebase security rules "Block SSH out" action reset-client
+set rulebase security rules "Block SSH out" log-end yes
+set rulebase security rules "Block malicious IPs and domains" from [ HQ-Brussels Branch-Ghent HQ-Servers Guest-WiFi road-warrior ]
+set rulebase security rules "Block malicious IPs and domains" to internet
+set rulebase security rules "Block malicious IPs and domains" source any
+set rulebase security rules "Block malicious IPs and domains" destination any
+set rulebase security rules "Block malicious IPs and domains" source-user any
+set rulebase security rules "Block malicious IPs and domains" category any
+set rulebase security rules "Block malicious IPs and domains" application any
+set rulebase security rules "Block malicious IPs and domains" service any
+set rulebase security rules "Block malicious IPs and domains" action drop
+set rulebase security rules "Block malicious IPs and domains" log-end yes
+set rulebase security rules "Block malicious IPs and domains" disabled yes
+set rulebase security rules "Block malicious IPs and domains" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Office 365 One Click Rule" from [ HQ-Brussels Branch-Ghent HQ-Servers Guest-WiFi road-warrior ]
+set rulebase security rules "Office 365 One Click Rule" to internet
+set rulebase security rules "Office 365 One Click Rule" source any
+set rulebase security rules "Office 365 One Click Rule" destination any
+set rulebase security rules "Office 365 One Click Rule" source-user any
+set rulebase security rules "Office 365 One Click Rule" category any
+set rulebase security rules "Office 365 One Click Rule" application any
+set rulebase security rules "Office 365 One Click Rule" service any
+set rulebase security rules "Office 365 One Click Rule" action allow
+set rulebase security rules "Office 365 One Click Rule" log-end yes
+set rulebase security rules "Office 365 One Click Rule" disabled yes
+set rulebase security rules "Office 365 One Click Rule" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Partner app" from HQ-Servers
+set rulebase security rules "Partner app" to internet
+set rulebase security rules "Partner app" source [ 10.10.20.0/24 Eng-v6 ]
+set rulebase security rules "Partner app" destination [ Partner-Servers Partner-v6 ]
+set rulebase security rules "Partner app" source-user any
+set rulebase security rules "Partner app" category any
+set rulebase security rules "Partner app" application any
+set rulebase security rules "Partner app" service App-8443
+set rulebase security rules "Partner app" action allow
+set rulebase security rules "Partner app" log-end yes
+set rulebase security rules "Branch web" from Branch-Ghent
+set rulebase security rules "Branch web" to internet
+set rulebase security rules "Branch web" source any
+set rulebase security rules "Branch web" destination any
+set rulebase security rules "Branch web" source-user any
+set rulebase security rules "Branch web" category any
+set rulebase security rules "Branch web" application any
+set rulebase security rules "Branch web" service Web
+set rulebase security rules "Branch web" action allow
+set rulebase security rules "Branch web" log-end yes
+set rulebase security rules "Branch web" disabled yes
+set rulebase security rules "Branch web" description "FWSHIFT: disabled by the converter, see the report. branches browse during work hours"
+set rulebase security rules "Engineers to SaaS" from [ HQ-Brussels Branch-Ghent HQ-Servers Guest-WiFi road-warrior ]
+set rulebase security rules "Engineers to SaaS" to internet
+set rulebase security rules "Engineers to SaaS" source any
+set rulebase security rules "Engineers to SaaS" destination SaaS-Domains
+set rulebase security rules "Engineers to SaaS" source-user any
+set rulebase security rules "Engineers to SaaS" category any
+set rulebase security rules "Engineers to SaaS" application any
+set rulebase security rules "Engineers to SaaS" service HTTPS
+set rulebase security rules "Engineers to SaaS" action allow
+set rulebase security rules "Engineers to SaaS" log-end yes
+set rulebase security rules "Engineers to SaaS" disabled yes
+set rulebase security rules "Engineers to SaaS" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "No embargoed countries" from [ HQ-Brussels Branch-Ghent HQ-Servers Guest-WiFi road-warrior ]
+set rulebase security rules "No embargoed countries" to internet
+set rulebase security rules "No embargoed countries" source any
+set rulebase security rules "No embargoed countries" destination any
+set rulebase security rules "No embargoed countries" source-user any
+set rulebase security rules "No embargoed countries" category any
+set rulebase security rules "No embargoed countries" application any
+set rulebase security rules "No embargoed countries" service any
+set rulebase security rules "No embargoed countries" action drop
+set rulebase security rules "No embargoed countries" log-end yes
+set rulebase security rules "No embargoed countries" disabled yes
+set rulebase security rules "No embargoed countries" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Printers syslog" from [ HQ-Brussels Branch-Ghent HQ-Servers Guest-WiFi road-warrior ]
+set rulebase security rules "Printers syslog" to internet
+set rulebase security rules "Printers syslog" source Printers
+set rulebase security rules "Printers syslog" destination 192.0.2.10-192.0.2.20
+set rulebase security rules "Printers syslog" source-user any
+set rulebase security rules "Printers syslog" category any
+set rulebase security rules "Printers syslog" application any
+set rulebase security rules "Printers syslog" service Syslog-From-Highport
+set rulebase security rules "Printers syslog" action allow
+set rulebase security rules "Printers syslog" log-end yes
+set rulebase security rules "Infra out" from [ HQ-Brussels Branch-Ghent HQ-Servers Guest-WiFi road-warrior ]
+set rulebase security rules "Infra out" to internet
+set rulebase security rules "Infra out" source any
+set rulebase security rules "Infra out" destination any
+set rulebase security rules "Infra out" source-user any
+set rulebase security rules "Infra out" category any
+set rulebase security rules "Infra out" application any
+set rulebase security rules "Infra out" service Infra
+set rulebase security rules "Infra out" action allow
+set rulebase security rules "Infra out" log-end yes
+set rulebase security rules "Infra out" disabled yes
+set rulebase security rules "Infra out-apps" from [ HQ-Brussels Branch-Ghent HQ-Servers Guest-WiFi road-warrior ]
+set rulebase security rules "Infra out-apps" to internet
+set rulebase security rules "Infra out-apps" source any
+set rulebase security rules "Infra out-apps" destination any
+set rulebase security rules "Infra out-apps" source-user any
+set rulebase security rules "Infra out-apps" category any
+set rulebase security rules "Infra out-apps" application [ icmp ping ]
+set rulebase security rules "Infra out-apps" service application-default
+set rulebase security rules "Infra out-apps" action allow
+set rulebase security rules "Infra out-apps" log-end yes
+set rulebase security rules "Infra out-apps" disabled yes
+set rulebase security rules "Block GRE and ESP" from [ HQ-Brussels Branch-Ghent HQ-Servers Guest-WiFi road-warrior ]
+set rulebase security rules "Block GRE and ESP" to internet
+set rulebase security rules "Block GRE and ESP" source any
+set rulebase security rules "Block GRE and ESP" destination any
+set rulebase security rules "Block GRE and ESP" source-user any
+set rulebase security rules "Block GRE and ESP" category any
+set rulebase security rules "Block GRE and ESP" application [ gre ipsec-esp ]
+set rulebase security rules "Block GRE and ESP" service application-default
+set rulebase security rules "Block GRE and ESP" action deny
+set rulebase security rules "Block GRE and ESP" log-end yes
+set rulebase security rules "Evaluate apps" from [ HQ-Brussels Branch-Ghent HQ-Servers Guest-WiFi road-warrior ]
+set rulebase security rules "Evaluate apps" to internet
+set rulebase security rules "Evaluate apps" source any
+set rulebase security rules "Evaluate apps" destination any
+set rulebase security rules "Evaluate apps" source-user any
+set rulebase security rules "Evaluate apps" category any
+set rulebase security rules "Evaluate apps" application any
+set rulebase security rules "Evaluate apps" service [ TCP_ANY UDP_ANY ]
+set rulebase security rules "Evaluate apps" action drop
+set rulebase security rules "Evaluate apps" log-end yes
+set rulebase security rules "Evaluate apps" disabled yes
+set rulebase security rules "Evaluate apps" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Ranked web" from [ HQ-Brussels Branch-Ghent HQ-Servers Guest-WiFi road-warrior ]
+set rulebase security rules "Ranked web" to internet
+set rulebase security rules "Ranked web" source any
+set rulebase security rules "Ranked web" destination 203.0.113.0/24
+set rulebase security rules "Ranked web" source-user any
+set rulebase security rules "Ranked web" category any
+set rulebase security rules "Ranked web" application any
+set rulebase security rules "Ranked web" service HTTPS
+set rulebase security rules "Ranked web" action allow
+set rulebase security rules "Ranked web" log-end yes
+set rulebase security rules "Ranked web" disabled yes
+set rulebase security rules "Ranked web" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Ghent and corporate" from [ Branch-Ghent HQ-Brussels ]
+set rulebase security rules "Ghent and corporate" to internet
+set rulebase security rules "Ghent and corporate" source any
+set rulebase security rules "Ghent and corporate" destination any
+set rulebase security rules "Ghent and corporate" source-user any
+set rulebase security rules "Ghent and corporate" category any
+set rulebase security rules "Ghent and corporate" application any
+set rulebase security rules "Ghent and corporate" service HTTP
+set rulebase security rules "Ghent and corporate" action allow
+set rulebase security rules "Ghent and corporate" log-end yes
+set rulebase security rules "Ghent and corporate" disabled yes
+set rulebase security rules "Ghent and corporate" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Web for all" from [ HQ-Brussels Branch-Ghent HQ-Servers Guest-WiFi road-warrior ]
+set rulebase security rules "Web for all" to internet
+set rulebase security rules "Web for all" source [ 10.10.0.0/16 10.30.0.1-10.30.0.99 ]
+set rulebase security rules "Web for all" destination any
+set rulebase security rules "Web for all" source-user any
+set rulebase security rules "Web for all" category any
+set rulebase security rules "Web for all" application any
+set rulebase security rules "Web for all" service Web
+set rulebase security rules "Web for all" action allow
+set rulebase security rules "Web for all" log-end yes
+set rulebase security rules "Guest ICMP" from Guest-WiFi
+set rulebase security rules "Guest ICMP" to internet
+set rulebase security rules "Guest ICMP" source any
+set rulebase security rules "Guest ICMP" destination any
+set rulebase security rules "Guest ICMP" source-user any
+set rulebase security rules "Guest ICMP" category any
+set rulebase security rules "Guest ICMP" application [ icmp ping ]
+set rulebase security rules "Guest ICMP" service application-default
+set rulebase security rules "Guest ICMP" action allow
+set rulebase security rules "Guest ICMP" log-end yes
+set rulebase security rules "Default Firewall Filtering Rule" from [ HQ-Brussels Branch-Ghent HQ-Servers Guest-WiFi road-warrior ]
+set rulebase security rules "Default Firewall Filtering Rule" to internet
+set rulebase security rules "Default Firewall Filtering Rule" source any
+set rulebase security rules "Default Firewall Filtering Rule" destination any
+set rulebase security rules "Default Firewall Filtering Rule" source-user any
+set rulebase security rules "Default Firewall Filtering Rule" category any
+set rulebase security rules "Default Firewall Filtering Rule" application any
+set rulebase security rules "Default Firewall Filtering Rule" service any
+set rulebase security rules "Default Firewall Filtering Rule" action drop
+set rulebase security rules "Default Firewall Filtering Rule" log-end yes
+set rulebase security rules "Default Firewall Filtering Rule" description "Default rule"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

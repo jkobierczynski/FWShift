@@ -1,0 +1,42 @@
+FWShift conversion report
+  source: netskope
+  target: stormshield
+
+Summary
+  Security rules:     16   exact 12, approximated 0, needs review 4 (4 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] STORMSHIELD_LOAD: the output is a script of serverd commands (section 10): it creates objects (and changes those of the same names, also where an active slot uses them), empties filter slot 9 and writes the rules there; the slot is not made active. snscli goes on after a command that fails: read its output, and check the slot with CONFIG FILTER CHECK before it is made active
+  [needs-review] STORMSHIELD_INTERFACES: rules name interfaces by the zone names of the source: each must be the name of an interface of the firewall (in, out, dmz1 ...); rename the zones with --zone-map ZONE=INTERFACE
+  [needs-review] STORMSHIELD_IPV6: IPv6 objects are written with ipv6= and prefixlenv6=, the names CONFIG OBJECT LIST answers with; that the commands that create objects take them is not documented: check them
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have loglevel=log where the source logs the start of a connection, and the standard connection log otherwise
+
+Security rules
+  Admins to jump hosts [app-ssh-jump]  ->  exact  (emitted as 1 rules of slot 9)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Admins to jump hosts [app-rdp-gw]  ->  exact  (emitted as 1 rules of slot 9)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Engineering to git  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+  Block BitTorrent  ->  needs-review, emitted disabled  (emitted as 3 rules of slot 9)
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  SaaS files from the office  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp-saas-domains': destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] ZONE_DYNAMIC: 'dp-saas-domains' holds members only its platform knows.
+  Contractors: nothing else  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.

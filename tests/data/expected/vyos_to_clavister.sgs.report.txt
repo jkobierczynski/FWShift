@@ -1,0 +1,80 @@
+FWShift conversion report
+  source: vyos
+  target: clavister
+
+Summary
+  Security rules:     42   exact 31, approximated 1, needs review 9 (3 emitted disabled), skipped 1
+  NAT rules:           6   exact 3, approximated 3, needs review 0, skipped 0
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 4 rule sets it sends traffic to; 77 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: eth1.20, eth1, eth0, eth2, wg0, br0
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  forward-30  ->  needs-review  (emitted as fws_rules 10 (fws_forward-30))
+      [needs-review] NAT_REDIRECT: NAT rule 'ssh on 2222 to the jump host' sends traffic for every destination to 192.168.30.22:22, and the source applied this rule to it after that translation. The converted rule still names the translated address and port: a platform that looks rules up before NAT will not match the redirected traffic with it
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'https to web1 destination' next to '192.168.30.0/24' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  forward-40  ->  exact  (emitted as fws_rules 11 (fws_forward-40))
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-WAN.from-LAN.LAN-WAN-20  ->  skipped
+      [info] MATCHES_NOTHING: the sources and destinations have no IP version in common: the rule matches nothing
+  zone-WAN.default  ->  exact  (emitted as fws_rules 16 (fws_zone-WAN.default))
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-LAN.from-WAN.default  ->  needs-review  (emitted as fws_rules 19 (fws_zone-LAN.from-WAN.default))
+      [needs-review] CLAVISTER_DNAT_ZONE: the zone NAT rule ssh on 2222 to the jump host translates to is not known (no network of a zone, --zone-network, holds it) or only partly among the zones of this rule: for the translated traffic the rule is written, and may block more
+  zone-LAN.default  ->  needs-review  (emitted as fws_rules 20 (fws_zone-LAN.default))
+      [needs-review] CLAVISTER_DNAT_ZONE: the zone NAT rule ssh on 2222 to the jump host translates to is not known (no network of a zone, --zone-network, holds it) or only partly among the zones of this rule: for the translated traffic the rule is written, and may block more
+  zone-GUEST.default  ->  exact  (emitted as fws_rules 21 (fws_zone-GUEST.default))
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  web servers  ->  approximated  (emitted as fws_rules 22 (fws_web_servers))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'https to web1 destination' next to 'WEB-SERVERS' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  exact  (emitted as fws_rules 23 (fws_zone-DMZ.from-WAN.WAN-DMZ-20__https_to_web1_))
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review  (emitted as fws_rules 24 (fws_zone-DMZ.from-WAN.WAN-DMZ-20__ssh_on_2222_to_the_jump_host_))
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+      [needs-review] CLAVISTER_DNAT_ZONE: the zone NAT rule ssh on 2222 to the jump host translates to is not known (no network of a zone, --zone-network, holds it) or only partly among the zones of this rule: for the translated traffic the rule is not written
+  office hours only  ->  needs-review, emitted disabled  (emitted as fws_rules 26 (fws_office_hours_only))
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  needs-review, emitted disabled  (emitted as fws_rules 27 (fws_zone-DMZ.from-WAN.WAN-DMZ-50))
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit).
+  zone-DMZ.from-WAN.default  ->  needs-review  (emitted as fws_rules 28 (fws_zone-DMZ.from-WAN.default))
+      [needs-review] CLAVISTER_DNAT_ZONE: the zone NAT rule ssh on 2222 to the jump host translates to is not known (no network of a zone, --zone-network, holds it) or only partly among the zones of this rule: for the translated traffic the rule is written, and may block more
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  needs-review, emitted disabled  (emitted as fws_rules 34 (fws_zone-DMZ.from-VPN.VPN-DMZ-20))
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.default  ->  needs-review  (emitted as fws_rules 36 (fws_zone-DMZ.default))
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] CLAVISTER_DNAT_ZONE: the zone NAT rule ssh on 2222 to the jump host translates to is not known (no network of a zone, --zone-network, holds it) or only partly among the zones of this rule: for the translated traffic the rule is written, and may block more
+  zone-VPN.default  ->  exact  (emitted as fws_rules 37 (fws_zone-VPN.default))
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-WAN.default  ->  exact  (emitted as fws_rules 39 (fws_ipv6-zone-WAN.default))
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-GUEST.default  ->  exact  (emitted as fws_rules 42 (fws_ipv6-zone-GUEST.default))
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-DMZ.default  ->  exact  (emitted as fws_rules 46 (fws_ipv6-zone-DMZ.default))
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-VPN.default  ->  exact  (emitted as fws_rules 47 (fws_ipv6-zone-VPN.default))
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+
+NAT rules
+  https to web1  ->  approximated  (emitted as fws_rules 1 (fws_https_to_web1_sat))
+      [approximated] CLAVISTER_DNAT_ZONE_FROM_RULES: no network of a zone holds 192.168.30.10: the zone it is routed to is taken from the rules that allow traffic to it (DMZ); give --zone-network to say it
+  ssh on 2222 to the jump host  ->  approximated  (emitted as fws_rules 2 (fws_ssh_on_2222_to_the_jump_host_sat))
+      [approximated] CLAVISTER_DNAT_ZONE_FROM_RULES: no network of a zone holds 192.168.30.22: the zone it is routed to is taken from the rules that allow traffic to it (LAN, DMZ); give --zone-network to say it
+  destination-30  ->  approximated  (emitted as fws_rules 3 (fws_destination-30_sat))
+      [info] NAT_DISABLED: disabled in the source; written disabled
+      [approximated] CLAVISTER_DNAT_ZONE_FROM_RULES: no network of a zone holds 192.168.30.11: the zone it is routed to is taken from the rules that allow traffic to it (DMZ); give --zone-network to say it

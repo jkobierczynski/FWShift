@@ -1,0 +1,51 @@
+FWShift conversion report
+  source: fortios
+  target: clavister
+
+Summary
+  Security rules:     14   exact 6, approximated 1, needs review 7 (6 emitted disabled), skipped 0
+  NAT rules:           5   exact 1, approximated 1, needs review 2, skipped 1
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 3 rule sets it sends traffic to; 29 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: internal1, internal2, wan1, dmz, ot
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  LAN to Internet  ->  approximated  (emitted as fws_rules 5 (fws_LAN_to_Internet))
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
+  Inbound web  ->  needs-review  (emitted as fws_rules 7 (fws_Inbound_web))
+      [needs-review] NAT_PORT_TRANSLATION: virtual IP 'vip-web' forwards port 443 to 8443; FortiOS policies name the mapped port, the neutral model the original one. Check the service of this rule
+  Admins to DMZ  ->  needs-review, emitted disabled  (emitted as fws_rules 9 (fws_Admins_to_DMZ))
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+  Block geo  ->  needs-review, emitted disabled  (emitted as fws_rules 10 (fws_Block_geo), a placeholder, disabled)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ out via pool  ->  needs-review, emitted disabled  (emitted as fws_rules 11 (fws_DMZ_out_via_pool), a placeholder, disabled)
+      [needs-review] CLAVISTER_FQDN: the destination holds the host name updates.example.com, which is not written.
+  policy-12  ->  needs-review, emitted disabled  (emitted as fws_rules 16 (fws_policy-12))
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  Not web  ->  needs-review, emitted disabled  (emitted as fws_rules 17 (fws_Not_web), a placeholder, disabled)
+      [needs-review] CLAVISTER_NEGATED_SERVICE: a negated service: a rule of cOS Core names the services it matches.
+  Timestamp probes  ->  needs-review, emitted disabled  (emitted as fws_rules 18 (fws_Timestamp_probes), a placeholder, disabled)
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+      [needs-review] CLAVISTER_SERVICE: service 'TIMESTAMP' cannot be written (an ICMP type cOS Core does not name, an ICMP code without a type, or SCTP ports).
+
+NAT rules
+  vip-mail  ->  approximated  (emitted as fws_rules 2 (fws_vip-mail_sat))
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+  snat-1  ->  needs-review  (emitted as fws_snat 1 (fws_snat-1))
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+  snat-2  ->  needs-review  (emitted as fws_snat 2 (fws_snat-2))
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+  snat-7  ->  skipped
+      [needs-review] CLAVISTER_NAT_FORM: the host name updates.example.com, which is not written
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted

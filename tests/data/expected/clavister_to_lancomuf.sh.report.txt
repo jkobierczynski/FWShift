@@ -1,0 +1,80 @@
+FWShift conversion report
+  source: clavister
+  target: lancom-uf
+
+Summary
+  Security rules:     25   exact 14, approximated 4, needs review 1 (1 emitted disabled), skipped 6
+  NAT rules:          12   exact 4, approximated 0, needs review 0, skipped 8
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): dmz, guest, lan, wan
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  exact  (emitted as fws-0.0.0.0_0-wan > fws-wan_ip: fws-tcp-80_tcp-443)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+  block_bad_mail+sat_mail  ->  exact  (emitted as taken out of the rules below it)
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [info] ACTION_DROP: action reset-client: the firewall drops what it does not allow
+  nat_mail+sat_mail  ->  exact  (emitted as fws-0.0.0.0_0-lan > fws-wan_ip: fws-tcp-25, fws-0.0.0.0_0-guest > fws-wan_ip: fws-tcp-25)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+  allow_mail+sat_mail  ->  exact  (emitted as fws-0.0.0.0_1-wan > fws-wan_ip: fws-tcp-25, fws-128.0.0.0_2-wan > fws-wan_ip: fws-tcp-25, fws-192.0.0.0_6-wan > fws-wan_ip: fws-tcp-25, fws-196.0.0.0_7-wan > fws-wan_ip: fws-tcp-25, fws-198.0.0.0_11-wan > fws-wan_ip: fws-tcp-25, fws-198.32.0.0_12-wan > fws-wan_ip: fws-tcp-25, fws-198.48.0.0_15-wan > fws-wan_ip: fws-tcp-25, fws-198.50.0.0_16-wan > fws-wan_ip: fws-tcp-25, fws-198.51.0.0_18-wan > fws-wan_ip: fws-tcp-25, fws-198.51.64.0_19-wan > fws-wan_ip: fws-tcp-25, fws-198.51.96.0_22-wan > fws-wan_ip: fws-tcp-25, fws-198.51.101.0_24-wan > fws-wan_ip: fws-tcp-25, fws-198.51.102.0_23-wan > fws-wan_ip: fws-tcp-25, fws-198.51.104.0_21-wan > fws-wan_ip: fws-tcp-25, fws-198.51.112.0_20-wan > fws-wan_ip: fws-tcp-25, fws-198.51.128.0_17-wan > fws-wan_ip: fws-tcp-25, fws-198.52.0.0_14-wan > fws-wan_ip: fws-tcp-25, fws-198.56.0.0_13-wan > fws-wan_ip: fws-tcp-25, fws-198.64.0.0_10-wan > fws-wan_ip: fws-tcp-25, fws-198.128.0.0_9-wan > fws-wan_ip: fws-tcp-25, fws-199.0.0.0_8-wan > fws-wan_ip: fws-tcp-25, fws-200.0.0.0_5-wan > fws-wan_ip: fws-tcp-25, fws-208.0.0.0_4-wan > fws-wan_ip: fws-tcp-25, fws-224.0.0.0_3-wan > fws-wan_ip: fws-tcp-25)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  allow_pool+sat_pool  ->  exact  (emitted as fws-0.0.0.0_0-wan > fws-pub_pool: fws-tcp-80_tcp-443_tcp-8080-8090)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+  to_guest/guest_never  ->  exact
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+  lan_updates  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: the destination 'updates' holds a host name; a desktop object of the firewall names addresses; the rule is not written
+  lan_to_dmz  ->  approximated  (emitted as fws-lan_net > fws-dmz_net: fws-svc-6)
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  syslog_fast  ->  skipped
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  gre_tunnel  ->  skipped
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times; the rule is not written
+  old_rule  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  lan6_web  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  lan6_ping  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  pol_dmz_out  ->  approximated  (emitted as fws-dmz_net > fws-0.0.0.0_0-wan: fws-tcp-80_tcp-443)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+  pol_block_ftp  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+      [info] ACTION_DROP: action reset-client: the firewall drops what it does not allow
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  allow_web+sat_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  allow_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  lan_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  lan_updates  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)
+  pol_dmz_https  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  sat_unused  ->  skipped
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)

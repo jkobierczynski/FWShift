@@ -1,0 +1,75 @@
+FWShift conversion report
+  source: cato
+  target: stormshield
+
+Summary
+  Security rules:     32   exact 18, approximated 1, needs review 13 (13 emitted disabled), skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_LOAD: the output is a script of serverd commands (section 10): it creates objects (and changes those of the same names, also where an active slot uses them), empties filter slot 9 and writes the rules there; the slot is not made active. snscli goes on after a command that fails: read its output, and check the slot with CONFIG FILTER CHECK before it is made active
+  [needs-review] STORMSHIELD_INTERFACES: rules name interfaces by the zone names of the source: each must be the name of an interface of the firewall (in, out, dmz1 ...); rename the zones with --zone-map ZONE=INTERFACE
+  [info] CATO_SOURCE: 4 sites as zones (Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab), remote-users and internet; the WAN Firewall (first match, implicit block) decides between sites and remote users, the Internet Firewall (first match, implicit allow, written as a last rule) from them to the internet; traffic inside one network range does not reach Cato and is allowed
+  [info] CATO_INTERNET_TOP: a hidden rule of Cato above the Internet Firewall blocks connections Cato deems illegal or malicious; it is not in the answer and not converted
+  [info] CATO_INBOUND: traffic from the internet to the sites is decided by Remote Port Forwarding, which is not read: in the model nothing from the internet is allowed
+  [info] CATO_REMOVED: rules marked removed in the revision read: left out: Retired rule
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have loglevel=log where the source logs the start of a connection, and the standard connection log otherwise
+
+Security rules
+  Allow HQ to DC servers  ->  approximated  (emitted as 1 rules of slot 9)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Allow HQ to DC servers (2)'
+  Historian both ways  ->  exact  (emitted as 1 rules of slot 9)
+      [info] CATO_BOTH: direction BOTH: written as rules for each direction, the second set with source and destination swapped: 'Historian both ways (2)'
+  Remote users to DC  ->  exact  (emitted as 2 rules of slot 9)
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+  Modbus to the plant  ->  exact  (emitted as 1 rules of slot 9)
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Modbus to the plant (2)', 'Modbus to the plant (3)'
+  Finance to ERP  ->  needs-review, emitted disabled  (emitted as 5 rules of slot 9)
+      [needs-review] CATO_USERS: users or user groups narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups Finance.
+  Prompt for SSH  ->  needs-review, emitted disabled  (emitted as 25 rules of slot 9)
+      [needs-review] CATO_ACTION: action PROMPT: not converted (read as allow)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: action PROMPT: the user is asked on a web page.
+  Floating range  ->  needs-review, emitted disabled  (emitted as 5 rules of slot 9)
+      [needs-review] CATO_OBJECT: floating ranges, system groups or group members whose addresses are not known: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: floating ranges Cloud floating.
+  Maintenance window  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] SCHEDULE: schedule 'SATURDAY,SUNDAY 22:00:00-23:59:00' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule SATURDAY,SUNDAY 22:00:00-23:59:00 is not converted.
+  Teams between sites  ->  needs-review, emitted disabled  (emitted as 25 rules of slot 9)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application column (applications, categories, domains or addresses as applications).
+  Unknown host  ->  needs-review, emitted disabled  (emitted as 5 rules of slot 9)
+      [needs-review] CATO_UNRESOLVED: objects that are not in the lookups of the input: they match nothing until they are
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'host lab-printer': a host that is not in the lookups of the input.
+      [needs-review] ZONE_DYNAMIC: 'host lab-printer' holds members only its platform knows.
+  Block guest except DNS  ->  needs-review, emitted disabled  (emitted as 25 rules of slot 9)
+      [needs-review] CATO_EXCEPTION: exceptions that cannot be cut out of the rule: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: exception dns from one host: source, service (only an exception of one column of addresses or services is cut out). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block anonymizers  ->  needs-review, emitted disabled  (emitted as 5 rules of slot 9)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [info] CATO_SYSTEM_RULE: a system rule of Cato, which cannot be changed or removed
+      [needs-review] UNSUPPORTED_MATCH: not converted: appCategory Anonymizers. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Plant has no internet  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [needs-review] FQDN_NOT_SUPPORTED: host name object fqdn updates.example.com: written with addresses only. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  HQ web  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: domains example.org.
+  Isolate unknown sites  ->  needs-review, emitted disabled  (emitted as 5 rules of slot 9)
+      [needs-review] CATO_ACTION: action RBI: not converted (read as allow)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action RBI: remote browser isolation.
+      [needs-review] UNSUPPORTED_MATCH: not converted: customCategory Uncategorized.
+  Partner FTP  ->  needs-review, emitted disabled  (emitted as 5 rules of slot 9)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] FQDN_NOT_SUPPORTED: host name object fqdn ftp.example.net: written with addresses only.
+  Block remote users to SMB  ->  needs-review, emitted disabled  (emitted as 5 rules of slot 9)
+      [needs-review] CATO_ORIGIN: connection origins that are not all sites or all remote users: not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: connection origins REMOTE_CLIENT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.

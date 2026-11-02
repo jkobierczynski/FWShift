@@ -1,0 +1,80 @@
+FWShift conversion report
+  source: fmc (Edge)
+  target: lancom-uf
+
+Summary
+  Security rules:     22   exact 7, approximated 8, needs review 1 (1 emitted disabled), skipped 6
+  NAT rules:           7   exact 1, approximated 0, needs review 0, skipped 6
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           24   exact 24, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): dmz, inside, outside
+  [approximated] OBJECT_OVERRIDES: 1 object(s) can have another value on a device than the one that was read (they allow overrides): ot-net. The values of the manager were converted; check them against the device the policy is for
+
+Security rules
+  pre-backup  ->  approximated  (emitted as fws-lan-net > fws-mail-srv: fws-tcp-10000, fws-lan-net > fws-mail-srv-pub: fws-tcp-10000)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  pre-partner-gre  ->  approximated  (emitted as fws-partner-net > fws-web-srv: fws-gre, fws-partner-net > fws-web-srv-pub: fws-gre)
+      [approximated] TUNNEL_RULE: tunnel rule of the prefilter policy: it is converted as a rule for the protocol that carries the tunnel, between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+  pre-partner-gre-reverse  ->  exact  (emitted as fws-web-srv > fws-partner-net: fws-gre)
+      [info] TUNNEL_RULE: the other direction of tunnel rule 'pre-partner-gre', which matches tunnels from source and destination
+  LAN web  ->  approximated  (emitted as fws-lan-net > fws-any-ipv4: fws-tcp-80_tcp-443_tcp-8080-8081)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (file=Block Malware, intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  Updates  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: the destination 'updates' holds a host name; a desktop object of the firewall names addresses; the rule is not written
+  Inbound web  ->  approximated  (emitted as fws-0.0.0.0_5-outside > fws-web-srv: fws-tcp-80_tcp-443, fws-0.0.0.0_5-outside > fws-web-srv-pub: fws-tcp-80_tcp-443, fws-8.0.0.0_7-outside > fws-web-srv: fws-tcp-80_tcp-443, fws-8.0.0.0_7-outside > fws-web-srv-pub: fws-tcp-80_tcp-443, fws-11.0.0.0_8-outside > fws-web-srv: fws-tcp-80_tcp-443, fws-11.0.0.0_8-outside > fws-web-srv-pub: fws-tcp-80_tcp-443, fws-12.0.0.0_6-outside > fws-web-srv: fws-tcp-80_tcp-443, fws-12.0.0.0_6-outside > fws-web-srv-pub: fws-tcp-80_tcp-443, fws-16.0.0.0_4-outside > fws-web-srv: fws-tcp-80_tcp-443, fws-16.0.0.0_4-outside > fws-web-srv-pub: fws-tcp-80_tcp-443, fws-32.0.0.0_3-outside > fws-web-srv: fws-tcp-80_tcp-443, fws-32.0.0.0_3-outside > fws-web-srv-pub: fws-tcp-80_tcp-443, fws-64.0.0.0_2-outside > fws-web-srv: fws-tcp-80_tcp-443, fws-64.0.0.0_2-outside > fws-web-srv-pub: fws-tcp-80_tcp-443, fws-128.0.0.0_1-outside > fws-web-srv: fws-tcp-80_tcp-443, fws-128.0.0.0_1-outside > fws-web-srv-pub: fws-tcp-80_tcp-443)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  Inbound mail  ->  approximated  (emitted as fws-0.0.0.0_5-outside > fws-mail-srv: fws-tcp-25, fws-0.0.0.0_5-outside > fws-mail-srv-pub: fws-tcp-25, fws-8.0.0.0_7-outside > fws-mail-srv: fws-tcp-25, fws-8.0.0.0_7-outside > fws-mail-srv-pub: fws-tcp-25, fws-11.0.0.0_8-outside > fws-mail-srv: fws-tcp-25, fws-11.0.0.0_8-outside > fws-mail-srv-pub: fws-tcp-25, fws-12.0.0.0_6-outside > fws-mail-srv: fws-tcp-25, fws-12.0.0.0_6-outside > fws-mail-srv-pub: fws-tcp-25, fws-16.0.0.0_4-outside > fws-mail-srv: fws-tcp-25, fws-16.0.0.0_4-outside > fws-mail-srv-pub: fws-tcp-25, fws-32.0.0.0_3-outside > fws-mail-srv: fws-tcp-25, fws-32.0.0.0_3-outside > fws-mail-srv-pub: fws-tcp-25, fws-64.0.0.0_2-outside > fws-mail-srv: fws-tcp-25, fws-64.0.0.0_2-outside > fws-mail-srv-pub: fws-tcp-25, fws-128.0.0.0_1-outside > fws-mail-srv: fws-tcp-25, fws-128.0.0.0_1-outside > fws-mail-srv-pub: fws-tcp-25)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  Admin access  ->  approximated  (emitted as fws-10.10.0.100_30-inside > fws-web-srv: fws-tcp-22, fws-10.10.0.100_30-inside > fws-mail-srv: fws-tcp-22, fws-10.10.0.100_30-inside > fws-10.20.0.30_32-dmz: fws-tcp-22, fws-10.10.0.100_30-inside > fws-mail-srv-pub: fws-tcp-22, fws-10.10.0.104_29-inside > fws-web-srv: fws-tcp-22, fws-10.10.0.104_29-inside > fws-mail-srv: fws-tcp-22, fws-10.10.0.104_29-inside > fws-10.20.0.30_32-dmz: fws-tcp-22, fws-10.10.0.104_29-inside > fws-mail-srv-pub: fws-tcp-22, fws-10.10.0.112_29-inside > fws-web-srv: fws-tcp-22, fws-10.10.0.112_29-inside > fws-mail-srv: fws-tcp-22, fws-10.10.0.112_29-inside > fws-10.20.0.30_32-dmz: fws-tcp-22, fws-10.10.0.112_29-inside > fws-mail-srv-pub: fws-tcp-22, fws-10.10.0.120_32-inside > fws-web-srv: fws-tcp-22, fws-10.10.0.120_32-inside > fws-mail-srv: fws-tcp-22, fws-10.10.0.120_32-inside > fws-10.20.0.30_32-dmz: fws-tcp-22, fws-10.10.0.120_32-inside > fws-mail-srv-pub: fws-tcp-22)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  Helpdesk RDP  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [needs-review] USER_MATCH: source user match CORP\helpdesk is not converted; the rule is not written
+  Staff social media  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Partner service  ->  approximated  (emitted as fws-partner-net > fws-web-srv: fws-esp_tcp-8443, fws-partner-net > fws-web-srv-pub: fws-esp_tcp-8443)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+  Uncategorised web  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] INTERACTIVE_BLOCK: the source showed web users a page from which they could go on to the site (Interactive Block); it is converted as a rule that blocks
+  DNS answers to resolver  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  Branch IPv6  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  Ping out  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  Reset the rest from inside  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action reset-both: the firewall drops what it does not allow
+  Watch DMZ  ->  skipped
+      [info] MONITOR_RULE: rule with the action Monitor: it logs the traffic and leaves the decision to the rules below it. Nothing to convert
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-3  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 203.0.113.2
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-4  ->  skipped
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: round robin, flat port range, interface (as fallback)
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-mail-srv  ->  skipped
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: translate DNS replies
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-after-auto-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)

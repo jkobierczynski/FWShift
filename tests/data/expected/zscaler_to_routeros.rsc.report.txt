@@ -1,0 +1,49 @@
+FWShift conversion report
+  source: zscaler
+  target: routeros
+
+Summary
+  Security rules:     17   exact 8, approximated 0, needs review 9 (8 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZSCALER_OUTBOUND_ONLY: ZIA filters traffic to the internet only: traffic between locations, inside one and from the internet does not pass it, and the model blocks it (no rule allows it). A target that sees such traffic needs rules for it
+  [needs-review] ZSCALER_FIREWALL_OFF: locations whose firewall is off (ofwEnabled false): the rules do not decide their traffic on ZIA, the model applies them anyway: Guest-WiFi
+  [needs-review] ZSCALER_RANK: admin ranks out of the rule order: read in the rule order: Ranked web (rank 3 below rank 7)
+  [needs-review] ROUTEROS_LOAD: load the script with '/import file-name=FILE verbose=yes'. It stops at its first lines when objects of an earlier conversion are on the router, and at the first line the router refuses (lines before it stay; on RouterOS 6 the /ipv6 lines need the ipv6 package). Nothing changes traffic until the disabled jump rules at its end are enabled: enable them in Safe Mode, and move each to where it belongs in its chain (in forward, after the rules that accept established connections). Chain fwshift-forward ends with an explicit drop, so the rules of forward after the jump are no longer reached by forwarded traffic. To take a conversion away again: /ip firewall filter remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ipv6 firewall filter remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ip firewall nat remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ip firewall address-list remove [find where list~"^fws-"]; /ipv6 firewall address-list remove [find where list~"^fws-"]; /interface list member remove [find where list~"^fws-"]; /interface list remove [find where name~"^fws-"]
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface lists, whose members must be interfaces of the router, or the import stops. Check the members, and map the zones with --zone-map (or the interfaces with --interface-map): Branch-Ghent, Guest-WiFi, HQ-Brussels, HQ-Servers, internet, road-warrior
+  [info] ZSCALER_SOURCE: 4 locations (HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi), road-warrior (Client Connector outside a location) and internet; the rules decide traffic from the locations to the internet, first match in ascending order, and the default rule decides the rest
+
+Security rules
+  Allow DNS to resolvers  ->  needs-review  (emitted as 2 fwshift-forward rules)
+      [needs-review] ZSCALER_SUBLOCATION: location HQ-Brussels has sub-locations (HQ-Servers): read as the location without them, which may be narrower than ZIA
+  Block malicious IPs and domains  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_CATEGORY: destination IP categories BOTNET, MALWARE_SITE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination IP categories BOTNET, MALWARE_SITE. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Office 365 One Click Rule  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_APPLICATION: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE.
+  Branch web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work hours' is not converted; the rule would apply at all times.
+  Engineers to SaaS  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_FQDN: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold
+      [needs-review] ZSCALER_IDENTITY: groups Engineering: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups Engineering.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'SaaS-Domains': a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+  No embargoed countries  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_COUNTRY: destination countries COUNTRY_KP: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination countries COUNTRY_KP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block GRE and ESP  ->  exact  (emitted as 20 fwshift-forward rules)
+      [info] ZSCALER_BLOCK_ICMP: BLOCK_ICMP drops and answers with an ICMP unreachable: read as deny
+  Evaluate apps  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_EVAL_NWAPP: action EVAL_NWAPP hands the decision to the network application of the traffic: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action EVAL_NWAPP: the decision waits for the network application, which is not modelled. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Ranked web  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_FQDN: destination files.example.org: ZIA matches a domain by the names it sees in the traffic; not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination FQDN files.example.org.
+  Ghent and corporate  ->  needs-review, emitted disabled
+      [needs-review] ZSCALER_LOCATION_GROUP: the rule names locations and location groups: whether ZIA takes either or both is not documented
+      [needs-review] UNSUPPORTED_MATCH: not converted: both locations and location groups: how ZIA combines them is not known.

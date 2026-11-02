@@ -1,0 +1,35 @@
+FWShift audit
+  source: lancom-uf (desktop)
+  security rules: 24 (1 disabled), NAT rules: 5
+
+Summary
+  high 0, medium 4, low 15, info 3
+
+Findings in the policy as it was read
+  [medium] RISKY_SERVICE: rule 'Admin-PCs to Servers - remote.rdp' allows rdp, from zone eth1 to zone eth2 (on the list of the cleartext and remote administration protocols)
+  [medium] RISKY_SERVICE: rule 'Servers to Admin-PCs - remote.rdp' allows rdp, from zone eth2 to zone eth1 (on the list of the cleartext and remote administration protocols)
+  [medium] RISKY_SERVICE: rule 'Branch Sites to LAN - remote.rdp' allows rdp, from any zone to zone eth1 (on the list of the cleartext and remote administration protocols)
+  [medium] ANY_TO_ANY: rule 'Internet to ? - internet.https' allows its services from any source to any destination, from zone WAN to any zone
+  [low] ANY_DESTINATION: rule 'LAN to Internet - internet.http' allows its sources to reach any destination, from zone eth1 to zone WAN
+  [low] ANY_DESTINATION: rule 'LAN to Internet - internet.https' allows its sources to reach any destination, from zone eth1 to zone WAN
+  [low] ANY_DESTINATION: rule 'LAN to Internet - standard.dns' allows its sources to reach any destination, from zone eth1 to zone WAN
+  [low] ANY_DESTINATION: rule 'LAN to Internet - standard.ping' allows its sources to reach any destination, from zone eth1 to zone WAN
+  [low] ANY_SOURCE: rule 'Internet to Webserver - internet.https' allows any source, from zone WAN to zone eth2
+  [low] INDUSTRIAL_SERVICE: rule 'Jump-Hosts to OT-Cell - Modbus-TCP (eth1 to eth3)' allows modbus, from zone eth1 to zone eth3 (on the list of the industrial control protocols)
+  [low] INDUSTRIAL_SERVICE: rule 'Jump-Hosts to OT-Cell - Modbus-TCP (eth3 to eth3)' allows modbus, from zone eth3 to zone eth3 (on the list of the industrial control protocols)
+  [low] INDUSTRIAL_SERVICE: rule 'HMI to OT-Cell - OPC-UA' allows opc-ua, from zone eth3 to zone eth3 (on the list of the industrial control protocols)
+  [low] INDUSTRIAL_SERVICE: rule 'OT-Cell to HMI - OPC-UA' allows opc-ua, from zone eth3 to zone eth3 (on the list of the industrial control protocols)
+  [low] ANY_SOURCE: rule 'Branch Sites to LAN - remote.rdp' allows any source, from any zone to zone eth1
+  [low] ANY_DESTINATION: rule 'LAN to Lab-v6 - internet.http' allows its sources to reach any destination, from zone eth1 to any zone
+  [low] ANY_DESTINATION: rule 'DMZ to Internet - GRE-Tunnel' allows its sources to reach any destination, from zone eth2 to zone WAN
+  [low] ANY_DESTINATION: rule 'DMZ to Internet - Legacy-App' allows its sources to reach any destination, from zone eth2 to zone WAN
+  [low] ANY_DESTINATION: rule 'DMZ to Internet - standard.ssh' allows its sources to reach any destination, from zone eth2 to zone WAN
+  [low] ANY_SOURCE: rule 'Printer to DMZ - internet.http' allows any source, from any zone to zone eth2
+  [info] DISABLED_RULE: rule 'Monitoring to OT-Cell - standard.ping' is disabled: remove it, or note why it is kept
+  [info] UNUSED_OBJECT: 2 addresses no rule uses: 'Printer', 'Lab-v6'
+  [info] UNUSED_OBJECT: 1 address group no rule uses: 'Jump-Hosts'
+
+Left out of the order checks
+  2 rule(s) that the model holds only approximately are neither called dead nor used to call another rule dead:
+    'Internet to Webserver - internet.https' (DMZ_NOT_READ)
+    'LAN to Mailserver - internet.smtp' (CONNECTION_NAT_NOT_READ)

@@ -1,0 +1,66 @@
+FWShift conversion report
+  source: zscaler
+  target: fdm
+
+Summary
+  Security rules:     17   exact 7, approximated 0, needs review 1, skipped 9
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZSCALER_OUTBOUND_ONLY: ZIA filters traffic to the internet only: traffic between locations, inside one and from the internet does not pass it, and the model blocks it (no rule allows it). A target that sees such traffic needs rules for it
+  [needs-review] ZSCALER_FIREWALL_OFF: locations whose firewall is off (ofwEnabled false): the rules do not decide their traffic on ZIA, the model applies them anyway: Guest-WiFi
+  [needs-review] ZSCALER_RANK: admin ranks out of the rule order: read in the rule order: Ranked web (rank 3 below rank 7)
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): HQ-Brussels, internet, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior. Zones are not written: an import would take the interfaces out of a zone that exists
+  [info] ZSCALER_SOURCE: 4 locations (HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi), road-warrior (Client Connector outside a location) and internet; the rules decide traffic from the locations to the internet, first match in ascending order, and the default rule decides the rest
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  Allow DNS to resolvers  ->  needs-review  (emitted as Allow_DNS_to_resolvers)
+      [needs-review] ZSCALER_SUBLOCATION: location HQ-Brussels has sub-locations (HQ-Servers): read as the location without them, which may be narrower than ZIA
+  Block SSH out  ->  exact  (emitted as Block_SSH_out)
+      [info] RESET_ACTION: action reset-client becomes Block, which drops without an answer: a Device Manager has no rule that resets
+  Block malicious IPs and domains  ->  skipped
+      [needs-review] ZSCALER_CATEGORY: destination IP categories BOTNET, MALWARE_SITE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination IP categories BOTNET, MALWARE_SITE. The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Office 365 One Click Rule  ->  skipped
+      [needs-review] ZSCALER_APPLICATION: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE. The rule is left out: a Device Manager has no rules that are switched off.
+  Branch web  ->  skipped
+      [needs-review] SCHEDULE: schedule 'Work hours' is not converted; the rule would apply at all times. The rule is left out: a Device Manager has no rules that are switched off.
+  Engineers to SaaS  ->  skipped
+      [needs-review] ZSCALER_FQDN: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold
+      [needs-review] ZSCALER_IDENTITY: groups Engineering: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold. The rule is left out: a Device Manager has no rules that are switched off.
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups Engineering. The rule is left out: a Device Manager has no rules that are switched off.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'SaaS-Domains': a destination group of FQDNs (DSTN_FQDN), which the model does not hold. The rule is left out: a Device Manager has no rules that are switched off.
+  No embargoed countries  ->  skipped
+      [needs-review] ZSCALER_COUNTRY: destination countries COUNTRY_KP: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination countries COUNTRY_KP. The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Infra out  ->  skipped
+      [info] DISABLED_RULE: disabled on the source: a Device Manager has no rules that are switched off, so it is left out
+  Block GRE and ESP  ->  exact  (emitted as Block_GRE_and_ESP)
+      [info] ZSCALER_BLOCK_ICMP: BLOCK_ICMP drops and answers with an ICMP unreachable: read as deny
+  Evaluate apps  ->  skipped
+      [needs-review] ZSCALER_EVAL_NWAPP: action EVAL_NWAPP hands the decision to the network application of the traffic: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action EVAL_NWAPP: the decision waits for the network application, which is not modelled. The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Ranked web  ->  skipped
+      [needs-review] ZSCALER_FQDN: destination files.example.org: ZIA matches a domain by the names it sees in the traffic; not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination FQDN files.example.org. The rule is left out: a Device Manager has no rules that are switched off.
+  Ghent and corporate  ->  skipped
+      [needs-review] ZSCALER_LOCATION_GROUP: the rule names locations and location groups: whether ZIA takes either or both is not documented
+      [needs-review] UNSUPPORTED_MATCH: not converted: both locations and location groups: how ZIA combines them is not known. The rule is left out: a Device Manager has no rules that are switched off.
+
+Services
+  DNS  ->  exact  (emitted as DNS, tcp-53, udp-53)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'DNS' of 'tcp-53', 'udp-53'
+  HTTP  ->  exact  (emitted as HTTP_2)
+      [info] RENAMED: renamed to 'HTTP_2' to fit the target's naming rules
+  HTTPS  ->  exact  (emitted as HTTPS_2)
+      [info] RENAMED: renamed to 'HTTPS_2' to fit the target's naming rules
+  App-8443  ->  exact  (emitted as App-8443, tcp-8443, tcp-8000-8010)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'App-8443' of 'tcp-8443', 'tcp-8000-8010'
+  SSH  ->  exact  (emitted as SSH_2)
+      [info] RENAMED: renamed to 'SSH_2' to fit the target's naming rules

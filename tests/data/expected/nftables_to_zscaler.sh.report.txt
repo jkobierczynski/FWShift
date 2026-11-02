@@ -1,0 +1,57 @@
+FWShift conversion report
+  source: nftables
+  target: zscaler
+
+Summary
+  Security rules:     16   exact 7, approximated 2, needs review 5 (3 emitted disabled), skipped 2
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] ZSCALER_BLOCK_RULE: the source blocks what no rule matches. Rule fws-block the rest that does so follows the converted rules, disabled: until it is enabled, the rules of the tenant below it and its default rule decide that traffic
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_INSIDE: no --inside-zone: every zone was taken as a location of ZIA, and every rule as one to the internet; ZIA does not filter traffic between locations or from the internet. Name the zones inside with --inside-zone
+  [needs-review] ZSCALER_LOST: ZIA filters traffic from locations to the internet only: 3 rules for traffic from the internet and 0 for traffic between or inside zones inside are not written, or only in part. That traffic needs a firewall of its own at the sites
+  [needs-review] ZSCALER_LOCATIONS_REQUIRED: rules name these locations, which must exist on the tenant under these names: eth0, eth1, eth2, eth3
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+
+Security rules
+  Banned by fail2ban  ->  needs-review, emitted disabled  (emitted as fws-Banned by fail2ban)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  needs-review  (emitted as fws-Block bad hosts)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Rate limited mail  ->  needs-review, emitted disabled  (emitted as fws-Rate limited mail)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.
+  Ping the DMZ  ->  needs-review, emitted disabled  (emitted as fws-Ping the DMZ)
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type: a network service of ZIA holds TCP and UDP ports, and the predefined ICMP_ANY, GRE_PROTOCOL and ESP_PROTOCOL.
+  Inbound web  ->  needs-review  (emitted as fws-Inbound web)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.0.10' because of NAT rule 'Web DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Web DNAT' also translates the port to 8443; the service of this rule still names the post-NAT port and must be adjusted
+  Inbound mail  ->  approximated  (emitted as fws-Inbound mail)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to '10.20.0.25' because of NAT rule 'Mail DNAT'; check that this rule is meant to cover the translated traffic
+  Inbound IPv6  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  DMZ updates  ->  approximated  (emitted as fws-DMZ updates)
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not destination 10.0.0.0/8' is written as the addresses that are left
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  ICMPv6 basics  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+
+NAT rules
+  Web DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  Mail DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  No NAT to partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  DMZ out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  LAN out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only

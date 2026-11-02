@@ -1,0 +1,73 @@
+FWShift conversion report
+  source: stormshield
+  target: securepoint
+
+Summary
+  Security rules:     18   exact 0, approximated 4, needs review 12 (4 emitted disabled), skipped 2
+  Addresses:          22   exact 22, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  [needs-review] STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  [needs-review] STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  [needs-review] STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): out, in, dmz1, lab, labbridge. Map other names with --zone-map
+  [info] STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  [info] STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+  [info] SECUREPOINT_RESERVED_NAME: objects named like objects the UTM comes with were renamed: ssh -> ssh_2, https -> https_2, http -> http_2, smtp -> smtp_2
+  [info] SECUREPOINT_COMMENTED: 4 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  global 1  ->  needs-review  (emitted as 25 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  local 1  ->  needs-review  (emitted as 5 rules of group fwshift)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched
+  local 2  ->  needs-review  (emitted as 25 rules of group fwshift)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched
+  local 3  ->  needs-review  (emitted as 25 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  local 4  ->  needs-review  (emitted as 25 rules of group fwshift)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (inspection=ips); attach equivalent inspection on the target
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched
+  local 5  ->  approximated  (emitted as 5 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched
+  local 6  ->  needs-review  (emitted as 25 rules of group fwshift)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [info] RESET_ACTION: action reset-client becomes REJECT, which answers the sender with an ICMP message, not a TCP reset
+  local 8  ->  approximated  (emitted as 5 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched
+  local 9  ->  approximated  (emitted as 5 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched
+  local 10  ->  needs-review  (emitted as 5 rules of group fwshift)
+      [needs-review] STORMSHIELD_BRIDGE: names a bridge or a port of one: read as that interface only; whether the firewall matches the bridge for its ports, or the reverse, is not documented
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched
+  local 11  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched
+      [needs-review] USER_MATCH: source user match staff@corp.example is not converted.
+  local 12  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched
+      [needs-review] SECUREPOINT_PROTOCOL: IP protocol 200: a service of the UTM is written with protocols FWShift knows the names of (ah, esp, gre, igmp, ipcomp, ipip, ipv6, l2tp, ospf, pim, vrrp).
+  local 13  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'updates.example.com'; that a network object of the UTM takes a host name is not documented.
+  local 14  ->  approximated  (emitted as 25 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched
+  local 15  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application protocol=http); attach equivalent inspection on the target
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'www.example.org'; that a network object of the UTM takes a host name is not documented.
+  local 16  ->  needs-review  (emitted as 25 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (out, in, dmz1, lab, labbridge); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  global 2  ->  skipped
+      [info] STORMSHIELD_DELEG: deleg of everything: the rest goes to the local policy
+  local 7  ->  skipped
+      [info] STORMSHIELD_NON_TERMINAL: action decrypt: the firewall goes on to the next rule; nothing is decided here

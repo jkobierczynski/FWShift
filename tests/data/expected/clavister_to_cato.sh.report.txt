@@ -1,0 +1,126 @@
+FWShift conversion report
+  source: clavister
+  target: cato
+
+Summary
+  Security rules:     25   exact 11, approximated 0, needs review 0, skipped 14
+  NAT rules:          12   exact 0, approximated 0, needs review 0, skipped 12
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: lan, dmz, wan, guest
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: lan=192.168.10.0/24,2001:db8:10::/64; dmz=172.16.20.0/24,172.16.0.0/16; wan=203.0.113.0/24; guest=10.30.0.0/24. --no-source-networks takes none of them
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  drop_netbios  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: references 'netbios-all': a service that is not in the script This deny rule is NOT enforced; rules below it may let more through.
+  allow_web+sat_web  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+      [info] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it
+      [needs-review] CATO_NOT_WRITTEN: not written: none of the addresses of the destination lies in the networks of its zones
+  block_bad_mail+sat_mail  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [needs-review] CATO_NOT_WRITTEN: not written: none of the addresses of the source lies in the networks of its zones This deny rule is NOT enforced; rules below it may let more through.
+  nat_mail+sat_mail  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [info] ZONE_BY_NETWORKS: the source in zone lan, guest is written as the addresses of the networks given for it
+      [needs-review] CATO_NOT_WRITTEN: not written: none of the addresses of the destination lies in the networks of its zones
+  allow_mail+sat_mail  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [info] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it
+      [needs-review] CATO_NOT_WRITTEN: not written: none of the addresses of the destination lies in the networks of its zones
+  allow_pool+sat_pool  ->  skipped
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+      [info] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it
+      [needs-review] CATO_NOT_WRITTEN: not written: none of the addresses of the destination lies in the networks of its zones
+  to_guest/guest_dns  ->  exact  (emitted as fws-to_guest_guest_dns)
+      [info] ZONE_BY_NETWORKS: the source in zone guest is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it
+  to_guest/guest_web  ->  exact  (emitted as fws-to_guest_guest_web)
+      [info] ZONE_BY_NETWORKS: the source in zone guest is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it
+  to_guest/guest_never  ->  exact  (emitted as fws-to_guest_guest_never)
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+      [info] ZONE_BY_NETWORKS: the source in zone guest is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it
+  admin_mgmt  ->  exact  (emitted as fws-admin_mgmt)
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it
+  lan_dns  ->  exact  (emitted as fws-lan_dns)
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it
+  lan_web  ->  exact  (emitted as fws-lan_web)
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it
+  lan_updates  ->  skipped
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [needs-review] CATO_NOT_WRITTEN: not written: host names as the destination: Cato takes them as destinations on the internet only
+  lan_to_dmz  ->  exact  (emitted as fws-lan_to_dmz)
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it
+  syslog_fast  ->  skipped
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  gre_tunnel  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  old_rule  ->  exact  (emitted as fws-old_rule)
+      [info] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it
+  lan6_web  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  lan6_ping  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  pol_dmz_https  ->  skipped
+      [info] ZONE_BY_NETWORKS: the source in zone wan is written as the addresses of the networks given for it
+      [needs-review] CATO_NOT_WRITTEN: not written: none of the addresses of the destination lies in the networks of its zones
+  pol_dmz_out  ->  exact  (emitted as fws-pol_dmz_out)
+      [info] ZONE_BY_NETWORKS: the source in zone dmz is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone wan is written as the addresses of the networks given for it
+  pol_block_ftp  ->  exact  (emitted as fws-pol_block_ftp)
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it
+      [info] REJECT_AS_DENY: action reset-client: written as BLOCK
+  DropAll6  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  allow_web+sat_web  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  nat_mail+sat_mail  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  allow_mail+sat_mail  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  to_guest/guest_dns  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  to_guest/guest_web  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  lan_dns  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  lan_web  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  lan_updates  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  pol_dmz_https  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  pol_dmz_out  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  sat_unused  ->  skipped
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change

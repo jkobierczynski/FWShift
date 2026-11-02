@@ -1,0 +1,95 @@
+FWShift conversion report
+  source: netskope
+  target: windows-firewall
+
+Summary
+  Security rules:     16   exact 1, approximated 3, needs review 12 (12 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  Block known bad ranges  ->  approximated  (emitted as FWShift-Block_known_bad_ranges-1, FWShift-Block_known_bad_ranges-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone client; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone ipsec; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone gre; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  Branch mail to partner  ->  needs-review, emitted disabled  (emitted as FWShift-Branch_mail_to_partner-1, FWShift-Branch_mail_to_partner-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone ipsec, and a rule of Windows Firewall names no zone: give the networks behind ipsec with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of Windows Firewall names no zone: give the networks behind internet with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone gre, and a rule of Windows Firewall names no zone: give the networks behind gre with --zone-network (or --zone-map it to Host or a profile).
+  Voice from sites  ->  needs-review, emitted disabled  (emitted as FWShift-Voice_from_sites-1, FWShift-Voice_from_sites-2, FWShift-Voice_from_sites-3, FWShift-Voice_from_sites-4)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone gre, and a rule of Windows Firewall names no zone: give the networks behind gre with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of Windows Firewall names no zone: give the networks behind internet with --zone-network (or --zone-map it to Host or a profile).
+  Admins to jump hosts [app-ssh-jump]  ->  needs-review, emitted disabled  (emitted as FWShift-Admins_to_jump_hosts__app-ssh-jump_-1, FWShift-Admins_to_jump_hosts__app-ssh-jump_-2)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone client, and a rule of Windows Firewall names no zone: give the networks behind client with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of Windows Firewall names no zone: give the networks behind internet with --zone-network (or --zone-map it to Host or a profile).
+  Admins to jump hosts [app-rdp-gw]  ->  needs-review, emitted disabled  (emitted as FWShift-Admins_to_jump_hosts__app-rdp-gw_-1, FWShift-Admins_to_jump_hosts__app-rdp-gw_-2, FWShift-Admins_to_jump_hosts__app-rdp-gw_-3, FWShift-Admins_to_jump_hosts__app-rdp-gw_-4)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone client, and a rule of Windows Firewall names no zone: give the networks behind client with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of Windows Firewall names no zone: give the networks behind internet with --zone-network (or --zone-map it to Host or a profile).
+  Engineering to git  ->  needs-review, emitted disabled  (emitted as FWShift-Engineering_to_git-1, FWShift-Engineering_to_git-2)
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone client, and a rule of Windows Firewall names no zone: give the networks behind client with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of Windows Firewall names no zone: give the networks behind internet with --zone-network (or --zone-map it to Host or a profile).
+  Block BitTorrent  ->  needs-review, emitted disabled  (emitted as FWShift-Block_BitTorrent-1, FWShift-Block_BitTorrent-2)
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone client; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone ipsec; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone gre; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Not from the server networks: no NTP  ->  approximated  (emitted as FWShift-Not_from_the_server_networks__no_NTP-1, FWShift-Not_from_the_server_networks__no_NTP-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone ipsec; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer
+  Time servers  ->  needs-review, emitted disabled  (emitted as FWShift-Time_servers-1, FWShift-Time_servers-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone client, and a rule of Windows Firewall names no zone: give the networks behind client with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of Windows Firewall names no zone: give the networks behind internet with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone ipsec, and a rule of Windows Firewall names no zone: give the networks behind ipsec with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone gre, and a rule of Windows Firewall names no zone: give the networks behind gre with --zone-network (or --zone-map it to Host or a profile).
+  SaaS files from the office  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp-saas-domains': destination profile dp-saas-domains: host name 'files.example.com'.
+  Ping out  ->  needs-review, emitted disabled  (emitted as FWShift-Ping_out-1, FWShift-Ping_out-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone client, and a rule of Windows Firewall names no zone: give the networks behind client with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of Windows Firewall names no zone: give the networks behind internet with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone ipsec, and a rule of Windows Firewall names no zone: give the networks behind ipsec with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone gre, and a rule of Windows Firewall names no zone: give the networks behind gre with --zone-network (or --zone-map it to Host or a profile).
+  DNS out  ->  needs-review, emitted disabled  (emitted as FWShift-DNS_out-1, FWShift-DNS_out-2, FWShift-DNS_out-3, FWShift-DNS_out-4)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone client, and a rule of Windows Firewall names no zone: give the networks behind client with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of Windows Firewall names no zone: give the networks behind internet with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone ipsec, and a rule of Windows Firewall names no zone: give the networks behind ipsec with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone gre, and a rule of Windows Firewall names no zone: give the networks behind gre with --zone-network (or --zone-map it to Host or a profile).
+  Contractors: nothing else  ->  needs-review, emitted disabled  (emitted as FWShift-Contractors__nothing_else-1, FWShift-Contractors__nothing_else-2)
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone client; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Lab network out  ->  needs-review, emitted disabled  (emitted as FWShift-Lab_network_out-1, FWShift-Lab_network_out-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone ipsec, and a rule of Windows Firewall names no zone: give the networks behind ipsec with --zone-network (or --zone-map it to Host or a profile).
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of Windows Firewall names no zone: give the networks behind internet with --zone-network (or --zone-map it to Host or a profile).
+  Default Action  ->  approximated  (emitted as FWShift-Default_Action-1, FWShift-Default_Action-2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone client; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone ipsec; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone gre; a rule of Windows Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a block rule of Windows Firewall drops without an answer

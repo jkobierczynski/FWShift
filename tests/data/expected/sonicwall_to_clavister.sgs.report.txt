@@ -1,0 +1,78 @@
+FWShift conversion report
+  source: sonicwall (SonicOS 7.1.2-7019)
+  target: clavister
+
+Summary
+  Security rules:     18   exact 9, approximated 4, needs review 5 (3 emitted disabled), skipped 0
+  NAT rules:           6   exact 0, approximated 3, needs review 3, skipped 0
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 4 rule sets it sends traffic to; 53 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: X0, X1, X4, X2, X3, VPN
+  [info] ZONE_TYPE_ASSUMED: the security type of these zones was read from a code of the export whose meaning is taken from the published readers of the format, not from SonicWall: Servers (trusted)
+  [info] SONICWALL_FORMAT: the settings export is not documented by SonicWall beyond its encoding. The keys read are those every published reader of the format agrees on; what this parser does not know of a rule is not read
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  LAN to WAN #4  ->  exact  (emitted as fws_rules 10 (fws_LAN_to_WAN__4))
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  WAN to DMZ #3  ->  needs-review  (emitted as fws_rules 14 (fws_WAN_to_DMZ__3))
+      [needs-review] CLAVISTER_DNAT_ZONE: the zone NAT rule Servers one to one (reflexive) translates to is not known (no network of a zone, --zone-network, holds it) or only partly among the zones of this rule: for the translated traffic the rule is written, and may block more
+  WAN to LAN #1  ->  needs-review  (emitted as fws_rules 15 (fws_WAN_to_LAN__1))
+      [needs-review] CLAVISTER_DNAT_ZONE: the zone NAT rule Servers one to one (reflexive) translates to is not known (no network of a zone, --zone-network, holds it) or only partly among the zones of this rule: for the translated traffic the rule is written, and may block more
+  Mail server pings the LAN  ->  needs-review, emitted disabled  (emitted as fws_rules 17 (fws_Mail_server_pings_the_LAN), a placeholder, disabled)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Echo Object': ICMP type and code of a service object: how the export stores them is not known.
+      [needs-review] CLAVISTER_SERVICE: service 'Echo Object' cannot be written (an ICMP type cOS Core does not name, an ICMP code without a type, or SCTP ports).
+  Administrators to the DMZ  ->  needs-review, emitted disabled  (emitted as fws_rules 18 (fws_Administrators_to_the_DMZ))
+      [needs-review] USER_MATCH: source user match Admins is not converted.
+  Updates in working hours  ->  needs-review, emitted disabled  (emitted as fws_rules 19 (fws_Updates_in_working_hours), a placeholder, disabled)
+      [needs-review] SCHEDULE: schedule 'Work Hours' is not converted; the rule would apply at all times.
+      [needs-review] CLAVISTER_FQDN: the destination holds the host name Update Site, which is not written.
+  default LAN to DMZ  ->  approximated  (emitted as fws_rules 21 (fws_default_LAN_to_DMZ), fws_rules 22 (fws_default_LAN_to_DMZ_v6))
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from LAN to DMZ; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default DMZ to WAN  ->  approximated  (emitted as fws_rules 23 (fws_default_DMZ_to_WAN), fws_rules 24 (fws_default_DMZ_to_WAN_v6))
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from DMZ to WAN; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default Servers to WAN  ->  approximated  (emitted as fws_rules 25 (fws_default_Servers_to_WAN), fws_rules 26 (fws_default_Servers_to_WAN_v6))
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from Servers to WAN; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default Servers to DMZ  ->  approximated  (emitted as fws_rules 27 (fws_default_Servers_to_DMZ), fws_rules 28 (fws_default_Servers_to_DMZ_v6))
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from Servers to DMZ; SonicOS allows it by default for zones of these security types, and this rule stands for that
+
+NAT rules
+  Default NAT  ->  approximated  (emitted as fws_snat 1 (fws_Default_NAT))
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+  Web server  ->  needs-review  (emitted as fws_rules 1 (fws_Web_server_sat))
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_ORDER: on the source, NAT rule 'Default NAT' above this one matches part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well
+      [approximated] CLAVISTER_DNAT_ZONE_FROM_RULES: no network of a zone holds Web Server: the zone it is routed to is taken from the rules that allow traffic to it (DMZ); give --zone-network to say it
+  Mail on another port  ->  needs-review  (emitted as fws_rules 2 (fws_Mail_on_another_port_sat))
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_ORDER: on the source, NAT rule 'Default NAT' above this one matches part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well
+      [approximated] CLAVISTER_DNAT_ZONE_FROM_RULES: no network of a zone holds Mail Server: the zone it is routed to is taken from the rules that allow traffic to it (DMZ); give --zone-network to say it
+  Servers one to one  ->  approximated  (emitted as fws_snat 2 (fws_Servers_one_to_one_sat), fws_snat 3 (fws_Servers_one_to_one))
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+  Servers one to one (reflexive)  ->  needs-review  (emitted as fws_rules 3 (fws_Servers_one_to_one__reflexive__sat))
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [approximated] NAT_REFLEXIVE: policy 'Servers one to one' is reflexive: SonicOS adds its mirror image, which is converted as this rule. How SonicOS builds the mirror is assumed (sources and destinations swapped with their translations)
+      [needs-review] NAT_ORDER: on the source, NAT rule 'Default NAT' above this one matches part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well
+  Old admin NAT  ->  approximated  (emitted as fws_snat 4 (fws_Old_admin_NAT))
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [info] NAT_DISABLED: disabled in the source; written disabled
+
+Addresses
+  X0 Subnet  ->  exact
+      [info] DEFAULT_OBJECT: an object SonicOS has by itself, not defined in the export: worked out from the interfaces of the export
+
+Services
+  SMTP (Send E-Mail)  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  HTTP  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  HTTPS  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  SSH  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed

@@ -1,0 +1,68 @@
+FWShift zone matrix
+  source: securepoint
+  security rules: 18 (0 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 external          internal          dmz1              vpn-ipsec         (other zones)
+  external       -                 -                 tcp/25 tcp/8443   -                 -
+  internal       icmp type 8 +5~   icmp type 8       any~              any~              icmp type 8
+  dmz1           any               -                 -                 -                 -
+  vpn-ipsec      -                 any               tcp/22            -                 -
+  (other zones)  -                 -                 -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+external -> dmz1
+  allowed: tcp/25, tcp/8443
+  rule 'rule-2': internet -> external-interface: tcp/8443
+  rule 'rule-6': internet -> public-mail: tcp/25
+internal -> external
+  allowed: icmp type 8, tcp/21, tcp/80, tcp/443, udp/53, icmp6 type 128 ~
+  cleartext or remote administration: ftp (rule 'rule-1')
+  rule 'rule-1': internal-network -> internet: icmp type 8, tcp/21, tcp/80, tcp/443, udp/53
+  rule 'rule-4': lan6 -> internet6: tcp/80, tcp/443
+  rule 'rule-11': internal-network -> update-host: tcp/443 ~
+  rule 'rule-13': admin-pc -> any: icmp type 8
+  rule 'rule-15': lan6 -> internet6: icmp6 type 128
+internal -> internal (inside the zone)
+  allowed: icmp type 8
+  rule 'rule-13': admin-pc -> any: icmp type 8
+internal -> dmz1
+  allowed: any ~
+  rule 'rule-13': admin-pc -> any: icmp type 8
+  rule 'rule-7': admin-pc -> servers: tcp/22
+  rule 'rule-12': internal-network -> dmz1-network: tcp/8000-8010
+  rule 'rule-16': internal-network -> webserver: any (only with flag 'MIRROR' is not one FWShift reads, which is not in the model) ~
+internal -> vpn-ipsec
+  allowed: any ~
+  rule 'rule-13': admin-pc -> any: icmp type 8
+  rule 'rule-14': internal-network -> partner-net: any (only with NETMAP on the rule: which addresses its packet filter rule names is not documented, which is not in the model) ~
+internal -> (other zones)
+  allowed: icmp type 8
+  rule 'rule-13': admin-pc -> any: icmp type 8
+dmz1 -> external
+  allowed: any
+  rule 'rule-8': dmz1-network -> internet: any
+vpn-ipsec -> internal
+  allowed: any
+  rule 'rule-10': partner-net -> internal-network: any
+vpn-ipsec -> dmz1
+  allowed: tcp/22
+  rule 'rule-7-2': partner-net -> servers: tcp/22
+
+Not in the matrix
+  1 rule(s) of the source could not be read; what they allow is not shown: 'rule-5'
+
+From reading the configuration
+  SECUREPOINT_SOURCE: 18 rules of the packet filter in 3 rule groups, first match in the order of the groups; zones from the network objects; what no rule matches is dropped (Default Drop)
+  SECUREPOINT_IMPLIED_RULES: the UTM's implicit rules (Firewall > Implied rules: its own services, VPN, the threat intelligence filter) come before the packet filter and are not converted
+  SECUREPOINT_LOCAL_RULES: 1 rules for the UTM's own services (to or from objects in zones of its own interfaces) are not converted
+  SECUREPOINT_NAT_ORDER: NAT is part of the rules: each rule with NAT became a NAT rule, in the order of the rules. DESTNAT is done before the packet filter and HIDENAT after it (netfilter); a rule's NAT is read as applying whatever its action (assumed)
+  SECUREPOINT_IMPLIED: commands that change the implicit rules are not converted: group set implied_group "12" active "1"
+  SECUREPOINT_RANGE: network objects with an address range a-b (a form FWShift reads, not documented): printers
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

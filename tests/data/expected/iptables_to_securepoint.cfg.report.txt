@@ -1,0 +1,28 @@
+FWShift conversion report
+  source: iptables (IPv4)
+  target: securepoint
+
+Summary
+  Security rules:     15   exact 13, approximated 0, needs review 2 (1 emitted disabled), skipped 0
+  NAT rules:           5   exact 4, approximated 0, needs review 0, skipped 1
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain INPUT (3 rules, policy DROP) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): eth1, eth0, eth2, eth3, firewall-eth0. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: eth0-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] PASSIVE_TARGETS: 1 FORWARD rule with target LOG decides nothing and was left out; a LOG rule directly before a rule with the same match sets its logging
+  [info] SECUREPOINT_COMMENTED: 1 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  Block bad host  ->  needs-review  (emitted as 16 rules of group fwshift)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (eth1, eth0, eth2, eth3); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  Rate limited mail  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: match module 'limit'.
+
+NAT rules
+  DMZ out  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: HIDENAT hides behind one address; the translated address is not one

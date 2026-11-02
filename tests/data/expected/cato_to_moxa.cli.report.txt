@@ -1,0 +1,120 @@
+FWShift conversion report
+  source: cato
+  target: moxa
+
+Summary
+  Security rules:     32   exact 0, approximated 0, needs review 32 (32 emitted disabled), skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [needs-review] MOXA_ZONES: zones that are not interfaces of the router (lan, wan1, wan2); their rules are written disabled: give --zone-map ZONE=lan|wan1|wan2 for Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, internet
+  [info] CATO_SOURCE: 4 sites as zones (Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab), remote-users and internet; the WAN Firewall (first match, implicit block) decides between sites and remote users, the Internet Firewall (first match, implicit allow, written as a last rule) from them to the internet; traffic inside one network range does not reach Cato and is allowed
+  [info] CATO_INTERNET_TOP: a hidden rule of Cato above the Internet Firewall blocks connections Cato deems illegal or malicious; it is not in the answer and not converted
+  [info] CATO_INBOUND: traffic from the internet to the sites is decided by Remote Port Forwarding, which is not read: in the model nothing from the internet is allowed
+  [info] CATO_REMOVED: rules marked removed in the revision read: left out: Retired rule
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  inside Brussels-HQ range 1  ->  needs-review, emitted disabled  (emitted as firewall 1)
+      [needs-review] MOXA_ZONE: zones Brussels-HQ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  inside Brussels-HQ range 2  ->  needs-review, emitted disabled  (emitted as firewall 2)
+      [needs-review] MOXA_ZONE: zones Brussels-HQ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  inside Antwerp-DC range 1  ->  needs-review, emitted disabled  (emitted as firewall 3)
+      [needs-review] MOXA_ZONE: zones Antwerp-DC: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  inside Antwerp-DC range 2  ->  needs-review, emitted disabled  (emitted as firewall 4)
+      [needs-review] MOXA_ZONE: zones Antwerp-DC: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  inside Ghent-Plant range 1  ->  needs-review, emitted disabled  (emitted as firewall 5)
+      [needs-review] MOXA_ZONE: zones Ghent-Plant: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  inside Leuven-Lab range 1  ->  needs-review, emitted disabled  (emitted as firewall 6)
+      [needs-review] MOXA_ZONE: zones Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Allow HQ to DC servers  ->  needs-review, emitted disabled  (emitted as firewall 7)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Allow HQ to DC servers (2)'
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Allow HQ to DC servers (2)  ->  needs-review, emitted disabled  (emitted as firewall 8)
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Block OT to HQ  ->  needs-review, emitted disabled  (emitted as firewall 9)
+      [needs-review] MOXA_ZONE: zones Ghent-Plant, Leuven-Lab, Brussels-HQ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Historian both ways  ->  needs-review, emitted disabled  (emitted as firewall 10)
+      [info] CATO_BOTH: direction BOTH: written as rules for each direction, the second set with source and destination swapped: 'Historian both ways (2)'
+      [needs-review] MOXA_ZONE: zones Ghent-Plant, Antwerp-DC: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Historian both ways (2)  ->  needs-review, emitted disabled  (emitted as firewall 11)
+      [needs-review] MOXA_ZONE: zones Antwerp-DC, Ghent-Plant: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Remote users to DC  ->  needs-review, emitted disabled  (emitted as firewall 12)
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [needs-review] MOXA_ZONE: zones remote-users, Antwerp-DC: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Modbus to the plant  ->  needs-review, emitted disabled  (emitted as firewall 13)
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Modbus to the plant (2)', 'Modbus to the plant (3)'
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Ghent-Plant: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Modbus to the plant (2)  ->  needs-review, emitted disabled  (emitted as firewall 14)
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Modbus to the plant (3)  ->  needs-review, emitted disabled  (emitted as firewall 15)
+      [needs-review] MOXA_ZONE: zones Ghent-Plant: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Finance to ERP  ->  needs-review, emitted disabled  (emitted as firewall 16)
+      [needs-review] CATO_USERS: users or user groups narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups Finance.
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Prompt for SSH  ->  needs-review, emitted disabled  (emitted as firewall 17)
+      [needs-review] CATO_ACTION: action PROMPT: not converted (read as allow)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: action PROMPT: the user is asked on a web page.
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Old block  ->  needs-review, emitted disabled  (emitted as firewall 18)
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Floating range  ->  needs-review, emitted disabled  (emitted as firewall 19)
+      [needs-review] CATO_OBJECT: floating ranges, system groups or group members whose addresses are not known: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: floating ranges Cloud floating.
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Maintenance window  ->  needs-review, emitted disabled  (emitted as firewall 20)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] SCHEDULE: schedule 'SATURDAY,SUNDAY 22:00:00-23:59:00' is not converted; the rule would apply at all times.
+      [needs-review] MOXA_ZONE: zones Antwerp-DC, Ghent-Plant: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Teams between sites  ->  needs-review, emitted disabled  (emitted as firewall 21)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application column (applications, categories, domains or addresses as applications).
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Unknown host  ->  needs-review, emitted disabled  (emitted as firewall 22)
+      [needs-review] CATO_UNRESOLVED: objects that are not in the lookups of the input: they match nothing until they are
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'host lab-printer': a host that is not in the lookups of the input.
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Block guest except DNS  ->  needs-review, emitted disabled  (emitted as firewall 23)
+      [needs-review] CATO_EXCEPTION: exceptions that cannot be cut out of the rule: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: exception dns from one host: source, service (only an exception of one column of addresses or services is cut out). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block plant to remote users  ->  needs-review, emitted disabled  (emitted as firewall 24)
+      [needs-review] MOXA_ZONE: zones Ghent-Plant, Brussels-HQ, Antwerp-DC, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block anonymizers  ->  needs-review, emitted disabled  (emitted as firewall 25)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [info] CATO_SYSTEM_RULE: a system rule of Cato, which cannot be changed or removed
+      [needs-review] UNSUPPORTED_MATCH: not converted: appCategory Anonymizers. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad networks  ->  needs-review, emitted disabled  (emitted as firewall 26)
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Plant has no internet  ->  needs-review, emitted disabled  (emitted as firewall 27)
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [needs-review] MOXA_ZONE: zones Ghent-Plant, internet: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object fqdn updates.example.com: a policy names IPv4 addresses only. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  HQ web  ->  needs-review, emitted disabled  (emitted as firewall 28)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: domains example.org.
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, internet: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Isolate unknown sites  ->  needs-review, emitted disabled  (emitted as firewall 29)
+      [needs-review] CATO_ACTION: action RBI: not converted (read as allow)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action RBI: remote browser isolation.
+      [needs-review] UNSUPPORTED_MATCH: not converted: customCategory Uncategorized.
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Partner FTP  ->  needs-review, emitted disabled  (emitted as firewall 30)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object fqdn ftp.example.net: a policy names IPv4 addresses only.
+  Block remote users to SMB  ->  needs-review, emitted disabled  (emitted as firewall 31)
+      [needs-review] CATO_ORIGIN: connection origins that are not all sites or all remote users: not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: connection origins REMOTE_CLIENT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Internet Firewall implicit allow  ->  needs-review, emitted disabled  (emitted as firewall 32)
+      [needs-review] MOXA_ZONE: zones Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).

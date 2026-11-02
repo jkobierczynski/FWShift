@@ -1,0 +1,46 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: securepoint
+
+Summary
+  Security rules:      8   exact 1, approximated 4, needs review 3 (3 emitted disabled), skipped 0
+  NAT rules:           4   exact 0, approximated 1, needs review 1, skipped 2
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): inside_zone, outside_zone, iot, firewall-outside_zone. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: outside_zone-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] SECUREPOINT_COMMENTED: 3 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  Block_IoT_to_office  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-lan' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+  Inside_Outside_web  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  IoT_telemetry  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'telemetry.example.net'; that a network object of the UTM takes a host name is not documented.
+  NAS_from_Internet  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'nas' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+  Head_office_v6  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-devices' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (outside_zone, inside_zone, iot); traffic of other zones of the UTM is not matched
+  Staff_streaming  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests_by_time  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] SECUREPOINT_ICMP_CODE: ICMP type 3 code 3: a service of the UTM names ICMP types, not codes.
+
+NAT rules
+  NAS_published  ->  approximated  (emitted as 1 rule with DESTNAT)
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 192.0.2.2
+  nas_static  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: the UTM writes HIDENAT, HIDENAT_EXCLUDE and DESTNAT on a rule; a rule that translates source and destination, a static translation both ways or a pool is none of them
+  InsideOutsideNatRule  ->  needs-review  (emitted as 1 rule with HIDENAT)
+      [needs-review] NAT_ORDER: NAT rule 'nas_static' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+  IoT_out  ->  skipped
+      [info] NAT_DISABLED: disabled in the source; not written

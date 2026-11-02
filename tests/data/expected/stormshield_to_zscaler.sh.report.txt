@@ -1,0 +1,53 @@
+FWShift conversion report
+  source: stormshield
+  target: zscaler
+
+Summary
+  Security rules:     18   exact 7, approximated 1, needs review 7 (2 emitted disabled), skipped 3
+  Addresses:          22   exact 22, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  [needs-review] STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  [needs-review] STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  [needs-review] STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+  [needs-review] ZSCALER_BLOCK_RULE: the source blocks what no rule matches. Rule fws-block the rest that does so follows the converted rules, disabled: until it is enabled, the rules of the tenant below it and its default rule decide that traffic
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_INSIDE: no --inside-zone: every zone was taken as a location of ZIA, and every rule as one to the internet; ZIA does not filter traffic between locations or from the internet. Name the zones inside with --inside-zone
+  [needs-review] ZSCALER_LOST: ZIA filters traffic from locations to the internet only: 11 rules for traffic from the internet and 0 for traffic between or inside zones inside are not written, or only in part. That traffic needs a firewall of its own at the sites
+  [needs-review] ZSCALER_LOCATIONS_REQUIRED: rules name these locations, which must exist on the tenant under these names: in, lab, out
+  [info] STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  [info] STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+
+Security rules
+  local 1  ->  needs-review  (emitted as fws-local 1)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  local 2  ->  needs-review  (emitted as fws-local 2)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 4  ->  needs-review  (emitted as fws-local 4)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not destination Network_internals' is written as the addresses that are left
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  local 6  ->  needs-review  (emitted as fws-local 6)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 10  ->  needs-review  (emitted as fws-local 10)
+      [needs-review] STORMSHIELD_BRIDGE: names a bridge or a port of one: read as that interface only; whether the firewall matches the bridge for its ports, or the reverse, is not documented
+  local 11  ->  needs-review, emitted disabled  (emitted as fws-local 11)
+      [needs-review] USER_MATCH: source user match staff@corp.example is not converted.
+  local 12  ->  needs-review, emitted disabled  (emitted as fws-local 12)
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 200: a network service of ZIA holds TCP and UDP ports, and the predefined ICMP_ANY, GRE_PROTOCOL and ESP_PROTOCOL.
+  local 13  ->  approximated  (emitted as fws-local 13)
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not source lan' is written as the addresses that are left
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  local 14  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  global 2  ->  skipped
+      [info] STORMSHIELD_DELEG: deleg of everything: the rest goes to the local policy
+  local 7  ->  skipped
+      [info] STORMSHIELD_NON_TERMINAL: action decrypt: the firewall goes on to the next rule; nothing is decided here

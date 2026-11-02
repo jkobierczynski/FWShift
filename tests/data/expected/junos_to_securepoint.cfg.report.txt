@@ -1,0 +1,51 @@
+FWShift conversion report
+  source: junos (root)
+  target: securepoint
+
+Summary
+  Security rules:     14   exact 8, approximated 1, needs review 4 (2 emitted disabled), skipped 1
+  NAT rules:           6   exact 1, approximated 0, needs review 0, skipped 5
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): trust, untrust, dmz, guest. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: untrust-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] JUNOS_FORMAT: read 14 security policies and 6 NAT rules of the root system. Policies are looked up after static and destination NAT; they were brought back to the original destination, as the model has it
+  [info] PREDEFINED_APPLICATIONS: predefined applications are not in the configuration; these were taken from FWShift's table of them: junos-dns-udp, junos-http, junos-https, junos-ping, junos-smtp, junos-ssh
+  [info] HOST_POLICIES: policies for the zone junos-host (traffic to and from the firewall itself) are not read: 'to-box'
+  [info] SECUREPOINT_COMMENTED: 3 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  updates  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'updates.example.com'; that a network object of the UTM takes a host name is not documented.
+  web-in  ->  needs-review  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to 'web-srv' because of NAT rule 'from-internet dnat-web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'from-internet dnat-web' also translates the port to 8080; the service of this rule still names the post-NAT port and must be adjusted
+  mail-in  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to 'mail-srv' because of NAT rule 'inbound static-mail'; check that this rule is meant to cover the translated traffic
+  dmz-out  ->  exact  (emitted as 1 rule of group fwshift)
+      [info] SECUREPOINT_DISABLED: disabled in the source: written as comment lines, which are not loaded
+  guest-web  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SCHEDULE: schedule 'work-hours' is not converted; the rule would apply at all times.
+  guest-ping  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match a packet
+  global-block  ->  needs-review  (emitted as 16 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (untrust, trust, dmz, guest); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [info] RESET_ACTION: action reset-client becomes REJECT, which answers the sender with an ICMP message, not a TCP reset
+
+NAT rules
+  inbound static-mail  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT needs the one zone the traffic is sent to (the zone of its NAT network object, firewall-<zone>); the NAT rule names none
+  from-internet dnat-web  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT needs the one zone the traffic is sent to (the zone of its NAT network object, firewall-<zone>); the NAT rule names none
+  inbound static-mail (outbound)  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: HIDENAT hides behind the address of an interface or of one network object; this source translation is none of them
+  dmz-out snat-dmz  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: HIDENAT hides behind one address; the translated address is not one
+  vr-out snat-vr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule set for routing instance 'VR1', which is not read; a rule set that does not say where its traffic comes from

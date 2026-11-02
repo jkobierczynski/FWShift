@@ -1,0 +1,291 @@
+set address internet ip-netmask 0.0.0.0/0
+set address internet6 ip-netmask ::/0
+set address internal-network ip-netmask 192.168.10.0/24
+set address internal-network description "the networks of interface eth1"
+set address internal-interface ip-netmask 192.168.10.1
+set address internal-interface description "the address of interface eth1"
+set address external-interface ip-netmask 203.0.113.2
+set address external-interface description "the address of interface eth0"
+set address dmz1-network ip-netmask 172.16.20.0/24
+set address dmz1-network description "the networks of interface eth2"
+set address public-mail ip-netmask 203.0.113.5/32
+set address webserver ip-netmask 172.16.20.10/32
+set address mailserver ip-netmask 172.16.20.25/32
+set address admin-pc ip-netmask 192.168.10.50/32
+set address printers ip-range 192.168.10.200-192.168.10.220
+set address lan6 ip-netmask 2001:db8:10::/64
+set address partner-net ip-netmask 10.20.0.0/16
+set address update-host fqdn updates.example.com
+set address blocked-region ip-netmask 0.0.0.0/32
+set address blocked-region description "FWSHIFT PLACEHOLDER, matches nothing: address 'geoip:XX' is not a form FWShift reads"
+set address-group servers static [ webserver mailserver ]
+set address-group admins-and-partner static [ admin-pc partner-net ]
+set service http protocol tcp port 80
+set service https protocol tcp port 443
+set service extern-https protocol tcp port 8443
+set service smtp protocol tcp port 25
+set service domain-udp protocol udp port 53
+set service ntp-client protocol udp port 123
+set service ntp-client protocol udp source-port 1024-65535
+set service app-ports protocol tcp port 8000-8010
+set service ftp protocol tcp port 21
+set service ftp description "connection tracking helper ftp"
+set service ssh protocol tcp port 22
+set service ssh description "a service the UTM comes with"
+set service-group web members [ http https ]
+set service-group default-internet members [ http https domain-udp ftp ]
+set rulebase security rules rule-1 from internal
+set rulebase security rules rule-1 to external
+set rulebase security rules rule-1 source internal-network
+set rulebase security rules rule-1 destination internet
+set rulebase security rules rule-1 source-user any
+set rulebase security rules rule-1 category any
+set rulebase security rules rule-1 application any
+set rulebase security rules rule-1 service default-internet
+set rulebase security rules rule-1 action allow
+set rulebase security rules rule-1 log-end yes
+set rulebase security rules rule-1 description "LAN to the internet"
+set rulebase security rules rule-1-apps from internal
+set rulebase security rules rule-1-apps to external
+set rulebase security rules rule-1-apps source internal-network
+set rulebase security rules rule-1-apps destination internet
+set rulebase security rules rule-1-apps source-user any
+set rulebase security rules rule-1-apps category any
+set rulebase security rules rule-1-apps application ping
+set rulebase security rules rule-1-apps service application-default
+set rulebase security rules rule-1-apps action allow
+set rulebase security rules rule-1-apps log-end yes
+set rulebase security rules rule-1-apps description "LAN to the internet"
+set rulebase security rules rule-4 from internal
+set rulebase security rules rule-4 to external
+set rulebase security rules rule-4 source lan6
+set rulebase security rules rule-4 destination internet6
+set rulebase security rules rule-4 source-user any
+set rulebase security rules rule-4 category any
+set rulebase security rules rule-4 application any
+set rulebase security rules rule-4 service web
+set rulebase security rules rule-4 action allow
+set rulebase security rules rule-4 log-end no
+set rulebase security rules rule-4 description "LAN IPv6 web"
+set rulebase security rules rule-10 from vpn-ipsec
+set rulebase security rules rule-10 to internal
+set rulebase security rules rule-10 source partner-net
+set rulebase security rules rule-10 destination internal-network
+set rulebase security rules rule-10 source-user any
+set rulebase security rules rule-10 category any
+set rulebase security rules rule-10 application any
+set rulebase security rules rule-10 service any
+set rulebase security rules rule-10 action allow
+set rulebase security rules rule-10 log-end no
+set rulebase security rules rule-10 description "VPN partner, not hidden"
+set rulebase security rules rule-11 from internal
+set rulebase security rules rule-11 to external
+set rulebase security rules rule-11 source internal-network
+set rulebase security rules rule-11 destination update-host
+set rulebase security rules rule-11 source-user any
+set rulebase security rules rule-11 category any
+set rulebase security rules rule-11 application any
+set rulebase security rules rule-11 service https
+set rulebase security rules rule-11 action allow
+set rulebase security rules rule-11 log-end no
+set rulebase security rules rule-13 from internal
+set rulebase security rules rule-13 to any
+set rulebase security rules rule-13 source admin-pc
+set rulebase security rules rule-13 destination any
+set rulebase security rules rule-13 source-user any
+set rulebase security rules rule-13 category any
+set rulebase security rules rule-13 application ping
+set rulebase security rules rule-13 service application-default
+set rulebase security rules rule-13 action allow
+set rulebase security rules rule-13 log-end no
+set rulebase security rules rule-13 description "ping from the admin"
+set rulebase security rules rule-14 from internal
+set rulebase security rules rule-14 to vpn-ipsec
+set rulebase security rules rule-14 source internal-network
+set rulebase security rules rule-14 destination partner-net
+set rulebase security rules rule-14 source-user any
+set rulebase security rules rule-14 category any
+set rulebase security rules rule-14 application any
+set rulebase security rules rule-14 service ntp-client
+set rulebase security rules rule-14 action allow
+set rulebase security rules rule-14 log-end no
+set rulebase security rules rule-14 disabled yes
+set rulebase security rules rule-14 description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules rule-15 from internal
+set rulebase security rules rule-15 to external
+set rulebase security rules rule-15 source lan6
+set rulebase security rules rule-15 destination internet6
+set rulebase security rules rule-15 source-user any
+set rulebase security rules rule-15 category any
+set rulebase security rules rule-15 application ping6
+set rulebase security rules rule-15 service application-default
+set rulebase security rules rule-15 action allow
+set rulebase security rules rule-15 log-end no
+set rulebase security rules rule-18 from external
+set rulebase security rules rule-18 to dmz1
+set rulebase security rules rule-18 source internet
+set rulebase security rules rule-18 destination [ webserver external-interface ]
+set rulebase security rules rule-18 source-user any
+set rulebase security rules rule-18 category any
+set rulebase security rules rule-18 application any
+set rulebase security rules rule-18 service https
+set rulebase security rules rule-18 action drop
+set rulebase security rules rule-18 log-end no
+set rulebase security rules rule-18 description "a rule above the forward sees the server"
+set rulebase security rules rule-2 from external
+set rulebase security rules rule-2 to dmz1
+set rulebase security rules rule-2 source internet
+set rulebase security rules rule-2 destination external-interface
+set rulebase security rules rule-2 source-user any
+set rulebase security rules rule-2 category any
+set rulebase security rules rule-2 application any
+set rulebase security rules rule-2 service extern-https
+set rulebase security rules rule-2 action allow
+set rulebase security rules rule-2 log-end yes
+set rulebase security rules rule-2 description "publish the web server"
+set rulebase security rules rule-6 from external
+set rulebase security rules rule-6 to dmz1
+set rulebase security rules rule-6 source internet
+set rulebase security rules rule-6 destination public-mail
+set rulebase security rules rule-6 source-user any
+set rulebase security rules rule-6 category any
+set rulebase security rules rule-6 application any
+set rulebase security rules rule-6 service smtp
+set rulebase security rules rule-6 action allow
+set rulebase security rules rule-6 log-end no
+set rulebase security rules rule-6 description "publish the mail server"
+set rulebase security rules rule-7 from internal
+set rulebase security rules rule-7 to dmz1
+set rulebase security rules rule-7 source admin-pc
+set rulebase security rules rule-7 destination servers
+set rulebase security rules rule-7 source-user any
+set rulebase security rules rule-7 category any
+set rulebase security rules rule-7 application any
+set rulebase security rules rule-7 service ssh
+set rulebase security rules rule-7 action allow
+set rulebase security rules rule-7 log-end yes
+set rulebase security rules rule-7 description administration
+set rulebase security rules rule-7-2 from vpn-ipsec
+set rulebase security rules rule-7-2 to dmz1
+set rulebase security rules rule-7-2 source partner-net
+set rulebase security rules rule-7-2 destination servers
+set rulebase security rules rule-7-2 source-user any
+set rulebase security rules rule-7-2 category any
+set rulebase security rules rule-7-2 application any
+set rulebase security rules rule-7-2 service ssh
+set rulebase security rules rule-7-2 action allow
+set rulebase security rules rule-7-2 log-end yes
+set rulebase security rules rule-7-2 description administration
+set rulebase security rules rule-8 from dmz1
+set rulebase security rules rule-8 to external
+set rulebase security rules rule-8 source dmz1-network
+set rulebase security rules rule-8 destination internet
+set rulebase security rules rule-8 source-user any
+set rulebase security rules rule-8 category any
+set rulebase security rules rule-8 application any
+set rulebase security rules rule-8 service any
+set rulebase security rules rule-8 action allow
+set rulebase security rules rule-8 log-end no
+set rulebase security rules rule-12 from internal
+set rulebase security rules rule-12 to dmz1
+set rulebase security rules rule-12 source internal-network
+set rulebase security rules rule-12 destination dmz1-network
+set rulebase security rules rule-12 source-user any
+set rulebase security rules rule-12 category any
+set rulebase security rules rule-12 application any
+set rulebase security rules rule-12 service app-ports
+set rulebase security rules rule-12 action allow
+set rulebase security rules rule-12 log-end no
+set rulebase security rules rule-16 from internal
+set rulebase security rules rule-16 to dmz1
+set rulebase security rules rule-16 source internal-network
+set rulebase security rules rule-16 destination webserver
+set rulebase security rules rule-16 source-user any
+set rulebase security rules rule-16 category any
+set rulebase security rules rule-16 application gre
+set rulebase security rules rule-16 service application-default
+set rulebase security rules rule-16 action allow
+set rulebase security rules rule-16 log-end no
+set rulebase security rules rule-16 disabled yes
+set rulebase security rules rule-16 description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules rule-3 from internal
+set rulebase security rules rule-3 to external
+set rulebase security rules rule-3 source printers
+set rulebase security rules rule-3 destination internet
+set rulebase security rules rule-3 source-user any
+set rulebase security rules rule-3 category any
+set rulebase security rules rule-3 application any
+set rulebase security rules rule-3 service any
+set rulebase security rules rule-3 action deny
+set rulebase security rules rule-3 log-end no
+set rulebase security rules rule-3 description "printers stay inside"
+set rulebase security rules rule-9 from internal
+set rulebase security rules rule-9 to external
+set rulebase security rules rule-9 source internal-network
+set rulebase security rules rule-9 destination blocked-region
+set rulebase security rules rule-9 source-user any
+set rulebase security rules rule-9 category any
+set rulebase security rules rule-9 application any
+set rulebase security rules rule-9 service any
+set rulebase security rules rule-9 action drop
+set rulebase security rules rule-9 log-end yes
+set rulebase security rules rule-9 disabled yes
+set rulebase security rules rule-9 description "FWSHIFT: disabled by the converter, see the report. a region"
+set rulebase security rules rule-17 from internal
+set rulebase security rules rule-17 to dmz1
+set rulebase security rules rule-17 source internal-network
+set rulebase security rules rule-17 destination mailserver
+set rulebase security rules rule-17 source-user any
+set rulebase security rules rule-17 category any
+set rulebase security rules rule-17 application any
+set rulebase security rules rule-17 service smtp
+set rulebase security rules rule-17 action drop
+set rulebase security rules rule-17 log-end no
+set rulebase security rules rule-17 description "only the mail server sends"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules rule-1-nat from internal
+set rulebase nat rules rule-1-nat to external
+set rulebase nat rules rule-1-nat source internal-network
+set rulebase nat rules rule-1-nat destination internet
+set rulebase nat rules rule-1-nat service default-internet
+set rulebase nat rules rule-1-nat source-translation dynamic-ip-and-port translated-address 203.0.113.2
+set rulebase nat rules rule-1-nat description "HIDENAT of rule-1"
+set rulebase nat rules rule-10-nat from vpn-ipsec
+set rulebase nat rules rule-10-nat to internal
+set rulebase nat rules rule-10-nat source partner-net
+set rulebase nat rules rule-10-nat destination internal-network
+set rulebase nat rules rule-10-nat service any
+set rulebase nat rules rule-10-nat description "HIDENAT_EXCLUDE of rule-10"
+set rulebase nat rules rule-2-nat from external
+set rulebase nat rules rule-2-nat to external
+set rulebase nat rules rule-2-nat source internet
+set rulebase nat rules rule-2-nat destination external-interface
+set rulebase nat rules rule-2-nat service extern-https
+set rulebase nat rules rule-2-nat destination-translation translated-address webserver
+set rulebase nat rules rule-2-nat destination-translation translated-port 443
+set rulebase nat rules rule-2-nat description "DESTNAT of rule-2"
+set rulebase nat rules rule-6-nat from external
+set rulebase nat rules rule-6-nat to external
+set rulebase nat rules rule-6-nat source internet
+set rulebase nat rules rule-6-nat destination public-mail
+set rulebase nat rules rule-6-nat service smtp
+set rulebase nat rules rule-6-nat destination-translation translated-address mailserver
+set rulebase nat rules rule-6-nat description "DESTNAT of rule-6"
+set rulebase nat rules rule-8-nat from dmz1
+set rulebase nat rules rule-8-nat to external
+set rulebase nat rules rule-8-nat source dmz1-network
+set rulebase nat rules rule-8-nat destination internet
+set rulebase nat rules rule-8-nat service any
+set rulebase nat rules rule-8-nat source-translation dynamic-ip-and-port translated-address 203.0.113.2
+set rulebase nat rules rule-8-nat description "HIDENAT of rule-8"

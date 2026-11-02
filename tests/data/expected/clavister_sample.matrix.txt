@@ -1,0 +1,71 @@
+FWShift zone matrix
+  source: clavister
+  security rules: 24 (2 disabled, 1 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 lan               dmz               wan               guest             (other zones)
+  lan            icmp6 type 128    any               tcp/53 tcp/80 +4  icmp6 type 128    icmp6 type 128
+  dmz            udp/514 from p…~  -                 tcp/80 +2         -                 -
+  wan            -                 tcp/25 tcp/80 +2  -                 -                 -
+  guest          -                 tcp/25            tcp/53 tcp/80 +2  -                 -
+  (other zones)  -                 -                 -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+lan -> lan (inside the zone)
+  allowed: icmp6 type 128
+  rule 'lan6_ping': lan_net6 -> ::/0: icmp6 type 128
+lan -> dmz
+  allowed: any
+  rule 'nat_mail+sat_mail': 0.0.0.0/0 -> wan_ip: tcp/25
+  rule 'admin_mgmt': admin_hosts -> servers: tcp/22, tcp/443
+  rule 'lan_to_dmz': lan_net -> dmz_net: any
+  rule 'lan6_web': lan_net6 -> v6_web: tcp/80, tcp/443
+  rule 'lan6_ping': lan_net6 -> ::/0: icmp6 type 128
+lan -> wan
+  allowed: tcp/53, tcp/80, tcp/443, tcp/8080-8090, udp/53, icmp6 type 128
+  rule 'lan_dns': lan_net -> 0.0.0.0/0: tcp/53, udp/53
+  rule 'lan_web': lan_net -> 0.0.0.0/0: tcp/80, tcp/443, tcp/8080-8090
+  rule 'lan6_ping': lan_net6 -> ::/0: icmp6 type 128
+lan -> guest
+  allowed: icmp6 type 128
+  rule 'lan6_ping': lan_net6 -> ::/0: icmp6 type 128
+lan -> (other zones)
+  allowed: icmp6 type 128
+  rule 'lan6_ping': lan_net6 -> ::/0: icmp6 type 128
+dmz -> lan
+  allowed: udp/514 from port 1024-65535 ~
+  rule 'syslog_fast': dmz_net -> 192.168.10.50/32: udp/514 from port 1024-65535 ~
+dmz -> wan
+  allowed: tcp/80, tcp/443, ip/47 (gre)
+  rule 'gre_tunnel': 172.16.20.9/32 -> 198.51.100.7/32: ip/47 (gre) (schedule office_hours)
+  rule 'pol_dmz_out': dmz_net -> 0.0.0.0/0: tcp/80, tcp/443
+wan -> dmz
+  allowed: tcp/25, tcp/80, tcp/443, tcp/8080-8090
+  rule 'allow_web+sat_web': 0.0.0.0/0 -> wan_ip: tcp/80, tcp/443
+  rule 'allow_mail+sat_mail': 0.0.0.0/0 -> wan_ip: tcp/25
+  rule 'allow_pool+sat_pool': 0.0.0.0/0 -> pub_pool: tcp/80, tcp/443, tcp/8080-8090
+  rule 'pol_dmz_https': 0.0.0.0/0 -> wan_ip2: tcp/443
+guest -> dmz
+  allowed: tcp/25
+  rule 'nat_mail+sat_mail': 0.0.0.0/0 -> wan_ip: tcp/25
+guest -> wan
+  allowed: tcp/53, tcp/80, tcp/443, udp/53
+  rule 'to_guest/guest_dns': guest_net -> 0.0.0.0/0: tcp/53, udp/53
+  rule 'to_guest/guest_web': guest_net -> 0.0.0.0/0: tcp/80, tcp/443
+
+Not in the matrix
+  1 rule(s) of the source could not be read; what they allow is not shown: 'ping_fw'
+
+From reading the configuration
+  CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  1 rule(s) never match and are left out; 'fwshift audit' names them.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

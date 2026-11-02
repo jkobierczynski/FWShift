@@ -1,0 +1,316 @@
+set address Webserver ip-netmask 172.16.20.10
+set address Webserver description "public web server"
+set address Mailserver ip-netmask 172.16.20.25
+set address HMI ip-netmask 10.30.0.50
+set address Printer ip-netmask 0.0.0.0/32
+set address Printer description "FWSHIFT PLACEHOLDER, matches nothing: a host that names no interface"
+set address LAN ip-netmask 192.168.10.0/24
+set address DMZ ip-netmask 172.16.20.0/24
+set address OT-Cell ip-netmask 10.30.0.0/24
+set address Lab-v6 ip-netmask 0.0.0.0/32
+set address Lab-v6 description "FWSHIFT PLACEHOLDER, matches nothing: attribute 'ipv6', which this parser does not read"
+set address Admin-PCs ip-range 192.168.10.200-192.168.10.220
+set address Monitoring ip-range 198.51.100.10-198.51.100.20
+set address Internet ip-netmask 0.0.0.0/0
+set address Internet description "every address behind the Internet connections WAN"
+set address-group Servers static [ Webserver Mailserver ]
+set address h-192.168.10.5 ip-netmask 192.168.10.5
+set address h-10.30.0.5 ip-netmask 10.30.0.5
+set address-group Jump-Hosts static [ h-192.168.10.5 h-10.30.0.5 ]
+set address-group "Jump-Hosts _eth1_" static h-192.168.10.5
+set address-group "Jump-Hosts _eth1_" description "the members of 'Jump-Hosts' at interface eth1"
+set address-group "Jump-Hosts _eth3_" static h-10.30.0.5
+set address-group "Jump-Hosts _eth3_" description "the members of 'Jump-Hosts' at interface eth3"
+set service internet.http protocol tcp port 80
+set service internet.https protocol tcp port 443
+set service standard.dns-tcp protocol tcp port 53
+set service standard.dns-udp protocol udp port 53
+set service-group standard.dns members [ standard.dns-tcp standard.dns-udp ]
+set service standard.ssh protocol tcp port 22
+set service remote.rdp protocol tcp port 3389
+set service internet.smtp protocol tcp port 25
+set service vpn.ipsec protocol udp port 500,4500
+set service Modbus-TCP protocol tcp port 502
+set service OPC-UA protocol tcp port 4840-4843
+set service Legacy-App protocol tcp port 1
+set service Legacy-App description "FWSHIFT PLACEHOLDER, matches nothing: an entry with 'sourceport', which this parser does not read"
+set service-group Web members [ internet.http internet.https ]
+set rulebase security rules "LAN to Internet - internet.http" from eth1
+set rulebase security rules "LAN to Internet - internet.http" to WAN
+set rulebase security rules "LAN to Internet - internet.http" source LAN
+set rulebase security rules "LAN to Internet - internet.http" destination Internet
+set rulebase security rules "LAN to Internet - internet.http" source-user any
+set rulebase security rules "LAN to Internet - internet.http" category any
+set rulebase security rules "LAN to Internet - internet.http" application any
+set rulebase security rules "LAN to Internet - internet.http" service internet.http
+set rulebase security rules "LAN to Internet - internet.http" action allow
+set rulebase security rules "LAN to Internet - internet.http" log-end yes
+set rulebase security rules "LAN to Internet - internet.https" from eth1
+set rulebase security rules "LAN to Internet - internet.https" to WAN
+set rulebase security rules "LAN to Internet - internet.https" source LAN
+set rulebase security rules "LAN to Internet - internet.https" destination Internet
+set rulebase security rules "LAN to Internet - internet.https" source-user any
+set rulebase security rules "LAN to Internet - internet.https" category any
+set rulebase security rules "LAN to Internet - internet.https" application any
+set rulebase security rules "LAN to Internet - internet.https" service internet.https
+set rulebase security rules "LAN to Internet - internet.https" action allow
+set rulebase security rules "LAN to Internet - internet.https" log-end yes
+set rulebase security rules "LAN to Internet - standard.dns" from eth1
+set rulebase security rules "LAN to Internet - standard.dns" to WAN
+set rulebase security rules "LAN to Internet - standard.dns" source LAN
+set rulebase security rules "LAN to Internet - standard.dns" destination Internet
+set rulebase security rules "LAN to Internet - standard.dns" source-user any
+set rulebase security rules "LAN to Internet - standard.dns" category any
+set rulebase security rules "LAN to Internet - standard.dns" application any
+set rulebase security rules "LAN to Internet - standard.dns" service standard.dns
+set rulebase security rules "LAN to Internet - standard.dns" action allow
+set rulebase security rules "LAN to Internet - standard.dns" log-end no
+set rulebase security rules "LAN to Internet - standard.ping" from eth1
+set rulebase security rules "LAN to Internet - standard.ping" to WAN
+set rulebase security rules "LAN to Internet - standard.ping" source LAN
+set rulebase security rules "LAN to Internet - standard.ping" destination Internet
+set rulebase security rules "LAN to Internet - standard.ping" source-user any
+set rulebase security rules "LAN to Internet - standard.ping" category any
+set rulebase security rules "LAN to Internet - standard.ping" application [ icmp ping ]
+set rulebase security rules "LAN to Internet - standard.ping" service application-default
+set rulebase security rules "LAN to Internet - standard.ping" action allow
+set rulebase security rules "LAN to Internet - standard.ping" log-end no
+set rulebase security rules "Internet to Webserver - internet.https" from WAN
+set rulebase security rules "Internet to Webserver - internet.https" to eth2
+set rulebase security rules "Internet to Webserver - internet.https" source Internet
+set rulebase security rules "Internet to Webserver - internet.https" destination Webserver
+set rulebase security rules "Internet to Webserver - internet.https" source-user any
+set rulebase security rules "Internet to Webserver - internet.https" category any
+set rulebase security rules "Internet to Webserver - internet.https" application any
+set rulebase security rules "Internet to Webserver - internet.https" service internet.https
+set rulebase security rules "Internet to Webserver - internet.https" action allow
+set rulebase security rules "Internet to Webserver - internet.https" log-end no
+set rulebase security rules "Admin-PCs to Servers - standard.ssh" from eth1
+set rulebase security rules "Admin-PCs to Servers - standard.ssh" to eth2
+set rulebase security rules "Admin-PCs to Servers - standard.ssh" source Admin-PCs
+set rulebase security rules "Admin-PCs to Servers - standard.ssh" destination Servers
+set rulebase security rules "Admin-PCs to Servers - standard.ssh" source-user any
+set rulebase security rules "Admin-PCs to Servers - standard.ssh" category any
+set rulebase security rules "Admin-PCs to Servers - standard.ssh" application any
+set rulebase security rules "Admin-PCs to Servers - standard.ssh" service standard.ssh
+set rulebase security rules "Admin-PCs to Servers - standard.ssh" action allow
+set rulebase security rules "Admin-PCs to Servers - standard.ssh" log-end no
+set rulebase security rules "Admin-PCs to Servers - remote.rdp" from eth1
+set rulebase security rules "Admin-PCs to Servers - remote.rdp" to eth2
+set rulebase security rules "Admin-PCs to Servers - remote.rdp" source Admin-PCs
+set rulebase security rules "Admin-PCs to Servers - remote.rdp" destination Servers
+set rulebase security rules "Admin-PCs to Servers - remote.rdp" source-user any
+set rulebase security rules "Admin-PCs to Servers - remote.rdp" category any
+set rulebase security rules "Admin-PCs to Servers - remote.rdp" application any
+set rulebase security rules "Admin-PCs to Servers - remote.rdp" service remote.rdp
+set rulebase security rules "Admin-PCs to Servers - remote.rdp" action allow
+set rulebase security rules "Admin-PCs to Servers - remote.rdp" log-end no
+set rulebase security rules "Servers to Admin-PCs - remote.rdp" from eth2
+set rulebase security rules "Servers to Admin-PCs - remote.rdp" to eth1
+set rulebase security rules "Servers to Admin-PCs - remote.rdp" source Servers
+set rulebase security rules "Servers to Admin-PCs - remote.rdp" destination Admin-PCs
+set rulebase security rules "Servers to Admin-PCs - remote.rdp" source-user any
+set rulebase security rules "Servers to Admin-PCs - remote.rdp" category any
+set rulebase security rules "Servers to Admin-PCs - remote.rdp" application any
+set rulebase security rules "Servers to Admin-PCs - remote.rdp" service remote.rdp
+set rulebase security rules "Servers to Admin-PCs - remote.rdp" action allow
+set rulebase security rules "Servers to Admin-PCs - remote.rdp" log-end no
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth1 to eth3_" from eth1
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth1 to eth3_" to eth3
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth1 to eth3_" source "Jump-Hosts _eth1_"
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth1 to eth3_" destination OT-Cell
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth1 to eth3_" source-user any
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth1 to eth3_" category any
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth1 to eth3_" application any
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth1 to eth3_" service Modbus-TCP
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth1 to eth3_" action allow
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth1 to eth3_" log-end yes
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth3 to eth3_" from eth3
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth3 to eth3_" to eth3
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth3 to eth3_" source "Jump-Hosts _eth3_"
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth3 to eth3_" destination OT-Cell
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth3 to eth3_" source-user any
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth3 to eth3_" category any
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth3 to eth3_" application any
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth3 to eth3_" service Modbus-TCP
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth3 to eth3_" action allow
+set rulebase security rules "Jump-Hosts to OT-Cell - Modbus-TCP _eth3 to eth3_" log-end yes
+set rulebase security rules "HMI to OT-Cell - OPC-UA" from eth3
+set rulebase security rules "HMI to OT-Cell - OPC-UA" to eth3
+set rulebase security rules "HMI to OT-Cell - OPC-UA" source HMI
+set rulebase security rules "HMI to OT-Cell - OPC-UA" destination OT-Cell
+set rulebase security rules "HMI to OT-Cell - OPC-UA" source-user any
+set rulebase security rules "HMI to OT-Cell - OPC-UA" category any
+set rulebase security rules "HMI to OT-Cell - OPC-UA" application any
+set rulebase security rules "HMI to OT-Cell - OPC-UA" service OPC-UA
+set rulebase security rules "HMI to OT-Cell - OPC-UA" action allow
+set rulebase security rules "HMI to OT-Cell - OPC-UA" log-end no
+set rulebase security rules "HMI to OT-Cell - OPC-UA" disabled yes
+set rulebase security rules "HMI to OT-Cell - OPC-UA" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "OT-Cell to HMI - OPC-UA" from eth3
+set rulebase security rules "OT-Cell to HMI - OPC-UA" to eth3
+set rulebase security rules "OT-Cell to HMI - OPC-UA" source OT-Cell
+set rulebase security rules "OT-Cell to HMI - OPC-UA" destination HMI
+set rulebase security rules "OT-Cell to HMI - OPC-UA" source-user any
+set rulebase security rules "OT-Cell to HMI - OPC-UA" category any
+set rulebase security rules "OT-Cell to HMI - OPC-UA" application any
+set rulebase security rules "OT-Cell to HMI - OPC-UA" service OPC-UA
+set rulebase security rules "OT-Cell to HMI - OPC-UA" action allow
+set rulebase security rules "OT-Cell to HMI - OPC-UA" log-end no
+set rulebase security rules "OT-Cell to HMI - OPC-UA" disabled yes
+set rulebase security rules "OT-Cell to HMI - OPC-UA" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Monitoring to OT-Cell - standard.ping" from any
+set rulebase security rules "Monitoring to OT-Cell - standard.ping" to eth3
+set rulebase security rules "Monitoring to OT-Cell - standard.ping" source Monitoring
+set rulebase security rules "Monitoring to OT-Cell - standard.ping" destination OT-Cell
+set rulebase security rules "Monitoring to OT-Cell - standard.ping" source-user any
+set rulebase security rules "Monitoring to OT-Cell - standard.ping" category any
+set rulebase security rules "Monitoring to OT-Cell - standard.ping" application [ icmp ping ]
+set rulebase security rules "Monitoring to OT-Cell - standard.ping" service application-default
+set rulebase security rules "Monitoring to OT-Cell - standard.ping" action allow
+set rulebase security rules "Monitoring to OT-Cell - standard.ping" log-end no
+set rulebase security rules "Monitoring to OT-Cell - standard.ping" disabled yes
+set rulebase security rules "LAN to Mailserver - internet.smtp" from eth1
+set rulebase security rules "LAN to Mailserver - internet.smtp" to eth2
+set rulebase security rules "LAN to Mailserver - internet.smtp" source LAN
+set rulebase security rules "LAN to Mailserver - internet.smtp" destination Mailserver
+set rulebase security rules "LAN to Mailserver - internet.smtp" source-user any
+set rulebase security rules "LAN to Mailserver - internet.smtp" category any
+set rulebase security rules "LAN to Mailserver - internet.smtp" application any
+set rulebase security rules "LAN to Mailserver - internet.smtp" service internet.smtp
+set rulebase security rules "LAN to Mailserver - internet.smtp" action allow
+set rulebase security rules "LAN to Mailserver - internet.smtp" log-end no
+set rulebase security rules "Branch Sites to LAN - remote.rdp" from any
+set rulebase security rules "Branch Sites to LAN - remote.rdp" to eth1
+set rulebase security rules "Branch Sites to LAN - remote.rdp" source any
+set rulebase security rules "Branch Sites to LAN - remote.rdp" destination LAN
+set rulebase security rules "Branch Sites to LAN - remote.rdp" source-user any
+set rulebase security rules "Branch Sites to LAN - remote.rdp" category any
+set rulebase security rules "Branch Sites to LAN - remote.rdp" application any
+set rulebase security rules "Branch Sites to LAN - remote.rdp" service remote.rdp
+set rulebase security rules "Branch Sites to LAN - remote.rdp" action allow
+set rulebase security rules "Branch Sites to LAN - remote.rdp" log-end no
+set rulebase security rules "Branch Sites to LAN - remote.rdp" disabled yes
+set rulebase security rules "Branch Sites to LAN - remote.rdp" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "LAN to Lab-v6 - internet.http" from eth1
+set rulebase security rules "LAN to Lab-v6 - internet.http" to any
+set rulebase security rules "LAN to Lab-v6 - internet.http" source LAN
+set rulebase security rules "LAN to Lab-v6 - internet.http" destination any
+set rulebase security rules "LAN to Lab-v6 - internet.http" source-user any
+set rulebase security rules "LAN to Lab-v6 - internet.http" category any
+set rulebase security rules "LAN to Lab-v6 - internet.http" application any
+set rulebase security rules "LAN to Lab-v6 - internet.http" service internet.http
+set rulebase security rules "LAN to Lab-v6 - internet.http" action allow
+set rulebase security rules "LAN to Lab-v6 - internet.http" log-end no
+set rulebase security rules "LAN to Lab-v6 - internet.http" disabled yes
+set rulebase security rules "LAN to Lab-v6 - internet.http" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "DMZ to Internet - GRE-Tunnel" from eth2
+set rulebase security rules "DMZ to Internet - GRE-Tunnel" to WAN
+set rulebase security rules "DMZ to Internet - GRE-Tunnel" source DMZ
+set rulebase security rules "DMZ to Internet - GRE-Tunnel" destination Internet
+set rulebase security rules "DMZ to Internet - GRE-Tunnel" source-user any
+set rulebase security rules "DMZ to Internet - GRE-Tunnel" category any
+set rulebase security rules "DMZ to Internet - GRE-Tunnel" application gre
+set rulebase security rules "DMZ to Internet - GRE-Tunnel" service application-default
+set rulebase security rules "DMZ to Internet - GRE-Tunnel" action allow
+set rulebase security rules "DMZ to Internet - GRE-Tunnel" log-end no
+set rulebase security rules "DMZ to Internet - Legacy-App" from eth2
+set rulebase security rules "DMZ to Internet - Legacy-App" to WAN
+set rulebase security rules "DMZ to Internet - Legacy-App" source DMZ
+set rulebase security rules "DMZ to Internet - Legacy-App" destination Internet
+set rulebase security rules "DMZ to Internet - Legacy-App" source-user any
+set rulebase security rules "DMZ to Internet - Legacy-App" category any
+set rulebase security rules "DMZ to Internet - Legacy-App" application any
+set rulebase security rules "DMZ to Internet - Legacy-App" service Legacy-App
+set rulebase security rules "DMZ to Internet - Legacy-App" action allow
+set rulebase security rules "DMZ to Internet - Legacy-App" log-end no
+set rulebase security rules "DMZ to Internet - Legacy-App" disabled yes
+set rulebase security rules "DMZ to Internet - Legacy-App" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "DMZ to Internet - standard.ssh" from eth2
+set rulebase security rules "DMZ to Internet - standard.ssh" to WAN
+set rulebase security rules "DMZ to Internet - standard.ssh" source DMZ
+set rulebase security rules "DMZ to Internet - standard.ssh" destination Internet
+set rulebase security rules "DMZ to Internet - standard.ssh" source-user any
+set rulebase security rules "DMZ to Internet - standard.ssh" category any
+set rulebase security rules "DMZ to Internet - standard.ssh" application any
+set rulebase security rules "DMZ to Internet - standard.ssh" service standard.ssh
+set rulebase security rules "DMZ to Internet - standard.ssh" action allow
+set rulebase security rules "DMZ to Internet - standard.ssh" log-end no
+set rulebase security rules "DMZ to Internet - standard.ssh" disabled yes
+set rulebase security rules "DMZ to Internet - standard.ssh" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Internet to _ - internet.https" from WAN
+set rulebase security rules "Internet to _ - internet.https" to any
+set rulebase security rules "Internet to _ - internet.https" source Internet
+set rulebase security rules "Internet to _ - internet.https" destination any
+set rulebase security rules "Internet to _ - internet.https" source-user any
+set rulebase security rules "Internet to _ - internet.https" category any
+set rulebase security rules "Internet to _ - internet.https" application any
+set rulebase security rules "Internet to _ - internet.https" service internet.https
+set rulebase security rules "Internet to _ - internet.https" action allow
+set rulebase security rules "Internet to _ - internet.https" log-end no
+set rulebase security rules "Internet to _ - internet.https" disabled yes
+set rulebase security rules "Internet to _ - internet.https" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "LAN to DMZ - Web" from eth1
+set rulebase security rules "LAN to DMZ - Web" to eth2
+set rulebase security rules "LAN to DMZ - Web" source LAN
+set rulebase security rules "LAN to DMZ - Web" destination DMZ
+set rulebase security rules "LAN to DMZ - Web" source-user any
+set rulebase security rules "LAN to DMZ - Web" category any
+set rulebase security rules "LAN to DMZ - Web" application any
+set rulebase security rules "LAN to DMZ - Web" service Web
+set rulebase security rules "LAN to DMZ - Web" action allow
+set rulebase security rules "LAN to DMZ - Web" log-end no
+set rulebase security rules "DMZ to LAN - Web" from eth2
+set rulebase security rules "DMZ to LAN - Web" to eth1
+set rulebase security rules "DMZ to LAN - Web" source DMZ
+set rulebase security rules "DMZ to LAN - Web" destination LAN
+set rulebase security rules "DMZ to LAN - Web" source-user any
+set rulebase security rules "DMZ to LAN - Web" category any
+set rulebase security rules "DMZ to LAN - Web" application any
+set rulebase security rules "DMZ to LAN - Web" service Web
+set rulebase security rules "DMZ to LAN - Web" action allow
+set rulebase security rules "DMZ to LAN - Web" log-end no
+set rulebase security rules "DMZ to LAN - vpn.ipsec" from eth2
+set rulebase security rules "DMZ to LAN - vpn.ipsec" to eth1
+set rulebase security rules "DMZ to LAN - vpn.ipsec" source DMZ
+set rulebase security rules "DMZ to LAN - vpn.ipsec" destination LAN
+set rulebase security rules "DMZ to LAN - vpn.ipsec" source-user any
+set rulebase security rules "DMZ to LAN - vpn.ipsec" category any
+set rulebase security rules "DMZ to LAN - vpn.ipsec" application any
+set rulebase security rules "DMZ to LAN - vpn.ipsec" service vpn.ipsec
+set rulebase security rules "DMZ to LAN - vpn.ipsec" action allow
+set rulebase security rules "DMZ to LAN - vpn.ipsec" log-end yes
+set rulebase security rules "DMZ to LAN - vpn.ipsec-apps" from eth2
+set rulebase security rules "DMZ to LAN - vpn.ipsec-apps" to eth1
+set rulebase security rules "DMZ to LAN - vpn.ipsec-apps" source DMZ
+set rulebase security rules "DMZ to LAN - vpn.ipsec-apps" destination LAN
+set rulebase security rules "DMZ to LAN - vpn.ipsec-apps" source-user any
+set rulebase security rules "DMZ to LAN - vpn.ipsec-apps" category any
+set rulebase security rules "DMZ to LAN - vpn.ipsec-apps" application ipsec-esp
+set rulebase security rules "DMZ to LAN - vpn.ipsec-apps" service application-default
+set rulebase security rules "DMZ to LAN - vpn.ipsec-apps" action allow
+set rulebase security rules "DMZ to LAN - vpn.ipsec-apps" log-end yes
+set rulebase security rules "Printer to DMZ - internet.http" from any
+set rulebase security rules "Printer to DMZ - internet.http" to eth2
+set rulebase security rules "Printer to DMZ - internet.http" source any
+set rulebase security rules "Printer to DMZ - internet.http" destination DMZ
+set rulebase security rules "Printer to DMZ - internet.http" source-user any
+set rulebase security rules "Printer to DMZ - internet.http" category any
+set rulebase security rules "Printer to DMZ - internet.http" application any
+set rulebase security rules "Printer to DMZ - internet.http" service internet.http
+set rulebase security rules "Printer to DMZ - internet.http" action allow
+set rulebase security rules "Printer to DMZ - internet.http" log-end no
+set rulebase security rules "Printer to DMZ - internet.http" disabled yes
+set rulebase security rules "Printer to DMZ - internet.http" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

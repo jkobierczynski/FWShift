@@ -1,0 +1,46 @@
+FWShift conversion report
+  source: netskope
+  target: scalance
+
+Summary
+  Security rules:     16   exact 11, approximated 0, needs review 0, skipped 5
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] SCALANCE_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the device passes everything: client, ipsec, gre, internet
+  [needs-review] SCALANCE_LOAD: the output is CLI commands for the FIREWALL and FIREWALL NAT modes (section 10): 71 IP rules with priorities 1 to 6. The device processes rules by ascending priority: rules it has with a lower priority come first. Commands take effect as they are entered; nothing is deleted and nothing is saved
+  [needs-review] SCALANCE_ZONE_NAMES: zones that are not interfaces of the device (vlan N, ipsecALL, ipsec N, sinemarcall, ppp 0, usb 0) are written as they are, and the device refuses those rules: map them with --zone-map ZONE=vlanN: client, internet, ipsec, gre
+  [needs-review] SCALANCE_IPV6: ipv6rule and ICMP services of IPv6 are written in the form of the IPv4 commands; no Siemens manual FWShift could read shows them: check them on the device
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  [info] SCALANCE_DEFAULT_RULES: after the converted rules, rules that drop what no rule matches, as the source does, for every pair of the 4 zones written (priority 6); traffic inside one zone does not pass the IP firewall
+  [info] LOGGING_CONVERTED: rules of the source log; their rules log at the level info
+
+Security rules
+  Admins to jump hosts [app-ssh-jump]  ->  exact  (emitted as 1 IP rules, priority 2)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Admins to jump hosts [app-rdp-gw]  ->  exact  (emitted as 2 IP rules, priority 2)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Engineering to git  ->  skipped
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+  Block BitTorrent  ->  skipped
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Old FTP exception  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  SaaS files from the office  ->  skipped
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp-saas-domains': destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] ZONE_DYNAMIC: 'dp-saas-domains' holds members only its platform knows.
+  Contractors: nothing else  ->  skipped
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.

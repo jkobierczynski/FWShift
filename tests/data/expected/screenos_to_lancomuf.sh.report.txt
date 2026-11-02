@@ -1,0 +1,87 @@
+FWShift conversion report
+  source: screenos
+  target: lancom-uf
+
+Summary
+  Security rules:     23   exact 10, approximated 5, needs review 3, skipped 5
+  NAT rules:           9   exact 0, approximated 0, needs review 1, skipped 8
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERZONE_DEFAULT: the source allows traffic inside a zone that no rule matches; the firewall blocks it when it passes the firewall (between two interfaces of a zone) and no connection allows it. Add the connections that allow it if that was intended
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): DMZ, Lab, Servers, Trust, Untrust
+  [info] SCREENOS_ZONE_OBJECT: the address name 'printer' stands for different addresses in the books of zones DMZ, Trust; each is kept as 'printer (zone)'
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: DMZ=10.20.0.0/24; Lab=10.40.0.0/24; Servers=10.30.0.0/24; Trust=10.10.0.0/16,10.11.0.0/16,2001:db8:10::/64; Untrust=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] SCREENOS_PREDEFINED: predefined services are not in the configuration; FWShift took these from its table: FTP-Get, HTTP, HTTPS, PING, SMTP, SSH
+  [info] SCREENOS_POLICY_ORDER: 1 policies were placed by 'set policy move', 'top' or 'before'; the rules are in the order that results
+
+Security rules
+  intrazone-DMZ  ->  approximated  (emitted as fws-0.0.0.0_0-DMZ > fws-0.0.0.0_0-DMZ _2_: fws-svc-1)
+      [info] SCREENOS_INTRAZONE_ALLOW: zone 'DMZ' does not block traffic inside it: ScreenOS passes it without a policy. This rule, ahead of the others, says so
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  intrazone-Lab  ->  approximated  (emitted as fws-0.0.0.0_0-Lab > fws-0.0.0.0_0-Lab _2_: fws-svc-1)
+      [info] SCREENOS_INTRAZONE_ALLOW: zone 'Lab' does not block traffic inside it: ScreenOS passes it without a policy. This rule, ahead of the others, says so
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  intrazone-Trust  ->  approximated  (emitted as fws-0.0.0.0_0-Trust > fws-0.0.0.0_0-Trust _2_: fws-svc-1)
+      [info] SCREENOS_INTRAZONE_ALLOW: zone 'Trust' does not block traffic inside it: ScreenOS passes it without a policy. This rule, ahead of the others, says so
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  policy-3  ->  approximated  (emitted as fws-lan > fws-0.0.0.0_0-Untrust: fws-svc-1)
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  policy-20  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action reset-client: the firewall drops what it does not allow
+  web-in  ->  exact  (emitted as fws-0.0.0.0_1-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-128.0.0.0_2-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.0.0_23-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.2.0_26-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.2.64_31-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.2.67_32-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.2.68_30-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.2.72_29-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.2.80_28-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.2.96_27-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.2.128_25-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.3.0_24-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.4.0_22-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.8.0_21-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.16.0_20-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.32.0_19-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.64.0_18-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.0.128.0_17-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.1.0.0_16-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.2.0.0_15-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.4.0.0_14-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.8.0.0_13-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.16.0.0_12-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.32.0.0_11-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.64.0.0_10-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-192.128.0.0_9-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-193.0.0.0_8-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-194.0.0.0_7-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-196.0.0.0_6-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-200.0.0.0_5-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-208.0.0.0_4-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443, fws-224.0.0.0_3-Untrust > fws-MIP_203.0.113.10_: fws-tcp-80_tcp-443)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  policy-5  ->  needs-review  (emitted as fws-0.0.0.0_1-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-128.0.0.0_2-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.0.0_23-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.2.0_26-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.2.64_31-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.2.67_32-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.2.68_30-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.2.72_29-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.2.80_28-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.2.96_27-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.2.128_25-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.3.0_24-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.4.0_22-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.8.0_21-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.16.0_20-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.32.0_19-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.64.0_18-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.0.128.0_17-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.1.0.0_16-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.2.0.0_15-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.4.0.0_14-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.8.0.0_13-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.16.0.0_12-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.32.0.0_11-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.64.0.0_10-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-192.128.0.0_9-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-193.0.0.0_8-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-194.0.0.0_7-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-196.0.0.0_6-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-200.0.0.0_5-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-208.0.0.0_4-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80, fws-224.0.0.0_3-Untrust > fws-VIP_203.0.113.20_: fws-tcp-80)
+      [needs-review] SCREENOS_VIP_PORT: VIP(203.0.113.20) maps port 8443 to the port of service 'HTTPS' on 10.20.0.21; whether the services of this policy are matched before or after that translation is not known. The rule keeps its services as they are
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  policy-8  ->  skipped
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  policy-9  ->  needs-review
+      [needs-review] SCREENOS_INTRAZONE_IGNORED: zone 'Trust' does not block traffic inside it ('set zone "Trust" block' is not set): ScreenOS passes that traffic without looking at policies, so this policy decides nothing. It is written disabled
+  policy-10  ->  approximated  (emitted as fws-db-net > fws-db-net-Servers _2_: fws-svc-1)
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  policy-13  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'FTP-Get': the predefined service FTP-Get: FTP limited to downloads, a restriction of the FTP helper FWShift cannot write; the rule is not written
+      [needs-review] UNCONVERTIBLE_OBJECT: the destination 'updates' holds a host name; a desktop object of the firewall names addresses; the rule is not written
+  policy-14  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: a policy-based VPN (tunnel): the traffic is allowed into a VPN tunnel only; the rule is not written
+  policy-15  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: user authentication ('auth'), which is not converted; the rule is not written
+  policy-16  ->  needs-review
+      [needs-review] SCREENOS_GLOBAL_ZONE: the policy is from zone 'DMZ' to zone 'Global': a policy between a zone and the Global zone matches no traffic (global policies are from Global to Global). It is written disabled
+  policy-19  ->  exact  (emitted as fws-0.0.0.0_0-Trust > fws-web1: fws-tcp-80)
+      [info] SCREENOS_APPLICATION: the policy hands its traffic to the application layer gateway 'IGNORE'; that is not converted (the targets choose their helpers by port)
+  policy-17  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+
+NAT rules
+  nat-lan-out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-lan-out-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-policy-3  ->  needs-review  (emitted as masquerading on 1 services of connections)
+      [needs-review] NAT_OVERLAP: policy 'policy-2' above passes part of this traffic without NAT. A no-NAT rule for it would also stop the MIPs and interfaces in NAT mode from translating it: none was added, so this rule translates that traffic too
+  nat-policy-7  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  mip-203.0.113.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  mip-203.0.113.24  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  vip-203.0.113.20-80  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  vip-203.0.113.20-8443  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-mode-Trust  ->  skipped
+      [info] SCREENOS_NAT_MODE: interface 'bgroup0' is in NAT mode: ScreenOS translates the source of what it receives and sends to the Untrust zone to the address of the outgoing interface, unless a policy or a MIP translates it
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)

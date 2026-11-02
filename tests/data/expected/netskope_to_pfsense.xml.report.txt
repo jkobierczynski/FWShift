@@ -1,0 +1,101 @@
+FWShift conversion report
+  source: netskope
+  target: pfsense
+
+Summary
+  Security rules:     16   exact 0, approximated 2, needs review 14 (14 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] PFSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of a pfSense configuration. Under Diagnostics > Backup & Restore, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every rule, every alias, every NAT rule that is there now is gone, with the separators, the rules pfSense linked to port forwards and the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. Keep a backup, and look at the rules before anything depends on them: pfSense does not check what it restores, and a rule it cannot resolve is not loaded. Written for pfSense 2.7 and later
+  [needs-review] INTERFACES_REQUIRED: pfSense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: client
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  [info] SELF_EXCLUDED: on pfSense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  Block known bad ranges  ->  needs-review, emitted disabled  (emitted as client)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'ipsec' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'gre' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Branch mail to partner  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'ipsec' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'gre' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Voice from sites  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'gre' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Admins to jump hosts [app-ssh-jump]  ->  approximated  (emitted as client)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  Admins to jump hosts [app-rdp-gw]  ->  approximated  (emitted as client)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  Engineering to git  ->  needs-review, emitted disabled  (emitted as client)
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind client, ipsec, gre, internet with --zone-network.
+  Block BitTorrent  ->  needs-review, emitted disabled  (emitted as client)
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind client, ipsec, gre, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'ipsec' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'gre' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Not from the server networks: no NTP  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind client, ipsec, gre, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'ipsec' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Time servers  ->  needs-review, emitted disabled  (emitted as client)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'ipsec' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'gre' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Old FTP exception  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind client, ipsec, gre, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'ipsec' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  SaaS files from the office  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp_saas_domains': destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] INTERFACE_NAME: 'gre' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Ping out  ->  needs-review, emitted disabled  (emitted as client)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind client, ipsec, gre, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'ipsec' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'gre' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  DNS out  ->  needs-review, emitted disabled  (emitted as client)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind client, ipsec, gre, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'ipsec' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'gre' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Contractors: nothing else  ->  needs-review, emitted disabled  (emitted as client)
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind client, ipsec, gre, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Lab network out  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind client, ipsec, gre, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'ipsec' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Default Action  ->  needs-review, emitted disabled  (emitted as client)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind client, ipsec, gre, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'ipsec' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'gre' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+Address groups
+  dp-partner-mail  ->  exact  (emitted as dp_partner_mail)
+      [info] RENAMED: renamed to 'dp_partner_mail' to fit the target's naming rules
+  dp-voice-provider  ->  exact  (emitted as dp_voice_provider)
+      [info] RENAMED: renamed to 'dp_voice_provider' to fit the target's naming rules
+  dp-blocked-ranges  ->  exact  (emitted as dp_blocked_ranges)
+      [info] RENAMED: renamed to 'dp_blocked_ranges' to fit the target's naming rules
+  dp-time  ->  exact  (emitted as dp_time)
+      [info] RENAMED: renamed to 'dp_time' to fit the target's naming rules
+  dp-saas-domains  ->  exact  (emitted as dp_saas_domains)
+      [info] RENAMED: renamed to 'dp_saas_domains' to fit the target's naming rules
+  app-ssh-jump  ->  exact  (emitted as app_ssh_jump)
+      [info] RENAMED: renamed to 'app_ssh_jump' to fit the target's naming rules
+  app-rdp-gw  ->  exact  (emitted as app_rdp_gw)
+      [info] RENAMED: renamed to 'app_rdp_gw' to fit the target's naming rules

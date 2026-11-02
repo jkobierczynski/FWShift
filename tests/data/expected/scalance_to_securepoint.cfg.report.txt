@@ -1,0 +1,46 @@
+FWShift conversion report
+  source: scalance
+  target: securepoint
+
+Summary
+  Security rules:     17   exact 11, approximated 1, needs review 3 (3 emitted disabled), skipped 2
+  NAT rules:           5   exact 4, approximated 0, needs review 0, skipped 1
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] SCALANCE_RULESET: rule sets (user or digital-input firewall): rules assigned to one apply only while it is active and are not converted; check which rules belong to a set: ruleset name maintenance
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): vlan1, vlan2, vlan3, ipsecALL, firewall-vlan2. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: vlan2-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] SCALANCE_SOURCE: 4 interfaces as zones (vlan1, vlan2, vlan3, ipsecALL); 16 IP rules, in ascending priority (prior), equal priorities in the order they were created; the IPv4 rules, then the IPv6 rules. Rules of the firewall itself (device) and the predefined rules are not converted
+  [info] SCALANCE_DEFAULTS: what no rule matches between interfaces is dropped; traffic inside one VLAN does not pass the IP firewall
+  [info] SCALANCE_NAT_ORDER: destination NAT (NAPT, NETMAP of the destination) is done before the firewall, whose rules name the translated address: the rules were rewritten for the address as it arrives. Source NAT, NETMAP of the source and masquerading are done after it. Read in the order NAPT, NETMAP destination, NETMAP source, source NAT, masquerading, one rule of each direction per connection (assumed)
+  [info] SCALANCE_PRERULE: predefined rules (access to services of the firewall itself) are not converted; those the configuration does not list are at their factory setting: ssh ipv4 int vlan 1 enabled, https ipv4 int vlan 2 disabled
+  [info] SCALANCE_NETMAP_DSTINT: the destination interface of a NETMAP rule of the destination is not a condition of the converted rule: netmap destination 1: vlan3
+  [info] SECUREPOINT_DEFAULT_WRITTEN: the source lets through traffic no rule matches; 4 rules after the converted ones do the same between the zones of the policy (the UTM drops it otherwise)
+  [info] SECUREPOINT_COMMENTED: 3 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  ipv4rule 7  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.64/30' next to '192.168.30.64/30' because of NAT rule 'netmap destination 1'; check that this rule is meant to cover the translated traffic
+  ipv4rule 8  ->  exact  (emitted as 1 rule of group fwshift)
+      [info] RESET_ACTION: action reset-client becomes REJECT, which answers the sender with an ICMP message, not a TCP reset
+  ipv4rule 11  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: source DYNAMIC: the address of the user who activates the rule set, or of the digital input.
+  ipv4rule 12  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match a packet
+  ipv4rule 14  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: assigned to the rule set maintenance: it applies only while the set is activated (by a user or a digital input).
+  ipv4rule 15  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_ICMP_CODE: ICMP type 3 code 4: a service of the UTM names ICMP types, not codes.
+  ipv4rule 10  ->  skipped
+      [info] SCALANCE_DEVICE_RULE: a rule for traffic to or from the firewall itself (device): its own access, not converted
+
+NAT rules
+  netmap destination 1  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT takes traffic to one address; the translated address is not one
+
+Services
+  ENIP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'ipv4rule 12' but not defined in the input; emitted as a placeholder

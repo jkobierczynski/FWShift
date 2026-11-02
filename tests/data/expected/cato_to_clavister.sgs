@@ -1,0 +1,121 @@
+add Address IP4Address fws_10.10.0.0_24 Address=10.10.0.0/24
+add Address IP4Address fws_10.10.20.0_24 Address=10.10.20.0/24
+add Address IP4Address fws_10.20.0.0_24 Address=10.20.0.0/24
+add Address IP4Address fws_10.20.30.0_24 Address=10.20.30.0/24
+add Address IP4Address fws_10.30.0.0_24 Address=10.30.0.0/24
+add Address IP4Address fws_10.40.0.0_24 Address=10.40.0.0/24
+add Address IP4Address fws_fileserver Address=10.20.0.10 Comments="a host of a site"
+add Address IP4Address fws_erp-db Address=10.20.0.20 Comments="a host of a site"
+add Service ServiceTCPUDP fws_HTTPS Type=TCP DestinationPorts=443
+add Service ServiceTCPUDP fws_tcp_8443 Type=TCP DestinationPorts=8443
+add Address IP4Address fws_Monitoring Address=198.51.100.10-198.51.100.20
+add Address IP4Address fws_historian Address=10.30.0.50 Comments="a host of a site"
+add Address IP4Address fws_Antwerp_DC___Routed_lab Address=10.20.30.0/24 Comments="a site range of a site"
+add Service ServiceTCPUDP fws_tcp_1433 Type=TCP DestinationPorts=1433
+add Service ServiceTCPUDP fws_udp_5000-5010 Type=UDP DestinationPorts=5000-5010
+add Address IP4Address fws_Remote_users_to_DC_dst_not_1 Address=0.0.0.0-10.20.0.19
+add Address IP4Address fws_Remote_users_to_DC_dst_not_2 Address=10.20.0.21-255.255.255.255
+add Service ServiceTCPUDP fws_tcp-udp_53 Type=TCPUDP DestinationPorts=53
+add Service ServiceICMP fws_icmp MessageTypes=All
+add Address IP4Address fws_Ghent_Plant___LAN Address=10.30.0.0/24 Comments="a network interface of a site"
+add Service ServiceTCPUDP fws_tcp_502 Type=TCP DestinationPorts=502
+add Address IP4Address fws_10.20.0.99 Address=10.20.0.99
+add Address IP4Address fws_10.10.20.100-10.10.20.120 Address=10.10.20.100-10.10.20.120
+add Service ServiceTCPUDP fws_tcp_5432 Type=TCP DestinationPorts=5432
+add Service ServiceTCPUDP fws_SSH Type=TCP DestinationPorts=22
+add Address IP4Address fws_10.30.0.5 Address=10.30.0.5
+add Service ServiceTCPUDP fws_RDP Type=TCP DestinationPorts=3389
+add Service ServiceTCPUDP fws_tcp_9100 Type=TCP DestinationPorts=9100
+add Address IP4Address fws_198.51.100.66 Address=198.51.100.66
+add Address IP4Address fws_203.0.113.0_24 Address=203.0.113.0/24
+add Address IP4Address fws_Partner_net Address=192.0.2.0/25 Comments="a partner network"
+add Service ServiceTCPUDP fws_FTP Type=TCP DestinationPorts=21
+add Service ServiceTCPUDP fws_SMB Type=TCP DestinationPorts=445
+add Address IP4Address fws_nothing Address=0.0.0.0
+add InterfaceGroup fws_zones Members=Brussels_HQ,Antwerp_DC,Ghent_Plant,Leuven_Lab,Cato_client__remote_users_,internet
+add Address IP4Group fws_Allow_HQ_to_DC_servers_dst Members=fws_fileserver,fws_erp-db
+add Service ServiceGroup fws_Allow_HQ_to_DC_servers_svc Members=fws_HTTPS,fws_tcp_8443
+add Service ServiceGroup fws_Allow_HQ_to_DC_servers__2__svc Members=fws_HTTPS,fws_tcp_8443
+add Service ServiceGroup fws_Historian_both_ways_svc Members=fws_tcp_1433,fws_udp_5000-5010
+add Service ServiceGroup fws_Historian_both_ways__2__svc Members=fws_tcp_1433,fws_udp_5000-5010
+add Address IP4Group fws_Remote_users_to_DC_dst_not Members=fws_Remote_users_to_DC_dst_not_1,fws_Remote_users_to_DC_dst_not_2
+add Service ServiceGroup fws_Remote_users_to_DC_svc Members=fws_tcp-udp_53,fws_icmp
+add Address IP4Group fws_Modbus_to_the_plant__2__src Members=fws_10.20.0.99,fws_10.10.20.100-10.10.20.120
+add Address IP4Group fws_Block_bad_networks_dst Members=fws_198.51.100.66,fws_203.0.113.0_24
+add InterfaceGroup fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo Members=Brussels_HQ,Antwerp_DC,Ghent_Plant,Leuven_Lab,Cato_client__remote_users_
+add InterfaceGroup fws_if_Ghent_Plant_Leuven_Lab Members=Ghent_Plant,Leuven_Lab
+add IPRuleSet fws_rules Comments="Written by FWShift"
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_inside_Brussels-HQ_range_1 Action=Allow SourceInterface=Brussels_HQ SourceNetwork=fws_10.10.0.0_24 DestinationInterface=Brussels_HQ DestinationNetwork=fws_10.10.0.0_24 Service=all_services LogEnabled=No Comments="traffic inside 10.10.0.0/24 does not reach Cato"
+add IPRule Index=2 Name=fws_inside_Brussels-HQ_range_2 Action=Allow SourceInterface=Brussels_HQ SourceNetwork=fws_10.10.20.0_24 DestinationInterface=Brussels_HQ DestinationNetwork=fws_10.10.20.0_24 Service=all_services LogEnabled=No Comments="traffic inside 10.10.20.0/24 does not reach Cato"
+add IPRule Index=3 Name=fws_inside_Antwerp-DC_range_1 Action=Allow SourceInterface=Antwerp_DC SourceNetwork=fws_10.20.0.0_24 DestinationInterface=Antwerp_DC DestinationNetwork=fws_10.20.0.0_24 Service=all_services LogEnabled=No Comments="traffic inside 10.20.0.0/24 does not reach Cato"
+add IPRule Index=4 Name=fws_inside_Antwerp-DC_range_2 Action=Allow SourceInterface=Antwerp_DC SourceNetwork=fws_10.20.30.0_24 DestinationInterface=Antwerp_DC DestinationNetwork=fws_10.20.30.0_24 Service=all_services LogEnabled=No Comments="traffic inside 10.20.30.0/24 does not reach Cato"
+add IPRule Index=5 Name=fws_inside_Ghent-Plant_range_1 Action=Allow SourceInterface=Ghent_Plant SourceNetwork=fws_10.30.0.0_24 DestinationInterface=Ghent_Plant DestinationNetwork=fws_10.30.0.0_24 Service=all_services LogEnabled=No Comments="traffic inside 10.30.0.0/24 does not reach Cato"
+add IPRule Index=6 Name=fws_inside_Leuven-Lab_range_1 Action=Allow SourceInterface=Leuven_Lab SourceNetwork=fws_10.40.0.0_24 DestinationInterface=Leuven_Lab DestinationNetwork=fws_10.40.0.0_24 Service=all_services LogEnabled=No Comments="traffic inside 10.40.0.0/24 does not reach Cato"
+add IPRule Index=7 Name=fws_Allow_HQ_to_DC_servers Action=Allow SourceInterface=Brussels_HQ SourceNetwork=all-nets DestinationInterface=Antwerp_DC DestinationNetwork=fws_Allow_HQ_to_DC_servers_dst Service=fws_Allow_HQ_to_DC_servers_svc LogEnabled=Yes
+add IPRule Index=8 Name=fws_Allow_HQ_to_DC_servers__2_ Action=Allow SourceInterface=Brussels_HQ SourceNetwork=all-nets DestinationInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo DestinationNetwork=fws_Monitoring Service=fws_Allow_HQ_to_DC_servers__2__svc LogEnabled=Yes
+add IPRule Index=9 Name=fws_Block_OT_to_HQ Action=Drop SourceInterface=fws_if_Ghent_Plant_Leuven_Lab SourceNetwork=all-nets DestinationInterface=Brussels_HQ DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=10 Name=fws_Block_OT_to_HQ_v6 Action=Drop SourceInterface=fws_if_Ghent_Plant_Leuven_Lab SourceNetwork=all-nets6 DestinationInterface=Brussels_HQ DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add IPRule Index=11 Name=fws_Historian_both_ways Action=Allow SourceInterface=Ghent_Plant SourceNetwork=fws_historian DestinationInterface=Antwerp_DC DestinationNetwork=fws_Antwerp_DC___Routed_lab Service=fws_Historian_both_ways_svc LogEnabled=No
+add IPRule Index=12 Name=fws_Historian_both_ways__2_ Action=Allow SourceInterface=Antwerp_DC SourceNetwork=fws_Antwerp_DC___Routed_lab DestinationInterface=Ghent_Plant DestinationNetwork=fws_historian Service=fws_Historian_both_ways__2__svc LogEnabled=No
+add IPRule Index=13 Name=fws_Remote_users_to_DC Action=Allow SourceInterface=Cato_client__remote_users_ SourceNetwork=all-nets DestinationInterface=Antwerp_DC DestinationNetwork=fws_Remote_users_to_DC_dst_not Service=fws_Remote_users_to_DC_svc LogEnabled=No
+add IPRule Index=14 Name=fws_Remote_users_to_DC_v6 Action=Allow SourceInterface=Cato_client__remote_users_ SourceNetwork=all-nets6 DestinationInterface=Antwerp_DC DestinationNetwork=all-nets6 Service=fws_Remote_users_to_DC_svc LogEnabled=No
+add IPRule Index=15 Name=fws_Modbus_to_the_plant Action=Allow SourceInterface=Brussels_HQ SourceNetwork=all-nets DestinationInterface=Ghent_Plant DestinationNetwork=fws_Ghent_Plant___LAN Service=fws_tcp_502 LogEnabled=Yes
+add IPRule Index=16 Name=fws_Modbus_to_the_plant__2_ Action=Allow SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=fws_Modbus_to_the_plant__2__src DestinationInterface=Ghent_Plant DestinationNetwork=fws_Ghent_Plant___LAN Service=fws_tcp_502 LogEnabled=Yes
+add IPRule Index=17 Name=fws_Modbus_to_the_plant__3_ Action=Allow SourceInterface=Ghent_Plant SourceNetwork=fws_historian DestinationInterface=Ghent_Plant DestinationNetwork=fws_Ghent_Plant___LAN Service=fws_tcp_502 LogEnabled=Yes
+add IPRule Index=18 Name=fws_Finance_to_ERP Action=Allow SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets DestinationInterface=Antwerp_DC DestinationNetwork=fws_erp-db Service=fws_tcp_5432 LogEnabled=No
+set IPRule 18 -disable
+add IPRule Index=19 Name=fws_Prompt_for_SSH Action=Allow SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets DestinationInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo DestinationNetwork=fws_10.20.0.0_24 Service=fws_SSH LogEnabled=No
+set IPRule 19 -disable
+add IPRule Index=20 Name=fws_Old_block Action=Drop SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=fws_10.10.0.0_24 DestinationInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo DestinationNetwork=fws_10.30.0.5 Service=all_services LogEnabled=No
+set IPRule 20 -disable
+add IPRule Index=21 Name=fws_Floating_range Action=Allow SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets DestinationInterface=Antwerp_DC DestinationNetwork=all-nets Service=all_services LogEnabled=No
+set IPRule 21 -disable
+add IPRule Index=22 Name=fws_Floating_range_v6 Action=Allow SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets6 DestinationInterface=Antwerp_DC DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+set IPRule 22 -disable
+add IPRule Index=23 Name=fws_Maintenance_window Action=Allow SourceInterface=Antwerp_DC SourceNetwork=all-nets DestinationInterface=Ghent_Plant DestinationNetwork=all-nets Service=fws_RDP LogEnabled=No
+set IPRule 23 -disable
+add IPRule Index=24 Name=fws_Maintenance_window_v6 Action=Allow SourceInterface=Antwerp_DC SourceNetwork=all-nets6 DestinationInterface=Ghent_Plant DestinationNetwork=all-nets6 Service=fws_RDP LogEnabled=No
+set IPRule 24 -disable
+add IPRule Index=25 Name=fws_Teams_between_sites Action=Allow SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets DestinationInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo DestinationNetwork=all-nets Service=all_services LogEnabled=No
+set IPRule 25 -disable
+add IPRule Index=26 Name=fws_Teams_between_sites_v6 Action=Allow SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets6 DestinationInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+set IPRule 26 -disable
+add IPRule Index=27 Name=fws_Unknown_host Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 27 -disable
+add IPRule Index=28 Name=fws_Block_guest_except_DNS Action=Drop SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=fws_10.10.20.0_24 DestinationInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo DestinationNetwork=all-nets Service=all_services LogEnabled=No
+set IPRule 28 -disable
+add IPRule Index=29 Name=fws_Block_plant_to_remote_users Action=Drop SourceInterface=Ghent_Plant SourceNetwork=all-nets DestinationInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=30 Name=fws_Block_plant_to_remote_users_v6 Action=Drop SourceInterface=Ghent_Plant SourceNetwork=all-nets6 DestinationInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add IPRule Index=31 Name=fws_Block_anonymizers Action=Drop SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=all_services LogEnabled=No
+set IPRule 31 -disable
+add IPRule Index=32 Name=fws_Block_anonymizers_v6 Action=Drop SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+set IPRule 32 -disable
+add IPRule Index=33 Name=fws_Block_bad_networks Action=Drop SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=fws_Block_bad_networks_dst Service=all_services LogEnabled=Yes
+add IPRule Index=34 Name=fws_Plant_has_no_internet Action=Drop SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 34 -disable
+add IPRule Index=35 Name=fws_HQ_web Action=Allow SourceInterface=Brussels_HQ SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=fws_HTTPS LogEnabled=No
+set IPRule 35 -disable
+add IPRule Index=36 Name=fws_HQ_web_v6 Action=Allow SourceInterface=Brussels_HQ SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=fws_HTTPS LogEnabled=No
+set IPRule 36 -disable
+add IPRule Index=37 Name=fws_Isolate_unknown_sites Action=Allow SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=all_services LogEnabled=No
+set IPRule 37 -disable
+add IPRule Index=38 Name=fws_Isolate_unknown_sites_v6 Action=Allow SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+set IPRule 38 -disable
+add IPRule Index=39 Name=fws_Partner_FTP Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 39 -disable
+add IPRule Index=40 Name=fws_Block_remote_users_to_SMB Action=Drop SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=fws_SMB LogEnabled=No
+set IPRule 40 -disable
+add IPRule Index=41 Name=fws_Block_remote_users_to_SMB_v6 Action=Drop SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=fws_SMB LogEnabled=No
+set IPRule 41 -disable
+add IPRule Index=42 Name=fws_Internet_Firewall_implicit_allow Action=Allow SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="the implicit any-any allow at the end of the Internet Firewall"
+add IPRule Index=43 Name=fws_Internet_Firewall_implicit_allow_v6 Action=Allow SourceInterface=fws_if_Antwerp_DC_Brussels_HQ_Cato_client__remo SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="the implicit any-any allow at the end of the Internet Firewall"
+add IPRule Index=44 Name=fws_default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=45 Name=fws_default_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=46 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=47 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

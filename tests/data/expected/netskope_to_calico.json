@@ -1,0 +1,158 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "Branch mail to partner (not written, see the report); Voice from sites (not written, see the report); Admins to jump hosts [app-ssh-jump] (not written, see the report); Admins to jump hosts [app-rdp-gw] (not written, see the report); Engineering to git (not written, see the report); Block BitTorrent (not written, see the report); Time servers (not written, see the report); Old FTP exception (disabled in the source); SaaS files from the office (not written, see the report); Ping out (not written, see the report); DNS out (not written, see the report); Contractors: nothing else (not written, see the report); Lab network out (not written, see the report)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "192.0.2.128/26",
+            "203.0.113.200/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block known bad ranges"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "notNets": [
+            "10.20.10.0/24",
+            "10.20.11.0/25"
+          ]
+        },
+        "destination": {
+          "ports": [
+            123
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Not from the server networks: no NTP"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "protocol": "UDP",
+        "destination": {
+          "ports": [
+            123
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Not from the server networks: no NTP"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Default Action"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "192.0.2.128/26",
+            "203.0.113.200/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block known bad ranges"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "notNets": [
+            "10.20.10.0/24",
+            "10.20.11.0/25"
+          ]
+        },
+        "destination": {
+          "ports": [
+            123
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Not from the server networks: no NTP"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "protocol": "UDP",
+        "destination": {
+          "ports": [
+            123
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Not from the server networks: no NTP"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Default Action"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

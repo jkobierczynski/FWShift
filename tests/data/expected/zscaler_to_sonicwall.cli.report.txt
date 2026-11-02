@@ -1,0 +1,103 @@
+FWShift conversion report
+  source: zscaler
+  target: sonicwall
+
+Summary
+  Security rules:     17   exact 4, approximated 0, needs review 13 (12 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 8, approximated 0, needs review 4, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZSCALER_OUTBOUND_ONLY: ZIA filters traffic to the internet only: traffic between locations, inside one and from the internet does not pass it, and the model blocks it (no rule allows it). A target that sees such traffic needs rules for it
+  [needs-review] ZSCALER_FIREWALL_OFF: locations whose firewall is off (ofwEnabled false): the rules do not decide their traffic on ZIA, the model applies them anyway: Guest-WiFi
+  [needs-review] ZSCALER_RANK: admin ranks out of the rule order: read in the rule order: Ranked web (rank 3 below rank 7)
+  [needs-review] IPV6_PRIORITY_AUTO: IPv6 rules are written without a priority, after every IPv4 rule: SonicOS keeps one list of priorities for the rules of every pair of zones, IPv4 first and with rules of its own among them, so the place of an IPv6 rule is not known beforehand (SonicOS 8.2.2 refused the places FWShift gave). SonicOS places them. Pairs with more than one IPv6 rule, whose order SonicOS decides: HQ-Brussels to internet, Branch-Ghent to internet, HQ-Servers to internet, Guest-WiFi to internet, road-warrior to internet: check it
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object ipv6, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): HQ-Brussels, internet, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior
+  [info] ZSCALER_SOURCE: 4 locations (HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi), road-warrior (Client Connector outside a location) and internet; the rules decide traffic from the locations to the internet, first match in ascending order, and the default rule decides the rest
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: HQ-Servers=10.10.20.0/24. --no-source-networks takes none of them
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv4' (all addresses, in two halves) instead of any
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv6' (all addresses, in two halves) instead of any
+  [info] DEFAULT_DENY_ADDED: 62 rules that deny were added, one at the end of each pair of zones and IP version: SonicOS allows some traffic between zones by itself (from LAN to WAN, for example), and the source did not
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 11 rule(s) match IPv4 and IPv6 traffic and were written twice: SonicOS has address objects and access rules per IP version
+
+Security rules
+  Allow DNS to resolvers  ->  needs-review
+      [needs-review] ZSCALER_SUBLOCATION: location HQ-Brussels has sub-locations (HQ-Servers): read as the location without them, which may be narrower than ZIA
+  Block SSH out  ->  exact  (emitted as Block SSH out, Block SSH out 2, Block SSH out 3, Block SSH out 4, Block SSH out 5, Block SSH out 6, Block SSH out 7, Block SSH out 8, Block SSH out 9, Block SSH out 10)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+      [info] RESET_ACTION: action reset-client becomes deny
+  Block malicious IPs and domains  ->  needs-review, emitted disabled  (emitted as Block malicious IPs and domains, Block malicious IPs and domain 2, Block malicious IPs and domain 3, Block malicious IPs and domain 4, Block malicious IPs and domain 5, Block malicious IPs and domain 6, Block malicious IPs and domain 7, Block malicious IPs and domain 8, Block malicious IPs and domain 9, Block malicious IPs and domai 10)
+      [needs-review] ZSCALER_CATEGORY: destination IP categories BOTNET, MALWARE_SITE: narrows the match and is not modelled
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination IP categories BOTNET, MALWARE_SITE. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Office 365 One Click Rule  ->  needs-review, emitted disabled  (emitted as Office 365 One Click Rule, Office 365 One Click Rule 2, Office 365 One Click Rule 3, Office 365 One Click Rule 4, Office 365 One Click Rule 5, Office 365 One Click Rule 6, Office 365 One Click Rule 7, Office 365 One Click Rule 8, Office 365 One Click Rule 9, Office 365 One Click Rule 10)
+      [needs-review] ZSCALER_APPLICATION: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE: narrows the match and is not modelled
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+      [needs-review] UNSUPPORTED_MATCH: not converted: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE.
+  Branch web  ->  needs-review, emitted disabled  (emitted as Branch web, Branch web 2)
+      [needs-review] SCHEDULE: schedule 'Work hours' is not converted; the rule would apply at all times.
+  Engineers to SaaS  ->  needs-review, emitted disabled  (emitted as Engineers to SaaS, Engineers to SaaS 2, Engineers to SaaS 3, Engineers to SaaS 4, Engineers to SaaS 5)
+      [needs-review] ZSCALER_FQDN: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold
+      [needs-review] ZSCALER_IDENTITY: groups Engineering: narrows the match and is not modelled
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups Engineering.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'SaaS-Domains': a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+  No embargoed countries  ->  needs-review, emitted disabled  (emitted as No embargoed countries, No embargoed countries 2, No embargoed countries 3, No embargoed countries 4, No embargoed countries 5, No embargoed countries 6, No embargoed countries 7, No embargoed countries 8, No embargoed countries 9, No embargoed countries 10)
+      [needs-review] ZSCALER_COUNTRY: destination countries COUNTRY_KP: narrows the match and is not modelled
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination countries COUNTRY_KP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Printers syslog  ->  needs-review, emitted disabled  (emitted as Printers syslog, Printers syslog 2, Printers syslog 3, Printers syslog 4, Printers syslog 5)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Syslog-From-Highport': source ports, which a SonicOS service object does not have.
+  Infra out  ->  needs-review, emitted disabled  (emitted as Infra out, Infra out 2, Infra out 3, Infra out 4, Infra out 5, Infra out 6, Infra out 7, Infra out 8, Infra out 9, Infra out 10)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Infra': contains 'ICMP_ANY' (ICMP other than echo request, for which FWShift does not know the command of SonicOS).
+  Block GRE and ESP  ->  needs-review, emitted disabled  (emitted as Block GRE and ESP, Block GRE and ESP 2, Block GRE and ESP 3, Block GRE and ESP 4, Block GRE and ESP 5, Block GRE and ESP 6, Block GRE and ESP 7, Block GRE and ESP 8, Block GRE and ESP 9, Block GRE and ESP 10)
+      [info] ZSCALER_BLOCK_ICMP: BLOCK_ICMP drops and answers with an ICMP unreachable: read as deny
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'GRE_PROTOCOL': IP protocol 47, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ESP_PROTOCOL': IP protocol 50, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Evaluate apps  ->  needs-review, emitted disabled  (emitted as Evaluate apps, Evaluate apps 2, Evaluate apps 3, Evaluate apps 4, Evaluate apps 5, Evaluate apps 6, Evaluate apps 7, Evaluate apps 8, Evaluate apps 9, Evaluate apps 10)
+      [needs-review] ZSCALER_EVAL_NWAPP: action EVAL_NWAPP hands the decision to the network application of the traffic: not converted
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+      [needs-review] UNSUPPORTED_MATCH: not converted: action EVAL_NWAPP: the decision waits for the network application, which is not modelled. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Ranked web  ->  needs-review, emitted disabled  (emitted as Ranked web, Ranked web 2, Ranked web 3, Ranked web 4, Ranked web 5)
+      [needs-review] ZSCALER_FQDN: destination files.example.org: ZIA matches a domain by the names it sees in the traffic; not modelled
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination FQDN files.example.org.
+  Ghent and corporate  ->  needs-review, emitted disabled  (emitted as Ghent and corporate, Ghent and corporate 2, Ghent and corporate 3, Ghent and corporate 4)
+      [needs-review] ZSCALER_LOCATION_GROUP: the rule names locations and location groups: whether ZIA takes either or both is not documented
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 2 rules
+      [needs-review] UNSUPPORTED_MATCH: not converted: both locations and location groups: how ZIA combines them is not known.
+  Web for all  ->  exact  (emitted as Web for all, Web for all 2, Web for all 3, Web for all 4, Web for all 5)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  Guest ICMP  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ICMP_ANY': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  Default Firewall Filtering Rule  ->  exact  (emitted as Default Firewall Filtering Rule, Default Firewall Filtering Rul 2, Default Firewall Filtering Rul 3, Default Firewall Filtering Rul 4, Default Firewall Filtering Rul 5, Default Firewall Filtering Rul 6, Default Firewall Filtering Rul 7, Default Firewall Filtering Rul 8, Default Firewall Filtering Rul 9, Default Firewall Filtering Ru 10)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+
+Services
+  ICMP_ANY  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  DNS  ->  exact  (emitted as DNS, DNS tcp 53, DNS udp 53)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'DNS' of 'DNS tcp 53', 'DNS udp 53'
+  HTTP  ->  exact  (emitted as HTTP 2)
+      [info] RENAMED: renamed to 'HTTP 2' to fit the target's naming rules
+  HTTPS  ->  exact  (emitted as HTTPS 2)
+      [info] RENAMED: renamed to 'HTTPS 2' to fit the target's naming rules
+  GRE_PROTOCOL  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 47, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  ESP_PROTOCOL  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 50, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  App-8443  ->  exact  (emitted as App-8443, App-8443 tcp 8443, App-8443 tcp 8000-8010)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'App-8443' of 'App-8443 tcp 8443', 'App-8443 tcp 8000-8010'
+  Syslog-From-Highport  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  NTP  ->  exact  (emitted as NTP 2)
+      [info] RENAMED: renamed to 'NTP 2' to fit the target's naming rules
+  SSH  ->  exact  (emitted as SSH 2)
+      [info] RENAMED: renamed to 'SSH 2' to fit the target's naming rules

@@ -1,0 +1,80 @@
+set Interface Ethernet lan IP=lan_ip Network=lan_net EnableIPv6=Yes IPv6IP=lan_ip6 IPv6Network=lan_net6
+set Interface Ethernet dmz IP=dmz_ip Network=dmz_net
+set Interface Ethernet wan IP=wan_ip Network=wan_net
+add Interface VLAN guest Ethernet=lan VLANID=30 IP=guest_ip Network=guest_net
+add Interface InterfaceGroup inside Members=lan,guest Comments="Inside networks"
+cc AddressFolder InterfaceAddresses
+add Address IP4Address lan_ip Address=192.168.10.1
+add Address IP4Address lan_net Address=192.168.10.0/24
+add Address IP4Address dmz_ip Address=172.16.20.1
+add Address IP4Address dmz_net Address=172.16.20.0/24
+add Address IP4Address wan_ip Address=203.0.113.10
+add Address IP4Address wan_net Address=203.0.113.0/24
+add Address IP4Address guest_ip Address=10.30.0.1
+add Address IP4Address guest_net Address=10.30.0.0/24
+add Address IP6Address lan_ip6 Address=2001:db8:10::1
+add Address IP6Address lan_net6 Address=2001:db8:10::/64
+cc
+add Address IP4Address web_srv Address=172.16.20.80 Comments="Web server in the DMZ"
+add Address IP4Address mail_srv Address=172.16.20.25
+add Address IP4Address wan_ip2 Address=203.0.113.12
+add Address IP4Address pub_pool Address=203.0.113.20-203.0.113.23
+add Address IP4Address srv_base Address=172.16.20.100
+add Address IP4Address admin_hosts Address="192.168.10.5, 192.168.10.6, 192.168.10.32/28"
+add Address IP4Group servers Members=web_srv,mail_srv
+add Address IP6Address v6_web Address=2001:db8:20::80
+add Address FQDNAddress updates Address=updates.example.com
+add Service ServiceTCPUDP smtp-in Type=TCP DestinationPorts=25
+add Service ServiceTCPUDP web-ports Type=TCP DestinationPorts=80,443,8080-8090
+add Service ServiceTCPUDP dns-both Type=TCPUDP DestinationPorts=53
+add Service ServiceTCPUDP syslog Type=UDP DestinationPorts=514 SourcePorts=1024-65535
+add Service ServiceTCPUDP ftp-alg Type=TCP DestinationPorts=21 ALG=ftp-inbound
+add Service ServiceICMP echo-only MessageTypes=Specific EchoRequest=Yes EchoRequestCodes=0
+add Service ServiceICMPv6 echo6 MessageTypes=Specific EchoRequest=Yes
+add Service ServiceIPProto gre IPProto=47
+add Service ServiceGroup mgmt Members=ssh,https
+cc RoutingTable main
+add Route Interface=wan Network=all-nets Gateway=203.0.113.1
+add Route Interface=dmz Network=172.16.0.0/16 Gateway=172.16.20.254
+add Route Interface=core Network=wan_ip2
+cc
+add IPRuleSet guest_rules Comments="Rules for the guest VLAN"
+cc IPRuleSet guest_rules
+add IPRule Index=1 Name=guest_dns Action=NAT SourceInterface=guest SourceNetwork=guest_net DestinationInterface=wan DestinationNetwork=all-nets Service=dns-all
+add IPRule Index=2 Name=guest_web Action=NAT SourceInterface=guest SourceNetwork=guest_net DestinationInterface=wan DestinationNetwork=all-nets Service=http-all
+add ReturnRule Index=3 Name=guest_back SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services
+add IPRule Index=4 Name=guest_never Action=Allow SourceInterface=guest SourceNetwork=guest_net DestinationInterface=dmz DestinationNetwork=dmz_net Service=all_services
+cc
+cc IPRuleSet main
+add IPRule Index=1 Name=drop_netbios Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=netbios-all LogEnabled=No
+add IPRule Index=2 Name=sat_web Action=SAT SourceInterface=wan SourceNetwork=all-nets DestinationInterface=core DestinationNetwork=wan_ip Service=http-all SATTranslate=DestinationIP SATTranslateToIP=web_srv
+add IPRule Index=3 Name=allow_web Action=Allow SourceInterface=wan SourceNetwork=all-nets DestinationInterface=core DestinationNetwork=wan_ip Service=http-all Comments="Completes sat_web"
+add IPRule Index=4 Name=sat_mail Action=SAT SourceInterface=any SourceNetwork=all-nets DestinationInterface=core DestinationNetwork=wan_ip Service=smtp-in SATTranslateToIP=mail_srv
+add IPRule Index=5 Name=block_bad_mail Action=Reject SourceInterface=wan SourceNetwork=198.51.100.0/24 DestinationInterface=core DestinationNetwork=wan_ip Service=smtp-in
+add IPRule Index=6 Name=nat_mail Action=NAT SourceInterface=inside SourceNetwork=all-nets DestinationInterface=core DestinationNetwork=wan_ip Service=smtp-in
+add IPRule Index=7 Name=allow_mail Action=Allow SourceInterface=wan SourceNetwork=all-nets DestinationInterface=core DestinationNetwork=wan_ip Service=smtp-in
+add IPRule Index=8 Name=sat_pool Action=SAT SourceInterface=wan SourceNetwork=all-nets DestinationInterface=wan DestinationNetwork=pub_pool Service=web-ports SATTranslateToIP=srv_base
+add IPRule Index=9 Name=allow_pool Action=Allow SourceInterface=wan SourceNetwork=all-nets DestinationInterface=wan DestinationNetwork=pub_pool Service=web-ports
+add IPRule Index=10 Name=sat_unused Action=SAT SourceInterface=wan SourceNetwork=all-nets DestinationInterface=core DestinationNetwork=wan_ip Service=ftp-alg SATTranslateToIP=172.16.20.21
+add IPRule Index=11 Name=ping_fw Action=Allow SourceInterface=inside SourceNetwork=all-nets DestinationInterface=core DestinationNetwork=lan_ip Service=echo-only
+add GotoRule Index=12 Name=to_guest SourceInterface=guest SourceNetwork=guest_net DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=guest_rules
+add IPRuleFolder Index=13 Name=lan_out
+cc IPRuleFolder lan_out
+add IPRule Index=1 Name=admin_mgmt Action=Allow SourceInterface=lan SourceNetwork=admin_hosts DestinationInterface=dmz DestinationNetwork=servers Service=mgmt
+add IPRule Index=2 Name=lan_dns Action=NAT SourceInterface=lan SourceNetwork=lan_net DestinationInterface=wan DestinationNetwork=all-nets Service=dns-both
+add IPRule Index=3 Name=lan_web Action=NAT SourceInterface=lan SourceNetwork=lan_net DestinationInterface=wan DestinationNetwork=all-nets Service=web-ports NATAction=UseSenderAddress NATSenderAddress=203.0.113.11
+add IPRule Index=4 Name=lan_updates Action=NAT SourceInterface=lan SourceNetwork=lan_net DestinationInterface=wan DestinationNetwork=updates Service=https
+cc ..
+add IPRule Index=14 Name=lan_to_dmz Action=Allow SourceInterface=lan SourceNetwork=lan_net DestinationInterface=dmz DestinationNetwork=dmz_net Service=all_services
+add IPRule Index=15 Name=syslog_fast Action=FwdFast SourceInterface=dmz SourceNetwork=dmz_net DestinationInterface=lan DestinationNetwork=192.168.10.50 Service=syslog LogEnabled=No
+add IPRule Index=16 Name=gre_tunnel Action=Allow SourceInterface=dmz SourceNetwork=172.16.20.9 DestinationInterface=wan DestinationNetwork=198.51.100.7 Service=gre Schedule=office_hours
+add IPRule Index=17 Name=old_rule Action=Allow SourceInterface=wan SourceNetwork=all-nets DestinationInterface=dmz DestinationNetwork=servers Service=ftp-alg
+set IPRule 17 -disable
+add IPRule Index=18 Name=lan6_web Action=Allow SourceInterface=lan SourceNetwork=lan_net6 DestinationInterface=dmz DestinationNetwork=v6_web Service=http-all
+add IPRule Index=19 Name=lan6_ping Action=Allow SourceInterface=lan SourceNetwork=lan_net6 DestinationInterface=any DestinationNetwork=all-nets6 Service=echo6
+add IPPolicy Index=20 Name=pol_dmz_https Action=Allow SourceInterface=wan SourceNetwork=all-nets DestinationInterface=core DestinationNetwork=wan_ip2 Service=https SourceAddressTranslation=None DestAddressTranslation=SAT DestAddressAction=SingleIP DestNewIP=web_srv DestPortAction=SinglePort DestNewSinglePort=8443
+add IPPolicy Index=21 Name=pol_dmz_out Action=Allow SourceInterface=dmz SourceNetwork=dmz_net DestinationInterface=wan DestinationNetwork=all-nets Service=http-all SourceAddressTranslation=NAT NATSourceAddressAction=OutgoingInterfaceIP WebContentFiltering=Yes
+add IPPolicy Index=22 Name=pol_block_ftp Action=Deny Reject=Yes SourceInterface=any SourceNetwork=all-nets DestinationInterface=dmz DestinationNetwork=dmz_net Service=ftp-alg
+add IPRule Index=23 Name=DropAll Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services
+add IPRule Index=24 Name=DropAll6 Action=Drop SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services
+cc

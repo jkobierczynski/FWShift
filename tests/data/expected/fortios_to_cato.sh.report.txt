@@ -1,0 +1,79 @@
+FWShift conversion report
+  source: fortios
+  target: cato
+
+Summary
+  Security rules:     14   exact 5, approximated 0, needs review 2 (2 emitted disabled), skipped 7
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
+  [needs-review] CATO_INTERNET_DEFAULT: the source blocks what no rule matches; the Internet Firewall allows it (implicit any-any allow). A last rule that blocks the rest to the internet is written switched off: with it on, everything to the internet that no rule above it allows is blocked, also what existing rules below the position do not block
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: lan, dmz, ot
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. --no-source-networks takes none of them
+  [info] CATO_INTERNET_BY_ROUTE: no --inside-zone: the zones behind the default route (or named internet) are the internet, the others sites: wan1
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  LAN to Internet  ->  exact  (emitted as fws-LAN to Internet)
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+  LAN basics  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Inbound web  ->  skipped
+      [needs-review] NAT_PORT_TRANSLATION: virtual IP 'vip-web' forwards port 443 to 8443; FortiOS policies name the mapped port, the neutral model the original one. Check the service of this rule
+      [needs-review] CATO_FROM_INTERNET: traffic from zone wan1 is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in, which is not written
+  Inbound mail  ->  skipped
+      [needs-review] CATO_FROM_INTERNET: traffic from zone wan1 is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in, which is not written
+  Admins to DMZ  ->  needs-review, emitted disabled  (emitted as fws-Admins to DMZ)
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+  Block geo  ->  skipped
+      [info] CATO_FROM_INTERNET: traffic from zone wan1 is not written: the WAN and Internet Firewall decide traffic from sites and remote users only; from the internet only Remote Port Forwarding lets traffic in
+      [needs-review] CATO_NOT_WRITTEN: not written: 'geo-blocked' holds members whose addresses are not known This deny rule is NOT enforced; rules below it may let more through.
+  DMZ out via pool  ->  exact  (emitted as fws-DMZ out via pool)
+      [info] ZONE_BY_NETWORKS: the source in zone dmz is written as the addresses of the networks given for it
+  SCADA to PLCs  ->  exact  (emitted as fws-SCADA to PLCs)
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone ot is written as the addresses of the networks given for it
+  OT no internet  ->  exact  (emitted as fws-OT no internet)
+      [info] ZONE_BY_NETWORKS: the source in zone ot is written as the addresses of the networks given for it
+  Partner tunnel  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  LAN v6 out  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  policy-12  ->  needs-review, emitted disabled  (emitted as fws-policy-12)
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  Not web  ->  exact  (emitted as fws-Not web)
+      [info] ZONE_BY_NETWORKS: the source in zone dmz is written as the addresses of the networks given for it
+  Timestamp probes  ->  skipped
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+
+NAT rules
+  vip-web  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  vip-mail  ->  skipped
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  snat-1  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  snat-2  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  snat-7  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted

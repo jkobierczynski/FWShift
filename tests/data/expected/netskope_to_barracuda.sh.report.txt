@@ -1,0 +1,89 @@
+FWShift conversion report
+  source: netskope
+  target: barracuda
+
+Summary
+  Security rules:     16   exact 0, approximated 3, needs review 13 (13 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+
+Security rules
+  Block known bad ranges  ->  approximated  (emitted as Block_known_bad_ranges)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone client, ipsec, gre; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Branch mail to partner  ->  needs-review, emitted disabled  (emitted as Branch_mail_to_partner)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone ipsec, gre, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind ipsec, gre with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the firewall names no zone: give the networks behind internet with --zone-network.
+  Voice from sites  ->  needs-review, emitted disabled  (emitted as Voice_from_sites, Voice_from_sites-v6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone gre, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind gre with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the firewall names no zone: give the networks behind internet with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Admins to jump hosts [app-ssh-jump]  ->  needs-review, emitted disabled  (emitted as Admins_to_jump_hosts__app-ssh-ju)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone client, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind client with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the firewall names no zone: give the networks behind internet with --zone-network.
+  Admins to jump hosts [app-rdp-gw]  ->  needs-review, emitted disabled  (emitted as Admins_to_jump_hosts__app-rdp-gw)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone client, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind client with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the firewall names no zone: give the networks behind internet with --zone-network.
+  Engineering to git  ->  needs-review, emitted disabled  (emitted as Engineering_to_git, Engineering_to_git-v6)
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone client, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind client with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the firewall names no zone: give the networks behind internet with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Block BitTorrent  ->  needs-review, emitted disabled  (emitted as Block_BitTorrent, Block_BitTorrent-v6)
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone client, ipsec, gre; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Not from the server networks: no NTP  ->  approximated  (emitted as Not_from_the_server_networks__no, Not_from_the_server_networks___2)
+      [info] NEGATION_EXPANDED: the firewall has no negation in a rule: 'not source 10.20.10.0/24, 10.20.11.0/25' is written as the addresses that are left
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone ipsec; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Time servers  ->  needs-review, emitted disabled  (emitted as Time_servers)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone client, ipsec, gre, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind client, ipsec, gre with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the firewall names no zone: give the networks behind internet with --zone-network.
+  Old FTP exception  ->  needs-review, emitted disabled  (emitted as Old_FTP_exception)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone ipsec, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind ipsec with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the firewall names no zone: give the networks behind internet with --zone-network.
+  SaaS files from the office  ->  needs-review, emitted disabled  (emitted as SaaS_files_from_the_office)
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp-saas-domains': destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone gre, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind gre with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the firewall names no zone: give the networks behind internet with --zone-network.
+  Ping out  ->  needs-review, emitted disabled  (emitted as Ping_out)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone client, ipsec, gre, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind client, ipsec, gre with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the firewall names no zone: give the networks behind internet with --zone-network.
+  DNS out  ->  needs-review, emitted disabled  (emitted as DNS_out, DNS_out-v6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone client, ipsec, gre, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind client, ipsec, gre with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the firewall names no zone: give the networks behind internet with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Contractors: nothing else  ->  needs-review, emitted disabled  (emitted as Contractors__nothing_else, Contractors__nothing_else-v6)
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone client; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Lab network out  ->  needs-review, emitted disabled  (emitted as Lab_network_out)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone ipsec, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind ipsec with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a rule of the firewall names no zone: give the networks behind internet with --zone-network.
+  Default Action  ->  approximated  (emitted as Default_Action, Default_Action-v6)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone client, ipsec, gre; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule

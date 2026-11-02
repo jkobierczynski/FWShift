@@ -1,0 +1,53 @@
+FWShift conversion report
+  source: zscaler
+  target: stormshield
+
+Summary
+  Security rules:     17   exact 8, approximated 0, needs review 9 (8 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZSCALER_OUTBOUND_ONLY: ZIA filters traffic to the internet only: traffic between locations, inside one and from the internet does not pass it, and the model blocks it (no rule allows it). A target that sees such traffic needs rules for it
+  [needs-review] ZSCALER_FIREWALL_OFF: locations whose firewall is off (ofwEnabled false): the rules do not decide their traffic on ZIA, the model applies them anyway: Guest-WiFi
+  [needs-review] ZSCALER_RANK: admin ranks out of the rule order: read in the rule order: Ranked web (rank 3 below rank 7)
+  [needs-review] STORMSHIELD_LOAD: the output is a script of serverd commands (section 10): it creates objects (and changes those of the same names, also where an active slot uses them), empties filter slot 9 and writes the rules there; the slot is not made active. snscli goes on after a command that fails: read its output, and check the slot with CONFIG FILTER CHECK before it is made active
+  [needs-review] STORMSHIELD_INTERFACES: rules name interfaces by the zone names of the source: each must be the name of an interface of the firewall (in, out, dmz1 ...); rename the zones with --zone-map ZONE=INTERFACE
+  [needs-review] STORMSHIELD_IPV6: IPv6 objects are written with ipv6= and prefixlenv6=, the names CONFIG OBJECT LIST answers with; that the commands that create objects take them is not documented: check them
+  [info] ZSCALER_SOURCE: 4 locations (HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi), road-warrior (Client Connector outside a location) and internet; the rules decide traffic from the locations to the internet, first match in ascending order, and the default rule decides the rest
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have loglevel=log where the source logs the start of a connection, and the standard connection log otherwise
+
+Security rules
+  Allow DNS to resolvers  ->  needs-review  (emitted as 1 rules of slot 9)
+      [needs-review] ZSCALER_SUBLOCATION: location HQ-Brussels has sub-locations (HQ-Servers): read as the location without them, which may be narrower than ZIA
+  Block malicious IPs and domains  ->  needs-review, emitted disabled  (emitted as 5 rules of slot 9)
+      [needs-review] ZSCALER_CATEGORY: destination IP categories BOTNET, MALWARE_SITE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination IP categories BOTNET, MALWARE_SITE. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Office 365 One Click Rule  ->  needs-review, emitted disabled  (emitted as 5 rules of slot 9)
+      [needs-review] ZSCALER_APPLICATION: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE.
+  Branch web  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] SCHEDULE: schedule 'Work hours' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule Work hours is not converted.
+  Engineers to SaaS  ->  needs-review, emitted disabled  (emitted as 5 rules of slot 9)
+      [needs-review] ZSCALER_FQDN: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold
+      [needs-review] ZSCALER_IDENTITY: groups Engineering: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups Engineering.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'SaaS-Domains': a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] ZONE_DYNAMIC: 'SaaS-Domains' holds members only its platform knows.
+  No embargoed countries  ->  needs-review, emitted disabled  (emitted as 5 rules of slot 9)
+      [needs-review] ZSCALER_COUNTRY: destination countries COUNTRY_KP: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination countries COUNTRY_KP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block GRE and ESP  ->  exact  (emitted as 10 rules of slot 9)
+      [info] ZSCALER_BLOCK_ICMP: BLOCK_ICMP drops and answers with an ICMP unreachable: read as deny
+  Evaluate apps  ->  needs-review, emitted disabled  (emitted as 10 rules of slot 9)
+      [needs-review] ZSCALER_EVAL_NWAPP: action EVAL_NWAPP hands the decision to the network application of the traffic: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action EVAL_NWAPP: the decision waits for the network application, which is not modelled. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Ranked web  ->  needs-review, emitted disabled  (emitted as 5 rules of slot 9)
+      [needs-review] ZSCALER_FQDN: destination files.example.org: ZIA matches a domain by the names it sees in the traffic; not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination FQDN files.example.org.
+  Ghent and corporate  ->  needs-review, emitted disabled  (emitted as 2 rules of slot 9)
+      [needs-review] ZSCALER_LOCATION_GROUP: the rule names locations and location groups: whether ZIA takes either or both is not documented
+      [needs-review] UNSUPPORTED_MATCH: not converted: both locations and location groups: how ZIA combines them is not known.

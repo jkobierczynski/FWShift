@@ -1,0 +1,555 @@
+FWShift conversion report
+  source: ios
+  target: cato
+
+Summary
+  Security rules:    204   exact 114, approximated 0, needs review 10 (10 emitted disabled), skipped 80
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: OUTSIDE, INSIDE, DMZ, LAB, MGMT
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): OUTSIDE, INSIDE, DMZ, LAB, MGMT
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  WAN-IN-10 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-WAN-IN-10 (OUTSIDE to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-20 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-WAN-IN-20 (OUTSIDE to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-40 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-WAN-IN-40 (OUTSIDE to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-50 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-WAN-IN-50 (OUTSIDE to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-60 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-WAN-IN-60 (OUTSIDE to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-70 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  WAN-IN-80 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  WAN-IN-90 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  WAN-IN-100 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-WAN-IN-100 (OUTSIDE to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-110 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  WAN-IN-120 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-WAN-IN-120 (OUTSIDE to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as fws-WAN-IN-130 (OUTSIDE to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-WAN-IN-140 (OUTSIDE to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN implicit deny (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-WAN-IN implicit deny (OUTSIDE to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN6-IN-10 (OUTSIDE to OUTSIDE)  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  WAN6-IN-20 (OUTSIDE to OUTSIDE)  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  WAN6-IN-30 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  WAN6-IN-40 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  WAN6-IN-50 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN implicit deny (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-10 (OUTSIDE to INSIDE)  ->  exact  (emitted as fws-WAN-IN-10 (OUTSIDE to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-20 (OUTSIDE to INSIDE)  ->  exact  (emitted as fws-WAN-IN-20 (OUTSIDE to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as fws-WAN-IN-40 _ no outbound access list _ no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as fws-WAN-IN-50 _ no outbound access list _ no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as fws-WAN-IN-60 _ no outbound access list _ no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as fws-WAN-IN-100 _ no outbound access list _ no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as fws-WAN-IN-120 _ no outbound access list _ no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  exact  (emitted as fws-WAN-IN-120 _ no outbound access list _ no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as fws-WAN-IN-130 (OUTSIDE to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as fws-WAN-IN-140 _ no outbound access list _ no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  exact  (emitted as fws-WAN-IN-140 _ no outbound access list _ no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-3  ->  exact  (emitted as fws-WAN-IN-140 _ no outbound access list _ no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-3)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN implicit deny (OUTSIDE to INSIDE)  ->  exact  (emitted as fws-WAN-IN implicit deny (OUTSIDE to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-50 (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN implicit deny (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-10 (OUTSIDE to DMZ)  ->  exact  (emitted as fws-WAN-IN-10 (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-20 (OUTSIDE to DMZ)  ->  exact  (emitted as fws-WAN-IN-20 (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-40 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  exact  (emitted as fws-WAN-IN-40 _ DMZ-OUT-10 _ ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-50 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  exact  (emitted as fws-WAN-IN-50 _ DMZ-OUT-10 _ ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-60 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  exact  (emitted as fws-WAN-IN-60 _ DMZ-OUT-20 _ ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-100 + DMZ-OUT-30 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  exact  (emitted as fws-WAN-IN-100 _ DMZ-OUT-30 _ ZP-OUT-DMZ class-default (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-100 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  exact  (emitted as fws-WAN-IN-100 _ DMZ-OUT-50 (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-120 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  exact  (emitted as fws-WAN-IN-120 _ DMZ-OUT-50 (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-120 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  exact  (emitted as fws-WAN-IN-120 _ DMZ-OUT-50 (OUTSIDE to DMZ)-2)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as fws-WAN-IN-130 (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  exact  (emitted as fws-WAN-IN-140 _ DMZ-OUT-10 _ ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  exact  (emitted as fws-WAN-IN-140 _ DMZ-OUT-20 _ ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)-2  ->  exact  (emitted as fws-WAN-IN-140 _ DMZ-OUT-20 _ ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)-2)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-140 + DMZ-OUT-30 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  exact  (emitted as fws-WAN-IN-140 _ DMZ-OUT-30 _ ZP-OUT-DMZ class-default (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  exact  (emitted as fws-WAN-IN-140 _ DMZ-OUT-50 (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  exact  (emitted as fws-WAN-IN-140 _ DMZ-OUT-50 (OUTSIDE to DMZ)-2)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-3  ->  exact  (emitted as fws-WAN-IN-140 _ DMZ-OUT-50 (OUTSIDE to DMZ)-3)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN implicit deny (OUTSIDE to DMZ)  ->  exact  (emitted as fws-WAN-IN implicit deny (OUTSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN6-IN-10 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  WAN6-IN-20 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  WAN6-IN-30 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-40 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-50 (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN implicit deny (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-10 (OUTSIDE to LAB)  ->  exact  (emitted as fws-WAN-IN-10 (OUTSIDE to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-20 (OUTSIDE to LAB)  ->  exact  (emitted as fws-WAN-IN-20 (OUTSIDE to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as fws-WAN-IN-40 _ no outbound access list _ no zone pair from OUTSIDE to LAB (OUTSIDE to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as fws-WAN-IN-50 _ no outbound access list _ no zone pair from OUTSIDE to LAB (OUTSIDE to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as fws-WAN-IN-60 _ no outbound access list _ no zone pair from OUTSIDE to LAB (OUTSIDE to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as fws-WAN-IN-100 _ no outbound access list _ no zone pair from OUTSIDE to LAB (OUTSIDE to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as fws-WAN-IN-120 _ no outbound access list _ no zone pair from OUTSIDE to LAB (OUTSIDE to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-130 (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as fws-WAN-IN-130 (OUTSIDE to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as fws-WAN-IN-140 _ no outbound access list _ no zone pair from OUTSIDE to LAB (OUTSIDE to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN implicit deny (OUTSIDE to LAB)  ->  exact  (emitted as fws-WAN-IN implicit deny (OUTSIDE to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-50 (OUTSIDE to LAB)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN implicit deny (OUTSIDE to LAB)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-10 (OUTSIDE to MGMT)  ->  exact  (emitted as fws-WAN-IN-10 (OUTSIDE to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-20 (OUTSIDE to MGMT)  ->  exact  (emitted as fws-WAN-IN-20 (OUTSIDE to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as fws-WAN-IN-40 _ no outbound access list _ no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as fws-WAN-IN-50 _ no outbound access list _ no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as fws-WAN-IN-60 _ no outbound access list _ no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as fws-WAN-IN-100 _ no outbound access list _ no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as fws-WAN-IN-120 _ no outbound access list _ no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as fws-WAN-IN-130 (OUTSIDE to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as fws-WAN-IN-140 _ no outbound access list _ no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN-IN implicit deny (OUTSIDE to MGMT)  ->  exact  (emitted as fws-WAN-IN implicit deny (OUTSIDE to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN-50 (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  WAN6-IN implicit deny (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  skipped
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-PING (INSIDE to OUTSIDE)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  INSIDE (in): no access list + DMZ-OUT-10 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  exact  (emitted as fws-INSIDE (in): no access list _ DMZ-OUT-10 _ ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  INSIDE (in): no access list + DMZ-OUT-20 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  exact  (emitted as fws-INSIDE (in): no access list _ DMZ-OUT-20 _ ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  INSIDE (in): no access list + DMZ-OUT-30 + ZP-IN-DMZ CM-ADMIN (INSIDE to DMZ)  ->  exact  (emitted as fws-INSIDE (in): no access list _ DMZ-OUT-30 _ ZP-IN-DMZ CM-ADMIN (INSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  INSIDE (in): no access list + DMZ-OUT-50 (INSIDE to DMZ)  ->  exact  (emitted as fws-INSIDE (in): no access list _ DMZ-OUT-50 (INSIDE to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)-2  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  DMZ (in): no access list + DMZ-OUT-10 (DMZ to DMZ)  ->  exact  (emitted as fws-DMZ (in): no access list _ DMZ-OUT-10 (DMZ to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  DMZ (in): no access list + DMZ-OUT-20 (DMZ to DMZ)  ->  exact  (emitted as fws-DMZ (in): no access list _ DMZ-OUT-20 (DMZ to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  DMZ (in): no access list + DMZ-OUT-30 (DMZ to DMZ)  ->  exact  (emitted as fws-DMZ (in): no access list _ DMZ-OUT-30 (DMZ to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  DMZ (in): no access list + DMZ-OUT-40 (DMZ to DMZ)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  DMZ (in): no access list + DMZ-OUT-50 (DMZ to DMZ)  ->  exact  (emitted as fws-DMZ (in): no access list _ DMZ-OUT-50 (DMZ to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  DMZ (in): no access list + no outbound access list (DMZ to DMZ)  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  110-10 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  exact  (emitted as fws-110-10 _ no outbound access list _ ZP-LAB-OUT CM-WEB (LAB to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-20 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  exact  (emitted as fws-110-20 _ no outbound access list _ ZP-LAB-OUT CM-WEB (LAB to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-30 + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  exact  (emitted as fws-110-30 _ no outbound access list _ ZP-LAB-OUT CM-DNS (LAB to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as fws-110-40 (LAB to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to OUTSIDE)  ->  exact  (emitted as fws-110-50 (LAB to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110 implicit deny (LAB to OUTSIDE)  ->  exact  (emitted as fws-110 implicit deny (LAB to OUTSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)-2  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT class-default (LAB to OUTSIDE)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  110-10 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  exact  (emitted as fws-110-10 _ no outbound access list _ no zone pair from LAB to INSIDE (LAB to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-20 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  exact  (emitted as fws-110-20 _ no outbound access list _ no zone pair from LAB to INSIDE (LAB to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-30 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  exact  (emitted as fws-110-30 _ no outbound access list _ no zone pair from LAB to INSIDE (LAB to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as fws-110-40 (LAB to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to INSIDE)  ->  exact  (emitted as fws-110-50 (LAB to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110 implicit deny (LAB to INSIDE)  ->  exact  (emitted as fws-110 implicit deny (LAB to INSIDE))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  110-10 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  exact  (emitted as fws-110-10 _ DMZ-OUT-10 _ no zone pair from LAB to DMZ (LAB to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-10 + DMZ-OUT-50 (LAB to DMZ)  ->  exact  (emitted as fws-110-10 _ DMZ-OUT-50 (LAB to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-20 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  exact  (emitted as fws-110-20 _ DMZ-OUT-10 _ no zone pair from LAB to DMZ (LAB to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-20 + DMZ-OUT-50 (LAB to DMZ)  ->  exact  (emitted as fws-110-20 _ DMZ-OUT-50 (LAB to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-30 + DMZ-OUT-50 (LAB to DMZ)  ->  exact  (emitted as fws-110-30 _ DMZ-OUT-50 (LAB to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as fws-110-40 (LAB to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to DMZ)  ->  exact  (emitted as fws-110-50 (LAB to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110 implicit deny (LAB to DMZ)  ->  exact  (emitted as fws-110 implicit deny (LAB to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to DMZ (LAB to DMZ)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  110-10 (LAB to LAB)  ->  exact  (emitted as fws-110-10 (LAB to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-20 (LAB to LAB)  ->  exact  (emitted as fws-110-20 (LAB to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-30 (LAB to LAB)  ->  exact  (emitted as fws-110-30 (LAB to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as fws-110-40 (LAB to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to LAB)  ->  exact  (emitted as fws-110-50 (LAB to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110 implicit deny (LAB to LAB)  ->  exact  (emitted as fws-110 implicit deny (LAB to LAB))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  LAB (in): no access list (LAB to LAB)  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  110-10 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  exact  (emitted as fws-110-10 _ no outbound access list _ no zone pair from LAB to MGMT (LAB to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-20 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  exact  (emitted as fws-110-20 _ no outbound access list _ no zone pair from LAB to MGMT (LAB to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-30 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  exact  (emitted as fws-110-30 _ no outbound access list _ no zone pair from LAB to MGMT (LAB to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as fws-110-40 (LAB to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to MGMT)  ->  exact  (emitted as fws-110-50 (LAB to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  110 implicit deny (LAB to MGMT)  ->  exact  (emitted as fws-110 implicit deny (LAB to MGMT))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+  MGMT (in): no access list + DMZ-OUT-10 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  exact  (emitted as fws-MGMT (in): no access list _ DMZ-OUT-10 _ no zone pair from MGMT to DMZ (MGMT to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  MGMT (in): no access list + DMZ-OUT-20 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  exact  (emitted as fws-MGMT (in): no access list _ DMZ-OUT-20 _ no zone pair from MGMT to DMZ (MGMT to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  MGMT (in): no access list + DMZ-OUT-30 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  exact  (emitted as fws-MGMT (in): no access list _ DMZ-OUT-30 _ no zone pair from MGMT to DMZ (MGMT to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  MGMT (in): no access list + DMZ-OUT-40 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  MGMT (in): no access list + DMZ-OUT-50 (MGMT to DMZ)  ->  exact  (emitted as fws-MGMT (in): no access list _ DMZ-OUT-50 (MGMT to DMZ))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+
+NAT rules
+  nat-176  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  nat-177  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  nat-178  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself

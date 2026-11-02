@@ -1,0 +1,46 @@
+FWShift conversion report
+  source: moxa
+  target: clavister
+
+Summary
+  Security rules:     10   exact 6, approximated 1, needs review 3 (2 emitted disabled), skipped 0
+  NAT rules:           4   exact 2, approximated 1, needs review 1, skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MOXA_DEFAULT_ACCEPT: what no policy matches is read as passing: the configuration names no default action, and FWShift found none for the classic firmware in Moxa's documentation (not confirmed on a device). If the router drops it, add a policy at the end of the converted policy that drops everything
+  [needs-review] MOXA_NAT_ORDER: port forwarding and 1-to-1 NAT are read as done before the Layer 3 policy, whose policies name the inside address (as iptables does it on Linux; Moxa's documentation does not say, not confirmed): the policies were rewritten for the address as it arrives. N-to-1 NAT is done after it
+  [needs-review] MOXA_DPI: the Modbus filter (DPI) checks Modbus TCP traffic beyond addresses and ports; not converted: modbus-filter 1
+  [needs-review] MOXA_L2_POLICY: the Layer 2 policy filters bridged traffic before the Layer 3 policy; not converted: l2-filter 1 enable
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 2 rule sets it sends traffic to; 23 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: lan, wan1, wan2
+  [info] MOXA_SOURCE: EDR-810-VPN-2GSFP: 10 policies of the Layer 3 policy, first match by index; zones are the interfaces lan, wan1 and wan2. IPv4 only
+  [info] MOXA_TRUSTED_ACCESS: trusted access, which limits who reaches the router itself; not converted: lan 192.168.127.0 255.255.255.0 enable
+  [info] MOXA_DOS: DoS defence settings; not converted: syn-flood 300, null-scan
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  firewall 3  ->  needs-review  (emitted as fws_rules 5 (fws_firewall_3))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'wan1-address' next to '192.168.127.50' because of NAT rule 'ip nat 1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'ip nat 1' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  firewall 6  ->  exact  (emitted as fws_rules 8 (fws_firewall_6))
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  firewall 7  ->  needs-review, emitted disabled  (emitted as fws_rules 9 (fws_firewall_7))
+      [needs-review] UNSUPPORTED_MATCH: not converted: source MAC address 00:90:e8:00:00:01, which the model cannot match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: mode MAC: the policy filters by source MAC address, which the model cannot match.
+  firewall 8  ->  needs-review, emitted disabled  (emitted as fws_rules 10 (fws_firewall_8))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.60' next to '192.168.127.60-192.168.127.69' because of NAT rule 'ip nat 2'; check that this rule is meant to cover the translated traffic
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'session-limit 50' is not converted.
+  firewall 10  ->  approximated  (emitted as fws_rules 12 (fws_firewall_10))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.60' next to '192.168.127.60' because of NAT rule 'ip nat 2'; check that this rule is meant to cover the translated traffic
+
+NAT rules
+  ip nat 1  ->  approximated  (emitted as fws_rules 1 (fws_ip_nat_1_sat))
+      [approximated] CLAVISTER_DNAT_ZONE_FROM_RULES: no network of a zone holds 192.168.127.50: the zone it is routed to is taken from the rules that allow traffic to it (lan); give --zone-network to say it
+  ip nat 2  ->  needs-review  (emitted as fws_snat 1 (fws_ip_nat_2_sat), fws_snat 2 (fws_ip_nat_2))
+      [needs-review] CLAVISTER_BIDIRECTIONAL: a static translation in both directions: only the source SAT is written; connections to the translated address need a SAT rule of their own
+  ip nat 4  ->  exact  (emitted as fws_snat 4 (fws_ip_nat_4))
+      [info] MOXA_NAT_AUTO: outside wan auto: the address of whichever WAN interface the traffic leaves by
+      [info] NAT_DISABLED: disabled in the source; written disabled

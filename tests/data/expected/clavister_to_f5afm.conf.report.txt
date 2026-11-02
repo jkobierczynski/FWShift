@@ -1,0 +1,116 @@
+FWShift conversion report
+  source: clavister
+  target: f5-afm
+
+Summary
+  Security rules:     25   exact 3, approximated 2, needs review 19 (19 emitted disabled), skipped 1
+  NAT rules:          12   exact 0, approximated 0, needs review 0, skipped 12
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] F5AFM_LOAD: the output is a file for 'tmsh load sys config merge file' (section 10): address lists, port lists, the rule list /Common/FWShift_rules and the policy /Common/FWShift. Load it with 'verify' first. The merge changes objects of the same name that exist: check that none does. The policy is enforced in no context: attach it to the global context, a route domain or a virtual server yourself. Allow rules are accept-decisively and the list ends with the default, so the policy decides alone wherever it is attached; the BIG-IP still lets through only traffic that a virtual server takes, which FWShift does not create
+  [needs-review] F5AFM_FQDN_RESOLVER: address lists hold host names (fqdns): AFM resolves them only with a DNS resolver set as the global FQDN resolver (security firewall global-fqdn-policy); without one they match nothing
+  [needs-review] F5AFM_VLANS_REQUIRED: the rules name these VLANs as the zones they come from, which must exist on the BIG-IP under these names (--zone-map renames): /Common/dmz, /Common/guest, /Common/lan, /Common/wan
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] F5AFM_ICMP_CONTEXT: the policy has ICMP rules: the BIG-IP ignores ICMP rules in the virtual server and self IP contexts, so attach the policy to the global or a route domain context for them to apply
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  needs-review, emitted disabled  (emitted as allow_web_sat_web)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  block_bad_mail+sat_mail  ->  approximated  (emitted as block_bad_mail_sat_mail)
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone dmz; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nat_mail+sat_mail  ->  needs-review, emitted disabled  (emitted as nat_mail_sat_mail)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  allow_mail+sat_mail  ->  needs-review, emitted disabled  (emitted as allow_mail_sat_mail)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  allow_pool+sat_pool  ->  needs-review, emitted disabled  (emitted as allow_pool_sat_pool)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  to_guest/guest_dns  ->  needs-review, emitted disabled  (emitted as to_guest_guest_dns, to_guest_guest_dns_2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind wan with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  to_guest/guest_web  ->  needs-review, emitted disabled  (emitted as to_guest_guest_web)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind wan with --zone-network.
+  to_guest/guest_never  ->  needs-review, emitted disabled  (emitted as to_guest_guest_never)
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  admin_mgmt  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  lan_dns  ->  needs-review, emitted disabled  (emitted as lan_dns, lan_dns_2)
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind wan with --zone-network.
+      [info] RULE_SPLIT: a rule of AFM has one IP protocol and one set of source VLANs: written as 2 rules
+  lan_web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind wan with --zone-network.
+  lan_updates  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind wan with --zone-network.
+  lan_to_dmz  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  syslog_fast  ->  needs-review, emitted disabled
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone lan, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind lan with --zone-network.
+  gre_tunnel  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind wan with --zone-network.
+  old_rule  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  lan6_web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  pol_dmz_https  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind dmz with --zone-network.
+  pol_dmz_out  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan, and a rule of AFM cannot name the VLAN a packet leaves on: give the networks behind wan with --zone-network.
+  pol_block_ftp  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+      [approximated] ZONE_WIDENED: the rule blocks traffic to zone dmz; a rule of AFM cannot name the VLAN a packet leaves on, and it blocks that traffic to every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  allow_web+sat_web  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  nat_mail+sat_mail  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  allow_mail+sat_mail  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  to_guest/guest_dns  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  to_guest/guest_web  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  lan_dns  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  lan_web  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  lan_updates  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  pol_dmz_https  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  pol_dmz_out  ->  skipped
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+  sat_unused  ->  skipped
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [needs-review] F5AFM_NAT_NOT_CONVERTED: not converted: NAT on a BIG-IP is done by the traffic objects (a virtual server with a pool, SNAT automap or a SNAT pool) or by CGNAT (a security nat policy), not by the firewall policy. Set it up there by hand
+
+Addresses
+  admin_hosts#1  ->  exact  (emitted as admin_hosts_1)
+      [info] RENAMED: renamed to 'admin_hosts_1' to fit the target's naming rules
+  admin_hosts#2  ->  exact  (emitted as admin_hosts_2)
+      [info] RENAMED: renamed to 'admin_hosts_2' to fit the target's naming rules
+  admin_hosts#3  ->  exact  (emitted as admin_hosts_3)
+      [info] RENAMED: renamed to 'admin_hosts_3' to fit the target's naming rules

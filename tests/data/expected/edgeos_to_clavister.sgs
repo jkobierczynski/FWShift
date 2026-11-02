@@ -1,0 +1,71 @@
+add Service ServiceTCPUDP fws_tcp-32400 Type=TCP DestinationPorts=32400
+add Address IP4Address fws_198.51.100.7 Address=198.51.100.7
+add Service ServiceTCPUDP fws_tcp-8443 Type=TCP DestinationPorts=8443
+add Address IP4Address fws_192.168.1.20 Address=192.168.1.20
+add Address IP4Address fws_192.168.10.0_24 Address=192.168.10.0/24
+add Address IP4Address fws_192.168.1.30 Address=192.168.1.30
+add Address IP4Address fws_192.168.1.21 Address=192.168.1.21
+add Service ServiceICMP fws_icmp-8 MessageTypes=Specific EchoRequest=Yes
+add Address IP4Address fws_192.168.1.40 Address=192.168.1.40
+add Service ServiceTCPUDP fws_tcp-any Type=TCP DestinationPorts=0-65535
+add Address IP4Address fws_192.168.1.25 Address=192.168.1.25
+add Service ServiceTCPUDP fws_tcp-25 Type=TCP DestinationPorts=25
+add Service ServiceTCPUDP fws_tcp-8096-8097_32400_udp-8096-8097_32400 Type=TCPUDP DestinationPorts=8096-8097,32400
+add Address IP4Address fws_192.168.1.0_25 Address=192.168.1.0/25
+add Address IP4Address fws_10.8.0.0_24 Address=10.8.0.0/24
+add Service ServiceTCPUDP fws_2-protocols Type=TCPUDP DestinationPorts=0-52,54-79,81-442,444-65535
+add Service ServiceICMPv6 fws_icmp6-128 MessageTypes=Specific EchoRequest=Yes
+add InterfaceGroup fws_zones Members=pppoe0,eth1,eth1.10
+add Address IP4Group fws_NAS Members=fws_192.168.1.20,fws_192.168.1.21
+add Address IP4Group fws_TRUSTED Members=fws_192.168.1.0_25,fws_10.8.0.0_24
+add IPRuleSet fws_rules Comments="Written by FWShift"
+add IPRuleSet fws_snat Comments="Written by FWShift"
+add IPRuleSet fws_d_plex_from_outside Comments="Written by FWShift"
+add IPRuleSet fws_d_web_on_8443_to_the_nas Comments="Written by FWShift"
+cc IPRuleSet fws_snat
+add IPRule Index=1 Name=fws_nas_leaves_as_its_own_address Action=NAT SourceInterface=fws_zones SourceNetwork=fws_192.168.1.20 DestinationInterface=pppoe0 DestinationNetwork=all-nets Service=all_services NATAction=UseSenderAddress NATSenderAddress=fws_198.51.100.7 LogEnabled=No Comments="VyOS nat source rule 5000"
+add IPRule Index=2 Name=fws_masquerade_for_WAN Action=NAT SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=pppoe0 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS nat source rule 5010"
+add IPRule Index=3 Name=fws_snat_allow Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=4 Name=fws_snat_allow_v6 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_plex_from_outside
+add IPRule Index=1 Name=fws_plex_from_outside_no_media_from_the_guests Action=Drop SourceInterface=pppoe0 SourceNetwork=fws_192.168.10.0_24 DestinationInterface=any DestinationNetwork=fws_192.168.1.30 Service=fws_tcp-32400 LogEnabled=No Comments="VyOS firewall name LAN_OUT rule 10 (forward-5.WAN_IN-30>forward-15.LAN_OUT-10)"
+add IPRule Index=2 Name=fws_plex_from_outside_plex_to_the_media_box Action=Allow SourceInterface=pppoe0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_192.168.1.30 Service=fws_tcp-32400 LogEnabled=No Comments="VyOS firewall name WAN_IN rule 30, then ipv4 forward filter default-action accept (forward-5.WAN_IN-30)"
+add IPRule Index=3 Name=fws_plex_from_outside_forward-5.default Action=Drop SourceInterface=pppoe0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS firewall name WAN_IN default-action drop"
+add IPRule Index=4 Name=fws_plex_from_outside_no_media_from_the_guests-3 Action=Drop SourceInterface=fws_zones SourceNetwork=fws_192.168.10.0_24 DestinationInterface=any DestinationNetwork=all-nets Service=fws_tcp-8096-8097_32400_udp-8096-8097_32400 LogEnabled=No Comments="VyOS firewall name LAN_OUT rule 10 (forward-15.LAN_OUT-10)"
+add IPRule Index=5 Name=fws_plex_from_outside_default Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_web_on_8443_to_the_nas
+add IPRule Index=1 Name=fws_web_on_8443_to_the_nas_forward-5.default Action=Drop SourceInterface=pppoe0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS firewall name WAN_IN default-action drop"
+add IPRule Index=2 Name=fws_web_on_8443_to_the_nas_default Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_plex_from_outside_sat Action=SAT SourceInterface=pppoe0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=fws_tcp-32400 SATTranslate=DestinationIP SATTranslateToIP=fws_192.168.1.30 SATAllToOne=Yes LogEnabled=No Comments="VyOS nat destination rule 1"
+add IPRule Index=2 Name=fws_web_on_8443_to_the_nas_sat Action=SAT SourceInterface=pppoe0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_198.51.100.7 Service=fws_tcp-8443 SATTranslate=DestinationIP SATTranslateToIP=fws_192.168.1.20 SATTranslateToPort=443 LogEnabled=No Comments="VyOS nat destination rule 2"
+add GotoRule Index=3 Name=fws_plex_from_outside_goto SourceInterface=pppoe0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=fws_tcp-32400 RuleSet=fws_d_plex_from_outside LogEnabled=No
+add GotoRule Index=4 Name=fws_web_on_8443_to_the_nas_goto SourceInterface=pppoe0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_198.51.100.7 Service=fws_tcp-8443 RuleSet=fws_d_web_on_8443_to_the_nas LogEnabled=No
+add IPRule Index=5 Name=fws_no_media_from_the_guests Action=Drop SourceInterface=pppoe0 SourceNetwork=fws_192.168.10.0_24 DestinationInterface=eth1 DestinationNetwork=fws_192.168.1.30 Service=fws_tcp-32400 LogEnabled=No Comments="VyOS firewall name LAN_OUT rule 10 (forward-5.WAN_IN-30>forward-15.LAN_OUT-10)"
+add GotoRule Index=6 Name=fws_plex_to_the_media_box SourceInterface=pppoe0 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_192.168.1.30 Service=fws_tcp-32400 RuleSet=fws_snat LogEnabled=No Comments="VyOS firewall name WAN_IN rule 30, then ipv4 forward filter default-action accept (forward-5.WAN_IN-30)"
+add GotoRule Index=7 Name=fws_ping_the_nas SourceInterface=pppoe0 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_NAS Service=fws_icmp-8 RuleSet=fws_snat LogEnabled=No Comments="VyOS firewall name WAN_IN rule 40, then ipv4 forward filter default-action accept (forward-5.WAN_IN-40)"
+add IPRule Index=8 Name=fws_old_rule Action=Allow SourceInterface=pppoe0 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_192.168.1.40 Service=fws_tcp-any LogEnabled=No Comments="VyOS firewall name WAN_IN rule 50 (forward-5.WAN_IN-50)"
+set IPRule 8 -disable
+add GotoRule Index=9 Name=fws_syn_to_the_mail_server SourceInterface=pppoe0 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_192.168.1.25 Service=fws_tcp-25 RuleSet=fws_snat LogEnabled=No Comments="VyOS firewall name WAN_IN rule 60, then ipv4 forward filter default-action accept (forward-5.WAN_IN-60)"
+add IPRule Index=10 Name=fws_no_media_from_the_guests-2 Action=Drop SourceInterface=pppoe0 SourceNetwork=fws_192.168.10.0_24 DestinationInterface=eth1 DestinationNetwork=all-nets Service=fws_tcp-8096-8097_32400_udp-8096-8097_32400 LogEnabled=No Comments="VyOS firewall name LAN_OUT rule 10 (forward-5.WAN_IN-70>forward-15.LAN_OUT-10)"
+set IPRule 10 -disable
+add IPRule Index=11 Name=fws_sessions_of_the_voip_box Action=Allow SourceInterface=pppoe0 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS firewall name WAN_IN rule 70, then ipv4 forward filter default-action accept (forward-5.WAN_IN-70)"
+set IPRule 11 -disable
+add IPRule Index=12 Name=fws_forward-5.default Action=Drop SourceInterface=pppoe0 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS firewall name WAN_IN default-action drop"
+add IPRule Index=13 Name=fws_no_way_into_the_LAN Action=Drop SourceInterface=eth1.10 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_TRUSTED Service=all_services LogEnabled=Yes Comments="VyOS firewall name GUEST_IN rule 10 (forward-10.GUEST_IN-10)"
+add IPRule Index=14 Name=fws_only_web_and_dns_out Action=Drop SourceInterface=eth1.10 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_2-protocols LogEnabled=No Comments="VyOS firewall name GUEST_IN rule 20 (forward-10.GUEST_IN-20)"
+add IPRule Index=15 Name=fws_no_media_from_the_guests-3 Action=Drop SourceInterface=fws_zones SourceNetwork=fws_192.168.10.0_24 DestinationInterface=eth1 DestinationNetwork=all-nets Service=fws_tcp-8096-8097_32400_udp-8096-8097_32400 LogEnabled=No Comments="VyOS firewall name LAN_OUT rule 10 (forward-15.LAN_OUT-10)"
+add IPRule Index=16 Name=fws_Allow_IPv6_ping Action=Allow SourceInterface=pppoe0 SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=fws_icmp6-128 LogEnabled=No Comments="VyOS firewall ipv6-name WANv6_IN rule 30, then ipv6 forward filter default-action accept (ipv6-forward-5.WANv6_IN-30)"
+add IPRule Index=17 Name=fws_ipv6-forward-5.default Action=Drop SourceInterface=pppoe0 SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="VyOS firewall ipv6-name WANv6_IN default-action drop"
+add IPRule Index=18 Name=fws_default Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=19 Name=fws_default_v6 Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=20 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=21 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

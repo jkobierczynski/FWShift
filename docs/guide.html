@@ -234,6 +234,12 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#scalance">Siemens SCALANCE SC-600 / S615</a></li>
       <li><a href="#hisecos">Hirschmann EAGLE40 (HiSecOS)</a></li>
       <li><a href="#moxa">Moxa EDR / TN routers</a></li>
+      <li><a href="#clavister">Clavister cOS Core</a></li>
+      <li><a href="#securepoint">Securepoint UTM</a></li>
+      <li><a href="#lancomuf">LANCOM R&S Unified Firewall</a></li>
+      <li><a href="#zscaler">Zscaler Internet Access</a></li>
+      <li><a href="#cato">Cato Networks</a></li>
+      <li><a href="#netskope">Netskope Cloud Firewall</a></li>
       <li><a href="#vyos">VyOS</a></li>
       <li><a href="#screenos">Juniper ScreenOS</a></li>
       <li><a href="#pix">Cisco PIX</a></li>
@@ -254,7 +260,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.43</div>
+  <div class="eyebrow">Field guide · version 0.44</div>
   <h1>FWShift, feature by feature</h1>
   <p class="lead">FWShift converts firewall policies between thirty-one platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
@@ -354,6 +360,12 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>Siemens SCALANCE SC-600 / S615</td><td><code>scalance</code></td><td><code>show running-config</code> (CLI configuration)</td><td>CLI commands for the FIREWALL and FIREWALL NAT modes</td></tr>
       <tr><td>Hirschmann EAGLE40 (HiSecOS)</td><td><code>hisecos</code></td><td><code>show running-config script</code> (routed mode)</td><td>CLI script: rules, interface assignments, NAT; nothing committed</td></tr>
       <tr><td>Moxa EDR / TN routers</td><td><code>moxa</code></td><td>configuration file (<code>.ini</code>) / <code>show running-config</code>, classic router firmware</td><td>CLI commands for the console (<code>firewall N</code>, <code>ip nat</code>)</td></tr>
+      <tr><td>Clavister cOS Core</td><td><code>clavister</code></td><td>the CLI script of a cOS Core firewall (<code>script -create</code>)</td><td>CLI script for <code>script -execute</code>: objects, new IP rule sets, two Goto rules in main</td></tr>
+      <tr><td>Securepoint UTM</td><td><code>securepoint</code></td><td>its CLI commands (<code>node new</code>, <code>service new</code>, <code>rule new</code> ...)</td><td>CLI commands: objects, services, one rule group <code>fwshift</code></td></tr>
+      <tr><td>LANCOM R&S Unified Firewall</td><td><code>lancom-uf</code></td><td>the answers of its REST API (JSON)</td><td>curl script for the REST API: network objects, services, desktop connections</td></tr>
+      <tr><td>Zscaler Internet Access</td><td><code>zscaler</code></td><td>the answers of the ZIA API (JSON)</td><td>curl and jq script: IP groups, network services, firewall filtering rules</td></tr>
+      <tr><td>Cato Networks</td><td><code>cato</code></td><td>the GraphQL API's answers for the WAN and Internet Firewall, with the lookups (JSON)</td><td>curl script of <code>addRule</code> mutations</td></tr>
+      <tr><td>Netskope Cloud Firewall</td><td><code>netskope</code></td><td>the JSON export of the Real-time Protection policies (firewall rules)</td><td>— (read only)</td></tr>
       <tr><td>VyOS 1.4+ (read also VyOS 1.3, Vyatta, EdgeOS)</td><td><code>vyos</code></td><td><code>show configuration commands</code> or <code>config.boot</code></td><td><code>set</code> commands</td></tr>
       <tr><td>Juniper ScreenOS 5.x, 6.x</td><td><code>screenos</code> (source only)</td><td><code>get config</code></td><td>—</td></tr>
       <tr><td>Cisco PIX 6.x</td><td><code>pix</code> (source only)</td><td><code>write terminal</code></td><td>—</td></tr>
@@ -369,8 +381,8 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>FWShift is on PyPI: <code>pip install fwshift</code>. Each release also has the project as a zip and a single file that runs with any Python 3.9 or newer. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.43.0.pyz --version
-python3 fwshift-0.43.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.44.0.pyz --version
+python3 fwshift-0.44.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip, from PyPI</span>
 pip install fwshift
@@ -437,11 +449,11 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa ios huawei stormshield meraki fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure gcp terraform-aws terraform-azure terraform-google routeros forcepoint azure-firewall aws-network-firewall pf vyos f5-afm oci hillstone zyxel windows-firewall kubernetes calico mguard scalance hisecos moxa json</code>.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa ios huawei stormshield meraki fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure gcp terraform-aws terraform-azure terraform-google routeros forcepoint azure-firewall aws-network-firewall pf vyos f5-afm oci hillstone zyxel windows-firewall kubernetes calico mguard scalance hisecos moxa clavister securepoint lancom-uf zscaler cato json</code>.</td></tr>
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
       <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Azure Firewall, AWS Network Firewall, Google Cloud, Terraform, Meraki, OCI, Windows Defender Firewall; SonicWall object zones).</td></tr>
-      <tr><td><code>--compare[=FILE]</code></td><td>Reads the output back (twenty-three targets) and reports every connection it decides differently from the source (section 13).</td></tr>
+      <tr><td><code>--compare[=FILE]</code></td><td>Reads the output back (twenty-five targets) and reports every connection it decides differently from the source (section 13).</td></tr>
       <tr><td><code>--inside-zone ZONE</code></td><td>AWS, Azure and Terraform: a zone inside the VPC or the virtual network; only its addresses get security groups. Meraki: a zone of the LAN of the MX.</td></tr>
       <tr><td><code>--app-map FILE</code></td><td>JSON of extra application-to-port mappings.</td></tr>
       <tr><td><code>--target-vsys</code>, <code>--target-device-group</code>, <code>--target-shared</code></td><td>Where PAN-OS output goes.</td></tr>
@@ -449,7 +461,7 @@ findings while reading:
       <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick). VyOS: the forward filter rule that jumps, and the first NAT rule (default 10000). Hillstone: the first rule id and NAT rule id (default 10000). Zyxel: the position the rules are inserted from (default 1). SCALANCE: the first priority (default 1). HiSecOS: the first rule index (default 1001). Moxa: the first policy index (default 1).</td></tr>
       <tr><td><code>--target-layer</code>, <code>--target-package</code>, <code>--target-gateway</code></td><td>Check Point layer (default <code>Network</code>), package (default <code>Standard</code>), hide-NAT gateway.</td></tr>
       <tr><td><code>--target-nat-zone ZONE</code></td><td>Destination zone for NAT rules of a source that names none; ASA interface for "NAT to the outgoing interface".</td></tr>
-      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, IOS, Huawei, Stormshield, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, NSX, AWS, Azure, Azure Firewall, AWS Network Firewall, Google Cloud, RouterOS, Forcepoint, pf, VyOS, F5 BIG-IP AFM, OCI, Hillstone, Zyxel, Windows Defender Firewall, Kubernetes, mGuard, SCALANCE).</td></tr>
+      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, IOS, Huawei, Stormshield, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, NSX, AWS, Azure, Azure Firewall, AWS Network Firewall, Google Cloud, RouterOS, Forcepoint, pf, VyOS, F5 BIG-IP AFM, OCI, Hillstone, Zyxel, Windows Defender Firewall, Kubernetes, mGuard, SCALANCE, Clavister, Securepoint, LANCOM R&amp;S Unified Firewall, Zscaler, Cato).</td></tr>
       <tr><td><code>--target-policy NAME</code></td><td>Name of the FMC access and NAT policy created, of the NSX security policy, of the Forcepoint firewall policy, of the Google Cloud network firewall policy, of the Azure Firewall policy, of the AWS Network Firewall policy and its rule group (default <code>FWShift</code>; <code>fwshift</code> for Google Cloud and AWS Network Firewall).</td></tr>
       <tr><td><code>--target-template NAME</code></td><td>Forcepoint: the template the new policy is based on (default <code>Firewall Template</code>).</td></tr>
       <tr><td><code>--prune-unused</code></td><td>Leave out objects no rule uses.</td></tr>
@@ -641,6 +653,12 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#scalance"><b>Siemens SCALANCE SC-600 / S615</b><span>CLI → CLI</span></a>
     <a href="#hisecos"><b>Hirschmann EAGLE40 (HiSecOS)</b><span>script → script</span></a>
     <a href="#moxa"><b>Moxa EDR / TN routers</b><span>configuration → console commands</span></a>
+    <a href="#clavister"><b>Clavister cOS Core</b><span>CLI script → script</span></a>
+    <a href="#securepoint"><b>Securepoint UTM</b><span>CLI → CLI</span></a>
+    <a href="#lancomuf"><b>LANCOM R&S Unified Firewall</b><span>REST API → curl script</span></a>
+    <a href="#zscaler"><b>Zscaler Internet Access</b><span>ZIA API → curl script</span></a>
+    <a href="#cato"><b>Cato Networks</b><span>GraphQL API → curl script</span></a>
+    <a href="#netskope"><b>Netskope Cloud Firewall</b><span>export → read only</span></a>
     <a href="#vyos"><b>VyOS</b><span>set commands, both ways</span></a>
     <a href="#screenos"><b>Juniper ScreenOS</b><span>get config, read only</span></a>
     <a href="#pix"><b>Cisco PIX</b><span>write terminal, read only</span></a>
@@ -1634,6 +1652,103 @@ DRY_RUN=1 sh fwshift-mguard.sh      # the calls, without an mGuard</pre></div>
       <li>The Layer 2 policy, the Modbus filter, DoS and trusted access are reported. Nothing was loaded on a router.</li>
     </ul>
   </article>
+  <!-- clavister -->
+  <article class="brand" id="clavister">
+    <h3>Clavister cOS Core</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>the CLI script of a cOS Core firewall (<code>script -create</code>)</span></span><span class="port"><i>OUT</i><span>CLI script for <code>script -execute</code>: objects, new IP rule sets, two Goto rules in main</span></span><span class="port"><i>ID</i><span>clavister</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>script -create on the firewall (the script lands in /script, fetched over SCP or shown with script -show).</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to clavister -o fwshift.sgs --report report.txt --zone-map trust=lan --zone-map untrust=wan --zone-map dmz=dmz</pre></div>
+    <div class="callout"><b>SAT needs a rule after it.</b> Rule sets are flattened (main first, Goto rules in place). A SAT rule is completed by the next matching Allow or NAT rule, so the part of a rule for translated traffic becomes a rule of its own, with the zone the translated address is routed to. Nothing is activated: <code>activate</code> and <code>commit</code> stay with you.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>FwdFast rules are stateless: their replies need rules of their own.</li>
+      <li>The output adds a new IP rule set with classic IP rules and two Goto rules at the top of main; the rules below them in main stay.</li>
+      <li>Built from Clavister's administration guide and CLI reference; nothing was loaded on a firewall.</li>
+    </ul>
+  </article>
+  <!-- securepoint -->
+  <article class="brand" id="securepoint">
+    <h3>Securepoint UTM</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>its CLI commands (<code>node new</code>, <code>service new</code>, <code>rule new</code> ...)</span></span><span class="port"><i>OUT</i><span>CLI commands: objects, services, one rule group <code>fwshift</code></span></span><span class="port"><i>ID</i><span>securepoint</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>the commands of the UTM&#x27;s CLI that build the packet filter (the web interface&#x27;s .utm export is encrypted and not documented).</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to securepoint -o fwshift-securepoint.txt --report report.txt --zone-map trust=internal --zone-map untrust=external</pre></div>
+    <div class="callout"><b>Zones come from the objects.</b> A rule's zones are those of its network objects, as on the UTM; HIDENAT, HIDENAT_EXCLUDE and DESTNAT on a rule become NAT rules. The output adds only: applying (<code>system update rule</code>) and saving (<code>system config save</code>) are left to you.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Each NAT rule is written as a DROP rule after the others, which relies on the UTM applying a rule's NAT whatever its action: not documented, check it on a UTM.</li>
+      <li>The <code>rule new</code> parameters come from Securepoint's forum and a community module; the current CLI reference could not be read.</li>
+      <li>Rules to or from the UTM's own zones and its implicit rules are reported. Nothing was loaded on a UTM.</li>
+    </ul>
+  </article>
+  <!-- lancomuf -->
+  <article class="brand" id="lancomuf">
+    <h3>LANCOM R&S Unified Firewall</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>the answers of its REST API (JSON)</span></span><span class="port"><i>OUT</i><span>curl script for the REST API: network objects, services, desktop connections</span></span><span class="port"><i>ID</i><span>lancom-uf</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>the REST API&#x27;s collections saved in one JSON file (section 3 of the manual); the backup is encrypted and not documented.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to lancom-uf -o fwshift-uf.sh --report report.txt
+DRY_RUN=1 sh fwshift-uf.sh</pre></div>
+    <div class="callout"><b>Allow-only, no order.</b> Desktop objects and connections are read as allow rules between interfaces, in the directions each service allows; everything else is blocked. Blocking rules from other firewalls become what they take away from the allow rules below them, as for AWS; nothing is deleted or activated.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>That the firewall is allow-only and order-free is read from what LANCOM's manual describes, not stated by it.</li>
+      <li>Only the fields of networks, connections and user-defined services are documented; the rest of the JSON is assumed.</li>
+      <li>IPv4 only; port forwarding is not converted. Nothing was loaded on a firewall.</li>
+    </ul>
+  </article>
+  <!-- zscaler -->
+  <article class="brand" id="zscaler">
+    <h3>Zscaler Internet Access</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>the answers of the ZIA API (JSON)</span></span><span class="port"><i>OUT</i><span>curl and jq script: IP groups, network services, firewall filtering rules</span></span><span class="port"><i>ID</i><span>zscaler</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>the ZIA API&#x27;s answers (firewall filtering rules, IP groups, network services, locations) in one file, as section 3 of the manual fetches them.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to zscaler -o zia.sh --report report.txt --zone-map trust=HQ-Brussels --inside-zone HQ-Brussels --inside-zone dmz</pre></div>
+    <div class="callout"><b>Outbound only.</b> ZIA filters traffic from locations and Client Connector to the internet, and nothing else. Locations become zones and the internet the one destination; converted to ZIA, a policy keeps its rules from the inside to the internet and loses its inbound rules and its rules between zones, which the report counts.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>The script never activates; but a legacy API session activates its changes when it ends (logout or timeout): see <code>ZSCALER_LOAD</code>.</li>
+      <li>Users, groups, countries, categories, applications and FQDNs narrow a rule and make it not converted.</li>
+      <li>Built from Zscaler's SDK and Terraform provider (the help pages render only in a browser); not run against a tenant.</li>
+    </ul>
+  </article>
+  <!-- cato -->
+  <article class="brand" id="cato">
+    <h3>Cato Networks</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>the GraphQL API's answers for the WAN and Internet Firewall, with the lookups (JSON)</span></span><span class="port"><i>OUT</i><span>curl script of <code>addRule</code> mutations</span></span><span class="port"><i>ID</i><span>cato</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>the two policies and the lookups of sites, hosts, network ranges and groups, fetched with curl and joined with jq (section 3 of the manual).</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to cato -o cato.sh --report report.txt --inside-zone trust --inside-zone dmz --zone-map trust="Main Office" --zone-map dmz="Data Center"</pre></div>
+    <div class="callout"><b>Two defaults.</b> Sites become zones, with <code>remote-users</code> and <code>internet</code>. The WAN Firewall ends in block, the Internet Firewall in allow; a deny-by-default internet policy cannot match the second, so the script writes a final block rule switched off and flags it. It adds rules from a position you choose and never publishes.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Direction BOTH is read as two sets of rules, source and destination swapped.</li>
+      <li>Users, user groups, applications and device criteria are reported, not converted.</li>
+      <li>Built from Cato's knowledge base and its own Python CLI's schema; not run against an account.</li>
+    </ul>
+  </article>
+  <!-- netskope -->
+  <article class="brand" id="netskope">
+    <h3>Netskope Cloud Firewall</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>the JSON export of the Real-time Protection policies (firewall rules)</span></span><span class="port"><i>OUT</i><span>— (read only)</span></span><span class="port"><i>ID</i><span>netskope</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>the JSON export of the Real-time Protection policies, with the service objects, destination profiles and custom firewall apps they name.</p>
+    <h4 class="sub">Converting it</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert netskope.json --to json -o model.json --report report.txt</pre></div>
+    <div class="callout"><b>Read only.</b> The firewall rules of Netskope One are first match from the Client, IPsec and GRE access methods to the internet, then the Default Action. Netskope documents no way to write the rules, so FWShift only reads them.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>The shape of the export is not published: a rule with a key FWShift does not know is not converted, never misread.</li>
+      <li>Users, groups, DPI applications and host names are reported and not converted; web traffic no firewall rule matches is decided by the web policies, which are not read.</li>
+      <li>Netskope Private Access (NPA) is refused.</li>
+    </ul>
+  </article>
   <!-- pf -->
   <article class="brand" id="pf">
     <h3>pf (OpenBSD, FreeBSD)</h3>
@@ -2014,6 +2129,11 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
       <tr><td>SCALANCE</td><td>Nothing is deleted; rules with lower priorities still come first</td><td>Paste in a maintenance window; check priorities with <code>show firewall ip-rules ipv4</code></td></tr>
       <tr><td>HiSecOS</td><td>Nothing is deleted or committed</td><td><code>script validate</code> first: the keywords are not confirmed</td></tr>
       <tr><td>Moxa</td><td><code>firewall N</code> replaces a policy that exists at N</td><td><code>--policy-id-start</code> above the last index</td></tr>
+      <tr><td>Clavister</td><td>Nothing is deleted; two Goto rules at the top of main</td><td>Run with <code>script -execute</code>; <code>activate</code> and <code>commit</code> by hand</td></tr>
+      <tr><td>Securepoint</td><td>Nothing is deleted; one new rule group</td><td><code>system update rule</code> and <code>system config save</code> by hand</td></tr>
+      <tr><td>LANCOM R&amp;S UF</td><td>Nothing: new objects and connections; stops on a name that exists</td><td><code>DRY_RUN=1</code>; activate by hand</td></tr>
+      <tr><td>Zscaler</td><td>Nothing: new groups, services and rules at an order; stops on a name that exists</td><td>Read the script; a legacy API session activates when it ends</td></tr>
+      <tr><td>Cato</td><td>Nothing: rules added at a position</td><td>Review the revision; publish by hand</td></tr>
       <tr><td>Terraform</td><td>Nothing: new groups or a policy, attached to nothing; the apply fails on a name that exists</td><td><code>terraform plan</code>; attach or associate by hand</td></tr>
       <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
       <tr><td>OPNsense</td><td>Each restored area (Aliases; NAT with NPt; the rules of both pages)</td><td>A full backup; <code>--target-version</code> of the firewall</td></tr>

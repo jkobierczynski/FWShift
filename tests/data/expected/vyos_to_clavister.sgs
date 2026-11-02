@@ -1,0 +1,151 @@
+add Address IP4Address fws_https_to_web1_destination Address=203.0.113.10 Comments="the destination of VyOS destination NAT rule 'https to web1'"
+add Service ServiceTCPUDP fws_tcp-443 Type=TCP DestinationPorts=443
+add Service ServiceTCPUDP fws_tcp-2222 Type=TCP DestinationPorts=2222
+add Address IP4Address fws_203.0.113.11 Address=203.0.113.11
+add Address IP4Address fws_192.168.10.0_24 Address=192.168.10.0/24
+add Address IP4Address fws_192.168.20.0_24 Address=192.168.20.0/24
+add Address IP4Address fws_192.168.30.0_24 Address=192.168.30.0/24
+add Address IP4Address fws_10.99.0.0_24 Address=10.99.0.0/24
+add Address IP4Address fws_198.51.100.0_24 Address=198.51.100.0/24
+add Address IP4Address fws_203.0.113.128_25 Address=203.0.113.128/25
+add Service ServiceTCPUDP fws_tcp-25 Type=TCP DestinationPorts=25
+add Address IP4Address fws_spoofed_inside_sources_src_not_1 Address=0.0.0.0-192.168.9.255
+add Address IP4Address fws_spoofed_inside_sources_src_not_2 Address=192.168.11.0-192.168.19.255
+add Address IP4Address fws_spoofed_inside_sources_src_not_3 Address=192.168.21.0-255.255.255.255
+add Service ServiceTCPUDP fws_tcp-any Type=TCP DestinationPorts=0-65535
+add Address IP4Address fws_203.0.113.0_24 Address=203.0.113.0/24
+add Service ServiceTCPUDP fws_tcp-23 Type=TCP DestinationPorts=23
+add Service ServiceTCPUDP fws_tcp-20-21_23 Type=TCP DestinationPorts=20-21,23
+add Address IP4Address fws_192.168.10.50 Address=192.168.10.50
+add Service ServiceTCPUDP fws_tcp-8443 Type=TCP DestinationPorts=8443
+add Address IP4Address fws_192.168.30.10 Address=192.168.30.10
+add Address IP4Address fws_192.168.30.11-192.168.30.12 Address=192.168.30.11-192.168.30.12
+add Service ServiceTCPUDP fws_tcp-80_443_8080-8090 Type=TCP DestinationPorts=80,443,8080-8090
+add Service ServiceICMP fws_icmp-8 MessageTypes=Specific EchoRequest=Yes
+add Address IP4Address fws_192.168.30.20 Address=192.168.30.20
+add Service ServiceTCPUDP fws_tcp-3389 Type=TCP DestinationPorts=3389
+add Service ServiceTCPUDP fws_udp-1194 Type=UDP DestinationPorts=1194
+add Address IP4Address fws_192.168.30.53 Address=192.168.30.53
+add Service ServiceTCPUDP fws_tcp-53_udp-53 Type=TCPUDP DestinationPorts=53
+add Service ServiceTCPUDP fws_tcp-22 Type=TCP DestinationPorts=22
+add Address IP4Address fws_192.168.10.0_28 Address=192.168.10.0/28
+add Address IP6Address fws_2001_db8_30___64 Address=2001:db8:30::/64
+add Service ServiceICMPv6 fws_icmp6-128 MessageTypes=Specific EchoRequest=Yes
+add Address IP4Address fws_203.0.113.20 Address=203.0.113.20
+add Address IP4Address fws_192.168.30.22 Address=192.168.30.22
+add Address IP4Address fws_192.168.30.11 Address=192.168.30.11
+add InterfaceGroup fws_zones Members=eth1.20,eth1,eth0,eth2,wg0,br0
+add Address IP4Group fws_INSIDE-NETS Members=fws_192.168.10.0_24,fws_192.168.20.0_24
+add Address IP4Group fws_BLOCKLIST Members=fws_198.51.100.0_24,fws_203.0.113.128_25
+add Address IP4Group fws_spoofed_inside_sources_src_not Members=fws_spoofed_inside_sources_src_not_1,fws_spoofed_inside_sources_src_not_2,fws_spoofed_inside_sources_src_not_3
+add Address IP4Group fws_forward-30_dst Members=fws_192.168.30.0_24,fws_https_to_web1_destination
+add Address IP4Group fws_WEB-SERVERS Members=fws_192.168.30.10,fws_192.168.30.11-192.168.30.12
+add Address IP4Group fws_web_servers_dst Members=fws_WEB-SERVERS,fws_https_to_web1_destination
+add Address IP6Group fws_DMZ6 Members=fws_2001_db8_30___64
+add InterfaceGroup fws_if_eth1_eth1.20 Members=eth1.20,eth1
+add InterfaceGroup fws_if_br0_eth0_eth1_eth1.20_wg0 Members=eth1.20,eth1,wg0,eth0,br0
+add InterfaceGroup fws_if_br0_eth1_eth1.20_eth2_wg0 Members=eth2,eth1.20,eth1,wg0,br0
+add InterfaceGroup fws_if_br0_eth0_eth1_eth2_wg0 Members=eth2,eth1,wg0,eth0,br0
+add InterfaceGroup fws_if_br0_eth0_eth1_eth1.20_eth2 Members=eth2,eth1.20,eth1,eth0,br0
+add IPRuleSet fws_rules Comments="Written by FWShift"
+add IPRuleSet fws_snat Comments="Written by FWShift"
+add IPRuleSet fws_d_https_to_web1 Comments="Written by FWShift"
+add IPRuleSet fws_d_ssh_on_2222_to_the_jump_host Comments="Written by FWShift"
+add IPRuleSet fws_d_destination-30 Comments="Written by FWShift"
+cc IPRuleSet fws_snat
+add IPRule Index=1 Name=fws_source-100 Action=NAT SourceInterface=fws_zones SourceNetwork=fws_INSIDE-NETS DestinationInterface=eth0 DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=2 Name=fws_dmz_servers_leave_as_one_address Action=NAT SourceInterface=fws_zones SourceNetwork=fws_192.168.30.0_24 DestinationInterface=eth0 DestinationNetwork=all-nets Service=all_services NATAction=UseSenderAddress NATSenderAddress=fws_203.0.113.20 LogEnabled=No Comments="VyOS nat source rule 110"
+add IPRule Index=3 Name=fws_source-120 Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=wg0 DestinationNetwork=fws_10.99.0.0_24 Service=all_services LogEnabled=No
+add IPRule Index=4 Name=fws_snat_allow Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=5 Name=fws_snat_allow_v6 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_https_to_web1
+add IPRule Index=1 Name=fws_https_to_web1_drop_the_blocklist Action=Drop SourceInterface=fws_zones SourceNetwork=fws_BLOCKLIST DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 forward filter rule 10 (forward-10)"
+add IPRule Index=2 Name=fws_https_to_web1_spoofed_inside_sources Action=Drop SourceInterface=fws_if_eth1_eth1.20 SourceNetwork=fws_spoofed_inside_sources_src_not DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=Yes Comments="VyOS ipv4 name INSIDE-OUT rule 30 (forward-20.INSIDE-OUT-30)"
+add IPRule Index=3 Name=fws_https_to_web1_web_servers Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_web_servers_dst Service=fws_tcp-80_443_8080-8090 LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ rule 10 (zone-DMZ.from-WAN.WAN-DMZ-10)"
+add IPRule Index=4 Name=fws_https_to_web1_zone-DMZ.from-WAN.WAN-DMZ-20__https_to_web1_ Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_https_to_web1_destination Service=fws_tcp-443 LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ rule 20: what destination NAT rule 'https to web1' translates"
+add IPRule Index=5 Name=fws_https_to_web1_zone-DMZ.from-WAN.default Action=Drop SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ default-action drop"
+add IPRule Index=6 Name=fws_https_to_web1_zone-DMZ.default Action=Drop SourceInterface=fws_if_br0_eth0_eth1_eth1.20_wg0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS zone DMZ default-action drop"
+add IPRule Index=7 Name=fws_https_to_web1_default Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_ssh_on_2222_to_the_jump_host
+add IPRule Index=1 Name=fws_ssh_on_2222_to_the_jump_host_drop_the_blocklist Action=Drop SourceInterface=fws_zones SourceNetwork=fws_BLOCKLIST DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 forward filter rule 10 (forward-10)"
+add IPRule Index=2 Name=fws_ssh_on_2222_to_the_jump_host_spoofed_inside_sources Action=Drop SourceInterface=fws_if_eth1_eth1.20 SourceNetwork=fws_spoofed_inside_sources_src_not DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=Yes Comments="VyOS ipv4 name INSIDE-OUT rule 30 (forward-20.INSIDE-OUT-30)"
+add IPRule Index=3 Name=fws_ssh_on_2222_to_the_jump_host_zone-LAN.from-WAN.default Action=Drop SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 name WAN-LAN default-action drop"
+add IPRule Index=4 Name=fws_ssh_on_2222_to_the_jump_host_zone-LAN.default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS zone LAN default-action drop"
+add IPRule Index=5 Name=fws_ssh_on_2222_to_the_jump_host_zone-DMZ.from-WAN.default Action=Drop SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ default-action drop"
+add IPRule Index=6 Name=fws_ssh_on_2222_to_the_jump_host_zone-DMZ.default Action=Drop SourceInterface=fws_if_br0_eth0_eth1_eth1.20_wg0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS zone DMZ default-action drop"
+add IPRule Index=7 Name=fws_ssh_on_2222_to_the_jump_host_default Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_destination-30
+add IPRule Index=1 Name=fws_destination-30_drop_the_blocklist Action=Drop SourceInterface=fws_zones SourceNetwork=fws_BLOCKLIST DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 forward filter rule 10 (forward-10)"
+add IPRule Index=2 Name=fws_destination-30_spoofed_inside_sources Action=Drop SourceInterface=fws_if_eth1_eth1.20 SourceNetwork=fws_spoofed_inside_sources_src_not DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=Yes Comments="VyOS ipv4 name INSIDE-OUT rule 30 (forward-20.INSIDE-OUT-30)"
+add IPRule Index=3 Name=fws_destination-30_zone-DMZ.from-WAN.WAN-DMZ-20__ssh_on_2222_to Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=fws_tcp-2222 LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ rule 20: what destination NAT rule 'ssh on 2222 to the jump host' translates"
+add IPRule Index=4 Name=fws_destination-30_zone-DMZ.from-WAN.WAN-DMZ-30 Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=fws_icmp-8 LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ rule 30"
+add IPRule Index=5 Name=fws_destination-30_zone-DMZ.from-WAN.default Action=Drop SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ default-action drop"
+add IPRule Index=6 Name=fws_destination-30_zone-DMZ.default Action=Drop SourceInterface=fws_if_br0_eth0_eth1_eth1.20_wg0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS zone DMZ default-action drop"
+add IPRule Index=7 Name=fws_destination-30_default Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_https_to_web1_sat Action=SAT SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_https_to_web1_destination Service=fws_tcp-443 SATTranslate=DestinationIP SATTranslateToIP=fws_192.168.30.10 LogEnabled=No Comments="VyOS nat destination rule 10"
+add IPRule Index=2 Name=fws_ssh_on_2222_to_the_jump_host_sat Action=SAT SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=fws_tcp-2222 SATTranslate=DestinationIP SATTranslateToIP=fws_192.168.30.22 SATAllToOne=Yes SATTranslateToPort=22 LogEnabled=No Comments="VyOS nat destination rule 20"
+add IPRule Index=3 Name=fws_destination-30_sat Action=SAT SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.11 Service=all_services SATTranslate=DestinationIP SATTranslateToIP=fws_192.168.30.11 LogEnabled=No
+set IPRule 3 -disable
+add GotoRule Index=4 Name=fws_https_to_web1_goto SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_https_to_web1_destination Service=fws_tcp-443 RuleSet=fws_d_https_to_web1 LogEnabled=No
+add GotoRule Index=5 Name=fws_ssh_on_2222_to_the_jump_host_goto SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=fws_tcp-2222 RuleSet=fws_d_ssh_on_2222_to_the_jump_host LogEnabled=No
+add GotoRule Index=6 Name=fws_destination-30_goto SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.11 Service=all_services RuleSet=fws_d_destination-30 LogEnabled=No
+set GotoRule 6 -disable
+add IPRule Index=7 Name=fws_drop_the_blocklist Action=Drop SourceInterface=fws_zones SourceNetwork=fws_BLOCKLIST DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 forward filter rule 10 (forward-10)"
+add IPRule Index=8 Name=fws_no_outbound_mail Action=Drop SourceInterface=fws_if_eth1_eth1.20 SourceNetwork=all-nets DestinationInterface=eth0 DestinationNetwork=all-nets Service=fws_tcp-25 LogEnabled=No Comments="VyOS ipv4 name INSIDE-OUT rule 10 (forward-20.INSIDE-OUT-10)"
+add IPRule Index=9 Name=fws_spoofed_inside_sources Action=Drop SourceInterface=fws_if_eth1_eth1.20 SourceNetwork=fws_spoofed_inside_sources_src_not DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=Yes Comments="VyOS ipv4 name INSIDE-OUT rule 30 (forward-20.INSIDE-OUT-30)"
+add IPRule Index=10 Name=fws_forward-30 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_forward-30_dst Service=fws_tcp-any LogEnabled=No Comments="VyOS ipv4 forward filter rule 30"
+set IPRule 10 -disable
+add IPRule Index=11 Name=fws_forward-40 Action=Drop SourceInterface=fws_if_br0_eth1_eth1.20_eth2_wg0 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.0_24 Service=fws_tcp-23 LogEnabled=No Comments="VyOS ipv4 forward filter rule 40"
+add IPRule Index=12 Name=fws_no_telnet_or_ftp_out Action=Drop SourceInterface=eth1 SourceNetwork=all-nets DestinationInterface=eth0 DestinationNetwork=all-nets Service=fws_tcp-20-21_23 LogEnabled=No Comments="VyOS ipv4 name LAN-WAN rule 10 (zone-WAN.from-LAN.LAN-WAN-10)"
+add GotoRule Index=13 Name=fws_zone-WAN.from-LAN.default SourceInterface=eth1 SourceNetwork=all-nets DestinationInterface=eth0 DestinationNetwork=all-nets Service=all_services RuleSet=fws_snat LogEnabled=No Comments="VyOS ipv4 name LAN-WAN default-action accept"
+add IPRule Index=14 Name=fws_zone-WAN.from-GUEST.GUEST-WAN-10 Action=Drop SourceInterface=eth1.20 SourceNetwork=all-nets DestinationInterface=eth0 DestinationNetwork=fws_INSIDE-NETS Service=all_services LogEnabled=No Comments="VyOS ipv4 name GUEST-WAN rule 10"
+add GotoRule Index=15 Name=fws_zone-WAN.from-GUEST.default SourceInterface=eth1.20 SourceNetwork=all-nets DestinationInterface=eth0 DestinationNetwork=all-nets Service=all_services RuleSet=fws_snat LogEnabled=No Comments="VyOS ipv4 name GUEST-WAN default-action accept"
+add IPRule Index=16 Name=fws_zone-WAN.default Action=Drop SourceInterface=fws_if_br0_eth1_eth1.20_eth2_wg0 SourceNetwork=all-nets DestinationInterface=eth0 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS zone WAN default-action drop"
+add IPRule Index=17 Name=fws_zone-LAN.intra Action=Drop SourceInterface=eth1 SourceNetwork=all-nets DestinationInterface=eth1 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS zone LAN intra-zone-filtering action drop"
+add IPRule Index=18 Name=fws_zone-LAN.from-WAN.WAN-LAN-10 Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=eth1 DestinationNetwork=fws_192.168.10.50 Service=fws_tcp-8443 LogEnabled=No Comments="VyOS ipv4 name WAN-LAN rule 10"
+add IPRule Index=19 Name=fws_zone-LAN.from-WAN.default Action=Drop SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=eth1 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 name WAN-LAN default-action drop"
+add IPRule Index=20 Name=fws_zone-LAN.default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=eth1 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS zone LAN default-action drop"
+add IPRule Index=21 Name=fws_zone-GUEST.default Action=Drop SourceInterface=fws_if_br0_eth0_eth1_eth2_wg0 SourceNetwork=all-nets DestinationInterface=eth1.20 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS zone GUEST default-action reject"
+add IPRule Index=22 Name=fws_web_servers Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=fws_web_servers_dst Service=fws_tcp-80_443_8080-8090 LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ rule 10 (zone-DMZ.from-WAN.WAN-DMZ-10)"
+add IPRule Index=23 Name=fws_zone-DMZ.from-WAN.WAN-DMZ-20__https_to_web1_ Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=fws_https_to_web1_destination Service=fws_tcp-443 LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ rule 20: what destination NAT rule 'https to web1' translates"
+add IPRule Index=24 Name=fws_zone-DMZ.from-WAN.WAN-DMZ-20__ssh_on_2222_to_the_jump_host_ Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=all-nets Service=fws_tcp-2222 LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ rule 20: what destination NAT rule 'ssh on 2222 to the jump host' translates"
+add IPRule Index=25 Name=fws_zone-DMZ.from-WAN.WAN-DMZ-30 Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=all-nets Service=fws_icmp-8 LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ rule 30"
+add IPRule Index=26 Name=fws_office_hours_only Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=fws_192.168.30.20 Service=fws_tcp-3389 LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ rule 40 (zone-DMZ.from-WAN.WAN-DMZ-40)"
+set IPRule 26 -disable
+add IPRule Index=27 Name=fws_zone-DMZ.from-WAN.WAN-DMZ-50 Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=all-nets Service=fws_udp-1194 LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ rule 50"
+set IPRule 27 -disable
+add IPRule Index=28 Name=fws_zone-DMZ.from-WAN.default Action=Drop SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 name WAN-DMZ default-action drop"
+add IPRule Index=29 Name=fws_zone-DMZ.from-LAN.LAN-DMZ-10 Action=Allow SourceInterface=eth1 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=fws_192.168.30.53 Service=fws_tcp-53_udp-53 LogEnabled=No Comments="VyOS ipv4 name LAN-DMZ rule 10"
+add IPRule Index=30 Name=fws_zone-DMZ.from-LAN.LAN-DMZ-20 Action=Allow SourceInterface=eth1 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=all-nets Service=fws_tcp-22 LogEnabled=No Comments="VyOS ipv4 name LAN-DMZ rule 20"
+add IPRule Index=31 Name=fws_zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20 Action=Allow SourceInterface=eth1 SourceNetwork=fws_192.168.10.0_28 DestinationInterface=eth2 DestinationNetwork=fws_192.168.30.0_24 Service=fws_tcp-443 LogEnabled=No Comments="VyOS ipv4 name ADMINS rule 20"
+add IPRule Index=32 Name=fws_zone-DMZ.from-LAN.default Action=Drop SourceInterface=eth1 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 name LAN-DMZ default-action drop"
+add IPRule Index=33 Name=fws_zone-DMZ.from-VPN.VPN-DMZ-10 Action=Allow SourceInterface=wg0 SourceNetwork=fws_10.99.0.0_24 DestinationInterface=eth2 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 name VPN-DMZ rule 10"
+add IPRule Index=34 Name=fws_zone-DMZ.from-VPN.VPN-DMZ-20 Action=Drop SourceInterface=wg0 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 name VPN-DMZ rule 20"
+set IPRule 34 -disable
+add IPRule Index=35 Name=fws_zone-DMZ.from-VPN.default Action=Drop SourceInterface=wg0 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS ipv4 name VPN-DMZ default-action drop"
+add IPRule Index=36 Name=fws_zone-DMZ.default Action=Drop SourceInterface=fws_if_br0_eth0_eth1_eth1.20_wg0 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS zone DMZ default-action drop"
+add IPRule Index=37 Name=fws_zone-VPN.default Action=Drop SourceInterface=fws_if_br0_eth0_eth1_eth1.20_eth2 SourceNetwork=all-nets DestinationInterface=wg0 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="VyOS zone VPN default-action drop"
+add IPRule Index=38 Name=fws_ipv6-zone-WAN.from-LAN.default Action=Allow SourceInterface=eth1 SourceNetwork=all-nets6 DestinationInterface=eth0 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="VyOS ipv6 name LAN-WAN-6 default-action accept"
+add IPRule Index=39 Name=fws_ipv6-zone-WAN.default Action=Drop SourceInterface=fws_if_br0_eth1_eth1.20_eth2_wg0 SourceNetwork=all-nets6 DestinationInterface=eth0 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="VyOS zone WAN default-action drop"
+add IPRule Index=40 Name=fws_ipv6-zone-LAN.intra Action=Drop SourceInterface=eth1 SourceNetwork=all-nets6 DestinationInterface=eth1 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="VyOS zone LAN intra-zone-filtering action drop"
+add IPRule Index=41 Name=fws_ipv6-zone-LAN.default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=eth1 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="VyOS zone LAN default-action drop"
+add IPRule Index=42 Name=fws_ipv6-zone-GUEST.default Action=Drop SourceInterface=fws_if_br0_eth0_eth1_eth2_wg0 SourceNetwork=all-nets6 DestinationInterface=eth1.20 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="VyOS zone GUEST default-action reject"
+add IPRule Index=43 Name=fws_ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10 Action=Allow SourceInterface=eth0 SourceNetwork=all-nets6 DestinationInterface=eth2 DestinationNetwork=fws_DMZ6 Service=fws_tcp-80_443_8080-8090 LogEnabled=No Comments="VyOS ipv6 name WAN-DMZ-6 rule 10"
+add IPRule Index=44 Name=fws_ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20 Action=Allow SourceInterface=eth0 SourceNetwork=all-nets6 DestinationInterface=eth2 DestinationNetwork=all-nets6 Service=fws_icmp6-128 LogEnabled=No Comments="VyOS ipv6 name WAN-DMZ-6 rule 20"
+add IPRule Index=45 Name=fws_ipv6-zone-DMZ.from-WAN.default Action=Drop SourceInterface=eth0 SourceNetwork=all-nets6 DestinationInterface=eth2 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="VyOS ipv6 name WAN-DMZ-6 default-action drop"
+add IPRule Index=46 Name=fws_ipv6-zone-DMZ.default Action=Drop SourceInterface=fws_if_br0_eth0_eth1_eth1.20_wg0 SourceNetwork=all-nets6 DestinationInterface=eth2 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="VyOS zone DMZ default-action drop"
+add IPRule Index=47 Name=fws_ipv6-zone-VPN.default Action=Drop SourceInterface=fws_if_br0_eth0_eth1_eth1.20_eth2 SourceNetwork=all-nets6 DestinationInterface=wg0 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No Comments="VyOS zone VPN default-action drop"
+add IPRule Index=48 Name=fws_default Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=49 Name=fws_default_v6 Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=50 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=51 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

@@ -47,6 +47,12 @@ what was approximated and what a person has to look at.
 | Siemens SCALANCE SC-600 and S615 | `show running-config` (CLI configuration): VLAN interfaces as zones, IP and ICMP services, `ipv4rule` / `ipv6rule` with their priorities, NAPT, NETMAP, source NAT, masquerading | CLI commands for the FIREWALL and FIREWALL NAT modes |
 | Belden/Hirschmann HiSecOS (EAGLE40, EAGLE20/30, routed mode) | `show running-config script`: routing interfaces, the packet filter (`packet-filter l3` rules and their interface assignments, default policy), destination NAT, masquerading, 1:1 and double NAT | a CLI script that adds rules, assignments and NAT rules, nothing committed |
 | Moxa industrial secure routers (EDR-810, EDR-G902/G903, TN-4900; classic router firmware) | the CLI-based configuration file (`.ini`) / `show running-config`: the Layer 3 policy (`firewall N`), NAT (port forwards, 1-to-1, N-to-1) | CLI commands for the console (`firewall N`, `ip nat`) |
+| Clavister cOS Core (NetWall, 12.00 to 15.00) | the CLI script (`script -create`): interfaces and groups, routes, the address book, services, IP rule sets with IP rules (Allow, NAT, FwdFast, Drop, Reject, SAT), IP policies, Goto and Return rules | a CLI script (`.sgs`) that adds objects, rule sets and two Goto rules at the top of main; nothing activated |
+| Securepoint UTM (v12, v14) | its CLI commands (`interface zone new`, `node new`, `service new`, `rule group new`, `rule new`): zones carried by the network objects, rule groups in order, HIDENAT and DESTNAT on the rules | CLI commands that add objects, services and one rule group `fwshift`; nothing applied or saved |
+| LANCOM R&S Unified Firewall (LCOS FX 10.8 and later) | the answers of its REST API (JSON): hosts, networks, IP ranges, groups, Internet objects, services, desktop connections with direction, schedule and masquerading | a shell script that creates network objects, services and desktop connections through that API |
+| Zscaler Internet Access (Cloud Firewall) | the answers of the ZIA API in one JSON file: firewall filtering rules with the default rule, IP source and destination groups, network services and groups, locations | a curl and jq script that creates IP groups, network services and firewall filtering rules at a given order, without activating |
+| Cato Networks (WAN and Internet Firewall) | the GraphQL API's answers for the two policies with the lookups of sites, hosts, network ranges and groups, in one JSON file | a curl script of `addRule` mutations at a position, without publishing |
+| Netskope Cloud Firewall (Netskope One SSE) | the JSON export of the Real-time Protection policies (firewall rules), with the service objects, destination profiles and custom firewall apps they name | — (read only: Netskope documents no API or Terraform resource that creates the rules) |
 | Juniper ScreenOS (NetScreen, SSG, ISG; 5.x and 6.x) | `get config` | — (read only) |
 | Cisco PIX (6.x; 7 and later read as an ASA) | `write terminal` / `show running-config` | — (read only) |
 
@@ -71,7 +77,7 @@ ticketing system) or one **HTML** page to read and sign (`--format`, and
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.43).** The converter is tested against synthetic
+> **Status: alpha (0.44).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -116,7 +122,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   with its block page, not by the host (`SOPHOS_DROP_WEB`).
 > * **Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
 >   WatchGuard, Barracuda, VMware NSX, RouterOS, Forcepoint, Azure Firewall, pf, VyOS, F5 BIG-IP AFM, OCI,
->   Hillstone, Zyxel, Windows Defender Firewall, Kubernetes, Calico, mGuard, SCALANCE, HiSecOS (EAGLE) and Moxa** output has
+>   Hillstone, Zyxel, Windows Defender Firewall, Kubernetes, Calico, mGuard, SCALANCE, HiSecOS (EAGLE), Moxa, Clavister, Securepoint, LANCOM R&S Unified Firewall, Zscaler and Cato** output has
 >   **not been loaded on a device** (AWS Network Firewall
 >   output was loaded by the lab in 0.41.7 and failed, every reply dropped; the fix of 0.41.8 has not been rerun), the **Terraform** output has not been applied with
 >   Terraform, and no **ScreenOS** or **PIX** configuration (both read only) was read from a device. The Check Point input format is taken from the API
@@ -173,8 +179,12 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   syntax of the profile file, which Phoenix does not publish, from a public tool's reader); SCALANCE from Siemens's
 >   2015 and 2017 CLI manuals (the current ones could not be read past their contents), several rules assumed; HiSecOS
 >   from Belden's MIBs and the command list of its CLI reference, the command keywords not confirmed (run `script
->   validate`); Moxa from its CLI manuals for the classic firmware (MX-ROS is not read); none of these was loaded on a
->   device. None of these inputs is a real export.
+>   validate`); Moxa from its CLI manuals for the classic firmware (MX-ROS is not read); Clavister from its cOS Core
+>   administration guide and CLI reference; Securepoint from its wiki and forum (the current CLI reference could not be
+>   read, some parameters from a community module); LANCOM R&S Unified Firewall from LANCOM's published API examples,
+>   the rest of its JSON assumed; Zscaler from its SDK and Terraform provider (the help pages could not be read); Cato
+>   from its knowledge base and its own Python CLI's schema; Netskope (read only) from its documentation, the shape of
+>   its export assumed; none of these was loaded on a device or a tenant. None of these inputs is a real export.
 >   Several conversion rules rest on
 >   vendor behaviour taken from documentation rather than from a lab.
 >
@@ -254,8 +264,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.43.0.pyz --version
-python3 fwshift-0.43.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.44.0.pyz --version
+python3 fwshift-0.44.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -526,6 +536,22 @@ fwshift convert running-config.xml --to hisecos -o fwshift.cli --report report.t
     --interface-map ethernet1/1=1/1 --interface-map ethernet1/2=1/2
 fwshift convert running-config.xml --to moxa -o fwshift-moxa.txt --report report.txt \
     --zone-map trust=lan --zone-map untrust=wan1 --zone-map dmz=wan2
+
+# Clavister cOS Core: the CLI script (script -create). Securepoint UTM: its CLI commands.
+# LANCOM R&S Unified Firewall: its REST API answers. To each, additions only; nothing activated
+fwshift convert config.sgs --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to clavister -o fwshift.sgs --report report.txt \
+    --zone-map trust=lan --zone-map untrust=wan --zone-map dmz=dmz
+fwshift convert running-config.xml --to securepoint -o fwshift-securepoint.txt --report report.txt \
+    --zone-map trust=internal --zone-map untrust=external
+fwshift convert running-config.xml --to lancom-uf -o fwshift-uf.sh --report report.txt
+
+# SASE: Zscaler ZIA and Cato filter traffic of locations or sites (ZIA: to the internet only).
+# Netskope's Cloud Firewall is read only. --inside-zone says which zones are locations or sites
+fwshift convert zia.json --to panos -o panos.set --report report.txt
+fwshift convert running-config.xml --to zscaler -o zia.sh --report report.txt --inside-zone trust
+fwshift convert running-config.xml --to cato -o cato.sh --report report.txt --inside-zone trust --inside-zone dmz
+fwshift convert netskope.json --to json -o model.json --report report.txt
 
 # pf: pf.conf of OpenBSD (FreeBSD's nat, rdr and binat too); addresses of
 # interfaces are not in it: give them. To pf, a ruleset for the anchor
@@ -1118,7 +1144,8 @@ and everything else outside the policy.
   0.31; Azure Firewall, AWS Network Firewall, pf and VyOS, with Juniper
   ScreenOS and Cisco PIX 6.x read only, 0.41; F5 BIG-IP AFM, Oracle Cloud Infrastructure, Hillstone StoneOS,
   Zyxel ZLD and Windows Defender Firewall 0.42; Kubernetes NetworkPolicy, Calico, Phoenix Contact mGuard, Siemens
-  SCALANCE, Hirschmann HiSecOS (EAGLE40) and Moxa 0.43; what is still open for each is in
+  SCALANCE, Hirschmann HiSecOS (EAGLE40) and Moxa 0.43; Clavister, Securepoint, LANCOM R&S Unified Firewall, Zscaler
+  Internet Access, Cato Networks and (read only) Netskope 0.44; what is still open for each is in
   TODO.md.
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),

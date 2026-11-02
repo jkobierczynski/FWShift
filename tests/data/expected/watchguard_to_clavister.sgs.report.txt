@@ -1,0 +1,27 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: clavister
+
+Summary
+  Security rules:     10   exact 7, approximated 1, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 2 rule sets it sends traffic to; 26 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: External, Trusted, DMZ, Guests, Lab
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+
+Security rules
+  Web Out  ->  approximated  (emitted as fws_rules 7 (fws_Web_Out), fws_rules 8 (fws_Web_Out_v6))
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+  DMZ Updates  ->  needs-review, emitted disabled  (emitted as fws_rules 11 (fws_DMZ_Updates), a placeholder, disabled)
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+  Guests Out  ->  exact  (emitted as fws_rules 12 (fws_Guests_Out), fws_rules 13 (fws_Guests_Out_v6))
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  Staff Only  ->  needs-review, emitted disabled  (emitted as fws_rules 14 (fws_Staff_Only_2))
+      [needs-review] USER_MATCH: source user match Staff is not converted.

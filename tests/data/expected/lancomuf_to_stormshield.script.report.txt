@@ -1,0 +1,73 @@
+FWShift conversion report
+  source: lancom-uf (desktop)
+  target: stormshield
+
+Summary
+  Security rules:     25   exact 14, approximated 0, needs review 10 (8 emitted disabled), skipped 1
+  NAT rules:           5   exact 2, approximated 0, needs review 0, skipped 3
+  Addresses:          11   exact 11, approximated 0, needs review 0, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OBJECTS_MISSING: objects and services the connections name are not in the input, and the rules that name them are not used: '0e5f1a2b-0000-4000-8000-000000000999'. Save the answers of every collection (section 3)
+  [needs-review] CONNECTION_KEYS_NOT_READ: desktop connections hold keys the parser does not know: 'nat'. They are kept with the rules as how they handle traffic, and not converted; if one of them narrows what a connection lets through, the converted rules allow more
+  [needs-review] STORMSHIELD_LOAD: the output is a script of serverd commands (section 10): it creates objects (and changes those of the same names, also where an active slot uses them), empties filter slot 9 and writes the rules there; the slot is not made active. snscli goes on after a command that fails: read its output, and check the slot with CONFIG FILTER CHECK before it is made active
+  [needs-review] STORMSHIELD_INTERFACES: rules name interfaces by the zone names of the source: each must be the name of an interface of the firewall (in, out, dmz1 ...); rename the zones with --zone-map ZONE=INTERFACE
+  [needs-review] STORMSHIELD_NAT_ARP: translated addresses are published by ARP (natsrcarp, natdstarp); leave that out where the address is one of the firewall
+  [info] LANCOM_UF_FORMAT: read 14 desktop connections, 15 desktop objects and 13 services from the answers of the REST API. LANCOM publishes the keys of that API only by the examples of its LMC add-ins (networks, desktop connections, user-defined services); the keys of hosts, IP ranges, groups, Internet objects and of a rule other than those are assumed, and an object, service or rule with a key the parser does not know is not used. The desktop only allows: what no connection allows is blocked
+  [info] VPN_USER_OBJECTS: VPN and user objects are not read: the rules of connections to and from them are not used
+  [info] MASQUERADING_READ: masquerading set on services was read as NAT rules to the address of the outgoing interface. A NAT source address other than that, the NAT of a connection and DMZ (port forwarding) are not read
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have loglevel=log where the source logs the start of a connection, and the standard connection log otherwise
+
+Security rules
+  Internet to Webserver - internet.https  ->  needs-review  (emitted as 1 rules of slot 9)
+      [needs-review] DMZ_NOT_READ: DMZ / port forwarding is set for the service; its keys are not known and the translation is not read: the rule allows the connections that reach the host by its own address, not those forwarded to it
+  Admin-PCs to Servers - remote.rdp  ->  exact  (emitted as 1 rules of slot 9)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+  Servers to Admin-PCs - remote.rdp  ->  exact  (emitted as 1 rules of slot 9)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth1 to eth3)  ->  exact  (emitted as 1 rules of slot 9)
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth3 to eth3)  ->  exact  (emitted as 1 rules of slot 9)
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+  HMI to OT-Cell - OPC-UA  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00 is not converted.
+  OT-Cell to HMI - OPC-UA  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00 is not converted.
+  Monitoring to OT-Cell - standard.ping  ->  exact  (emitted as 1 rules of slot 9)
+      [info] RULE_ALWAYS_OFF: the rule has no time range (Always Off): read as disabled
+  LAN to Mailserver - internet.smtp  ->  needs-review  (emitted as 1 rules of slot 9)
+      [needs-review] CONNECTION_NAT_NOT_READ: the rule takes the NAT settings of its connection, whose keys are not known: whether and how the connection translates is not read. Look at the NAT tab of the connection
+  Branch Sites to LAN - remote.rdp  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'Branch Sites' is a VPN object, which is not converted.
+  LAN to Lab-v6 - internet.http  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Lab-v6' cannot be read: attribute 'ipv6', which this parser does not read.
+  DMZ to Internet - Legacy-App  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] UNSUPPORTED_MATCH: not converted: service 'Legacy-App' cannot be read: an entry with 'sourceport', which this parser does not read.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Legacy-App': an entry with 'sourceport', which this parser does not read.
+  DMZ to Internet - standard.ssh  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action 'drop', which is not a direction (LANCOM documents no rule that blocks).
+  Internet to ? - internet.https  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object '0e5f1a2b-0000-4000-8000-000000000999' is not in the input.
+  LAN to DMZ - Web  ->  exact  (emitted as 1 rules of slot 9)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+  DMZ to LAN - Web  ->  exact  (emitted as 1 rules of slot 9)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+  Printer to DMZ - internet.http  ->  needs-review, emitted disabled  (emitted as 1 rules of slot 9)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Printer' cannot be read: a host that names no interface.
+  LAN to Firewall - traffic to the firewall  ->  skipped
+      [info] FIREWALL_TRAFFIC: the connection is between a desktop object and the firewall itself: traffic to the firewall (its services, its administration) is not forwarded traffic and is not converted
+
+NAT rules
+  LAN to Internet - standard.dns (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  LAN to Internet - standard.ping (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written
+  DMZ to Internet - GRE-Tunnel (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the target writes source NAT to an interface, a pool or a static address, a static translation both ways, and destination NAT of one address and port; exemptions are not written

@@ -1,0 +1,86 @@
+FWShift conversion report
+  source: clavister
+  target: routeros
+
+Summary
+  Security rules:     25   exact 10, approximated 9, needs review 5 (2 emitted disabled), skipped 1
+  NAT rules:          12   exact 4, approximated 6, needs review 1, skipped 1
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] ROUTEROS_LOAD: load the script with '/import file-name=FILE verbose=yes'. It stops at its first lines when objects of an earlier conversion are on the router, and at the first line the router refuses (lines before it stay; on RouterOS 6 the /ipv6 lines need the ipv6 package). Nothing changes traffic until the disabled jump rules at its end are enabled: enable them in Safe Mode, and move each to where it belongs in its chain (in forward, after the rules that accept established connections). Chain fwshift-forward ends with an explicit drop, so the rules of forward after the jump are no longer reached by forwarded traffic. To take a conversion away again: /ip firewall filter remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ipv6 firewall filter remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ip firewall nat remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ip firewall address-list remove [find where list~"^fws-"]; /ipv6 firewall address-list remove [find where list~"^fws-"]; /interface list member remove [find where list~"^fws-"]; /interface list remove [find where name~"^fws-"]
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface lists, whose members must be interfaces of the router, or the import stops. Check the members, and map the zones with --zone-map (or the interfaces with --interface-map): dmz, guest, lan, wan
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'pol_dmz_https' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'web_srv' because of NAT rule 'allow_web+sat_web'; check that this rule is meant to cover the translated traffic
+  block_bad_mail+sat_mail  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'allow_mail+sat_mail'; check that this rule is meant to cover the translated traffic
+  nat_mail+sat_mail  ->  approximated  (emitted as 2 fwshift-forward rules)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'nat_mail+sat_mail'; check that this rule is meant to cover the translated traffic
+  allow_mail+sat_mail  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'allow_mail+sat_mail'; check that this rule is meant to cover the translated traffic
+  allow_pool+sat_pool  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'pub_pool' with post-NAT '172.16.20.100/30' because of NAT rule 'allow_pool+sat_pool'; check that this rule is meant to cover the translated traffic
+  to_guest/guest_never  ->  needs-review  (emitted as 1 fwshift-forward rule)
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_srv', the address NAT rule 'nat_mail+sat_mail' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  lan_updates  ->  exact  (emitted as 1 fwshift-forward rule)
+      [info] ROUTEROS_FQDN: 'updates.example.com' is a host name in an address list: the router resolves it and keeps the list up to date
+  lan_to_dmz  ->  needs-review  (emitted as 1 fwshift-forward rule)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_srv', the address NAT rule 'nat_mail+sat_mail' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  syslog_fast  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+  gre_tunnel  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  old_rule  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  pol_dmz_https  ->  needs-review  (emitted as 1 fwshift-forward rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip2' with post-NAT 'web_srv' because of NAT rule 'pol_dmz_https'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'pol_dmz_https' also translates the port to 8443: the service of this rule (https) named the pre-NAT port only, and now names 8443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web_srv', the address NAT rule 'allow_web+sat_web' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  pol_dmz_out  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+  pol_block_ftp  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  nat_mail+sat_mail  ->  needs-review  (emitted as 2 dstnat, 1 srcnat)
+      [needs-review] NAT_INPUT_INTERFACE: the rule applied to traffic from lan, guest only; chain srcnat cannot match the input interface, so it applies to traffic from every interface
+      [approximated] NAT_OUTPUT_INTERFACE: the rule also translates the destination, so the traffic does not leave by wan; its source translation is written for every output interface
+      [approximated] NAT_AFTER_DNAT: the source translation of this rule is matched after its destination translation; a NAT rule of RouterOS cannot match the destination a connection had before it, so it also applies to traffic from the same sources sent to the translated address directly
+  allow_pool+sat_pool  ->  approximated  (emitted as 1 dstnat)
+      [approximated] NAT_RANGE: DNAT to a range picks an address per connection; it is not a fixed one-to-one mapping
+  to_guest/guest_dns  ->  approximated  (emitted as 2 srcnat)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from guest only; chain srcnat cannot match the input interface, so it applies to traffic from every interface
+  to_guest/guest_web  ->  approximated  (emitted as 1 srcnat)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from guest only; chain srcnat cannot match the input interface, so it applies to traffic from every interface
+  lan_dns  ->  approximated  (emitted as 2 srcnat)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from lan only; chain srcnat cannot match the input interface, so it applies to traffic from every interface
+  lan_web  ->  approximated  (emitted as 1 srcnat)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from lan only; chain srcnat cannot match the input interface, so it applies to traffic from every interface
+  lan_updates  ->  skipped
+      [needs-review] NAT_ADDRESSES: the rule needs static IPv4 addresses as source and destination
+  pol_dmz_out  ->  approximated  (emitted as 1 srcnat)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from dmz only; chain srcnat cannot match the input interface, so it applies to traffic from every interface
+  sat_unused  ->  exact
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [info] NAT_DISABLED: disabled in the source; written disabled

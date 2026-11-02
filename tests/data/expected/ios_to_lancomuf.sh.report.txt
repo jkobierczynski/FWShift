@@ -1,0 +1,405 @@
+FWShift conversion report
+  source: ios
+  target: lancom-uf
+
+Summary
+  Security rules:    204   exact 163, approximated 11, needs review 6 (5 emitted disabled), skipped 24
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): DMZ, INSIDE, LAB, MGMT, OUTSIDE
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+
+Security rules
+  WAN-IN-10 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-20 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-40 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-0.0.0.0_5-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-8.0.0.0_7-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-11.0.0.0_8-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-12.0.0.0_6-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-16.0.0.0_4-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-32.0.0.0_3-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-64.0.0.0_2-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-128.0.0.0_2-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-192.0.0.0_9-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-192.128.0.0_11-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-192.160.0.0_13-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-192.169.0.0_16-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-192.170.0.0_15-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-192.172.0.0_14-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-192.176.0.0_12-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-192.192.0.0_10-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-193.0.0.0_8-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-194.0.0.0_7-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-196.0.0.0_6-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-200.0.0.0_5-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-208.0.0.0_4-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80, fws-224.0.0.0_3-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-80)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  WAN-IN-50 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-0.0.0.0_5-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-8.0.0.0_7-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-11.0.0.0_8-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-12.0.0.0_6-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-16.0.0.0_4-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-32.0.0.0_3-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-64.0.0.0_2-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-128.0.0.0_2-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-192.0.0.0_9-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-192.128.0.0_11-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-192.160.0.0_13-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-192.169.0.0_16-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-192.170.0.0_15-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-192.172.0.0_14-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-192.176.0.0_12-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-192.192.0.0_10-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-193.0.0.0_8-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-194.0.0.0_7-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-196.0.0.0_6-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-200.0.0.0_5-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-208.0.0.0_4-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443, fws-224.0.0.0_3-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-443)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  WAN-IN-60 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-0.0.0.0_5-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-8.0.0.0_7-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-11.0.0.0_8-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-12.0.0.0_6-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-16.0.0.0_4-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-32.0.0.0_3-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-64.0.0.0_2-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-128.0.0.0_2-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-192.0.0.0_9-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-192.128.0.0_11-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-192.160.0.0_13-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-192.169.0.0_16-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-192.170.0.0_15-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-192.172.0.0_14-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-192.176.0.0_12-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-192.192.0.0_10-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-193.0.0.0_8-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-194.0.0.0_7-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-196.0.0.0_6-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-200.0.0.0_5-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-208.0.0.0_4-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25, fws-224.0.0.0_3-OUTSIDE > fws-203.0.113.2_32-OUTSIDE: fws-tcp-25)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  WAN-IN-70 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  WAN-IN-80 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  WAN-IN-90 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  WAN-IN-100 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-198.51.100.200_32-OUTSIDE > fws-203.0.113.3_32-OUTSIDE: fws-tcp-22)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  WAN-IN-120 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as fws-0.0.0.0_5-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-8.0.0.0_7-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-11.0.0.0_8-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-12.0.0.0_6-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-16.0.0.0_4-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-32.0.0.0_3-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-64.0.0.0_2-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-128.0.0.0_2-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-192.0.0.0_9-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-192.128.0.0_11-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-192.160.0.0_13-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-192.169.0.0_16-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-192.170.0.0_15-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-192.172.0.0_14-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-192.176.0.0_12-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-192.192.0.0_10-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-193.0.0.0_8-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-194.0.0.0_7-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-196.0.0.0_6-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-200.0.0.0_5-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-208.0.0.0_4-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53, fws-224.0.0.0_3-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-udp-53)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time; the rule is not written
+  WAN-IN-140 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as fws-0.0.0.0_5-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-8.0.0.0_7-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-11.0.0.0_8-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-12.0.0.0_6-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-16.0.0.0_4-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-32.0.0.0_3-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-64.0.0.0_2-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-128.0.0.0_2-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-192.0.0.0_9-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-192.128.0.0_11-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-192.160.0.0_13-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-192.169.0.0_16-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-192.170.0.0_15-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-192.172.0.0_14-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-192.176.0.0_12-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-192.192.0.0_10-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-193.0.0.0_8-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-194.0.0.0_7-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-196.0.0.0_6-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-200.0.0.0_5-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-208.0.0.0_4-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7, fws-224.0.0.0_3-OUTSIDE > fws-0.0.0.0_0-OUTSIDE: fws-svc-7)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  WAN-IN implicit deny (OUTSIDE to OUTSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-10 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  WAN6-IN-20 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  WAN6-IN-30 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  WAN6-IN-40 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  WAN6-IN-50 (OUTSIDE to OUTSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN implicit deny (OUTSIDE to OUTSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-10 (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-20 (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time; the rule is not written
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-3  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN implicit deny (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-50 (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN implicit deny (OUTSIDE to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-10 (OUTSIDE to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-20 (OUTSIDE to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-40 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  exact  (emitted as fws-0.0.0.0_5-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-8.0.0.0_7-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-11.0.0.0_8-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-12.0.0.0_6-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-16.0.0.0_4-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-32.0.0.0_3-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-64.0.0.0_2-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-128.0.0.0_2-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-192.0.0.0_9-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-192.128.0.0_11-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-192.160.0.0_13-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-192.169.0.0_16-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-192.170.0.0_15-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-192.172.0.0_14-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-192.176.0.0_12-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-192.192.0.0_10-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-193.0.0.0_8-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-194.0.0.0_7-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-196.0.0.0_6-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-200.0.0.0_5-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-208.0.0.0_4-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80, fws-224.0.0.0_3-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  WAN-IN-50 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  exact  (emitted as fws-0.0.0.0_5-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-8.0.0.0_7-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-11.0.0.0_8-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-12.0.0.0_6-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-16.0.0.0_4-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-32.0.0.0_3-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-64.0.0.0_2-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-128.0.0.0_2-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-192.0.0.0_9-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-192.128.0.0_11-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-192.160.0.0_13-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-192.169.0.0_16-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-192.170.0.0_15-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-192.172.0.0_14-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-192.176.0.0_12-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-192.192.0.0_10-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-193.0.0.0_8-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-194.0.0.0_7-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-196.0.0.0_6-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-200.0.0.0_5-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-208.0.0.0_4-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443, fws-224.0.0.0_3-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-443)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  WAN-IN-60 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  exact  (emitted as fws-0.0.0.0_5-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-8.0.0.0_7-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-11.0.0.0_8-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-12.0.0.0_6-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-16.0.0.0_4-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-32.0.0.0_3-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-64.0.0.0_2-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-128.0.0.0_2-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.0.0.0_9-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.128.0.0_11-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.160.0.0_13-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.169.0.0_16-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.170.0.0_15-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.172.0.0_14-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.176.0.0_12-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.192.0.0_10-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-193.0.0.0_8-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-194.0.0.0_7-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-196.0.0.0_6-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-200.0.0.0_5-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-208.0.0.0_4-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-224.0.0.0_3-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-100 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-120 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-120 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time; the rule is not written
+  WAN-IN-140 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  exact  (emitted as fws-0.0.0.0_5-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-0.0.0.0_5-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-0.0.0.0_5-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-0.0.0.0_5-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-0.0.0.0_5-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-8.0.0.0_7-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-8.0.0.0_7-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-8.0.0.0_7-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-8.0.0.0_7-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-8.0.0.0_7-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-11.0.0.0_8-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-11.0.0.0_8-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-11.0.0.0_8-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-11.0.0.0_8-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-11.0.0.0_8-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-12.0.0.0_6-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-12.0.0.0_6-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-12.0.0.0_6-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-12.0.0.0_6-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-12.0.0.0_6-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-16.0.0.0_4-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-16.0.0.0_4-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-16.0.0.0_4-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-16.0.0.0_4-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-16.0.0.0_4-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-32.0.0.0_3-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-32.0.0.0_3-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-32.0.0.0_3-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-32.0.0.0_3-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-32.0.0.0_3-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-64.0.0.0_2-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-64.0.0.0_2-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-64.0.0.0_2-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-64.0.0.0_2-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-64.0.0.0_2-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-128.0.0.0_2-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-128.0.0.0_2-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-128.0.0.0_2-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-128.0.0.0_2-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-128.0.0.0_2-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.0.0.0_9-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.0.0.0_9-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.0.0.0_9-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.0.0.0_9-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.0.0.0_9-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.128.0.0_11-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.128.0.0_11-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.128.0.0_11-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.128.0.0_11-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.128.0.0_11-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.160.0.0_13-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.160.0.0_13-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.160.0.0_13-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.160.0.0_13-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.160.0.0_13-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.169.0.0_16-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.169.0.0_16-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.169.0.0_16-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.169.0.0_16-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.169.0.0_16-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.170.0.0_15-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.170.0.0_15-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.170.0.0_15-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.170.0.0_15-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.170.0.0_15-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.172.0.0_14-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.172.0.0_14-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.172.0.0_14-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.172.0.0_14-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.172.0.0_14-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.176.0.0_12-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.176.0.0_12-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.176.0.0_12-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.176.0.0_12-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.176.0.0_12-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.192.0.0_10-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.192.0.0_10-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.192.0.0_10-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.192.0.0_10-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-192.192.0.0_10-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-193.0.0.0_8-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-193.0.0.0_8-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-193.0.0.0_8-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-193.0.0.0_8-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-193.0.0.0_8-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-194.0.0.0_7-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-194.0.0.0_7-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-194.0.0.0_7-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-194.0.0.0_7-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-194.0.0.0_7-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-196.0.0.0_6-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-196.0.0.0_6-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-196.0.0.0_6-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-196.0.0.0_6-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-196.0.0.0_6-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-200.0.0.0_5-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-200.0.0.0_5-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-200.0.0.0_5-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-200.0.0.0_5-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-200.0.0.0_5-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-208.0.0.0_4-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-208.0.0.0_4-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-208.0.0.0_4-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-208.0.0.0_4-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-208.0.0.0_4-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-224.0.0.0_3-OUTSIDE > fws-10.20.0.10_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-224.0.0.0_3-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-224.0.0.0_3-OUTSIDE > fws-10.20.0.40_30-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-224.0.0.0_3-OUTSIDE > fws-10.20.0.44_31-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010, fws-224.0.0.0_3-OUTSIDE > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8010)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  exact  (emitted as fws-0.0.0.0_5-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-8.0.0.0_7-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-11.0.0.0_8-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-12.0.0.0_6-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-16.0.0.0_4-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-32.0.0.0_3-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-64.0.0.0_2-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-128.0.0.0_2-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-192.0.0.0_9-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-192.128.0.0_11-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-192.160.0.0_13-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-192.169.0.0_16-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-192.170.0.0_15-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-192.172.0.0_14-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-192.176.0.0_12-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-192.192.0.0_10-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-193.0.0.0_8-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-194.0.0.0_7-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-196.0.0.0_6-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-200.0.0.0_5-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-208.0.0.0_4-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25, fws-224.0.0.0_3-OUTSIDE > fws-10.20.0.25_32-DMZ: fws-tcp-25)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)-2  ->  exact  (emitted as fws-0.0.0.0_5-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-8.0.0.0_7-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-11.0.0.0_8-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-12.0.0.0_6-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-16.0.0.0_4-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-32.0.0.0_3-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-64.0.0.0_2-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-128.0.0.0_2-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.0.0.0_9-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.128.0.0_11-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.160.0.0_13-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.169.0.0_16-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.170.0.0_15-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.172.0.0_14-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.176.0.0_12-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-192.192.0.0_10-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-193.0.0.0_8-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-194.0.0.0_7-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-196.0.0.0_6-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-200.0.0.0_5-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-208.0.0.0_4-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25, fws-224.0.0.0_3-OUTSIDE > fws-203.0.113.2_32-DMZ: fws-tcp-25)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-3  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN implicit deny (OUTSIDE to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-10 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  WAN6-IN-20 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  WAN6-IN-50 (OUTSIDE to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN implicit deny (OUTSIDE to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-10 (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-20 (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-130 (OUTSIDE to LAB)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time; the rule is not written
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN implicit deny (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-50 (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN implicit deny (OUTSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-10 (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-20 (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time; the rule is not written
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN-IN implicit deny (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN-50 (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  WAN6-IN implicit deny (OUTSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)  ->  approximated  (emitted as fws-0.0.0.0_0-INSIDE > fws-0.0.0.0_0-OUTSIDE: fws-tcp-80)
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)-2  ->  approximated  (emitted as fws-0.0.0.0_0-INSIDE > fws-0.0.0.0_0-OUTSIDE: fws-tcp-443)
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-DNS (INSIDE to OUTSIDE)  ->  approximated  (emitted as fws-0.0.0.0_0-INSIDE > fws-0.0.0.0_0-OUTSIDE: fws-tcp-53_udp-53)
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-MAIL-SUB (INSIDE to OUTSIDE)  ->  approximated  (emitted as fws-0.0.0.0_0-INSIDE > fws-0.0.0.0_0-OUTSIDE: fws-tcp-587)
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review  (emitted as fws-0.0.0.0_0-INSIDE > fws-198.51.100.50_32-OUTSIDE: fws-gre)
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-PING (INSIDE to OUTSIDE)  ->  approximated  (emitted as fws-0.0.0.0_0-INSIDE > fws-0.0.0.0_0-OUTSIDE: fws-icmp)
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+  INSIDE (in): no access list (INSIDE to INSIDE)  ->  approximated  (emitted as fws-0.0.0.0_0-INSIDE > fws-0.0.0.0_0-INSIDE _2_: fws-svc-7)
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  skipped
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  INSIDE (in): no access list + DMZ-OUT-50 (INSIDE to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)-2  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to LAB (INSIDE to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to MGMT (INSIDE to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-DNS (DMZ to OUTSIDE)  ->  approximated  (emitted as fws-0.0.0.0_0-DMZ > fws-0.0.0.0_0-OUTSIDE: fws-tcp-53_udp-53)
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)  ->  approximated  (emitted as fws-0.0.0.0_0-DMZ > fws-0.0.0.0_0-OUTSIDE: fws-tcp-80)
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)-2  ->  approximated  (emitted as fws-0.0.0.0_0-DMZ > fws-0.0.0.0_0-OUTSIDE: fws-tcp-443)
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to INSIDE (DMZ to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  DMZ (in): no access list + DMZ-OUT-40 (DMZ to DMZ)  ->  skipped
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  DMZ (in): no access list + DMZ-OUT-50 (DMZ to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  DMZ (in): no access list + no outbound access list (DMZ to DMZ)  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to LAB (DMZ to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to MGMT (DMZ to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to OUTSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110 implicit deny (LAB to OUTSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)-2  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  110-10 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-20 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-30 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110 implicit deny (LAB to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-10 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-10 + DMZ-OUT-50 (LAB to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-20 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-20 + DMZ-OUT-50 (LAB to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-30 + DMZ-OUT-50 (LAB to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110 implicit deny (LAB to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to DMZ (LAB to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110 implicit deny (LAB to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  LAB (in): no access list (LAB to LAB)  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  110-10 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-20 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-30 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  110 implicit deny (LAB to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to OUTSIDE (MGMT to OUTSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to INSIDE (MGMT to INSIDE)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  MGMT (in): no access list + DMZ-OUT-10 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  MGMT (in): no access list + DMZ-OUT-20 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  MGMT (in): no access list + DMZ-OUT-30 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  MGMT (in): no access list + DMZ-OUT-40 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  MGMT (in): no access list + DMZ-OUT-50 (MGMT to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to LAB (MGMT to LAB)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  MGMT (in): no access list (MGMT to MGMT)  ->  approximated  (emitted as fws-0.0.0.0_0-MGMT > fws-0.0.0.0_0-MGMT _2_: fws-svc-7)
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+
+NAT rules
+  nat-176  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-177  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-178  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)

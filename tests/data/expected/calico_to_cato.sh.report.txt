@@ -1,0 +1,72 @@
+FWShift conversion report
+  source: calico
+  target: cato
+
+Summary
+  Security rules:     67   exact 47, approximated 7, needs review 9 (2 emitted disabled), skipped 4
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     17   exact 17, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CALICO_HOST_ENDPOINTS: global policy platform.dns applies to host endpoints as well (node-a-eth0, node-b-eth0); what it does for them is not converted
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] CALICO_HOST_ENDPOINTS: the export holds 2 host endpoints: their addresses are matched by selectors, but the policies that apply to them are not converted
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [info] CALICO_HOST_ONLY: policy security.raw-untracked has doNotTrack or preDNAT: it applies to host endpoints only, which are not converted
+  [info] CALICO_LOG_RULE: security.ping: a ingress rule with action Log only logs and goes on; it is left out
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+  [info] CALICO_NODE_TRAFFIC: traffic between a pod and its node is decided by Felix's configuration and the policies of host endpoints; it is not converted
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+
+Security rules
+  platform.dns/egress-2  ->  needs-review  (emitted as fws-platform.dns_egress-2)
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  shop/web-calico/egress-2  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  shop/web-calico/egress-3  ->  needs-review  (emitted as fws-shop_web-calico_egress-3)
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  platform.dns/egress-2-4  ->  needs-review  (emitted as fws-platform.dns_egress-2-4)
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  security.ping/ingress-1  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  security.ping/ingress-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  security.block-threats/ingress-2  ->  needs-review  (emitted as fws-security.block-threats_ingress-2)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  shop/web-calico/ingress-5  ->  needs-review, emitted disabled  (emitted as fws-shop_web-calico_ingress-5)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] UNSUPPORTED_MATCH: not converted: an HTTP match (application layer policy).
+  shop/allow-web/ingress-1  ->  approximated  (emitted as fws-shop_allow-web_ingress-1)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  shop/allow-web/ingress-1-2  ->  approximated  (emitted as fws-shop_allow-web_ingress-1-2)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  default tier end/ingress  ->  needs-review  (emitted as fws-default tier end_ingress)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  security.block-threats/ingress-2-4  ->  needs-review  (emitted as fws-security.block-threats_ingress-2-4)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  payments/api-ingress/ingress-1  ->  approximated  (emitted as fws-payments_api-ingress_ingress-1)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  payments/api-ingress/ingress-1-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  payments/api-ingress/ingress-3  ->  needs-review, emitted disabled  (emitted as fws-payments_api-ingress_ingress-3)
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).
+  payments/api-calico/ingress-1  ->  approximated  (emitted as fws-payments_api-calico_ingress-1)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  payments/api-calico/ingress-2  ->  approximated  (emitted as fws-payments_api-calico_ingress-2)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  default tier end/ingress-4  ->  needs-review  (emitted as fws-default tier end_ingress-4)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  not isolated: from pods  ->  approximated  (emitted as fws-not isolated: from pods)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  not isolated: to pods  ->  approximated  (emitted as fws-not isolated: to pods)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them

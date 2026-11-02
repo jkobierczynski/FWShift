@@ -1,0 +1,84 @@
+FWShift conversion report
+  source: clavister
+  target: junos
+
+Summary
+  Security rules:     25   exact 12, approximated 8, needs review 4 (2 emitted disabled), skipped 1
+  NAT rules:          12   exact 5, approximated 1, needs review 0, skipped 6
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] JUNOS_LOAD: the output is set commands for 'load set' (section 10): 'configure private', 'load set terminal' or 'load set FILE', then 'show | compare', 'commit check' and 'commit confirmed'. New policies go to the end of their pair of zones, after the policies the firewall has there, and the global policies after those: move them with 'insert ... before' where the firewall's own should not come first. Objects go into the global address book, which a firewall with address books in its zones does not accept. Assumed: names of up to 63 characters, 'match from-zone' and 'match to-zone' in global policies, and the definitions of the predefined applications the policies use
+  [needs-review] ZONES_REQUIRED: the policies and NAT rules name these security zones, which must exist on the SRX (or be renamed with --zone-map): dmz, guest, lan, wan
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'pol_dmz_https' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  exact  (emitted as allow_web_sat_web)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+  block_bad_mail+sat_mail  ->  approximated  (emitted as block_bad_mail_sat_mail)
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'allow_mail_sat_mail'; check that this rule is meant to cover the translated traffic
+  nat_mail+sat_mail  ->  approximated  (emitted as nat_mail_sat_mail)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'nat_mail_sat_mail'; check that this rule is meant to cover the translated traffic
+  allow_mail+sat_mail  ->  approximated  (emitted as allow_mail_sat_mail)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'allow_mail_sat_mail'; check that this rule is meant to cover the translated traffic
+  allow_pool+sat_pool  ->  exact  (emitted as allow_pool_sat_pool)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+  to_guest/guest_never  ->  needs-review  (emitted as to_guest_guest_never)
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_srv', the address NAT rule 'nat_mail_sat_mail' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  lan_to_dmz  ->  needs-review
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_srv', the address NAT rule 'nat_mail_sat_mail' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  syslog_fast  ->  approximated
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+  gre_tunnel  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  old_rule  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  pol_dmz_https  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip2' with post-NAT 'web_srv' because of NAT rule 'pol_dmz_https'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'pol_dmz_https' also translates the port to 8443: the service of this rule (https) named the pre-NAT port only, and now names 8443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+  pol_dmz_out  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+  pol_block_ftp  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  allow_web+sat_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NAT rule of Junos matches one port range
+  nat_mail+sat_mail  ->  approximated  (emitted as destination fwshift-destination-lan nat_mail_sat_mail, destination fwshift-destination-guest nat_mail_sat_mail, source fwshift-source-lan-wan nat_mail_sat_mail, source fwshift-source-guest-wan nat_mail_sat_mail)
+      [approximated] NAT_AFTER_DNAT: the source translation of this rule is matched after its destination translation, by the translated destination; it also applies to traffic sent to that address directly
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NAT rule of Junos matches one port range
+  to_guest/guest_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NAT rule of Junos matches one port range
+  lan_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NAT rule of Junos matches one port range
+  lan_updates  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the addresses it matches are not static addresses
+  pol_dmz_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NAT rule of Junos matches one port range
+  sat_unused  ->  exact  (emitted as destination fwshift-destination-wan sat_unused)
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+
+Addresses
+  admin_hosts#1  ->  exact  (emitted as admin_hosts_1)
+      [info] RENAMED: renamed to 'admin_hosts_1' to fit the target's naming rules
+  admin_hosts#2  ->  exact  (emitted as admin_hosts_2)
+      [info] RENAMED: renamed to 'admin_hosts_2' to fit the target's naming rules
+  admin_hosts#3  ->  exact  (emitted as admin_hosts_3)
+      [info] RENAMED: renamed to 'admin_hosts_3' to fit the target's naming rules

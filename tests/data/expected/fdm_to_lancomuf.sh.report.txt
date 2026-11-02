@@ -1,0 +1,49 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: lancom-uf
+
+Summary
+  Security rules:      8   exact 0, approximated 2, needs review 2 (1 emitted disabled), skipped 4
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): inside_zone, outside_zone
+
+Security rules
+  Block_IoT_to_office  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-lan' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+  Inside_Outside_web  ->  approximated  (emitted as fws-office-lan > fws-any-ipv4: fws-tcp-80_tcp-443_udp-53)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  IoT_telemetry  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: the destination 'vendor-cloud' holds a host name; a desktop object of the firewall names addresses; the rule is not written
+  NAS_from_Internet  ->  needs-review  (emitted as fws-any-ipv4 > fws-nas: fws-tcp-5001, fws-any-ipv4 > fws-outside-interface: fws-tcp-5001, fws-any-ipv4 > fws-nas-public: fws-tcp-5001)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'outside-interface' next to 'nas' because of NAT rule 'NAS_published'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAS_published' also translates the port to 5001; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'nas' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+  Head_office_v6  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-devices' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+      [info] MATCHES_NOTHING: after the negation, the rule matches no connection
+  DNS_answers  ->  skipped
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  Staff_streaming  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests_by_time  ->  skipped
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times; the rule is not written
+
+NAT rules
+  NAS_published  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 192.0.2.2
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nas_static  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  InsideOutsideNatRule  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)
+  IoT_out  ->  skipped
+      [info] NAT_NOT_CONVERTED: not converted: it is disabled. Set NAT on the service of the connection by hand (Advanced tab)

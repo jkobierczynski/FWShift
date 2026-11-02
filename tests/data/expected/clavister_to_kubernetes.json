@@ -1,0 +1,637 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "metadata": {
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "drop_netbios (not written, see the report); to_guest/guest_never (disabled in the source); lan_updates (not written, see the report); syslog_fast (not written, see the report); gre_tunnel (not written, see the report); old_rule (disabled in the source)"
+    }
+  },
+  "items": [
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-guest-net",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "10.30.0.0/24",
+          "fwshift/rules": "nat_mail+sat_mail, to_guest/guest_dns, to_guest/guest_web"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-guest-net"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "172.16.20.25/32"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 25
+              }
+            ]
+          },
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "203.0.113.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 53
+              },
+              {
+                "protocol": "TCP",
+                "port": 80
+              },
+              {
+                "protocol": "TCP",
+                "port": 443
+              },
+              {
+                "protocol": "UDP",
+                "port": 53
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-dmz",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "172.16.20.0-172.16.20.24 172.16.20.26-172.16.20.79 172.16.20.81-172.16.20.99 172.16.20.104-172.16.20.255",
+          "fwshift/rules": "lan_to_dmz, pol_dmz_out"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-dmz"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "192.168.10.0/24"
+                }
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "203.0.113.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 80
+              },
+              {
+                "protocol": "TCP",
+                "port": 443
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-mail-srv",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "172.16.20.25",
+          "fwshift/rules": "admin_mgmt, allow_mail+sat_mail, lan_to_dmz, nat_mail+sat_mail, pol_dmz_out"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-mail-srv"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "192.168.10.0/24"
+                }
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.30.0.0/24"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "203.0.113.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 25
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "203.0.113.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 80
+              },
+              {
+                "protocol": "TCP",
+                "port": 443
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-web-srv",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "172.16.20.80",
+          "fwshift/rules": "admin_mgmt, allow_web+sat_web, lan_to_dmz, pol_dmz_https, pol_dmz_out"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-web-srv"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "192.168.10.0/24"
+                }
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "203.0.113.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 80
+              },
+              {
+                "protocol": "TCP",
+                "port": 443
+              },
+              {
+                "protocol": "TCP",
+                "port": 8443
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "203.0.113.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 80
+              },
+              {
+                "protocol": "TCP",
+                "port": 443
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-dmz-2",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "172.16.20.100/30",
+          "fwshift/rules": "allow_pool+sat_pool, lan_to_dmz, pol_dmz_out"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-dmz-2"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "192.168.10.0/24"
+                }
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "203.0.113.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 80
+              },
+              {
+                "protocol": "TCP",
+                "port": 443
+              },
+              {
+                "protocol": "TCP",
+                "port": 8080,
+                "endPort": 8090
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "203.0.113.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 80
+              },
+              {
+                "protocol": "TCP",
+                "port": 443
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-lan-net",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "192.168.10.0/24",
+          "fwshift/rules": "lan_dns, lan_to_dmz, lan_web, nat_mail+sat_mail"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-lan-net"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "172.16.20.0/24"
+                }
+              }
+            ]
+          },
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "203.0.113.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 53
+              },
+              {
+                "protocol": "TCP",
+                "port": 80
+              },
+              {
+                "protocol": "TCP",
+                "port": 443
+              },
+              {
+                "protocol": "TCP",
+                "port": 8080,
+                "endPort": 8090
+              },
+              {
+                "protocol": "UDP",
+                "port": 53
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-wan-net",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "203.0.113.0/24",
+          "fwshift/rules": "allow_mail+sat_mail, allow_pool+sat_pool, allow_web+sat_web, lan_dns, lan_web, pol_dmz_https, pol_dmz_out, to_guest/guest_dns, to_guest/guest_web"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-wan-net"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.30.0.0/24"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "192.168.10.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 53
+              },
+              {
+                "protocol": "UDP",
+                "port": 53
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.30.0.0/24"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "172.16.20.0/24"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "192.168.10.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 80
+              },
+              {
+                "protocol": "TCP",
+                "port": 443
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "192.168.10.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 8080,
+                "endPort": 8090
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "172.16.20.25/32"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 25
+              }
+            ]
+          },
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "172.16.20.80/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "172.16.20.100/30"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 80
+              },
+              {
+                "protocol": "TCP",
+                "port": 443
+              }
+            ]
+          },
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "172.16.20.100/30"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 8080,
+                "endPort": 8090
+              }
+            ]
+          },
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "172.16.20.80/32"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 8443
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-no-rules",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "0.0.0.0-10.29.255.255 10.30.1.0-172.16.19.255 172.16.21.0-192.168.9.255 192.168.11.0-203.0.112.255 203.0.114.0-255.255.255.255 ::/0",
+          "fwshift/rules": ""
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-no-rules"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ]
+      }
+    }
+  ]
+}

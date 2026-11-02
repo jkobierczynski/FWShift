@@ -1,0 +1,77 @@
+FWShift conversion report
+  source: clavister
+  target: panos
+
+Summary
+  Security rules:     25   exact 17, approximated 5, needs review 2 (2 emitted disabled), skipped 1
+  NAT rules:          12   exact 5, approximated 6, needs review 0, skipped 1
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): wan, dmz, lan, guest
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] INTRAZONE_DENY_ADDED: appended 'fwshift-intrazone-deny': PAN-OS allows traffic inside a zone by default, the source denies it
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  exact  (emitted as allow_web_sat_web)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+  block_bad_mail+sat_mail  ->  exact  (emitted as block_bad_mail_sat_mail)
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+  nat_mail+sat_mail  ->  exact  (emitted as nat_mail_sat_mail)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+  allow_mail+sat_mail  ->  exact  (emitted as allow_mail_sat_mail)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+  allow_pool+sat_pool  ->  exact  (emitted as allow_pool_sat_pool)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+  to_guest/guest_never  ->  exact  (emitted as to_guest_guest_never)
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+  syslog_fast  ->  approximated
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+  gre_tunnel  ->  needs-review, emitted disabled
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: gre. Verify these names against the App-ID release in use
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  old_rule  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  lan6_ping  ->  approximated
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping6. Verify these names against the App-ID release in use
+  pol_dmz_out  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+  pol_block_ftp  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  nat_mail+sat_mail  ->  approximated  (emitted as nat_mail_sat_mail)
+      [approximated] NAT_INTERFACE_ADDRESS: translates to 172.16.20.1, the address interface 'dmz' has today; use --interface-map dmz=<PAN-OS interface> to follow the interface instead
+  to_guest/guest_dns  ->  approximated  (emitted as to_guest_guest_dns)
+      [approximated] NAT_INTERFACE_ADDRESS: translates to 203.0.113.10, the address interface 'wan' has today; use --interface-map wan=<PAN-OS interface> to follow the interface instead
+  to_guest/guest_web  ->  approximated  (emitted as to_guest_guest_web)
+      [approximated] NAT_INTERFACE_ADDRESS: translates to 203.0.113.10, the address interface 'wan' has today; use --interface-map wan=<PAN-OS interface> to follow the interface instead
+  lan_dns  ->  approximated
+      [approximated] NAT_INTERFACE_ADDRESS: translates to 203.0.113.10, the address interface 'wan' has today; use --interface-map wan=<PAN-OS interface> to follow the interface instead
+  lan_updates  ->  approximated
+      [approximated] NAT_INTERFACE_ADDRESS: translates to 203.0.113.10, the address interface 'wan' has today; use --interface-map wan=<PAN-OS interface> to follow the interface instead
+  pol_dmz_https  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a PAN-OS NAT rule needs a destination zone and the source rule names none; give the zone the traffic is routed to before translation with --target-nat-zone
+  pol_dmz_out  ->  approximated
+      [approximated] NAT_INTERFACE_ADDRESS: translates to 203.0.113.10, the address interface 'wan' has today; use --interface-map wan=<PAN-OS interface> to follow the interface instead
+  sat_unused  ->  exact
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+
+Addresses
+  admin_hosts#1  ->  exact  (emitted as admin_hosts_1)
+      [info] RENAMED: renamed to 'admin_hosts_1' to fit the target's naming rules
+  admin_hosts#2  ->  exact  (emitted as admin_hosts_2)
+      [info] RENAMED: renamed to 'admin_hosts_2' to fit the target's naming rules
+  admin_hosts#3  ->  exact  (emitted as admin_hosts_3)
+      [info] RENAMED: renamed to 'admin_hosts_3' to fit the target's naming rules

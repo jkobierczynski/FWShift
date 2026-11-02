@@ -1,0 +1,73 @@
+FWShift conversion report
+  source: lancom-uf (desktop)
+  target: junos
+
+Summary
+  Security rules:     25   exact 14, approximated 0, needs review 10 (8 emitted disabled), skipped 1
+  NAT rules:           5   exact 3, approximated 0, needs review 0, skipped 2
+  Addresses:          11   exact 11, approximated 0, needs review 0, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OBJECTS_MISSING: objects and services the connections name are not in the input, and the rules that name them are not used: '0e5f1a2b-0000-4000-8000-000000000999'. Save the answers of every collection (section 3)
+  [needs-review] CONNECTION_KEYS_NOT_READ: desktop connections hold keys the parser does not know: 'nat'. They are kept with the rules as how they handle traffic, and not converted; if one of them narrows what a connection lets through, the converted rules allow more
+  [needs-review] JUNOS_LOAD: the output is set commands for 'load set' (section 10): 'configure private', 'load set terminal' or 'load set FILE', then 'show | compare', 'commit check' and 'commit confirmed'. New policies go to the end of their pair of zones, after the policies the firewall has there, and the global policies after those: move them with 'insert ... before' where the firewall's own should not come first. Objects go into the global address book, which a firewall with address books in its zones does not accept. Assumed: names of up to 63 characters, 'match from-zone' and 'match to-zone' in global policies, and the definitions of the predefined applications the policies use
+  [needs-review] ZONES_REQUIRED: the policies and NAT rules name these security zones, which must exist on the SRX (or be renamed with --zone-map): WAN, eth1, eth2, eth3
+  [info] LANCOM_UF_FORMAT: read 14 desktop connections, 15 desktop objects and 13 services from the answers of the REST API. LANCOM publishes the keys of that API only by the examples of its LMC add-ins (networks, desktop connections, user-defined services); the keys of hosts, IP ranges, groups, Internet objects and of a rule other than those are assumed, and an object, service or rule with a key the parser does not know is not used. The desktop only allows: what no connection allows is blocked
+  [info] VPN_USER_OBJECTS: VPN and user objects are not read: the rules of connections to and from them are not used
+  [info] MASQUERADING_READ: masquerading set on services was read as NAT rules to the address of the outgoing interface. A NAT source address other than that, the NAT of a connection and DMZ (port forwarding) are not read
+
+Security rules
+  Internet to Webserver - internet.https  ->  needs-review  (emitted as Internet_to_Webserver_-_internet_https)
+      [needs-review] DMZ_NOT_READ: DMZ / port forwarding is set for the service; its keys are not known and the translation is not read: the rule allows the connections that reach the host by its own address, not those forwarded to it
+  Admin-PCs to Servers - remote.rdp  ->  exact  (emitted as Admin-PCs_to_Servers_-_remote_rdp)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+  Servers to Admin-PCs - remote.rdp  ->  exact  (emitted as Servers_to_Admin-PCs_-_remote_rdp)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth1 to eth3)  ->  exact  (emitted as Jump-Hosts_to_OT-Cell_-_Modbus-TCP__eth1_to_eth3_)
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth3 to eth3)  ->  exact  (emitted as Jump-Hosts_to_OT-Cell_-_Modbus-TCP__eth3_to_eth3_)
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+  HMI to OT-Cell - OPC-UA  ->  needs-review, emitted disabled  (emitted as HMI_to_OT-Cell_-_OPC-UA)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+  OT-Cell to HMI - OPC-UA  ->  needs-review, emitted disabled  (emitted as OT-Cell_to_HMI_-_OPC-UA)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+  Monitoring to OT-Cell - standard.ping  ->  exact  (emitted as Monitoring_to_OT-Cell_-_standard_ping)
+      [info] RULE_ALWAYS_OFF: the rule has no time range (Always Off): read as disabled
+  LAN to Mailserver - internet.smtp  ->  needs-review  (emitted as LAN_to_Mailserver_-_internet_smtp)
+      [needs-review] CONNECTION_NAT_NOT_READ: the rule takes the NAT settings of its connection, whose keys are not known: whether and how the connection translates is not read. Look at the NAT tab of the connection
+  Branch Sites to LAN - remote.rdp  ->  needs-review, emitted disabled  (emitted as Branch_Sites_to_LAN_-_remote_rdp)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'Branch Sites' is a VPN object, which is not converted.
+  LAN to Lab-v6 - internet.http  ->  needs-review, emitted disabled  (emitted as LAN_to_Lab-v6_-_internet_http)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Lab-v6' cannot be read: attribute 'ipv6', which this parser does not read.
+  DMZ to Internet - Legacy-App  ->  needs-review, emitted disabled  (emitted as DMZ_to_Internet_-_Legacy-App)
+      [needs-review] UNSUPPORTED_MATCH: not converted: service 'Legacy-App' cannot be read: an entry with 'sourceport', which this parser does not read.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Legacy-App': an entry with 'sourceport', which this parser does not read.
+  DMZ to Internet - standard.ssh  ->  needs-review, emitted disabled  (emitted as DMZ_to_Internet_-_standard_ssh)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action 'drop', which is not a direction (LANCOM documents no rule that blocks).
+  Internet to ? - internet.https  ->  needs-review, emitted disabled  (emitted as Internet_to___-_internet_https)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object '0e5f1a2b-0000-4000-8000-000000000999' is not in the input.
+  LAN to DMZ - Web  ->  exact  (emitted as LAN_to_DMZ_-_Web)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+  DMZ to LAN - Web  ->  exact  (emitted as DMZ_to_LAN_-_Web)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+  Printer to DMZ - internet.http  ->  needs-review, emitted disabled  (emitted as Printer_to_DMZ_-_internet_http)
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Printer' cannot be read: a host that names no interface.
+  LAN to Firewall - traffic to the firewall  ->  skipped
+      [info] FIREWALL_TRAFFIC: the connection is between a desktop object and the firewall itself: traffic to the firewall (its services, its administration) is not forwarded traffic and is not converted
+
+NAT rules
+  LAN to Internet - standard.ping (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NAT rule of Junos matches one port range of TCP or UDP
+  DMZ to Internet - GRE-Tunnel (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NAT rule of Junos matches one port range of TCP or UDP
+
+Address groups
+  Jump-Hosts (eth1)  ->  exact  (emitted as Jump-Hosts__eth1_)
+      [info] RENAMED: renamed to 'Jump-Hosts__eth1_' to fit the target's naming rules
+  Jump-Hosts (eth3)  ->  exact  (emitted as Jump-Hosts__eth3_)
+      [info] RENAMED: renamed to 'Jump-Hosts__eth3_' to fit the target's naming rules

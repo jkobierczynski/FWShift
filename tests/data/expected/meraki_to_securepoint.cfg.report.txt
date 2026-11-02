@@ -1,0 +1,71 @@
+FWShift conversion report
+  source: meraki
+  target: securepoint
+
+Summary
+  Security rules:     20   exact 5, approximated 8, needs review 6 (2 emitted disabled), skipped 1
+  NAT rules:           4   exact 0, approximated 0, needs review 1, skipped 3
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): vlan10-office, vlan20-servers, vlan30-ot-cell, internet. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: internet-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+  [info] SECUREPOINT_DEFAULT_WRITTEN: the source lets through traffic no rule matches; 4 rules after the converted ones do the same between the zones of the policy (the UTM drops it otherwise)
+  [info] SECUREPOINT_COMMENTED: 2 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  layer 7 rule 2  ->  needs-review  (emitted as 12 rules of group fwshift)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  layer 7 rule 3  ->  needs-review  (emitted as 12 rules of group fwshift)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  office to servers web  ->  approximated  (emitted as 12 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched
+  historian  ->  approximated  (emitted as 12 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched
+  eng ws to plc  ->  approximated  (emitted as 12 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched
+  ot cell isolated  ->  needs-review  (emitted as 12 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  ot no internet  ->  needs-review  (emitted as 12 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  block update site  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'updates.example.com'; that a network object of the UTM takes a host name is not documented. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dns to servers  ->  approximated  (emitted as 12 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched
+  ping servers  ->  approximated  (emitted as 12 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched
+  office ipv6 out  ->  approximated  (emitted as 12 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched
+  passive ftp  ->  approximated  (emitted as 12 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched
+  bad ports  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+  Default rule  ->  approximated  (emitted as 12 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the UTM is not matched
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT vpn-portal  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT needs the one zone the traffic is sent to (the zone of its NAT network object, firewall-<zone>); the NAT rule names none
+  NAT mail  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: the UTM writes HIDENAT, HIDENAT_EXCLUDE and DESTNAT on a rule; a rule that translates source and destination, a static translation both ways or a pool is none of them
+  NAT scada-view  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT needs the one zone the traffic is sent to (the zone of its NAT network object, firewall-<zone>); the NAT rule names none
+  NAT to the uplink  ->  needs-review  (emitted as 3 rules with HIDENAT)
+      [needs-review] NAT_ORDER: NAT rule 'NAT mail' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it

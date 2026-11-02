@@ -1,0 +1,58 @@
+FWShift conversion report
+  source: terraform-google (vpc-shop)
+  target: zscaler
+
+Summary
+  Security rules:     28   exact 20, approximated 2, needs review 3 (1 emitted disabled), skipped 3
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] TERRAFORM_MEMBERS: the instances a rule applies to, and that its source tags and service accounts stand for, are those of this state: instances made elsewhere (another state, by hand, a managed instance group) are not known to the converted policy
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: google_compute_security_policy. The converted policy does not hold what they do
+  [needs-review] ZSCALER_BLOCK_RULE: the source blocks what no rule matches. Rule fws-block the rest that does so follows the converted rules, disabled: until it is enabled, the rules of the tenant below it and its default rule decide that traffic
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_LOST: ZIA filters traffic from locations to the internet only: 28 rules for traffic from the internet and 0 for traffic between or inside zones inside are not written, or only in part. That traffic needs a firewall of its own at the sites
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Google Cloud command line for the same resources: 11 google_compute_firewall, 5 google_compute_instance, 1 google_compute_network, 1 google_compute_network_firewall_policy, 1 google_compute_network_firewall_policy_association, 6 google_compute_network_firewall_policy_rule, 1 google_compute_region_network_firewall_policy, 1 google_compute_region_network_firewall_policy_association, 1 google_compute_region_network_firewall_policy_rule. Resources outside this state (made by hand, or by another state) are not in it
+
+Security rules
+  implied allow egress+allow-https-web-v6  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  implied allow egress+implied deny ingress  ->  needs-review  (emitted as fws-implied allow egress_implie)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  allow-https-web-v6  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  old-dns  ->  approximated  (emitted as fws-old-dns)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  allow-mgmt-v6  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  pol-shop:geo-and-fqdn (in)  ->  needs-review, emitted disabled  (emitted as fws-pol-shop_geo-and-fqdn _in_)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] UNSUPPORTED_MATCH: not converted: matches srcFqdns, srcRegionCodes, which the export does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  implied deny ingress (in)  ->  needs-review  (emitted as fws-implied deny ingress _in_)
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+  implied allow egress (out)  ->  approximated  (emitted as fws-implied allow egress _out_)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+
+NAT rules
+  external-192.0.2.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  external-192.0.2.5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only

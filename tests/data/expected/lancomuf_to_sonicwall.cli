@@ -1,0 +1,441 @@
+configure terminal
+address-object ipv4 "Webserver" host 172.16.20.10 zone eth2
+address-object ipv4 "Mailserver" host 172.16.20.25 zone eth2
+address-object ipv4 "HMI" host 10.30.0.50 zone eth3
+address-object ipv4 "Printer" host 192.0.0.8 zone WAN
+address-object ipv4 "LAN" network 192.168.10.0 255.255.255.0 zone eth1
+address-object ipv4 "DMZ" network 172.16.20.0 255.255.255.0 zone eth2
+address-object ipv4 "OT-Cell" network 10.30.0.0 255.255.255.0 zone eth3
+address-object ipv4 "Lab-v6" host 192.0.0.8 zone WAN
+address-object ipv4 "Admin-PCs" range 192.168.10.200 192.168.10.220 zone eth1
+address-object ipv4 "Monitoring" range 198.51.100.10 198.51.100.20 zone WAN
+address-object ipv4 "h 192.168.10.5" host 192.168.10.5 zone WAN
+address-object ipv4 "h 10.30.0.5" host 10.30.0.5 zone WAN
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone WAN
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone WAN
+address-object ipv6 "n ::_1" network :: /1 zone WAN
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone WAN
+address-group ipv4 "Servers"
+    address-object ipv4 "Webserver"
+    address-object ipv4 "Mailserver"
+    exit
+address-group ipv4 "Jump-Hosts"
+    address-object ipv4 "h 192.168.10.5"
+    address-object ipv4 "h 10.30.0.5"
+    exit
+address-group ipv4 "Jump-Hosts (eth1)"
+    address-object ipv4 "h 192.168.10.5"
+    exit
+address-group ipv4 "Jump-Hosts (eth3)"
+    address-object ipv4 "h 10.30.0.5"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
+service-object "internet.http" TCP 80 80
+service-object "internet.https" TCP 443 443
+service-object "standard.dns tcp 53" TCP 53 53
+service-object "standard.dns udp 53" UDP 53 53
+service-group "standard.dns"
+    service-object "standard.dns tcp 53"
+    service-object "standard.dns udp 53"
+    exit
+service-object "standard.ssh" TCP 22 22
+service-object "remote.rdp" TCP 3389 3389
+service-object "internet.smtp" TCP 25 25
+service-object "Modbus-TCP" TCP 502 502
+service-object "OPC-UA" TCP 4840 4843
+service-group "Web"
+    service-object "internet.http"
+    service-object "internet.https"
+    exit
+access-rule ipv4 from eth1 to WAN action allow source address name "LAN" service name "internet.http" destination address any
+    name "LAN to Internet - internet.http"
+    priority manual 1
+    exit
+access-rule ipv4 from eth1 to WAN action allow source address name "LAN" service name "internet.https" destination address any
+    name "LAN to Internet - internet.https"
+    priority manual 2
+    exit
+access-rule ipv4 from eth1 to WAN action allow source address name "LAN" service group "standard.dns" destination address any
+    name "LAN to Internet - standard.dns"
+    priority manual 3
+    exit
+access-rule ipv4 from eth1 to WAN action allow source address name "LAN" service any destination address any
+    name "LAN to Internet - standard.ping"
+    priority manual 4
+    no enable
+    exit
+access-rule ipv4 from WAN to eth2 action allow source address any service name "internet.https" destination address name "Webserver"
+    name "Internet to Webserver - internet"
+    priority manual 5
+    exit
+access-rule ipv4 from eth1 to eth2 action allow source address name "Admin-PCs" service name "standard.ssh" destination address group "Servers"
+    name "Admin-PCs to Servers - standard."
+    priority manual 6
+    exit
+access-rule ipv4 from eth1 to eth2 action allow source address name "Admin-PCs" service name "remote.rdp" destination address group "Servers"
+    name "Admin-PCs to Servers - remote.rd"
+    priority manual 7
+    exit
+access-rule ipv4 from eth2 to eth1 action allow source address group "Servers" service name "remote.rdp" destination address name "Admin-PCs"
+    name "Servers to Admin-PCs - remote.rd"
+    priority manual 8
+    exit
+access-rule ipv4 from eth1 to eth3 action allow source address group "Jump-Hosts (eth1)" service name "Modbus-TCP" destination address name "OT-Cell"
+    name "Jump-Hosts to OT-Cell - Modbus-T"
+    priority manual 9
+    exit
+access-rule ipv4 from eth3 to eth3 action allow source address group "Jump-Hosts (eth3)" service name "Modbus-TCP" destination address name "OT-Cell"
+    name "Jump-Hosts to OT-Cell - Modbus 2"
+    priority manual 10
+    exit
+access-rule ipv4 from eth3 to eth3 action allow source address name "HMI" service name "OPC-UA" destination address name "OT-Cell"
+    name "HMI to OT-Cell - OPC-UA"
+    priority manual 11
+    no enable
+    exit
+access-rule ipv4 from eth3 to eth3 action allow source address name "OT-Cell" service name "OPC-UA" destination address name "HMI"
+    name "OT-Cell to HMI - OPC-UA"
+    priority manual 12
+    no enable
+    exit
+access-rule ipv4 from WAN to eth3 action allow source address name "Monitoring" service any destination address name "OT-Cell"
+    name "Monitoring to OT-Cell - standard"
+    priority manual 13
+    no enable
+    exit
+access-rule ipv4 from eth1 to eth3 action allow source address name "Monitoring" service any destination address name "OT-Cell"
+    name "Monitoring to OT-Cell - standa 2"
+    priority manual 14
+    no enable
+    exit
+access-rule ipv4 from eth2 to eth3 action allow source address name "Monitoring" service any destination address name "OT-Cell"
+    name "Monitoring to OT-Cell - standa 3"
+    priority manual 15
+    no enable
+    exit
+access-rule ipv4 from eth3 to eth3 action allow source address name "Monitoring" service any destination address name "OT-Cell"
+    name "Monitoring to OT-Cell - standa 4"
+    priority manual 16
+    no enable
+    exit
+access-rule ipv4 from eth4 to eth3 action allow source address name "Monitoring" service any destination address name "OT-Cell"
+    name "Monitoring to OT-Cell - standa 5"
+    priority manual 17
+    no enable
+    exit
+access-rule ipv4 from eth1 to eth2 action allow source address name "LAN" service name "internet.smtp" destination address name "Mailserver"
+    name "LAN to Mailserver - internet.smt"
+    priority manual 18
+    exit
+access-rule ipv4 from WAN to eth1 action allow source address any service name "remote.rdp" destination address name "LAN"
+    name "Branch Sites to LAN - remote.rdp"
+    priority manual 19
+    no enable
+    exit
+access-rule ipv4 from eth1 to eth1 action allow source address any service name "remote.rdp" destination address name "LAN"
+    name "Branch Sites to LAN - remote.r 2"
+    priority manual 20
+    no enable
+    exit
+access-rule ipv4 from eth2 to eth1 action allow source address any service name "remote.rdp" destination address name "LAN"
+    name "Branch Sites to LAN - remote.r 3"
+    priority manual 21
+    no enable
+    exit
+access-rule ipv4 from eth3 to eth1 action allow source address any service name "remote.rdp" destination address name "LAN"
+    name "Branch Sites to LAN - remote.r 4"
+    priority manual 22
+    no enable
+    exit
+access-rule ipv4 from eth4 to eth1 action allow source address any service name "remote.rdp" destination address name "LAN"
+    name "Branch Sites to LAN - remote.r 5"
+    priority manual 23
+    no enable
+    exit
+access-rule ipv4 from eth1 to WAN action allow source address name "LAN" service name "internet.http" destination address any
+    name "LAN to Lab-v6 - internet.http"
+    priority manual 24
+    no enable
+    exit
+access-rule ipv4 from eth1 to eth1 action allow source address name "LAN" service name "internet.http" destination address any
+    name "LAN to Lab-v6 - internet.http 2"
+    priority manual 25
+    no enable
+    exit
+access-rule ipv4 from eth1 to eth2 action allow source address name "LAN" service name "internet.http" destination address any
+    name "LAN to Lab-v6 - internet.http 3"
+    priority manual 26
+    no enable
+    exit
+access-rule ipv4 from eth1 to eth3 action allow source address name "LAN" service name "internet.http" destination address any
+    name "LAN to Lab-v6 - internet.http 4"
+    priority manual 27
+    no enable
+    exit
+access-rule ipv4 from eth1 to eth4 action allow source address name "LAN" service name "internet.http" destination address any
+    name "LAN to Lab-v6 - internet.http 5"
+    priority manual 28
+    no enable
+    exit
+access-rule ipv4 from eth2 to WAN action allow source address name "DMZ" service any destination address any
+    name "DMZ to Internet - GRE-Tunnel"
+    priority manual 29
+    no enable
+    exit
+access-rule ipv4 from eth2 to WAN action allow source address name "DMZ" service any destination address any
+    name "DMZ to Internet - Legacy-App"
+    priority manual 30
+    no enable
+    exit
+access-rule ipv4 from eth2 to WAN action allow source address name "DMZ" service name "standard.ssh" destination address any
+    name "DMZ to Internet - standard.ssh"
+    priority manual 31
+    no enable
+    exit
+access-rule ipv4 from WAN to WAN action allow source address any service name "internet.https" destination address any
+    name "Internet to ? - internet.https"
+    priority manual 32
+    no enable
+    exit
+access-rule ipv4 from WAN to eth1 action allow source address any service name "internet.https" destination address any
+    name "Internet to ? - internet.https 2"
+    priority manual 33
+    no enable
+    exit
+access-rule ipv4 from WAN to eth2 action allow source address any service name "internet.https" destination address any
+    name "Internet to ? - internet.https 3"
+    priority manual 34
+    no enable
+    exit
+access-rule ipv4 from WAN to eth3 action allow source address any service name "internet.https" destination address any
+    name "Internet to ? - internet.https 4"
+    priority manual 35
+    no enable
+    exit
+access-rule ipv4 from WAN to eth4 action allow source address any service name "internet.https" destination address any
+    name "Internet to ? - internet.https 5"
+    priority manual 36
+    no enable
+    exit
+access-rule ipv4 from eth1 to eth2 action allow source address name "LAN" service group "Web" destination address name "DMZ"
+    name "LAN to DMZ - Web"
+    priority manual 37
+    exit
+access-rule ipv4 from eth2 to eth1 action allow source address name "DMZ" service group "Web" destination address name "LAN"
+    name "DMZ to LAN - Web"
+    priority manual 38
+    exit
+access-rule ipv4 from eth2 to eth1 action allow source address name "DMZ" service any destination address name "LAN"
+    name "DMZ to LAN - vpn.ipsec"
+    priority manual 39
+    no enable
+    exit
+access-rule ipv4 from WAN to eth2 action allow source address any service name "internet.http" destination address name "DMZ"
+    name "Printer to DMZ - internet.http"
+    priority manual 40
+    no enable
+    exit
+access-rule ipv4 from eth1 to eth2 action allow source address any service name "internet.http" destination address name "DMZ"
+    name "Printer to DMZ - internet.http 2"
+    priority manual 41
+    no enable
+    exit
+access-rule ipv4 from eth2 to eth2 action allow source address any service name "internet.http" destination address name "DMZ"
+    name "Printer to DMZ - internet.http 3"
+    priority manual 42
+    no enable
+    exit
+access-rule ipv4 from eth3 to eth2 action allow source address any service name "internet.http" destination address name "DMZ"
+    name "Printer to DMZ - internet.http 4"
+    priority manual 43
+    no enable
+    exit
+access-rule ipv4 from eth4 to eth2 action allow source address any service name "internet.http" destination address name "DMZ"
+    name "Printer to DMZ - internet.http 5"
+    priority manual 44
+    no enable
+    exit
+access-rule ipv4 from WAN to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to WAN"
+    priority manual 45
+    exit
+access-rule ipv4 from WAN to eth1 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to eth1"
+    priority manual 46
+    exit
+access-rule ipv4 from WAN to eth2 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to eth2"
+    priority manual 47
+    exit
+access-rule ipv4 from WAN to eth3 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to eth3"
+    priority manual 48
+    exit
+access-rule ipv4 from WAN to eth4 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to eth4"
+    priority manual 49
+    exit
+access-rule ipv4 from eth1 to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth1 to WAN"
+    priority manual 50
+    exit
+access-rule ipv4 from eth1 to eth1 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth1 to eth1"
+    priority manual 51
+    exit
+access-rule ipv4 from eth1 to eth2 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth1 to eth2"
+    priority manual 52
+    exit
+access-rule ipv4 from eth1 to eth3 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth1 to eth3"
+    priority manual 53
+    exit
+access-rule ipv4 from eth1 to eth4 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth1 to eth4"
+    priority manual 54
+    exit
+access-rule ipv4 from eth2 to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth2 to WAN"
+    priority manual 55
+    exit
+access-rule ipv4 from eth2 to eth1 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth2 to eth1"
+    priority manual 56
+    exit
+access-rule ipv4 from eth2 to eth2 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth2 to eth2"
+    priority manual 57
+    exit
+access-rule ipv4 from eth2 to eth3 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth2 to eth3"
+    priority manual 58
+    exit
+access-rule ipv4 from eth2 to eth4 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth2 to eth4"
+    priority manual 59
+    exit
+access-rule ipv4 from eth3 to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth3 to WAN"
+    priority manual 60
+    exit
+access-rule ipv4 from eth3 to eth1 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth3 to eth1"
+    priority manual 61
+    exit
+access-rule ipv4 from eth3 to eth2 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth3 to eth2"
+    priority manual 62
+    exit
+access-rule ipv4 from eth3 to eth3 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth3 to eth3"
+    priority manual 63
+    exit
+access-rule ipv4 from eth3 to eth4 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth3 to eth4"
+    priority manual 64
+    exit
+access-rule ipv4 from eth4 to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth4 to WAN"
+    priority manual 65
+    exit
+access-rule ipv4 from eth4 to eth1 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth4 to eth1"
+    priority manual 66
+    exit
+access-rule ipv4 from eth4 to eth2 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth4 to eth2"
+    priority manual 67
+    exit
+access-rule ipv4 from eth4 to eth3 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth4 to eth3"
+    priority manual 68
+    exit
+access-rule ipv4 from eth4 to eth4 action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT eth4 to eth4"
+    priority manual 69
+    exit
+access-rule ipv6 from WAN to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT WAN to WAN v6"
+    exit
+access-rule ipv6 from WAN to eth1 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT WAN to eth1 v6"
+    exit
+access-rule ipv6 from WAN to eth2 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT WAN to eth2 v6"
+    exit
+access-rule ipv6 from WAN to eth3 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT WAN to eth3 v6"
+    exit
+access-rule ipv6 from WAN to eth4 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT WAN to eth4 v6"
+    exit
+access-rule ipv6 from eth1 to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth1 to WAN v6"
+    exit
+access-rule ipv6 from eth1 to eth1 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth1 to eth1 v6"
+    exit
+access-rule ipv6 from eth1 to eth2 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth1 to eth2 v6"
+    exit
+access-rule ipv6 from eth1 to eth3 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth1 to eth3 v6"
+    exit
+access-rule ipv6 from eth1 to eth4 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth1 to eth4 v6"
+    exit
+access-rule ipv6 from eth2 to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth2 to WAN v6"
+    exit
+access-rule ipv6 from eth2 to eth1 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth2 to eth1 v6"
+    exit
+access-rule ipv6 from eth2 to eth2 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth2 to eth2 v6"
+    exit
+access-rule ipv6 from eth2 to eth3 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth2 to eth3 v6"
+    exit
+access-rule ipv6 from eth2 to eth4 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth2 to eth4 v6"
+    exit
+access-rule ipv6 from eth3 to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth3 to WAN v6"
+    exit
+access-rule ipv6 from eth3 to eth1 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth3 to eth1 v6"
+    exit
+access-rule ipv6 from eth3 to eth2 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth3 to eth2 v6"
+    exit
+access-rule ipv6 from eth3 to eth3 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth3 to eth3 v6"
+    exit
+access-rule ipv6 from eth3 to eth4 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth3 to eth4 v6"
+    exit
+access-rule ipv6 from eth4 to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth4 to WAN v6"
+    exit
+access-rule ipv6 from eth4 to eth1 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth4 to eth1 v6"
+    exit
+access-rule ipv6 from eth4 to eth2 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth4 to eth2 v6"
+    exit
+access-rule ipv6 from eth4 to eth3 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth4 to eth3 v6"
+    exit
+access-rule ipv6 from eth4 to eth4 action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT eth4 to eth4 v6"
+    exit
+commit
+exit

@@ -1,0 +1,79 @@
+FWShift conversion report
+  source: lancom-uf (desktop)
+  target: scalance
+
+Summary
+  Security rules:     25   exact 12, approximated 0, needs review 2, skipped 11
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          11   exact 11, approximated 0, needs review 0, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OBJECTS_MISSING: objects and services the connections name are not in the input, and the rules that name them are not used: '0e5f1a2b-0000-4000-8000-000000000999'. Save the answers of every collection (section 3)
+  [needs-review] CONNECTION_KEYS_NOT_READ: desktop connections hold keys the parser does not know: 'nat'. They are kept with the rules as how they handle traffic, and not converted; if one of them narrows what a connection lets through, the converted rules allow more
+  [needs-review] SCALANCE_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the device passes everything: WAN, eth1, eth2, eth3, eth4
+  [needs-review] SCALANCE_LOAD: the output is CLI commands for the FIREWALL and FIREWALL NAT modes (section 10): 42 IP rules with priorities 1 to 6. The device processes rules by ascending priority: rules it has with a lower priority come first. Commands take effect as they are entered; nothing is deleted and nothing is saved
+  [needs-review] SCALANCE_ZONE_NAMES: zones that are not interfaces of the device (vlan N, ipsecALL, ipsec N, sinemarcall, ppp 0, usb 0) are written as they are, and the device refuses those rules: map them with --zone-map ZONE=vlanN: eth1, WAN, eth2, eth3, eth4
+  [info] LANCOM_UF_FORMAT: read 14 desktop connections, 15 desktop objects and 13 services from the answers of the REST API. LANCOM publishes the keys of that API only by the examples of its LMC add-ins (networks, desktop connections, user-defined services); the keys of hosts, IP ranges, groups, Internet objects and of a rule other than those are assumed, and an object, service or rule with a key the parser does not know is not used. The desktop only allows: what no connection allows is blocked
+  [info] VPN_USER_OBJECTS: VPN and user objects are not read: the rules of connections to and from them are not used
+  [info] MASQUERADING_READ: masquerading set on services was read as NAT rules to the address of the outgoing interface. A NAT source address other than that, the NAT of a connection and DMZ (port forwarding) are not read
+  [info] SCALANCE_DEFAULT_RULES: after the converted rules, rules that drop what no rule matches, as the source does, for every pair of the 5 zones written (priority 6); traffic inside one zone does not pass the IP firewall
+  [info] SCALANCE_ANY_ZONE: a rule names one interface each way: a rule from or to any zone is written for every zone the policy names (WAN, eth1, eth2, eth3, eth4); traffic of other interfaces of the device meets its own rules
+  [info] LOGGING_CONVERTED: rules of the source log; their rules log at the level info
+
+Security rules
+  Internet to Webserver - internet.https  ->  needs-review  (emitted as 1 IP rules, priority 2)
+      [needs-review] DMZ_NOT_READ: DMZ / port forwarding is set for the service; its keys are not known and the translation is not read: the rule allows the connections that reach the host by its own address, not those forwarded to it
+  Admin-PCs to Servers - remote.rdp  ->  exact  (emitted as 2 IP rules, priority 2)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+  Servers to Admin-PCs - remote.rdp  ->  exact  (emitted as 2 IP rules, priority 2)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'Admin-PCs' and 'Servers': read as one rule per direction
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth1 to eth3)  ->  exact  (emitted as 1 IP rules, priority 3)
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+  Jump-Hosts to OT-Cell - Modbus-TCP (eth3 to eth3)  ->  skipped
+      [info] INTERFACE_SPLIT: an object of the connection has members at several interfaces: read as one rule per pair of interfaces, the interfaces as zones
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  HMI to OT-Cell - OPC-UA  ->  skipped
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+  OT-Cell to HMI - OPC-UA  ->  skipped
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'HMI' and 'OT-Cell': read as one rule per direction
+      [needs-review] SCHEDULE: schedule 'Mon 06:00:00 - Mon 22:00:00; Tue 06:00:00 - Tue 22:00:00; Wed 06:00:00 - Wed 22:00:00; Thu 06:00:00 - Thu 22:00:00; Fri 06:00:00 - Fri 22:00:00' is not converted; the rule would apply at all times.
+  Monitoring to OT-Cell - standard.ping  ->  skipped
+      [info] RULE_ALWAYS_OFF: the rule has no time range (Always Off): read as disabled
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  LAN to Mailserver - internet.smtp  ->  needs-review  (emitted as 1 IP rules, priority 4)
+      [needs-review] CONNECTION_NAT_NOT_READ: the rule takes the NAT settings of its connection, whose keys are not known: whether and how the connection translates is not read. Look at the NAT tab of the connection
+  Branch Sites to LAN - remote.rdp  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'Branch Sites' is a VPN object, which is not converted.
+  LAN to Lab-v6 - internet.http  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Lab-v6' cannot be read: attribute 'ipv6', which this parser does not read.
+  DMZ to Internet - Legacy-App  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: service 'Legacy-App' cannot be read: an entry with 'sourceport', which this parser does not read.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Legacy-App': an entry with 'sourceport', which this parser does not read.
+  DMZ to Internet - standard.ssh  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: action 'drop', which is not a direction (LANCOM documents no rule that blocks).
+  Internet to ? - internet.https  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object '0e5f1a2b-0000-4000-8000-000000000999' is not in the input.
+  LAN to DMZ - Web  ->  exact  (emitted as 2 IP rules, priority 4)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+  DMZ to LAN - Web  ->  exact  (emitted as 2 IP rules, priority 4)
+      [info] BIDIRECTIONAL_SPLIT: the service is allowed in both directions between 'LAN' and 'DMZ': read as one rule per direction
+  Printer to DMZ - internet.http  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: desktop object 'Printer' cannot be read: a host that names no interface.
+  LAN to Firewall - traffic to the firewall  ->  skipped
+      [info] FIREWALL_TRAFFIC: the connection is between a desktop object and the firewall itself: traffic to the firewall (its services, its administration) is not forwarded traffic and is not converted
+
+NAT rules
+  LAN to Internet - internet.http (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  LAN to Internet - internet.https (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  LAN to Internet - standard.dns (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  LAN to Internet - standard.ping (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  DMZ to Internet - GRE-Tunnel (NAT)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption

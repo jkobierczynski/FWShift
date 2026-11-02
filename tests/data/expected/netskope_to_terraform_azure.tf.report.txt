@@ -1,0 +1,66 @@
+FWShift conversion report
+  source: netskope
+  target: terraform-azure
+
+Summary
+  Security rules:     16   exact 1, approximated 3, needs review 12 (12 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] AZURE_ONE_GROUP: no zone has networks (--zone-network): one group holds every rule, inbound and outbound; associate it with every subnet the policy is for
+  [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var resource_group_name=... shows what it creates, terraform apply creates new network security groups with their rules; a group of the same name in the resource group makes it fail (it is not in the state). Then associate each group with the subnets of its networks (the comments and the output fwshift_networks), with azurerm_subnet_network_security_group_association
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
+
+Security rules
+  Block known bad ranges  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone client, ipsec, gre, internet; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  Branch mail to partner  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone ipsec, gre, internet, and a security rule names no zone: give the networks behind it with --zone-network.
+  Voice from sites  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone gre, internet, and a security rule names no zone: give the networks behind it with --zone-network.
+  Admins to jump hosts [app-ssh-jump]  ->  needs-review, emitted disabled
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone client, internet, and a security rule names no zone: give the networks behind it with --zone-network.
+  Admins to jump hosts [app-rdp-gw]  ->  needs-review, emitted disabled
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone client, internet, and a security rule names no zone: give the networks behind it with --zone-network.
+  Engineering to git  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone client, internet, and a security rule names no zone: give the networks behind it with --zone-network.
+  Block BitTorrent  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone client, ipsec, gre, internet; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Not from the server networks: no NTP  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone ipsec, internet; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  Time servers  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone client, ipsec, gre, internet, and a security rule names no zone: give the networks behind it with --zone-network.
+  SaaS files from the office  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp-saas-domains': destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone gre, internet, and a security rule names no zone: give the networks behind it with --zone-network.
+  Ping out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone client, ipsec, gre, internet, and a security rule names no zone: give the networks behind it with --zone-network.
+  DNS out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone client, ipsec, gre, internet, and a security rule names no zone: give the networks behind it with --zone-network.
+  Contractors: nothing else  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone client, internet; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Lab network out  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone ipsec, internet, and a security rule names no zone: give the networks behind it with --zone-network.
+  Default Action  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone client, ipsec, gre, internet; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more

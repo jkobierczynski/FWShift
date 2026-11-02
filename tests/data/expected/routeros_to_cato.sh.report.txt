@@ -1,0 +1,101 @@
+FWShift conversion report
+  source: routeros
+  target: cato
+
+Summary
+  Security rules:     27   exact 9, approximated 0, needs review 11 (6 emitted disabled), skipped 7
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of /ip firewall filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] TABLE_NOT_CONVERTED: /ip firewall mangle has 1 rules and is not converted (it can mark connections and routes, which the filter rules may test)
+  [needs-review] ROUTEROS_DYNAMIC_LIST: address lists that rules fill while the router runs decide what their rules match; those rules are not converted: /ip scanners
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_WAN_DEFAULT: the source allows what no rule matches; the WAN Firewall blocks it (implicit any-any block). A last rule that allows the rest between sites is written switched off
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): DMZ, LAN, GUEST, WAN
+  [info] ROUTEROS_ZONES: the interface lists the rules use do not overlap: each is a zone (DMZ: vlan20-dmz, GUEST: vlan30-guest, LAN: bridge-lan, WAN: ether1); an interface in none of them is a zone of its own
+  [info] ROUTEROS_PASSIVE: 2 rules with action log, passthrough or add-*-to-address-list decide nothing and were left out. A log rule directly before a rule with the same match, or one that matches everything, sets the logging of the rules it logs for
+  [info] ROUTEROS_FQDN_LIST: address lists that hold host names, which RouterOS resolves while it runs: converted as host name objects (mirrors)
+  [info] ROUTEROS_BRIDGE: traffic between the ports of one bridge (bridge-lan) does not pass the IP firewall of the source (use-ip-firewall=no); the conversion is of routed traffic
+  [info] FORWARD_POLICY_ACCEPT: RouterOS accepts what no rule of the forward chain decides; the model records that as its default action
+  [info] CATO_INTRAZONE: the source allows traffic inside a zone that no rule matches; between two network ranges of one site it passes the WAN Firewall, so a rule at the end allows it: DMZ, LAN, GUEST, WAN
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  defconf: accept in ipsec policy  ->  needs-review, emitted disabled  (emitted as fws-defconf: accept in ipsec policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: ipsec-policy=in,ipsec (traffic of IPsec tunnels).
+  banned scanners  ->  needs-review, emitted disabled  (emitted as fws-banned scanners)
+      [needs-review] UNSUPPORTED_MATCH: not converted: address list 'scanners', which rules fill while the router runs. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ssh from the admins  ->  exact  (emitted as fws-ssh from the admins)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  web for everyone  ->  needs-review  (emitted as fws-web for everyone)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  web for everyone-2  ->  needs-review  (emitted as fws-web for everyone-2)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  ping "echo" only  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  ping "echo" only-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  old partner access  ->  needs-review  (emitted as fws-old partner access)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  nothing but TCP  ->  needs-review  (emitted as fws-nothing but TCP)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  nothing but TCP-2  ->  needs-review  (emitted as fws-nothing but TCP-2)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  rest of the DMZ  ->  needs-review, emitted disabled  (emitted as fws-rest of the DMZ)
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-2  ->  needs-review, emitted disabled  (emitted as fws-rest of the DMZ-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-3  ->  needs-review, emitted disabled  (emitted as fws-rest of the DMZ-3)
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to the package mirrors  ->  skipped
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] CATO_NOT_WRITTEN: not written: host names as the destination: Cato takes them as destinations on the internet only
+  no other web from guests  ->  exact  (emitted as fws-no other web from guests)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] REJECT_AS_DENY: action reset-client: written as BLOCK
+  guest DNS, either port  ->  exact  (emitted as fws-guest DNS_ either port)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  guest DNS, either port-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  guests to the internet  ->  exact  (emitted as fws-guests to the internet)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  office hours for staff  ->  needs-review, emitted disabled  (emitted as fws-office hours for staff)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] SCHEDULE: schedule 'time=8h-18h,mon,tue,wed,thu,fri' is not converted; the rule would apply at all times.
+  no guests elsewhere  ->  exact  (emitted as fws-no guests elsewhere)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  defconf: drop all from WAN not DSTNATed  ->  exact  (emitted as fws-defconf: drop all from WAN not DSTNATed)
+      [info] ROUTEROS_DSTNAT_EXCEPTION: connection-nat-state=!dstnat: the rule does not block connections a destination NAT rule translated. Those are allowed by 2 rules ahead of it (defconf: drop all from WAN not DSTNATed (allows publish web), defconf: drop all from WAN not DSTNATed (allows publish mail))
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  ICMPv6 echo  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  the partners reach the web servers of the LAN by HTTPS and nothing else  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  drop everything else not coming from LAN  ->  skipped
+      [needs-review] ROUTEROS_NEGATED_INTERFACE: negated input interface (on the rule or the jump to its chain): the export does not list every interface of the router, and the rule covers the zones it does show (DMZ, GUEST, WAN). On the source it also blocks traffic of interfaces the export leaves out
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source This deny rule is NOT enforced; rules below it may let more through.
+
+NAT rules
+  publish web  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  publish mail  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  defconf: masquerade  ->  skipped
+      [approximated] ROUTEROS_NAT_IPSEC_EXEMPT: ipsec-policy=out,none: on the source, traffic that goes into an IPsec tunnel is not translated; the converted rule translates it unless the target exempts it
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself

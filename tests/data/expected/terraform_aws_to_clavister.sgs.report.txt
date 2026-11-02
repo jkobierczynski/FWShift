@@ -1,0 +1,43 @@
+FWShift conversion report
+  source: terraform-aws (vpc-0a1b2c3d4e5f63001)
+  target: clavister
+
+Summary
+  Security rules:     23   exact 19, approximated 0, needs review 4 (4 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 2, skipped 0
+  Address groups:     10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0a1b2c3d4e5f63031 of subnet subnet-0a1b2c3d4e5f63013 denies some inbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections out of the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0a1b2c3d4e5f63031 of subnet subnet-0a1b2c3d4e5f63013 denies some outbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections into the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_MISSING: the network ACLs of these subnets are not in the export; the converted policy allows what they may deny: subnet-0a1b2c3d4e5f63011, subnet-0a1b2c3d4e5f63012, subnet-0a1b2c3d4e5f63014
+  [needs-review] AWS_HAIRPIN: connections from inside the VPC to its own public addresses are not converted as AWS decides them: they leave through the internet gateway, the source's outbound rules see the public address and the destination's inbound rules see the source's public address (or that of its NAT gateway). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] AWS_REMOTE_GROUP: rules name groups that are not in the export (another VPC, another account, or left out): sg-0f9e8d7c6b5a43001. Their members are not known; those rules are not converted
+  [needs-review] TERRAFORM_MEMBERS: the members of the security groups are the network interfaces and instances of this state: a group attached to interfaces elsewhere (another state, a load balancer, made by hand) has those members as well, and the converted policy does not know them
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: aws_networkfirewall_firewall. The converted policy does not hold what they do
+  [needs-review] CLAVISTER_NO_ZONES: the source names no zones: the rules name the interface 'any', and the policy's default is not written (it would also decide traffic to the firewall itself); what no rule of the new rule set matches goes back to main. Give the rules zones, or map them with --zone-map
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 1 rule sets it sends traffic to; 32 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [info] AWS_EGRESS_PAIRS: inside the VPC a connection needs an outbound rule of the source's groups and an inbound rule of the destination's. Where the outbound rules do not allow everything, 2 rules allow what both allow, and a rule after them blocks the rest of what those members send inside the VPC
+  [info] AWS_PUBLIC_ADDRESSES: the public and Elastic IP addresses of the network interfaces are static NAT of their private addresses: the internet gateway translates what comes from outside, and the groups see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] AWS_UNFILTERED: security groups never filter traffic to the Amazon DNS server, DHCP, the instance metadata service, the Time Sync Service and Windows license activation; neither does the converted policy say anything about it
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the AWS command line for the same resources: 1 aws_ec2_managed_prefix_list, 3 aws_instance, 1 aws_network_acl, 1 aws_network_acl_association, 1 aws_network_interface, 4 aws_security_group, 3 aws_security_group_rule, 4 aws_subnet, 1 aws_vpc, 2 aws_vpc_security_group_egress_rule, 4 aws_vpc_security_group_ingress_rule. Resources outside this state (made by hand, or by another state) are not in it
+  [info] TERRAFORM_DEPOSED: 1 deposed object(s), which a replacement leaves until it is done, were left out
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  shop-db-in-shop-db-2  ->  needs-review, emitted disabled  (emitted as fws_rules 2 (fws_shop-db-in-shop-db-2), a placeholder, disabled)
+      [needs-review] CLAVISTER_NEGATED_SERVICE: a negated service: a rule of cOS Core names the services it matches. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop-db-in-shop-db-3  ->  needs-review, emitted disabled  (emitted as fws_rules 3 (fws_shop-db-in-shop-db-3), a placeholder, disabled)
+      [needs-review] CLAVISTER_NEGATED_SERVICE: a negated service: a rule of cOS Core names the services it matches. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop-db-in-shop-db-4  ->  needs-review, emitted disabled  (emitted as fws_rules 4 (fws_shop-db-in-shop-db-4), a placeholder, disabled)
+      [needs-review] CLAVISTER_NEGATED_SERVICE: a negated service: a rule of cOS Core names the services it matches. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop-bastion-in-4  ->  needs-review, emitted disabled  (emitted as fws_rules 21 (fws_shop-bastion-in-4), a placeholder, disabled)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'sg-0f9e8d7c6b5a43001': dynamic address group, members are not known statically.
+
+NAT rules
+  public-192.0.2.10  ->  needs-review  (emitted as fws_snat 1 (fws_public-192.0.2.10_sat), fws_snat 2 (fws_public-192.0.2.10))
+      [needs-review] CLAVISTER_BIDIRECTIONAL: a static translation in both directions: only the source SAT is written; connections to the translated address need a SAT rule of their own
+  public-192.0.2.5  ->  needs-review  (emitted as fws_snat 3 (fws_public-192.0.2.5_sat), fws_snat 4 (fws_public-192.0.2.5))
+      [needs-review] NAT_ORDER: on the source, NAT rule 'public-192.0.2.10' above this one matches part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well
+      [needs-review] CLAVISTER_BIDIRECTIONAL: a static translation in both directions: only the source SAT is written; connections to the translated address need a SAT rule of their own

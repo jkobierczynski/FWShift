@@ -1,0 +1,87 @@
+add Address IP4Address fws_internal-network Address=192.168.10.0/24 Comments="the networks of interface eth1"
+add Service ServiceTCPUDP fws_default-internet_1 Type=TCP DestinationPorts=21
+add Service ServiceTCPUDP fws_default-internet_2 Type=UDP DestinationPorts=53
+add Service ServiceTCPUDP fws_default-internet_3 Type=TCP DestinationPorts=443
+add Service ServiceTCPUDP fws_default-internet_4 Type=TCP DestinationPorts=80
+add Service ServiceICMP fws_default-internet_5 MessageTypes=Specific EchoRequest=Yes
+add Address IP4Address fws_partner-net Address=10.20.0.0/16
+add Address IP4Address fws_external-interface Address=203.0.113.2 Comments="the address of interface eth0"
+add Service ServiceTCPUDP fws_extern-https Type=TCP DestinationPorts=8443
+add Address IP4Address fws_public-mail Address=203.0.113.5
+add Service ServiceTCPUDP fws_smtp Type=TCP DestinationPorts=25
+add Address IP4Address fws_dmz1-network Address=172.16.20.0/24 Comments="the networks of interface eth2"
+add Address IP6Address fws_lan6 Address=2001:db8:10::/64
+add Service ServiceTCPUDP fws_web_1 Type=TCP DestinationPorts=443
+add Service ServiceTCPUDP fws_web_2 Type=TCP DestinationPorts=80
+add Service ServiceTCPUDP fws_https Type=TCP DestinationPorts=443
+add Address IP4Address fws_admin-pc Address=192.168.10.50
+add Service ServiceICMP fws_icmp-echo-req MessageTypes=Specific EchoRequest=Yes
+add Service ServiceTCPUDP fws_ntp-client Type=UDP DestinationPorts=123 SourcePorts=1024-65535
+add Service ServiceICMPv6 fws_icmpv6-echo MessageTypes=Specific EchoRequest=Yes
+add Address IP4Address fws_webserver Address=172.16.20.10
+add Address IP4Address fws_mailserver Address=172.16.20.25
+add Service ServiceTCPUDP fws_ssh Type=TCP DestinationPorts=22
+add Service ServiceTCPUDP fws_app-ports Type=TCP DestinationPorts=8000-8010
+add Service ServiceIPProto fws_gre IPProto=47
+add Address IP4Address fws_printers Address=192.168.10.200-192.168.10.220
+add Address IP4Address fws_nothing Address=0.0.0.0
+add InterfaceGroup fws_zones Members=eth0,eth1,eth2,vpn-ipsec
+add Service ServiceGroup fws_default-internet_grp Members=fws_default-internet_1,fws_default-internet_2,fws_default-internet_3,fws_default-internet_4,fws_default-internet_5
+add Service ServiceGroup fws_web_grp Members=fws_web_1,fws_web_2
+add Address IP4Group fws_rule-18_dst Members=fws_webserver,fws_external-interface
+add Address IP4Group fws_servers Members=fws_webserver,fws_mailserver
+add IPRuleSet fws_rules Comments="Written by FWShift"
+add IPRuleSet fws_snat Comments="Written by FWShift"
+add IPRuleSet fws_d_rule-2-nat Comments="Written by FWShift"
+add IPRuleSet fws_d_rule-6-nat Comments="Written by FWShift"
+cc IPRuleSet fws_snat
+add IPRule Index=1 Name=fws_rule-1-nat Action=NAT SourceInterface=eth1 SourceNetwork=fws_internal-network DestinationInterface=eth0 DestinationNetwork=all-nets Service=fws_default-internet_grp LogEnabled=No Comments="HIDENAT of rule-1"
+add IPRule Index=2 Name=fws_rule-10-nat Action=Allow SourceInterface=vpn-ipsec SourceNetwork=fws_partner-net DestinationInterface=eth1 DestinationNetwork=fws_internal-network Service=all_services LogEnabled=No Comments="HIDENAT_EXCLUDE of rule-10"
+add IPRule Index=3 Name=fws_rule-8-nat Action=NAT SourceInterface=eth2 SourceNetwork=fws_dmz1-network DestinationInterface=eth0 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="HIDENAT of rule-8"
+add IPRule Index=4 Name=fws_snat_allow Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=5 Name=fws_snat_allow_v6 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_rule-2-nat
+add IPRule Index=1 Name=fws_rule-2-nat_rule-2 Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_external-interface Service=fws_extern-https LogEnabled=Yes Comments="publish the web server"
+add IPRule Index=2 Name=fws_rule-2-nat_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_rule-6-nat
+add IPRule Index=1 Name=fws_rule-6-nat_rule-6 Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_public-mail Service=fws_smtp LogEnabled=No Comments="publish the mail server"
+add IPRule Index=2 Name=fws_rule-6-nat_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_rule-2-nat_sat Action=SAT SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_external-interface Service=fws_extern-https SATTranslate=DestinationIP SATTranslateToIP=fws_webserver SATTranslateToPort=443 LogEnabled=No Comments="DESTNAT of rule-2"
+add IPRule Index=2 Name=fws_rule-6-nat_sat Action=SAT SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_public-mail Service=fws_smtp SATTranslate=DestinationIP SATTranslateToIP=fws_mailserver LogEnabled=No Comments="DESTNAT of rule-6"
+add GotoRule Index=3 Name=fws_rule-2-nat_goto SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_external-interface Service=fws_extern-https RuleSet=fws_d_rule-2-nat LogEnabled=No
+add GotoRule Index=4 Name=fws_rule-6-nat_goto SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_public-mail Service=fws_smtp RuleSet=fws_d_rule-6-nat LogEnabled=No
+add GotoRule Index=5 Name=fws_rule-1 SourceInterface=eth1 SourceNetwork=fws_internal-network DestinationInterface=eth0 DestinationNetwork=all-nets Service=fws_default-internet_grp RuleSet=fws_snat LogEnabled=Yes Comments="LAN to the internet"
+add IPRule Index=6 Name=fws_rule-4 Action=Allow SourceInterface=eth1 SourceNetwork=fws_lan6 DestinationInterface=eth0 DestinationNetwork=all-nets6 Service=fws_web_grp LogEnabled=No Comments="LAN IPv6 web"
+add GotoRule Index=7 Name=fws_rule-10 SourceInterface=vpn-ipsec SourceNetwork=fws_partner-net DestinationInterface=eth1 DestinationNetwork=fws_internal-network Service=all_services RuleSet=fws_snat LogEnabled=No Comments="VPN partner, not hidden"
+add IPRule Index=8 Name=fws_rule-11 Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 8 -disable
+add GotoRule Index=9 Name=fws_rule-13 SourceInterface=eth1 SourceNetwork=fws_admin-pc DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_icmp-echo-req RuleSet=fws_snat LogEnabled=No Comments="ping from the admin"
+add IPRule Index=10 Name=fws_rule-14 Action=Allow SourceInterface=eth1 SourceNetwork=fws_internal-network DestinationInterface=vpn-ipsec DestinationNetwork=fws_partner-net Service=fws_ntp-client LogEnabled=No
+set IPRule 10 -disable
+add IPRule Index=11 Name=fws_rule-15 Action=Allow SourceInterface=eth1 SourceNetwork=fws_lan6 DestinationInterface=eth0 DestinationNetwork=all-nets6 Service=fws_icmpv6-echo LogEnabled=No
+add IPRule Index=12 Name=fws_rule-18 Action=Drop SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=fws_rule-18_dst Service=fws_https LogEnabled=No Comments="a rule above the forward sees the server"
+add IPRule Index=13 Name=fws_rule-2 Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=fws_external-interface Service=fws_extern-https LogEnabled=Yes Comments="publish the web server"
+add IPRule Index=14 Name=fws_rule-6 Action=Allow SourceInterface=eth0 SourceNetwork=all-nets DestinationInterface=eth2 DestinationNetwork=fws_public-mail Service=fws_smtp LogEnabled=No Comments="publish the mail server"
+add IPRule Index=15 Name=fws_rule-7 Action=Allow SourceInterface=eth1 SourceNetwork=fws_admin-pc DestinationInterface=eth2 DestinationNetwork=fws_servers Service=fws_ssh LogEnabled=Yes Comments="administration"
+add IPRule Index=16 Name=fws_rule-7-2 Action=Allow SourceInterface=vpn-ipsec SourceNetwork=fws_partner-net DestinationInterface=eth2 DestinationNetwork=fws_servers Service=fws_ssh LogEnabled=Yes Comments="administration"
+add GotoRule Index=17 Name=fws_rule-8 SourceInterface=eth2 SourceNetwork=fws_dmz1-network DestinationInterface=eth0 DestinationNetwork=all-nets Service=all_services RuleSet=fws_snat LogEnabled=No
+add IPRule Index=18 Name=fws_rule-12 Action=Allow SourceInterface=eth1 SourceNetwork=fws_internal-network DestinationInterface=eth2 DestinationNetwork=fws_dmz1-network Service=fws_app-ports LogEnabled=No
+add IPRule Index=19 Name=fws_rule-16 Action=Allow SourceInterface=eth1 SourceNetwork=fws_internal-network DestinationInterface=eth2 DestinationNetwork=fws_webserver Service=fws_gre LogEnabled=No
+set IPRule 19 -disable
+add IPRule Index=20 Name=fws_rule-3 Action=Drop SourceInterface=eth1 SourceNetwork=fws_printers DestinationInterface=eth0 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="printers stay inside"
+add IPRule Index=21 Name=fws_rule-9 Action=Drop SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=Yes Comments="a region"
+set IPRule 21 -disable
+add IPRule Index=22 Name=fws_rule-17 Action=Drop SourceInterface=eth1 SourceNetwork=fws_internal-network DestinationInterface=eth2 DestinationNetwork=fws_mailserver Service=fws_smtp LogEnabled=No Comments="only the mail server sends"
+add IPRule Index=23 Name=fws_default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=24 Name=fws_default_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=25 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=26 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

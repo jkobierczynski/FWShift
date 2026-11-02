@@ -1,0 +1,54 @@
+FWShift conversion report
+  source: fortios
+  target: securepoint
+
+Summary
+  Security rules:     14   exact 6, approximated 2, needs review 6 (5 emitted disabled), skipped 0
+  NAT rules:           5   exact 1, approximated 1, needs review 2, skipped 1
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): lan, wan1, dmz, ot, firewall-wan1. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: wan1-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] SECUREPOINT_COMMENTED: 5 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  LAN to Internet  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
+  Inbound web  ->  needs-review  (emitted as 1 rule of group fwshift)
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination 'vip-web' with post-NAT '10.20.0.10' because of NAT rule 'vip-web', which translates only some of the services of this rule: for the others the rule now names '10.20.0.10', sent there directly, and no longer 'vip-web'
+  Inbound mail  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'vip-mail' with post-NAT '10.20.0.25' because of NAT rule 'vip-mail'; check that this rule is meant to cover the translated traffic
+  Admins to DMZ  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+  Block geo  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (lan, wan1, dmz, ot); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ out via pool  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'updates.example.com'; that a network object of the UTM takes a host name is not documented.
+  policy-12  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  Not web  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NEGATED_SERVICE: a negated service: a rule of the UTM cannot negate its service.
+  Timestamp probes  ->  exact  (emitted as 1 rule of group fwshift)
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+
+NAT rules
+  vip-mail  ->  approximated  (emitted as 1 rule with DESTNAT)
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+  snat-1  ->  needs-review  (emitted as 1 rule with HIDENAT)
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+  snat-2  ->  needs-review  (emitted as 1 rule with HIDENAT)
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+  snat-7  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: the destination holds host name 'updates.example.com'; that a network object of the UTM takes a host name is not documented
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted

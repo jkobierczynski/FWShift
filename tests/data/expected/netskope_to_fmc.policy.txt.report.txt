@@ -1,0 +1,55 @@
+FWShift conversion report
+  source: netskope
+  target: fmc
+
+Summary
+  Security rules:     16   exact 12, approximated 0, needs review 4 (4 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] FMC_LOAD: the output is a Python script that loads the policy into a Management Center through its REST API. It creates the objects, a new access control policy 'FWShift' and, when there are NAT rules, a NAT policy of the same name, and assigns them to no device: nothing is in force until the policies are assigned and deployed. It changes nothing that exists, and stops before it creates anything when a name is taken. Run it with --show and with --dry-run first. The new access control policy uses the default prefilter policy and no intrusion or file policies. The script was written from Cisco's API documentation and has not been run against a Management Center: use it first where a mistake costs nothing
+  [needs-review] ZONES_REQUIRED: the rules name these security zones (rename them with --zone-map): client, ipsec, gre, internet. A zone that exists on the Management Center is used as it is; one that does not is created empty, and matches no traffic until the interfaces of the devices are put in it
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+
+Security rules
+  Admins to jump hosts [app-ssh-jump]  ->  exact  (emitted as Admins to jump hosts _app-ssh-jump_)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Admins to jump hosts [app-rdp-gw]  ->  exact  (emitted as Admins to jump hosts _app-rdp-gw_)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Engineering to git  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+  Block BitTorrent  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Not from the server networks: no NTP  ->  exact  (emitted as Not from the server networks_ no NTP)
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not source 10.20.10.0/24, 10.20.11.0/25' is written as the addresses that are left (3 range(s))
+  SaaS files from the office  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp-saas-domains': destination profile dp-saas-domains: host name 'files.example.com'.
+  Contractors: nothing else  ->  needs-review, emitted disabled  (emitted as Contractors_ nothing else)
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+Services
+  HTTPS  ->  exact  (emitted as HTTPS_2)
+      [info] RENAMED: renamed to 'HTTPS_2' to fit the target's naming rules
+  DNS  ->  exact  (emitted as DNS, tcp-53, udp-53)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'DNS' of 'tcp-53', 'udp-53'
+  svc-mail  ->  exact  (emitted as svc-mail, tcp-587, tcp-993)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'svc-mail' of 'tcp-587', 'tcp-993'
+  svc-voice  ->  exact  (emitted as svc-voice, tcp-5061, udp-5060, udp-10000-20000)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'svc-voice' of 'tcp-5061', 'udp-5060', 'udp-10000-20000'
+  app-rdp-gw  ->  exact  (emitted as app-rdp-gw, tcp-3389, udp-3389)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'app-rdp-gw' of 'tcp-3389', 'udp-3389'
+  app-git  ->  exact  (emitted as app-git, app-ssh-jump, tcp-9418)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'app-git' of 'app-ssh-jump', 'tcp-9418'

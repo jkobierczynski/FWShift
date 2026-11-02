@@ -1,0 +1,956 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "drop_netbios (not written, see the report); to_guest/guest_never (disabled in the source); lan_updates (not written, see the report); gre_tunnel (not written, see the report); old_rule (disabled in the source)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443
+          ],
+          "nets": [
+            "172.16.20.80/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "allow_web+sat_web"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "198.51.100.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            25
+          ],
+          "nets": [
+            "172.16.20.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "block_bad_mail+sat_mail"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.0.0/24",
+            "192.168.10.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            25
+          ],
+          "nets": [
+            "172.16.20.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "nat_mail+sat_mail"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            25
+          ],
+          "nets": [
+            "172.16.20.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "allow_mail+sat_mail"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443,
+            "8080:8090"
+          ],
+          "nets": [
+            "172.16.20.100/30"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "allow_pool+sat_pool"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.0.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "to_guest/guest_dns"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "nets": [
+            "10.30.0.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "to_guest/guest_dns"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.0.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "to_guest/guest_web"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "192.168.10.5/32",
+            "192.168.10.6/32",
+            "192.168.10.32/28"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "172.16.20.25/32",
+            "172.16.20.80/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "admin_mgmt"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "192.168.10.5/32",
+            "192.168.10.6/32",
+            "192.168.10.32/28"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "172.16.20.25/32",
+            "172.16.20.80/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "admin_mgmt"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "192.168.10.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "lan_dns"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "nets": [
+            "192.168.10.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "lan_dns"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "192.168.10.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443,
+            "8080:8090"
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "lan_web"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "192.168.10.0/24"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "172.16.20.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "lan_to_dmz"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "ports": [
+            "1024:65535"
+          ],
+          "nets": [
+            "172.16.20.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            514
+          ],
+          "nets": [
+            "192.168.10.50/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "syslog_fast"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "ICMPv6",
+        "icmp": {
+          "type": 128
+        },
+        "source": {
+          "nets": [
+            "2001:db8:10::/64"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "lan6_ping"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8443
+          ],
+          "nets": [
+            "172.16.20.80/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "pol_dmz_https"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "172.16.20.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "pol_dmz_out"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            21
+          ],
+          "nets": [
+            "172.16.20.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "pol_block_ftp"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DropAll"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DropAll6"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443
+          ],
+          "nets": [
+            "172.16.20.80/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "allow_web+sat_web"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "198.51.100.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            25
+          ],
+          "nets": [
+            "172.16.20.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "block_bad_mail+sat_mail"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.0.0/24",
+            "192.168.10.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            25
+          ],
+          "nets": [
+            "172.16.20.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "nat_mail+sat_mail"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            25
+          ],
+          "nets": [
+            "172.16.20.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "allow_mail+sat_mail"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443,
+            "8080:8090"
+          ],
+          "nets": [
+            "172.16.20.100/30"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "allow_pool+sat_pool"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.0.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "to_guest/guest_dns"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "nets": [
+            "10.30.0.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "to_guest/guest_dns"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.0.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "to_guest/guest_web"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "192.168.10.5/32",
+            "192.168.10.6/32",
+            "192.168.10.32/28"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "172.16.20.25/32",
+            "172.16.20.80/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "admin_mgmt"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "192.168.10.5/32",
+            "192.168.10.6/32",
+            "192.168.10.32/28"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "172.16.20.25/32",
+            "172.16.20.80/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "admin_mgmt"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "192.168.10.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "lan_dns"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "nets": [
+            "192.168.10.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "lan_dns"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "192.168.10.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443,
+            "8080:8090"
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "lan_web"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "192.168.10.0/24"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "172.16.20.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "lan_to_dmz"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "ports": [
+            "1024:65535"
+          ],
+          "nets": [
+            "172.16.20.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            514
+          ],
+          "nets": [
+            "192.168.10.50/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "syslog_fast"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "ICMPv6",
+        "icmp": {
+          "type": 128
+        },
+        "source": {
+          "nets": [
+            "2001:db8:10::/64"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "lan6_ping"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8443
+          ],
+          "nets": [
+            "172.16.20.80/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "pol_dmz_https"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "172.16.20.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "pol_dmz_out"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            21
+          ],
+          "nets": [
+            "172.16.20.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "pol_block_ftp"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DropAll"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DropAll6"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

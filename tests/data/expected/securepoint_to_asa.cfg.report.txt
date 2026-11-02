@@ -1,0 +1,86 @@
+FWShift conversion report
+  source: securepoint
+  target: asa
+
+Summary
+  Security rules:     19   exact 3, approximated 6, needs review 9 (8 emitted disabled), skipped 1
+  NAT rules:           6   exact 4, approximated 0, needs review 0, skipped 2
+  Addresses:          15   exact 15, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_IMPLIED: commands that change the implicit rules are not converted: group set implied_group "12" active "1"
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: external, internal, dmz1, vpn-ipsec. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 2 destination NAT rules are written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] SECUREPOINT_SOURCE: 18 rules of the packet filter in 3 rule groups, first match in the order of the groups; zones from the network objects; what no rule matches is dropped (Default Drop)
+  [info] SECUREPOINT_IMPLIED_RULES: the UTM's implicit rules (Firewall > Implied rules: its own services, VPN, the threat intelligence filter) come before the packet filter and are not converted
+  [info] SECUREPOINT_LOCAL_RULES: 1 rules for the UTM's own services (to or from objects in zones of its own interfaces) are not converted
+  [info] SECUREPOINT_NAT_ORDER: NAT is part of the rules: each rule with NAT became a NAT rule, in the order of the rules. DESTNAT is done before the packet filter and HIDENAT after it (netfilter); a rule's NAT is read as applying whatever its action (assumed)
+  [info] SECUREPOINT_RANGE: network objects with an address range a-b (a form FWShift reads, not documented): printers
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: external=203.0.113.0/29; internal=192.168.10.0/24; dmz1=172.16.20.0/24. --no-source-networks takes none of them
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+  [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
+
+Security rules
+  rule-1  ->  needs-review, emitted disabled  (emitted as internal_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by external, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind vpn-ipsec with --zone-network.
+  rule-4  ->  needs-review, emitted disabled  (emitted as internal_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by external, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind vpn-ipsec with --zone-network.
+  rule-11  ->  approximated  (emitted as internal_access_in)
+      [approximated] SECUREPOINT_STATELESS: action STATELESS allows packets whatever the state of their connection, and lets no replies through by itself; the model is stateful and allows the replies of what it allows
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by external. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  rule-14  ->  needs-review, emitted disabled  (emitted as internal_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vpn-ipsec. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNSUPPORTED_MATCH: not converted: NETMAP on the rule: which addresses its packet filter rule names is not documented.
+  rule-15  ->  needs-review, emitted disabled  (emitted as internal_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by external, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind vpn-ipsec with --zone-network.
+  rule-18  ->  needs-review  (emitted as external_access_in)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'external-interface' next to 'webserver' because of NAT rule 'rule-2-nat'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'rule-2-nat' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'webserver', the address NAT rule 'rule-2-nat' translates 'external-interface' to. The target looks rules up after that translation, so traffic sent to 'external-interface' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  rule-2  ->  approximated  (emitted as external_access_in)
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to external-interface (extern-https) and taken to webserver; that it also allows traffic sent to the server directly is not documented and is not read
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'external-interface' with post-NAT 'webserver' because of NAT rule 'rule-2-nat'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'rule-2-nat' also translates the port to 443: the service of this rule (extern-https) named the pre-NAT port only, and now names 443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  rule-6  ->  approximated  (emitted as external_access_in)
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to public-mail (smtp) and taken to mailserver; that it also allows traffic sent to the server directly is not documented and is not read
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'public-mail' with post-NAT 'mailserver' because of NAT rule 'rule-6-nat'; check that this rule is meant to cover the translated traffic
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  rule-7  ->  approximated  (emitted as internal_access_in)
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 1 of 2)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  rule-7-2  ->  exact  (emitted as vpn-ipsec_access_in)
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 2 of 2)
+  rule-8  ->  needs-review, emitted disabled  (emitted as dmz1_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by external, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind vpn-ipsec with --zone-network.
+  rule-12  ->  approximated  (emitted as internal_access_in)
+      [info] SECUREPOINT_QOS: action QOS: read as ACCEPT; the bandwidth limit of its QoS profile is not converted
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  rule-16  ->  needs-review, emitted disabled  (emitted as internal_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNSUPPORTED_MATCH: not converted: flag 'MIRROR' is not one FWShift reads.
+  rule-3  ->  needs-review, emitted disabled  (emitted as internal_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by external, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind vpn-ipsec with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-9  ->  needs-review, emitted disabled  (emitted as internal_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by external. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-region': address 'geoip:XX' is not a form FWShift reads. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-17  ->  approximated  (emitted as internal_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  rule-5  ->  skipped
+      [info] SECUREPOINT_LOCAL_RULE: a rule for the UTM's own services (an object in a zone of its own interfaces, firewall-...): not converted
+
+NAT rules
+  rule-1-nat  ->  skipped
+      [needs-review] NAT_SERVICE: service 'default-internet' is not a TCP, UDP or SCTP service without source ports
+  rule-14-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NETMAP (a network mapped onto another of the same size, both ways) is not converted
+
+Services
+  ssh  ->  exact
+      [info] SECUREPOINT_FACTORY_SERVICE: not defined in the input: read as the service of that name a UTM comes with, with the IANA port of the name (Securepoint does not publish the list; assumed)

@@ -1,0 +1,106 @@
+add Address IP4Address fws_198.51.100.2 Address=198.51.100.2
+add Service ServiceTCPUDP fws_tcp-8443 Type=TCP DestinationPorts=8443
+add Address IP4Address fws_198.51.100.5 Address=198.51.100.5
+add Service ServiceTCPUDP fws_udp-4840 Type=UDP DestinationPorts=4840
+add Address IP4Address fws_198.51.100.64_30 Address=198.51.100.64/30
+add Address IP4Address fws_192.168.10.0_24 Address=192.168.10.0/24
+add Address IP4Address fws_198.51.100.200 Address=198.51.100.200
+add Service ServiceTCPUDP fws_SYSLOG Type=UDP DestinationPorts=514
+add Address IP4Address fws_198.51.100.0_24 Address=198.51.100.0/24
+add Service ServiceTCPUDP fws_S7COMM Type=TCP DestinationPorts=102
+add Address IP4Address fws_198.51.100.10 Address=198.51.100.10
+add Address IP4Address fws_192.168.10.20 Address=192.168.10.20
+add Service ServiceTCPUDP fws_OPC-UA Type=TCP DestinationPorts=4840
+add Address IP4Address fws_198.51.100.40-198.51.100.49 Address=198.51.100.40-198.51.100.49
+add Address IP4Address fws_192.168.10.30 Address=192.168.10.30
+add Service ServiceTCPUDP fws_MODBUS Type=TCP DestinationPorts=502
+add Service ServiceICMP fws_PING MessageTypes=Specific EchoRequest=Yes EchoRequestCodes=0
+add Address IP4Address fws_192.168.30.10 Address=192.168.30.10
+add Service ServiceTCPUDP fws_HTTPS Type=TCP DestinationPorts=443
+add Address IP4Address fws_192.168.30.64_30 Address=192.168.30.64/30
+add Service ServiceTCPUDP fws_HIGHPORTS Type=TCP DestinationPorts=8000-8100 SourcePorts=1024-65535
+add Address IP4Address fws_192.168.30.0_24 Address=192.168.30.0/24
+add Service ServiceIPProto fws_GRE IPProto=47
+add Address IP4Address fws_192.168.10.40 Address=192.168.10.40
+add Address IP4Address fws_192.168.10.50 Address=192.168.10.50
+add Address IP4Address fws_10.30.0.0_16 Address=10.30.0.0/16
+add Address IP4Address fws_198.51.100.77 Address=198.51.100.77
+add Address IP4Address fws_192.168.10.60 Address=192.168.10.60
+add Service ServiceICMP fws_UNREACH MessageTypes=Specific DestinationUnreachable=Yes DestinationUnreachableCodes=4
+add Address IP6Address fws_2001_db8_2___64 Address=2001:db8:2::/64
+add Address IP6Address fws_2001_db8_1__10 Address=2001:db8:1::10
+add Address IP6Address fws_2001_db8_1___64 Address=2001:db8:1::/64
+add Service ServiceICMPv6 fws_PING6 MessageTypes=Specific EchoRequest=Yes EchoRequestCodes=0
+add Address IP4Address fws_198.51.100.3 Address=198.51.100.3
+add Address IP4Address fws_netmap_destination_1_base Address=192.168.30.64
+add Address IP4Address fws_nothing Address=0.0.0.0
+add InterfaceGroup fws_zones Members=vlan1,vlan2,vlan3,ipsecALL
+add Address IP4Group fws_ipv4rule_6_dst Members=fws_192.168.30.10,fws_198.51.100.2
+add Address IP4Group fws_ipv4rule_7_dst Members=fws_192.168.30.64_30,fws_198.51.100.64_30
+add IPRuleSet fws_rules Comments="Written by FWShift"
+add IPRuleSet fws_snat Comments="Written by FWShift"
+add IPRuleSet fws_d_napt_1 Comments="Written by FWShift"
+add IPRuleSet fws_d_napt_2 Comments="Written by FWShift"
+add IPRuleSet fws_d_netmap_destination_1 Comments="Written by FWShift"
+cc IPRuleSet fws_snat
+add IPRule Index=1 Name=fws_src-nat_1 Action=NAT SourceInterface=vlan1 SourceNetwork=fws_192.168.10.0_24 DestinationInterface=vlan2 DestinationNetwork=all-nets Service=all_services NATAction=UseSenderAddress NATSenderAddress=fws_198.51.100.3 LogEnabled=No Comments="src-nat srcint vlan 1 dstint vlan 2 type ipv4 srcip 192.168.10.0/24 dstip 0.0.0.0/0 transip 198.51.100.3"
+add IPRule Index=2 Name=fws_masquerading_1 Action=NAT SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=vlan2 DestinationNetwork=all-nets Service=all_services LogEnabled=No Comments="masquerading vlan 2"
+add IPRule Index=3 Name=fws_snat_allow Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=4 Name=fws_snat_allow_v6 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_napt_1
+add IPRule Index=1 Name=fws_napt_1_inside Action=Allow SourceInterface=vlan3 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=2 Name=fws_napt_1_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_napt_2
+add IPRule Index=1 Name=fws_napt_2_inside Action=Allow SourceInterface=vlan1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=2 Name=fws_napt_2_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_netmap_destination_1
+add IPRule Index=1 Name=fws_netmap_destination_1_ipv4rule_7 Action=Allow SourceInterface=vlan2 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_ipv4rule_7_dst Service=fws_HIGHPORTS LogEnabled=No
+add IPRule Index=2 Name=fws_netmap_destination_1_inside Action=Allow SourceInterface=vlan3 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=3 Name=fws_netmap_destination_1_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_napt_1_sat Action=SAT SourceInterface=vlan2 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_198.51.100.2 Service=fws_tcp-8443 SATTranslate=DestinationIP SATTranslateToIP=fws_192.168.30.10 SATTranslateToPort=443 LogEnabled=No Comments="napt srcint vlan 2 proto tcp type ipv4 dstip auto transip 192.168.30.10 dstport 8443 transport 443"
+add IPRule Index=2 Name=fws_napt_2_sat Action=SAT SourceInterface=vlan2 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_198.51.100.5 Service=fws_udp-4840 SATTranslate=DestinationIP SATTranslateToIP=fws_192.168.10.20 LogEnabled=No Comments="napt srcint vlan 2 proto udp type ipv4 dstip 198.51.100.5 transip 192.168.10.20 dstport 4840 transport 4840"
+add IPRule Index=3 Name=fws_netmap_destination_1_sat Action=SAT SourceInterface=vlan2 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_198.51.100.64_30 Service=all_services SATTranslate=DestinationIP SATTranslateToIP=fws_netmap_destination_1_base LogEnabled=No Comments="netmap destination srcint vlan 2 dstint vlan 3 type ipv4 srcip 0.0.0.0/0 dstip 198.51.100.64/30 transip 192.168.30.64/30"
+add GotoRule Index=4 Name=fws_napt_1_goto SourceInterface=vlan2 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_198.51.100.2 Service=fws_tcp-8443 RuleSet=fws_d_napt_1 LogEnabled=No
+add GotoRule Index=5 Name=fws_napt_2_goto SourceInterface=vlan2 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_198.51.100.5 Service=fws_udp-4840 RuleSet=fws_d_napt_2 LogEnabled=No
+add GotoRule Index=6 Name=fws_netmap_destination_1_goto SourceInterface=vlan2 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_198.51.100.64_30 Service=all_services RuleSet=fws_d_netmap_destination_1 LogEnabled=No
+add GotoRule Index=7 Name=fws_ipv4rule_4 SourceInterface=vlan1 SourceNetwork=fws_192.168.10.0_24 DestinationInterface=vlan2 DestinationNetwork=fws_198.51.100.200 Service=fws_SYSLOG RuleSet=fws_snat LogEnabled=No
+add IPRule Index=8 Name=fws_ipv4rule_2 Action=Drop SourceInterface=vlan2 SourceNetwork=fws_198.51.100.0_24 DestinationInterface=vlan1 DestinationNetwork=fws_192.168.10.0_24 Service=fws_S7COMM LogEnabled=Yes
+add IPRule Index=9 Name=fws_ipv4rule_1 Action=Allow SourceInterface=vlan2 SourceNetwork=fws_198.51.100.10 DestinationInterface=vlan1 DestinationNetwork=fws_192.168.10.20 Service=fws_OPC-UA LogEnabled=Yes
+add IPRule Index=10 Name=fws_ipv4rule_3 Action=Allow SourceInterface=vlan2 SourceNetwork=fws_198.51.100.40-198.51.100.49 DestinationInterface=vlan1 DestinationNetwork=fws_192.168.10.30 Service=fws_MODBUS LogEnabled=No
+add GotoRule Index=11 Name=fws_ipv4rule_5 SourceInterface=vlan1 SourceNetwork=fws_192.168.10.0_24 DestinationInterface=vlan2 DestinationNetwork=all-nets Service=fws_PING RuleSet=fws_snat LogEnabled=No
+add IPRule Index=12 Name=fws_ipv4rule_6 Action=Allow SourceInterface=vlan2 SourceNetwork=all-nets DestinationInterface=vlan3 DestinationNetwork=fws_ipv4rule_6_dst Service=fws_HTTPS LogEnabled=Yes
+add IPRule Index=13 Name=fws_ipv4rule_7 Action=Allow SourceInterface=vlan2 SourceNetwork=all-nets DestinationInterface=vlan3 DestinationNetwork=fws_ipv4rule_7_dst Service=fws_HIGHPORTS LogEnabled=No
+add IPRule Index=14 Name=fws_ipv4rule_8 Action=Reject SourceInterface=vlan3 SourceNetwork=fws_192.168.30.0_24 DestinationInterface=vlan1 DestinationNetwork=fws_192.168.10.0_24 Service=all_services LogEnabled=Yes
+add IPRule Index=15 Name=fws_ipv4rule_9 Action=Allow SourceInterface=vlan1 SourceNetwork=fws_192.168.10.0_24 DestinationInterface=vlan3 DestinationNetwork=fws_192.168.30.0_24 Service=fws_GRE LogEnabled=No
+add IPRule Index=16 Name=fws_ipv4rule_11 Action=Allow SourceInterface=vlan2 SourceNetwork=all-nets DestinationInterface=vlan1 DestinationNetwork=fws_192.168.10.40 Service=fws_MODBUS LogEnabled=No
+set IPRule 16 -disable
+add IPRule Index=17 Name=fws_ipv4rule_12 Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 17 -disable
+add IPRule Index=18 Name=fws_ipv4rule_13 Action=Allow SourceInterface=ipsecALL SourceNetwork=fws_10.30.0.0_16 DestinationInterface=vlan1 DestinationNetwork=fws_192.168.10.0_24 Service=fws_S7COMM LogEnabled=Yes
+add IPRule Index=19 Name=fws_ipv4rule_14 Action=Allow SourceInterface=vlan2 SourceNetwork=fws_198.51.100.77 DestinationInterface=vlan1 DestinationNetwork=fws_192.168.10.60 Service=fws_OPC-UA LogEnabled=No
+set IPRule 19 -disable
+add GotoRule Index=20 Name=fws_ipv4rule_15 SourceInterface=vlan3 SourceNetwork=fws_192.168.30.0_24 DestinationInterface=vlan2 DestinationNetwork=all-nets Service=fws_UNREACH RuleSet=fws_snat LogEnabled=No
+add IPRule Index=21 Name=fws_ipv6rule_1 Action=Allow SourceInterface=vlan2 SourceNetwork=fws_2001_db8_2___64 DestinationInterface=vlan1 DestinationNetwork=fws_2001_db8_1__10 Service=fws_OPC-UA LogEnabled=Yes
+add IPRule Index=22 Name=fws_ipv6rule_2 Action=Allow SourceInterface=vlan1 SourceNetwork=fws_2001_db8_1___64 DestinationInterface=vlan2 DestinationNetwork=all-nets6 Service=fws_PING6 LogEnabled=No
+add IPRule Index=23 Name=fws_inside_vlan1 Action=Allow SourceInterface=vlan1 SourceNetwork=all-nets DestinationInterface=vlan1 DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=24 Name=fws_inside_vlan1_v6 Action=Allow SourceInterface=vlan1 SourceNetwork=all-nets6 DestinationInterface=vlan1 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add IPRule Index=25 Name=fws_inside_vlan2 Action=Allow SourceInterface=vlan2 SourceNetwork=all-nets DestinationInterface=vlan2 DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=26 Name=fws_inside_vlan2_v6 Action=Allow SourceInterface=vlan2 SourceNetwork=all-nets6 DestinationInterface=vlan2 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add IPRule Index=27 Name=fws_inside_vlan3 Action=Allow SourceInterface=vlan3 SourceNetwork=all-nets DestinationInterface=vlan3 DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=28 Name=fws_inside_vlan3_v6 Action=Allow SourceInterface=vlan3 SourceNetwork=all-nets6 DestinationInterface=vlan3 DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add IPRule Index=29 Name=fws_inside_ipsecALL Action=Allow SourceInterface=ipsecALL SourceNetwork=all-nets DestinationInterface=ipsecALL DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=30 Name=fws_inside_ipsecALL_v6 Action=Allow SourceInterface=ipsecALL SourceNetwork=all-nets6 DestinationInterface=ipsecALL DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add IPRule Index=31 Name=fws_default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=32 Name=fws_default_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=33 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=34 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

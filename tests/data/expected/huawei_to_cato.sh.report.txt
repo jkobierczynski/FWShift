@@ -1,0 +1,71 @@
+FWShift conversion report
+  source: huawei
+  target: cato
+
+Summary
+  Security rules:     16   exact 7, approximated 4, needs review 0, skipped 5
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with display predefined-service: http, https, smtp, dns, ntp, ssh, icmp, ftp
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: trust, untrust, dmz, lab
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): trust, untrust, dmz, lab
+  [info] HUAWEI_SOURCE: 4 zones (trust, untrust, dmz, lab); 15 rules of the security policy, first match. The local zone (the firewall itself) is not converted
+  [info] HUAWEI_NAT_ORDER: destination NAT (nat server) is done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT (nat-policy) is done after it
+  [info] HUAWEI_DEFAULTS: what no rule matches: between zones deny, inside a zone permit
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  block-bad-nets  ->  exact  (emitted as fws-block-bad-nets)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  web-in  ->  approximated  (emitted as fws-web-in)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web-tls'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  mail-in  ->  approximated  (emitted as fws-mail-in)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'mail-server' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  office-out  ->  approximated  (emitted as fws-office-out)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  office-dmz  ->  approximated  (emitted as fws-office-dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'dmz-servers' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  admin-ssh  ->  exact  (emitted as fws-admin-ssh)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  dmz-syslog  ->  exact  (emitted as fws-dmz-syslog)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  lab-tools  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  lab-out  ->  exact  (emitted as fws-lab-out)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  ipv6-out  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  video  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: no port mapping for application(s) YouTube; supply one with --app-map This deny rule is NOT enforced; rules below it may let more through.
+  intrazone default  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: a rule type that is not a list of zone pairs
+  manage-fw  ->  skipped
+      [info] HUAWEI_LOCAL_RULE: a rule for traffic to or from the firewall itself (the local zone): not converted
+
+NAT rules
+  nat-server-web  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  nat-server-web-tls  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  nat-server-mail  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  no-nat-vpn  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  office-pat  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  lab-easy-ip  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself

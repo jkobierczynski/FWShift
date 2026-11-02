@@ -1,0 +1,100 @@
+FWShift conversion report
+  source: oci (ocid1.vcn.oc1.eu-frankfurt-1.exampleshopvcn)
+  target: cato
+
+Summary
+  Security rules:     37   exact 10, approximated 8, needs review 3, skipped 16
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Address groups:     21   exact 21, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OCI_HAIRPIN: connections from inside the VCN to its own public addresses are not converted as OCI decides them: they go through the internet gateway, and the rules see public addresses at both ends (a rule that names an NSG does not match them). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] OCI_REMOTE_NSG: rules name NSGs that are not in the input: ocid1.networksecuritygroup.oc1.eu-frankfurt-1.examplemonitoringnsgotherteam. No VNIC of the input is in them, so those rules allow nothing (an NSG names NSGs of its own VCN; if VNICs are missing from the input, add them)
+  [needs-review] OCI_SERVICE_LABEL: rules name service CIDR labels whose addresses are not in the input: oci-ams-objectstorage. Those rules are not converted; add Oracle's public_ip_ranges.json and 'oci iam region list'
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [info] OCI_STATELESS_REPLY: stateless rules let traffic through without tracking the connection, and some of their replies are not allowed in the other direction (a stateless rule decides over a stateful one that matches the same traffic). Those connections fail on OCI and are blocked first in the converted policy ('...-stateless-in', '...-stateless-out')
+  [info] OCI_EGRESS_PAIRS: inside the VCN a connection needs an egress rule of the sender's lists and NSGs and an ingress rule of the receiver's. Where the egress rules do not allow everything, 3 rules allow what both allow, and a rule after them blocks the rest of what those addresses send inside the VCN
+  [info] OCI_RULE_INVALID: ingress rule 3 of NSG web-nsg names NSG ocid1.networksecuritygroup.oc1.eu-frankfurt-1.exampledeletednsg, which was deleted (is-valid false): OCI ignores the rule, and so does the converted policy
+  [info] OCI_PUBLIC_ADDRESSES: the public IP addresses of the VNICs are static NAT of their primary private addresses: the internet gateway translates what comes from outside, and the rules see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] OCI_UNFILTERED: security rules are never enforced for traffic to or from 169.254.0.0/16 (instance metadata, iSCSI boot volumes, the VCN's DNS and NTP); neither does the converted policy say anything about it
+  [info] OCI_UNUSED: these security lists are associated with no subnet, or no VNIC is in these NSGs, so their rules allow nothing and were left out: spare-sl, legacy-nsg
+  [info] OCI_DEFAULT_SECURITY_LIST: these subnets use the default security list of the VCN, whose rules (as created: SSH from anywhere, ICMP type 3, every egress) are converted as they are now: web-subnet, mgmt-subnet
+  [info] OCI_UDP_FRAGMENTS: rules allow UDP to or from certain ports: OCI drops the fragments after the first of a fragmented UDP packet that such a rule allows (they carry no ports). The model has no fragments
+  [info] OCI_TERMINATED: 1 objects that are terminated or being terminated were left out
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+
+Security rules
+  db-subnet-stateless-in  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only This deny rule is NOT enforced; rules below it may let more through.
+  db-subnet-stateless-in-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only This deny rule is NOT enforced; rules below it may let more through.
+  db-subnet-stateless-in-3  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  app-subnet-egress-rest  ->  needs-review  (emitted as fws-app-subnet-egress-rest)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  app-subnet+app-nsg-egress-rest  ->  needs-review  (emitted as fws-app-subnet_app-nsg-egress-rest)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  db-subnet-egress-rest  ->  needs-review  (emitted as fws-db-subnet-egress-rest)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  Default Security List for shop-vcn-in-1  ->  approximated  (emitted as fws-Default Security List for shop-vcn-in-1)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  Default Security List for shop-vcn-in-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Default Security List for shop-vcn-in-3  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Default Security List for shop-vcn-in-4  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  Default Security List for shop-vcn-in-5  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  web-sl-in-1  ->  approximated  (emitted as fws-web-sl-in-1)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  web-sl-in-2  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  web-sl-in-3  ->  approximated  (emitted as fws-web-sl-in-3)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  app-sl-in-2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  app-sl-in-3  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  db-sl-in-1  ->  exact  (emitted as fws-db-sl-in-1)
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+  db-sl-in-2  ->  exact  (emitted as fws-db-sl-in-2)
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+  db-sl-in-3  ->  exact  (emitted as fws-db-sl-in-3)
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+  db-sl-in-4  ->  skipped
+      [info] OCI_STATELESS_REPLY: part of what the rule allows is let through statelessly, and the replies are not let through in the other direction: those connections are blocked, first, as on OCI
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  db-sl-in-5  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  db-sl-in-6  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  web-nsg-in-1  ->  approximated  (emitted as fws-web-nsg-in-1)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  app-nsg-in-1  ->  approximated  (emitted as fws-app-nsg-in-1)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  Default Security List for shop-vcn-out-1  ->  approximated  (emitted as fws-Default Security List for shop-vcn-out-1)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  Default Security List for shop-vcn-out-2  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the destination
+  app-sl-out-2  ->  approximated  (emitted as fws-app-sl-out-2)
+      [approximated] OCI_SERVICE_RANGES: service CIDR label all-fra-services-in-oracle-services-network is read as the ranges Oracle publishes for it; on OCI the rule matches that traffic only through a service gateway, and the published ranges change
+  app-sl-out-3  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  app-sl-out-4  ->  approximated  (emitted as fws-app-sl-out-4)
+      [approximated] OCI_SERVICE_RANGES: service CIDR label oci-fra-objectstorage is read as the ranges Oracle publishes for it; on OCI the rule matches that traffic only through a service gateway, and the published ranges change
+  app-sl-out-5  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'oci-ams-objectstorage' holds members whose addresses are not known
+
+NAT rules
+  public-203.0.113.10  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  public-203.0.113.11  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  public-203.0.113.50  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change

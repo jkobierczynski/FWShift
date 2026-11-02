@@ -1,0 +1,76 @@
+FWShift conversion report
+  source: zscaler
+  target: asa
+
+Summary
+  Security rules:     17   exact 0, approximated 2, needs review 15 (14 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZSCALER_OUTBOUND_ONLY: ZIA filters traffic to the internet only: traffic between locations, inside one and from the internet does not pass it, and the model blocks it (no rule allows it). A target that sees such traffic needs rules for it
+  [needs-review] ZSCALER_FIREWALL_OFF: locations whose firewall is off (ofwEnabled false): the rules do not decide their traffic on ZIA, the model applies them anyway: Guest-WiFi
+  [needs-review] ZSCALER_RANK: admin ranks out of the rule order: read in the rule order: Ranked web (rank 3 below rank 7)
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior, internet. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [info] ZSCALER_SOURCE: 4 locations (HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi), road-warrior (Client Connector outside a location) and internet; the rules decide traffic from the locations to the internet, first match in ascending order, and the default rule decides the rest
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: HQ-Servers=10.10.20.0/24. --no-source-networks takes none of them
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+
+Security rules
+  Allow DNS to resolvers  ->  needs-review  (emitted as HQ-Brussels_access_in)
+      [needs-review] ZSCALER_SUBLOCATION: location HQ-Brussels has sub-locations (HQ-Servers): read as the location without them, which may be narrower than ZIA
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Block SSH out  ->  needs-review, emitted disabled  (emitted as HQ-Brussels_access_in, Branch-Ghent_access_in, HQ-Servers_access_in, Guest-WiFi_access_in, road-warrior_access_in)
+      [info] RESET_ACTION: action reset-client becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Branch-Ghent, Guest-WiFi, road-warrior, internet, HQ-Brussels with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block malicious IPs and domains  ->  needs-review, emitted disabled  (emitted as HQ-Brussels_access_in, Branch-Ghent_access_in, HQ-Servers_access_in, Guest-WiFi_access_in, road-warrior_access_in)
+      [needs-review] ZSCALER_CATEGORY: destination IP categories BOTNET, MALWARE_SITE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination IP categories BOTNET, MALWARE_SITE. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Branch-Ghent, Guest-WiFi, road-warrior, internet, HQ-Brussels with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Office 365 One Click Rule  ->  needs-review, emitted disabled  (emitted as HQ-Brussels_access_in, Branch-Ghent_access_in, HQ-Servers_access_in, Guest-WiFi_access_in, road-warrior_access_in)
+      [needs-review] ZSCALER_APPLICATION: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Branch-Ghent, Guest-WiFi, road-warrior, internet, HQ-Brussels with --zone-network.
+  Partner app  ->  approximated  (emitted as HQ-Servers_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Branch web  ->  needs-review, emitted disabled  (emitted as Branch-Ghent_access_in)
+      [needs-review] SCHEDULE: schedule 'Work hours' is not converted; the rule would apply at all times.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Guest-WiFi, road-warrior, internet with --zone-network.
+  Engineers to SaaS  ->  needs-review, emitted disabled  (emitted as HQ-Brussels_access_in, Branch-Ghent_access_in, HQ-Servers_access_in, Guest-WiFi_access_in, road-warrior_access_in)
+      [needs-review] ZSCALER_FQDN: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold
+      [needs-review] ZSCALER_IDENTITY: groups Engineering: narrows the match and is not modelled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups Engineering.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'SaaS-Domains': a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+  No embargoed countries  ->  needs-review, emitted disabled  (emitted as HQ-Brussels_access_in, Branch-Ghent_access_in, HQ-Servers_access_in, Guest-WiFi_access_in, road-warrior_access_in)
+      [needs-review] ZSCALER_COUNTRY: destination countries COUNTRY_KP: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination countries COUNTRY_KP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Branch-Ghent, Guest-WiFi, road-warrior, internet, HQ-Brussels with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Printers syslog  ->  approximated  (emitted as HQ-Brussels_access_in, Branch-Ghent_access_in, HQ-Servers_access_in, Guest-WiFi_access_in, road-warrior_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Infra out  ->  needs-review, emitted disabled  (emitted as HQ-Brussels_access_in, Branch-Ghent_access_in, HQ-Servers_access_in, Guest-WiFi_access_in, road-warrior_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Branch-Ghent, Guest-WiFi, road-warrior, internet, HQ-Brussels with --zone-network.
+  Block GRE and ESP  ->  needs-review, emitted disabled  (emitted as HQ-Brussels_access_in, Branch-Ghent_access_in, HQ-Servers_access_in, Guest-WiFi_access_in, road-warrior_access_in)
+      [info] ZSCALER_BLOCK_ICMP: BLOCK_ICMP drops and answers with an ICMP unreachable: read as deny
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Branch-Ghent, Guest-WiFi, road-warrior, internet, HQ-Brussels with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Evaluate apps  ->  needs-review, emitted disabled  (emitted as HQ-Brussels_access_in, Branch-Ghent_access_in, HQ-Servers_access_in, Guest-WiFi_access_in, road-warrior_access_in)
+      [needs-review] ZSCALER_EVAL_NWAPP: action EVAL_NWAPP hands the decision to the network application of the traffic: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action EVAL_NWAPP: the decision waits for the network application, which is not modelled. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Branch-Ghent, Guest-WiFi, road-warrior, internet, HQ-Brussels with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Ranked web  ->  needs-review, emitted disabled  (emitted as HQ-Brussels_access_in, Branch-Ghent_access_in, HQ-Servers_access_in, Guest-WiFi_access_in, road-warrior_access_in)
+      [needs-review] ZSCALER_FQDN: destination files.example.org: ZIA matches a domain by the names it sees in the traffic; not modelled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination FQDN files.example.org.
+  Ghent and corporate  ->  needs-review, emitted disabled  (emitted as Branch-Ghent_access_in, HQ-Brussels_access_in)
+      [needs-review] ZSCALER_LOCATION_GROUP: the rule names locations and location groups: whether ZIA takes either or both is not documented
+      [needs-review] UNSUPPORTED_MATCH: not converted: both locations and location groups: how ZIA combines them is not known.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Guest-WiFi, road-warrior, internet, Branch-Ghent with --zone-network.
+  Web for all  ->  needs-review, emitted disabled  (emitted as HQ-Brussels_access_in, Branch-Ghent_access_in, HQ-Servers_access_in, Guest-WiFi_access_in, road-warrior_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Branch-Ghent, Guest-WiFi, road-warrior, internet, HQ-Brussels with --zone-network.
+  Guest ICMP  ->  needs-review, emitted disabled  (emitted as Guest-WiFi_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind HQ-Brussels, Branch-Ghent, road-warrior, internet with --zone-network.
+  Default Firewall Filtering Rule  ->  needs-review, emitted disabled  (emitted as HQ-Brussels_access_in, Branch-Ghent_access_in, HQ-Servers_access_in, Guest-WiFi_access_in, road-warrior_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Branch-Ghent, Guest-WiFi, road-warrior, internet, HQ-Brussels with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.

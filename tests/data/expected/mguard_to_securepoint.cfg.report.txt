@@ -1,0 +1,63 @@
+FWShift conversion report
+  source: mguard
+  target: securepoint
+
+Summary
+  Security rules:     19   exact 12, approximated 4, needs review 3 (3 emitted disabled), skipped 0
+  NAT rules:           5   exact 3, approximated 0, needs review 1, skipped 1
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_USER_FIREWALL: the user firewall is on, with 1 templates (service technicians): rules that apply to users who log in; not converted. With it on, the mGuard lets through more than the converted policy
+  [needs-review] MGUARD_VPN_FIREWALL: 1 VPN connections have firewall rules of their own (FW_INCOMING, FW_OUTGOING of the connection): not converted, nor the VPN traffic they decide
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): external, internal, dmz, firewall-internal, firewall-dmz. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: external-interface, internal-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] MGUARD_SOURCE: mGuard profile 8.6.1.default, router mode; zones internal, external, dmz; tables read: FW_INCOMING, FW_OUTGOING, FW_INCOMING_WAN_DMZ, FW_INCOMING_DMZ_LAN, FW_OUTGOING_LANDMZ. Each table is first match; what no rule matches is dropped; port forwarding skips the packet filter
+  [info] MGUARD_INTERNAL_ROUTED: the internal side has more than one network (LOCAL_ALIASES): the outgoing rules also decide connections from one of them to another, so they are read for internal -> internal as well
+  [info] MGUARD_IPV4_ONLY: the packet filter of the mGuard is IPv4: 0.0.0.0/0 is read as every IPv4 address, and the rules match no IPv6
+  [info] MGUARD_DEFAULT_LOG: connection attempts no rule covers are logged (LOG_DEFAULT_INCOMING); the model has no place for that
+  [info] MGUARD_MANAGEMENT_ACCESS: access to the mGuard itself is not converted (it protects the device, not forwarded traffic): HTTPS_REMOTE_ACCESS_RULES (1 rows); HTTPS_REMOTE_ENABLE yes; FW_ICMP ping
+  [info] MGUARD_HOSTNAME: host names in IP groups, resolved by the DNS settings of the mGuard; read as names resolved for IPv4: scada: historian.example.com
+  [info] MGUARD_REJECT: Reject: the mGuard sends the packets back and tells the sender; read as reset-both: FW_INCOMING row 4
+  [info] MGUARD_PORTS_IGNORED: ports in rules for a protocol other than tcp and udp, which the mGuard ignores: FW_INCOMING row 7
+  [info] SECUREPOINT_COMMENTED: 3 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  portforward-1  ->  exact  (emitted as 1 rule of group fwshift)
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+  portforward-2  ->  exact  (emitted as 1 rule of group fwshift)
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+  incoming-1  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_FQDN: the source holds host name 'historian.example.com'; that a network object of the UTM takes a host name is not documented.
+  incoming-2  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+  incoming-3  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+  incoming-4  ->  exact  (emitted as 1 rule of group fwshift)
+      [info] RESET_ACTION: action reset-both becomes REJECT, which answers the sender with an ICMP message, not a TCP reset
+  incoming-5.maintenance-1  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] MGUARD_RULESET_SWITCHED: a rule of rule set maintenance, which cmd1 switches on and off: not converted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule set maintenance is switched on and off (cmd1); its rules apply only while it is active.
+  incoming-6.vendor-1  ->  approximated  (emitted as 1 rule of group fwshift)
+      [info] MGUARD_RULESET: rule 1 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+  incoming-6.vendor-2  ->  exact  (emitted as 1 rule of group fwshift)
+      [info] MGUARD_RULESET: rule 2 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+  incoming-8  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '192.168.10.50' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+  incoming-9  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_UNREAD: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group
+      [needs-review] UNSUPPORTED_MATCH: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group.
+
+NAT rules
+  1to1-1  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: the UTM writes HIDENAT, HIDENAT_EXCLUDE and DESTNAT on a rule; a rule that translates source and destination, a static translation both ways or a pool is none of them
+  masquerade-1  ->  needs-review  (emitted as 3 rules with HIDENAT)
+      [needs-review] NAT_ORDER: NAT rule '1to1-1' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it

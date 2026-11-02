@@ -1,0 +1,76 @@
+FWShift conversion report
+  source: hisecos (IPv4)
+  target: securepoint
+
+Summary
+  Security rules:     14   exact 1, approximated 7, needs review 6 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 1, approximated 0, needs review 0, skipped 4
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HISECOS_NOT_CONVERTED: settings that change what passes and are not converted: deep packet inspection (enforcer profiles)
+  [needs-review] HISECOS_DIRECTION_ORDER: the policy mixes assignments for ingress only with assignments for egress only; the MIB does not say how they are ordered against each other, and they are read as one order by priority: rules assigned for ingress only and rules assigned for egress only
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): port1_2, port1_1, port1_3, vlan20. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: port1_1-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] HISECOS_SOURCE: 13 rules of the packet filter, 12 of them assigned and enabled, in the order of their priorities; zones are the routing interfaces (port1_1, port1_2, port1_3, vlan20); IPv4 only. The keywords of the commands are FWShift's reading of the MIB and the command list of the CLI reference, not confirmed by its Format lines
+  [info] HISECOS_DEFAULT: what no rule matches meets the default policy, drop (packet-filter l3 defaultpolicy)
+  [info] HISECOS_NAT_ORDER: destination NAT and 1:1 NAT are read as done before the packet filter, whose rules name the translated address (HiSecOS is built on netfilter; not confirmed): the rules were rewritten for the address as it arrives. Masquerading is done after it. The NAT rules are read in the order 1:1 NAT, double NAT, destination NAT, masquerading, each by priority (an assumption)
+  [info] HISECOS_MANAGEMENT: the device's own management access (network management access) is not converted; entries: entry 1
+  [info] HISECOS_EDITS: commands that change or delete rules, carried out in the order of the script: delrule 140
+  [info] SECUREPOINT_COMMENTED: 4 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  rule-30  ->  needs-review  (emitted as 4 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  rule-10  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '172.16.10.30' next to '10.10.0.0/24' because of NAT rule 'doublenat-1-reverse'; check that this rule is meant to cover the translated traffic
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic of other zones of the UTM is not matched
+  rule-20  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic of other zones of the UTM is not matched
+      [needs-review] UNSUPPORTED_MATCH: not converted: traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content.
+  rule-40  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic of other zones of the UTM is not matched
+  rule-40-2  ->  approximated  (emitted as 4 rules of group fwshift)
+      [info] HISECOS_SPLIT: rule 40 is assigned at more than one place in the order (interfaces, directions or priorities); this is its placement number 2
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic of other zones of the UTM is not matched
+  rule-100  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [needs-review] UNSUPPORTED_MATCH: not converted: parameter flags=SYN is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-130  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic of other zones of the UTM is not matched
+  rule-60  ->  needs-review  (emitted as 4 rules of group fwshift)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '192.0.2.10' next to '10.30.0.10' because of NAT rule 'dnat-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'dnat-1' also translates the port to 80; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic of other zones of the UTM is not matched
+  rule-110  ->  needs-review  (emitted as 4 rules of group fwshift)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  rule-150  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic of other zones of the UTM is not matched
+  rule-70  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic of other zones of the UTM is not matched
+      [info] SECUREPOINT_DISABLED: disabled in the source: written as comment lines, which are not loaded
+  rule-90  ->  needs-review  (emitted as 4 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  rule-80  ->  approximated  (emitted as 16 rules of group fwshift)
+      [info] HISECOS_NOT_ASSIGNED: rule 80 is assigned to no interface, so it applies to no traffic: read as disabled, at the end
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '172.16.20.40' next to '10.20.0.0/24' because of NAT rule 'doublenat-1'; check that this rule is meant to cover the translated traffic
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic of other zones of the UTM is not matched
+      [info] SECUREPOINT_DISABLED: disabled in the source: written as comment lines, which are not loaded
+
+NAT rules
+  1to1nat-1  ->  skipped
+      [info] HISECOS_1TO1: 1:1 NAT read as a static translation in both directions: the new target addresses leave as the target addresses, and connections to the target addresses reach the new ones (not confirmed)
+      [needs-review] SECUREPOINT_NAT_FORM: the UTM writes HIDENAT, HIDENAT_EXCLUDE and DESTNAT on a rule; a rule that translates source and destination, a static translation both ways or a pool is none of them
+  doublenat-1  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] SECUREPOINT_NAT_FORM: the UTM writes HIDENAT, HIDENAT_EXCLUDE and DESTNAT on a rule; a rule that translates source and destination, a static translation both ways or a pool is none of them
+  doublenat-1-reverse  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] SECUREPOINT_NAT_FORM: the UTM writes HIDENAT, HIDENAT_EXCLUDE and DESTNAT on a rule; a rule that translates source and destination, a static translation both ways or a pool is none of them
+  dnat-1  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT needs the one zone the traffic is sent to (the zone of its NAT network object, firewall-<zone>); the NAT rule names none

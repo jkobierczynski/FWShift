@@ -1,0 +1,65 @@
+FWShift conversion report
+  source: pfsense
+  target: clavister
+
+Summary
+  Security rules:     25   exact 14, approximated 5, needs review 6 (4 emitted disabled), skipped 0
+  NAT rules:           8   exact 7, approximated 0, needs review 0, skipped 1
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] RULE_NOT_LOADED: pfSense does not load 1 rule of the configuration, which it cannot resolve; they are not converted: 'Spare network, not in use' (its interface 'opt3' is not there or not enabled)
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: pfSense drops what arrives there from addresses nobody has been given, by a list it downloads. That list is not in the configuration, and nothing is converted for it
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 4 rule sets it sends traffic to; 60 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: wan, lan, opt1, opt2
+  [info] FLOATING_LAST_MATCH: 1 floating rule is not 'quick': such a rule decides only where no rule of an interface matched, and of several the last one. In the converted policy it stands behind the rules of the interfaces, the last one first: 'Telnet unless a rule says otherwise'
+  [info] PFSENSE_AUTOMATIC_RULES: pfSense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof), packets from or to 169.254.0.0/16, and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without; and it has rules for itself (anti-lockout, DHCP, IPsec). Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  SSH for the partner - pass  ->  needs-review  (emitted as fws_rules 8 (fws_SSH_for_the_partner_-_pass))
+      [approximated] AUTOMATIC_RULE: port forward 'SSH for the partner' passes what it forwards without a rule ('Pass' as its filter rule association): pfSense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '192.168.20.25' because of NAT rule 'SSH for the partner'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'SSH for the partner' also translates the port to 22; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+  Block private networks from WAN  ->  exact  (emitted as fws_rules 9 (fws_Block_private_networks_from_WAN), fws_rules 10 (fws_Block_private_networks_from_WAN_v6))
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks and loopback addresses' set: pfSense drops what arrives there from those networks before any rule is looked at. This rule stands for that
+  NAT Web server HTTPS  ->  approximated  (emitted as fws_rules 14 (fws_NAT_Web_server_HTTPS))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to '192.168.20.10' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+  Mail in  ->  approximated  (emitted as fws_rules 16 (fws_Mail_in))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+  Users to the web servers  ->  approximated  (emitted as fws_rules 20 (fws_Users_to_the_web_servers))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'WebServers' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+  Users to the web server by its outside address  ->  needs-review  (emitted as fws_rules 21 (fws_Users_to_the_web_server_by_its_outside_address))
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '198.51.100.10', the external address of NAT rule 'Web server HTTPS', but not '192.168.20.10' behind it. The source looks rules up after the translation and did not apply this rule to that traffic; the converted rule does
+  No other private network from the LAN  ->  approximated  (emitted as fws_rules 22 (fws_No_other_private_network_from_the_LAN))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+  Mail out, not to the inside  ->  needs-review, emitted disabled  (emitted as fws_rules 26 (fws_Mail_out__not_to_the_inside))
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10).
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11).
+  Syslog to the collector  ->  needs-review, emitted disabled  (emitted as fws_rules 27 (fws_Syslog_to_the_collector))
+      [needs-review] SCHEDULE: schedule 'OfficeHours' is not converted; the rule would apply at all times.
+  Nothing from the list  ->  needs-review, emitted disabled  (emitted as fws_rules 28 (fws_Nothing_from_the_list), a placeholder, disabled)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocklist': a URL table: its addresses are in a file on the firewall, not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Tunnel of the old application  ->  exact  (emitted as fws_rules 29 (fws_Tunnel_of_the_old_application))
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  Guests reach nothing private  ->  approximated  (emitted as fws_rules 30 (fws_Guests_reach_nothing_private))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+  Guests browse  ->  exact  (emitted as fws_rules 31 (fws_Guests_browse))
+      [info] POLICY_ROUTING: the rule also sends what it passes to gateway 'WANGW' (policy routing), which is not converted
+  Phones of the guests  ->  needs-review, emitted disabled  (emitted as fws_rules 32 (fws_Phones_of_the_guests))
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches a mark set by another rule (tagged) 'VOICE'.
+
+NAT rules
+  Web server HTTPS  ->  exact  (emitted as fws_rules 1 (fws_Web_server_HTTPS_sat))
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+  Application ports  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] NAT_NOT_CONVERTED: not converted: a range of ports translated to another range (8000-8010 to 9000-9010), which the model cannot say
+  Automatic outbound NAT on WAN  ->  exact  (emitted as fws_snat 5 (fws_Automatic_outbound_NAT_on_WAN))
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: pfSense translates what leaves by an interface with a gateway and comes from the networks of its other interfaces and of its static routes. This rule stands for that

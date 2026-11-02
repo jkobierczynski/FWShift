@@ -1,0 +1,101 @@
+FWShift conversion report
+  source: f5-afm
+  target: cato
+
+Summary
+  Security rules:     42   exact 16, approximated 5, needs review 10 (1 emitted disabled), skipped 11
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: external, internal, dmz
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): external, internal, dmz
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_dns  ->  approximated  (emitted as fws-global_admins_continue_rd0_outbound_allow_dns_out_vs_dns)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound  ->  approximated  (emitted as fws-global_admins_continue_rd0_outbound_allow_dns_out_vs_outbound)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  global/admins_continue>rd0/outbound/allow_web_out@vs_outbound  ->  approximated  (emitted as fws-global_admins_continue_rd0_outbound_allow_web_out_vs_outbound)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  global/admins_continue>rd0/dmz_no_inside  ->  needs-review  (emitted as fws-global_admins_continue_rd0_dmz_no_inside)
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  global/admins_continue>vs_web6/web_in  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the destination
+  global/admins_continue>vs_web6/(default)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the destination This deny rule is NOT enforced; rules below it may let more through.
+  global/admins_continue>vs_web/web_in  ->  approximated  (emitted as fws-global_admins_continue_vs_web_web_in)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  global/admins_continue>vs_web/(default)  ->  needs-review  (emitted as fws-global_admins_continue_vs_web_(default))
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  global/admins_continue>vs_web_http/(refused)  ->  needs-review  (emitted as fws-global_admins_continue_vs_web_http_(refused))
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  global/admins_continue>vs_dns/(default)  ->  needs-review  (emitted as fws-global_admins_continue_vs_dns_(default))
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  global/admins_continue>vs_old_app/(refused)  ->  needs-review  (emitted as fws-global_admins_continue_vs_old_app_(refused))
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  global/admins_continue>vs_inbound_dmz/(default)  ->  needs-review  (emitted as fws-global_admins_continue_vs_inbound_dmz_(default))
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  global/admins_continue>vs_outbound/(default)  ->  needs-review  (emitted as fws-global_admins_continue_vs_outbound_(default))
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  global/reject_telnet  ->  exact  (emitted as fws-global_reject_telnet)
+      [info] REJECT_AS_DENY: action reset-client: written as BLOCK
+  global/ping_in@vs_outbound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled  (emitted as fws-global_office_ssh_vs_outbound)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  global/partners_in@vs_web6  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'partners' holds members whose addresses are not known
+  global/partners_in@vs_web  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'partners' holds members whose addresses are not known
+  global/partners_in@vs_web_http  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'partners' holds members whose addresses are not known This deny rule is NOT enforced; rules below it may let more through.
+  global/partners_in@vs_inbound_dmz  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'partners' holds members whose addresses are not known
+  global/partners_in@vs_outbound  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'partners' holds members whose addresses are not known
+  global/inspect_irule>rd0/dmz_no_inside  ->  needs-review  (emitted as fws-global_inspect_irule_rd0_dmz_no_inside)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  rd0/outbound/allow_web_out@vs_outbound  ->  approximated  (emitted as fws-rd0_outbound_allow_web_out_vs_outbound)
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  rd0/dmz_no_inside  ->  needs-review  (emitted as fws-rd0_dmz_no_inside)
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  vs_web6/web_in  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the destination
+  vs_web6/web6_in  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  vs_web6/(default)  ->  skipped
+      [needs-review] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the destination This deny rule is NOT enforced; rules below it may let more through.

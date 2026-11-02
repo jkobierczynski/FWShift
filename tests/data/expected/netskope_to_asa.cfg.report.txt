@@ -1,0 +1,73 @@
+FWShift conversion report
+  source: netskope
+  target: asa
+
+Summary
+  Security rules:     16   exact 0, approximated 6, needs review 10 (10 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: client, ipsec, gre, internet. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+
+Security rules
+  Block known bad ranges  ->  approximated  (emitted as client_access_in, ipsec_access_in, gre_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Branch mail to partner  ->  approximated  (emitted as ipsec_access_in, gre_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Voice from sites  ->  approximated  (emitted as gre_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Admins to jump hosts [app-ssh-jump]  ->  approximated  (emitted as client_access_in)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Admins to jump hosts [app-rdp-gw]  ->  approximated  (emitted as client_access_in)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Engineering to git  ->  needs-review, emitted disabled  (emitted as client_access_in)
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind ipsec, gre, internet with --zone-network.
+  Block BitTorrent  ->  needs-review, emitted disabled  (emitted as client_access_in, ipsec_access_in, gre_access_in)
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind ipsec, gre, internet, client with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Not from the server networks: no NTP  ->  needs-review, emitted disabled  (emitted as ipsec_access_in)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated source is written as the 3 address ranges it leaves
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind client, gre, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Time servers  ->  approximated  (emitted as client_access_in, ipsec_access_in, gre_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Old FTP exception  ->  needs-review, emitted disabled  (emitted as ipsec_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind client, gre, internet with --zone-network.
+  SaaS files from the office  ->  needs-review, emitted disabled  (emitted as gre_access_in)
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp-saas-domains': destination profile dp-saas-domains: host name 'files.example.com'.
+  Ping out  ->  needs-review, emitted disabled  (emitted as client_access_in, ipsec_access_in, gre_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind ipsec, gre, internet, client with --zone-network.
+  DNS out  ->  needs-review, emitted disabled  (emitted as client_access_in, ipsec_access_in, gre_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind ipsec, gre, internet, client with --zone-network.
+  Contractors: nothing else  ->  needs-review, emitted disabled  (emitted as client_access_in)
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind ipsec, gre, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Lab network out  ->  needs-review, emitted disabled  (emitted as ipsec_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind client, gre, internet with --zone-network.
+  Default Action  ->  needs-review, emitted disabled  (emitted as client_access_in, ipsec_access_in, gre_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind ipsec, gre, internet, client with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+Services
+  app-ssh-jump  ->  exact  (emitted as app-ssh-jump_2)
+      [info] RENAMED: renamed to 'app-ssh-jump_2' to fit the target's naming rules
+  app-rdp-gw  ->  exact  (emitted as app-rdp-gw_2)
+      [info] RENAMED: renamed to 'app-rdp-gw_2' to fit the target's naming rules

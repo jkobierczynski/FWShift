@@ -1,0 +1,1646 @@
+# The policy, as data. Do not change it here: convert again.
+#
+#: {
+#:  "format": 1,
+#:  "generator": "FWShift (this version)",
+#:  "policy": "FWShift",
+#:  "template": "Firewall Template",
+#:  "comment": "Converted by FWShift from lancom-uf",
+#:  "zones": [
+#:   "eth1",
+#:   "WAN",
+#:   "eth2",
+#:   "eth3"
+#:  ],
+#:  "existing": [
+#:   {
+#:    "type": "default_nat_address_alias",
+#:    "name": "$$ Default NAT Address"
+#:   }
+#:  ],
+#:  "elements": [
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "Webserver",
+#:     "address": "172.16.20.10",
+#:     "comment": "public web server"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "Mailserver",
+#:     "address": "172.16.20.25"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "HMI",
+#:     "address": "10.30.0.50"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "LAN",
+#:     "ipv4_network": "192.168.10.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "DMZ",
+#:     "ipv4_network": "172.16.20.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "OT-Cell",
+#:     "ipv4_network": "10.30.0.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "address_range",
+#:    "body": {
+#:     "name": "Admin-PCs",
+#:     "ip_range": "192.168.10.200-192.168.10.220"
+#:    }
+#:   },
+#:   {
+#:    "type": "address_range",
+#:    "body": {
+#:     "name": "Monitoring",
+#:     "ip_range": "198.51.100.10-198.51.100.20"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "Internet",
+#:     "ipv4_network": "0.0.0.0/0",
+#:     "broadcast": true,
+#:     "comment": "every address behind the Internet connections WAN"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "Servers",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "Webserver"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "Mailserver"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-192.168.10.5",
+#:     "address": "192.168.10.5"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-10.30.0.5",
+#:     "address": "10.30.0.5"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "Jump-Hosts",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-192.168.10.5"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-10.30.0.5"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "Jump-Hosts (eth1)",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-192.168.10.5"
+#:      }
+#:     ],
+#:     "comment": "the members of 'Jump-Hosts' at interface eth1"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "Jump-Hosts (eth3)",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-10.30.0.5"
+#:      }
+#:     ],
+#:     "comment": "the members of 'Jump-Hosts' at interface eth3"
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "internet.http",
+#:     "min_dst_port": 80,
+#:     "max_dst_port": 80
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "internet.https",
+#:     "min_dst_port": 443,
+#:     "max_dst_port": 443
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "standard.dns tcp-53",
+#:     "min_dst_port": 53,
+#:     "max_dst_port": 53
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "standard.dns udp-53",
+#:     "min_dst_port": 53,
+#:     "max_dst_port": 53
+#:    }
+#:   },
+#:   {
+#:    "type": "service_group",
+#:    "body": {
+#:     "name": "standard.dns",
+#:     "element": [
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "standard.dns tcp-53"
+#:      },
+#:      {
+#:       "@ref": "udp_service",
+#:       "name": "standard.dns udp-53"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "standard.ping",
+#:     "protocol_number": 1
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "standard.ssh",
+#:     "min_dst_port": 22,
+#:     "max_dst_port": 22
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "remote.rdp",
+#:     "min_dst_port": 3389,
+#:     "max_dst_port": 3389
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "internet.smtp",
+#:     "min_dst_port": 25,
+#:     "max_dst_port": 25
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "vpn.ipsec udp-500",
+#:     "min_dst_port": 500,
+#:     "max_dst_port": 500
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "vpn.ipsec udp-4500",
+#:     "min_dst_port": 4500,
+#:     "max_dst_port": 4500
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "vpn.ipsec ip50",
+#:     "protocol_number": 50
+#:    }
+#:   },
+#:   {
+#:    "type": "service_group",
+#:    "body": {
+#:     "name": "vpn.ipsec",
+#:     "element": [
+#:      {
+#:       "@ref": "udp_service",
+#:       "name": "vpn.ipsec udp-500"
+#:      },
+#:      {
+#:       "@ref": "udp_service",
+#:       "name": "vpn.ipsec udp-4500"
+#:      },
+#:      {
+#:       "@ref": "ip_service",
+#:       "name": "vpn.ipsec ip50"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "Modbus-TCP",
+#:     "min_dst_port": 502,
+#:     "max_dst_port": 502
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "OPC-UA",
+#:     "min_dst_port": 4840,
+#:     "max_dst_port": 4843
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "GRE-Tunnel",
+#:     "protocol_number": 47
+#:    }
+#:   },
+#:   {
+#:    "type": "service_group",
+#:    "body": {
+#:     "name": "Web",
+#:     "element": [
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "internet.http"
+#:      },
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "internet.https"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "eth1 and LAN",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "eth1"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "LAN"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "WAN and Internet",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "WAN"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "Internet"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "eth2 and Webserver",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "eth2"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "Webserver"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "eth1 and Admin-PCs",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "eth1"
+#:      },
+#:      {
+#:       "@ref": "address_range",
+#:       "name": "Admin-PCs"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "eth2 and Servers",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "eth2"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "Servers"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "eth1 and Jump-Hosts (eth1)",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "eth1"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "Jump-Hosts (eth1)"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "eth3 and OT-Cell",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "eth3"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "OT-Cell"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "eth3 and Jump-Hosts (eth3)",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "eth3"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "Jump-Hosts (eth3)"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "eth3 and HMI",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "eth3"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "HMI"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "eth2 and Mailserver",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "eth2"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "Mailserver"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "eth2 and DMZ",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "eth2"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "DMZ"
+#:      }
+#:     ]
+#:    }
+#:   }
+#:  ],
+#:  "rules": {
+#:   "fw_ipv4_access_rule": [
+#:    {
+#:     "name": "LAN to Internet - internet.http",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and LAN"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "WAN and Internet"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "internet.http"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "LAN to Internet - internet.https",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and LAN"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "WAN and Internet"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "internet.https"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "LAN to Internet - standard.dns",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and LAN"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "WAN and Internet"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "standard.dns"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "LAN to Internet - standard.ping",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and LAN"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "WAN and Internet"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "standard.ping"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Internet to Webserver - internet.https",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "WAN and Internet"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth2 and Webserver"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "internet.https"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Admin-PCs to Servers - standard.ssh",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and Admin-PCs"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth2 and Servers"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "standard.ssh"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Admin-PCs to Servers - remote.rdp",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and Admin-PCs"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth2 and Servers"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "remote.rdp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Servers to Admin-PCs - remote.rdp",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth2 and Servers"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and Admin-PCs"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "remote.rdp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Jump-Hosts to OT-Cell - Modbus-TCP (eth1 to eth3)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and Jump-Hosts (eth1)"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth3 and OT-Cell"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "Modbus-TCP"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Jump-Hosts to OT-Cell - Modbus-TCP (eth3 to eth3)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth3 and Jump-Hosts (eth3)"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth3 and OT-Cell"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "Modbus-TCP"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "HMI to OT-Cell - OPC-UA",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth3 and HMI"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth3 and OT-Cell"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "OPC-UA"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "OT-Cell to HMI - OPC-UA",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth3 and OT-Cell"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth3 and HMI"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "OPC-UA"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "Monitoring to OT-Cell - standard.ping",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "address_range",
+#:        "name": "Monitoring"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth3 and OT-Cell"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "standard.ping"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "LAN to Mailserver - internet.smtp",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and LAN"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth2 and Mailserver"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "internet.smtp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Branch Sites to LAN - remote.rdp",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and LAN"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "remote.rdp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "LAN to Lab-v6 - internet.http",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and LAN"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "internet.http"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "DMZ to Internet - GRE-Tunnel",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth2 and DMZ"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "WAN and Internet"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "GRE-Tunnel"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "DMZ to Internet - Legacy-App",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth2 and DMZ"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "WAN and Internet"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "none": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "DMZ to Internet - standard.ssh",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth2 and DMZ"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "WAN and Internet"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "standard.ssh"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "Internet to ? - internet.https",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "WAN and Internet"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "internet.https"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "LAN to DMZ - Web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and LAN"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth2 and DMZ"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "Web"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "DMZ to LAN - Web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth2 and DMZ"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and LAN"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "Web"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "DMZ to LAN - vpn.ipsec",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth2 and DMZ"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth1 and LAN"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "vpn.ipsec"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Printer to DMZ - internet.http",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "eth2 and DMZ"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "internet.http"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    }
+#:   ],
+#:   "fw_ipv6_access_rule": []
+#:  },
+#:  "nat": {
+#:   "fw_ipv4_nat_rule": [
+#:    {
+#:     "name": "LAN to Internet - internet.http (NAT)",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "LAN"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "Internet"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "internet.http"
+#:       }
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "dynamic_src_nat": {
+#:       "automatic_proxy": true,
+#:       "translation_values": [
+#:        {
+#:         "element": {
+#:          "@ref": "default_nat_address_alias",
+#:          "name": "$$ Default NAT Address"
+#:         },
+#:         "min_port": 1024,
+#:         "max_port": 65535
+#:        }
+#:       ]
+#:      }
+#:     },
+#:     "comment": "masquerading of the service, to the address of the outgoing interface"
+#:    },
+#:    {
+#:     "name": "LAN to Internet - internet.https (NAT)",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "LAN"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "Internet"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "internet.https"
+#:       }
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "dynamic_src_nat": {
+#:       "automatic_proxy": true,
+#:       "translation_values": [
+#:        {
+#:         "element": {
+#:          "@ref": "default_nat_address_alias",
+#:          "name": "$$ Default NAT Address"
+#:         },
+#:         "min_port": 1024,
+#:         "max_port": 65535
+#:        }
+#:       ]
+#:      }
+#:     },
+#:     "comment": "masquerading of the service, to the address of the outgoing interface"
+#:    },
+#:    {
+#:     "name": "LAN to Internet - standard.dns (NAT)",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "LAN"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "Internet"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "standard.dns"
+#:       }
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "dynamic_src_nat": {
+#:       "automatic_proxy": true,
+#:       "translation_values": [
+#:        {
+#:         "element": {
+#:          "@ref": "default_nat_address_alias",
+#:          "name": "$$ Default NAT Address"
+#:         },
+#:         "min_port": 1024,
+#:         "max_port": 65535
+#:        }
+#:       ]
+#:      }
+#:     },
+#:     "comment": "masquerading of the service, to the address of the outgoing interface"
+#:    },
+#:    {
+#:     "name": "LAN to Internet - standard.ping (NAT)",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "LAN"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "Internet"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "standard.ping"
+#:       }
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "dynamic_src_nat": {
+#:       "automatic_proxy": true,
+#:       "translation_values": [
+#:        {
+#:         "element": {
+#:          "@ref": "default_nat_address_alias",
+#:          "name": "$$ Default NAT Address"
+#:         },
+#:         "min_port": 1024,
+#:         "max_port": 65535
+#:        }
+#:       ]
+#:      }
+#:     },
+#:     "comment": "masquerading of the service, to the address of the outgoing interface"
+#:    },
+#:    {
+#:     "name": "DMZ to Internet - GRE-Tunnel (NAT)",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "DMZ"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "Internet"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "GRE-Tunnel"
+#:       }
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "dynamic_src_nat": {
+#:       "automatic_proxy": true,
+#:       "translation_values": [
+#:        {
+#:         "element": {
+#:          "@ref": "default_nat_address_alias",
+#:          "name": "$$ Default NAT Address"
+#:         },
+#:         "min_port": 1024,
+#:         "max_port": 65535
+#:        }
+#:       ]
+#:      }
+#:     },
+#:     "comment": "masquerading of the service, to the address of the outgoing interface"
+#:    }
+#:   ],
+#:   "fw_ipv6_nat_rule": []
+#:  }
+#: }

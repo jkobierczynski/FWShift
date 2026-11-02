@@ -1,0 +1,92 @@
+FWShift conversion report
+  source: clavister
+  target: scalance
+
+Summary
+  Security rules:     25   exact 14, approximated 2, needs review 3, skipped 6
+  NAT rules:          12   exact 0, approximated 0, needs review 0, skipped 12
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] SCALANCE_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the device passes everything: lan, dmz, wan, guest
+  [needs-review] SCALANCE_LOAD: the output is CLI commands for the FIREWALL and FIREWALL NAT modes (section 10): 87 IP rules with priorities 1 to 8. The device processes rules by ascending priority: rules it has with a lower priority come first. Commands take effect as they are entered; nothing is deleted and nothing is saved
+  [needs-review] SCALANCE_ZONE_NAMES: zones that are not interfaces of the device (vlan N, ipsecALL, ipsec N, sinemarcall, ppp 0, usb 0) are written as they are, and the device refuses those rules: map them with --zone-map ZONE=vlanN: wan, dmz, lan, guest
+  [needs-review] SCALANCE_IPV6: ipv6rule and ICMP services of IPv6 are written in the form of the IPv4 commands; no Siemens manual FWShift could read shows them: check them on the device
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] SCALANCE_DEFAULT_RULES: after the converted rules, rules that drop what no rule matches, as the source does, for every pair of the 4 zones written (priority 8); traffic inside one zone does not pass the IP firewall
+  [info] SCALANCE_ANY_ZONE: a rule names one interface each way: a rule from or to any zone is written for every zone the policy names (lan, dmz, wan, guest); traffic of other interfaces of the device meets its own rules
+  [info] LOGGING_CONVERTED: rules of the source log; their rules log at the level info
+
+Security rules
+  drop_netbios  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  exact  (emitted as 2 IP rules, priority 1)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+  block_bad_mail+sat_mail  ->  exact  (emitted as 1 IP rules, priority 2)
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [info] SCALANCE_REJECT: action reset-client: written as rej, which answers the sender (with what, the manuals do not say)
+  nat_mail+sat_mail  ->  exact  (emitted as 2 IP rules, priority 3)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+  allow_mail+sat_mail  ->  exact  (emitted as 1 IP rules, priority 3)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+  allow_pool+sat_pool  ->  exact  (emitted as 3 IP rules, priority 3)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+  to_guest/guest_never  ->  skipped
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  lan_updates  ->  skipped
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: a rule of the device names addresses only.
+  syslog_fast  ->  approximated  (emitted as 1 IP rules, priority 4)
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+  gre_tunnel  ->  skipped
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  old_rule  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  lan6_ping  ->  exact  (emitted as 3 IP rules, priority 5)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  pol_dmz_out  ->  approximated  (emitted as 2 IP rules, priority 5)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+  pol_block_ftp  ->  needs-review  (emitted as 3 IP rules, priority 6)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+      [info] SCALANCE_REJECT: action reset-client: written as rej, which answers the sender (with what, the manuals do not say)
+  DropAll  ->  needs-review  (emitted as 12 IP rules, priority 7)
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  DropAll6  ->  needs-review  (emitted as 12 IP rules, priority 7)
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  allow_web+sat_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  nat_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  allow_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  to_guest/guest_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  to_guest/guest_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  lan_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  lan_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  lan_updates  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  pol_dmz_https  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  pol_dmz_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  sat_unused  ->  skipped
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption

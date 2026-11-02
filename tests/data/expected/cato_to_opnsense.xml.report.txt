@@ -1,0 +1,218 @@
+FWShift conversion report
+  source: cato
+  target: opnsense
+
+Summary
+  Security rules:     32   exact 0, approximated 0, needs review 32 (32 emitted disabled), skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [info] CATO_SOURCE: 4 sites as zones (Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab), remote-users and internet; the WAN Firewall (first match, implicit block) decides between sites and remote users, the Internet Firewall (first match, implicit allow, written as a last rule) from them to the internet; traffic inside one network range does not reach Cato and is allowed
+  [info] CATO_INTERNET_TOP: a hidden rule of Cato above the Internet Firewall blocks connections Cato deems illegal or malicious; it is not in the answer and not converted
+  [info] CATO_INBOUND: traffic from the internet to the sites is decided by Remote Port Forwarding, which is not read: in the model nothing from the internet is allowed
+  [info] CATO_REMOVED: rules marked removed in the revision read: left out: Retired rule
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: Brussels-HQ=10.10.0.0/24,10.10.20.0/24; Antwerp-DC=10.20.0.0/24,10.20.30.0/24; Ghent-Plant=10.30.0.0/24; Leuven-Lab=10.40.0.0/24. --no-source-networks takes none of them
+
+Security rules
+  inside Brussels-HQ range 1  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  inside Brussels-HQ range 2  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  inside Antwerp-DC range 1  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  inside Antwerp-DC range 2  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  inside Ghent-Plant range 1  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Ghent-Plant. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  inside Leuven-Lab range 1  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Leuven-Lab. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Allow HQ to DC servers  ->  needs-review, emitted disabled
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Allow HQ to DC servers (2)'
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Allow HQ to DC servers (2)  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Block OT to HQ  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Historian both ways  ->  needs-review, emitted disabled
+      [info] CATO_BOTH: direction BOTH: written as rules for each direction, the second set with source and destination swapped: 'Historian both ways (2)'
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Historian both ways (2)  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Ghent-Plant. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Remote users to DC  ->  needs-review, emitted disabled
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Modbus to the plant  ->  needs-review, emitted disabled
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Modbus to the plant (2)', 'Modbus to the plant (3)'
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Ghent-Plant. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Modbus to the plant (2)  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Ghent-Plant. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Modbus to the plant (3)  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Ghent-Plant. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Finance to ERP  ->  needs-review, emitted disabled
+      [needs-review] CATO_USERS: users or user groups narrow the rule; they are not converted
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups Finance.
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Prompt for SSH  ->  needs-review, emitted disabled
+      [needs-review] CATO_ACTION: action PROMPT: not converted (read as allow)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNSUPPORTED_MATCH: not converted: action PROMPT: the user is asked on a web page.
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Old block  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Floating range  ->  needs-review, emitted disabled
+      [needs-review] CATO_OBJECT: floating ranges, system groups or group members whose addresses are not known: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: floating ranges Cloud floating.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Maintenance window  ->  needs-review, emitted disabled
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] SCHEDULE: schedule 'SATURDAY,SUNDAY 22:00:00-23:59:00' is not converted; the rule would apply at all times.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Ghent-Plant, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Teams between sites  ->  needs-review, emitted disabled
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application column (applications, categories, domains or addresses as applications).
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind internet, remote-users with --zone-network.
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Unknown host  ->  needs-review, emitted disabled
+      [needs-review] CATO_UNRESOLVED: objects that are not in the lookups of the input: they match nothing until they are
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'host_lab_printer': a host that is not in the lookups of the input.
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Block guest except DNS  ->  needs-review, emitted disabled
+      [needs-review] CATO_EXCEPTION: exceptions that cannot be cut out of the rule: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: exception dns from one host: source, service (only an exception of one column of addresses or services is cut out). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind internet, remote-users with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block plant to remote users  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind internet, remote-users with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block anonymizers  ->  needs-review, emitted disabled
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [info] CATO_SYSTEM_RULE: a system rule of Cato, which cannot be changed or removed
+      [needs-review] UNSUPPORTED_MATCH: not converted: appCategory Anonymizers. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad networks  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Plant has no internet  ->  needs-review, emitted disabled
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  HQ web  ->  needs-review, emitted disabled
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: domains example.org.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Isolate unknown sites  ->  needs-review, emitted disabled
+      [needs-review] CATO_ACTION: action RBI: not converted (read as allow)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action RBI: remote browser isolation.
+      [needs-review] UNSUPPORTED_MATCH: not converted: customCategory Uncategorized.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Partner FTP  ->  needs-review, emitted disabled
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Block remote users to SMB  ->  needs-review, emitted disabled
+      [needs-review] CATO_ORIGIN: connection origins that are not all sites or all remote users: not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: connection origins REMOTE_CLIENT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Internet Firewall implicit allow  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network.
+      [needs-review] INTERFACE_NAME: 'Brussels-HQ' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Antwerp-DC' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Ghent-Plant' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'Leuven-Lab' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'remote-users' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+
+Addresses
+  erp-db  ->  exact  (emitted as erp_db)
+      [info] RENAMED: renamed to 'erp_db' to fit the target's naming rules
+  Ghent Plant \ LAN  ->  exact  (emitted as Ghent_Plant___LAN)
+      [info] RENAMED: renamed to 'Ghent_Plant___LAN' to fit the target's naming rules
+  Antwerp DC \ Routed lab  ->  exact  (emitted as Antwerp_DC___Routed_lab)
+      [info] RENAMED: renamed to 'Antwerp_DC___Routed_lab' to fit the target's naming rules
+  Partner net  ->  exact  (emitted as Partner_net)
+      [info] RENAMED: renamed to 'Partner_net' to fit the target's naming rules
+  host lab-printer  ->  exact  (emitted as host_lab_printer)
+      [info] RENAMED: renamed to 'host_lab_printer' to fit the target's naming rules
+  fqdn updates.example.com  ->  exact  (emitted as fqdn_updates_example_com)
+      [info] RENAMED: renamed to 'fqdn_updates_example_com' to fit the target's naming rules
+  fqdn ftp.example.net  ->  exact  (emitted as fqdn_ftp_example_net)
+      [info] RENAMED: renamed to 'fqdn_ftp_example_net' to fit the target's naming rules

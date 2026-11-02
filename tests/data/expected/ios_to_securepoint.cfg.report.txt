@@ -1,0 +1,59 @@
+FWShift conversion report
+  source: ios
+  target: securepoint
+
+Summary
+  Security rules:    204   exact 191, approximated 0, needs review 13 (12 emitted disabled), skipped 0
+  NAT rules:           3   exact 1, approximated 0, needs review 0, skipped 2
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): OUTSIDE, INSIDE, DMZ, LAB, MGMT. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: OUTSIDE-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] SECUREPOINT_COMMENTED: 12 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NEGATED_SERVICE: a negated service: a rule of the UTM cannot negate its service. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_NEGATED_SERVICE: a negated service: a rule of the UTM cannot negate its service. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review  (emitted as 1 rule of group fwshift)
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+NAT rules
+  nat-176  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: the UTM writes HIDENAT, HIDENAT_EXCLUDE and DESTNAT on a rule; a rule that translates source and destination, a static translation both ways or a pool is none of them
+  nat-177  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: DESTNAT needs the one zone the traffic is sent to (the zone of its NAT network object, firewall-<zone>); the NAT rule names none

@@ -1,0 +1,74 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: securepoint
+
+Summary
+  Security rules:     17   exact 2, approximated 9, needs review 5 (4 emitted disabled), skipped 1
+  NAT rules:           6   exact 4, approximated 0, needs review 1, skipped 1
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): LAN, WAN, DMZ, OT, VPN, firewall-WAN. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: WAN-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [info] SECUREPOINT_COMMENTED: 5 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (LAN, WAN, DMZ, OT, VPN); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+  Admins to DMZ  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN to DMZ web not mail  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out  ->  approximated  (emitted as 1 rule of group fwshift)
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out-2  ->  approximated  (emitted as 2 rules of group fwshift)
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Internet to web  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-public' with post-NAT 'web-1' because of NAT rule 'Publish web'; check that this rule is meant to cover the translated traffic
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+  Internet to mail  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail-public' with post-NAT 'mail-1' because of NAT rule 'Publish mail'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'Publish mail' also translates the port to 25: the service of this rule (smtp-alt) named the pre-NAT port only, and now names 25, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+  DMZ updates  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'mirror.example.net'; that a network object of the UTM takes a host name is not documented.
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'updates.example.com'; that a network object of the UTM takes a host name is not documented.
+  Finance to app  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] USER_MATCH: source user match Finance is not converted.
+  DNS in office hours  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+  Old test rule  ->  approximated  (emitted as 25 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (LAN, WAN, DMZ, OT, VPN); traffic of other zones of the UTM is not matched
+      [info] SECUREPOINT_DISABLED: disabled in the source: written as comment lines, which are not loaded
+  Reject the rest from LAN  ->  needs-review  (emitted as 5 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (LAN, WAN, DMZ, OT, VPN); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [info] RESET_ACTION: action reset-client becomes REJECT, which answers the sender with an ICMP message, not a TCP reset
+  LAN6 to Internet  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  Mail server out  ->  skipped
+      [needs-review] SECUREPOINT_NAT_FORM: HIDENAT hides behind the address of an interface or of one network object; this source translation is none of them
+  NAT of LAN to Internet web  ->  exact  (emitted as 1 rule with HIDENAT)
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+  Default SNAT IPv4  ->  needs-review  (emitted as 5 rules with HIDENAT)
+      [needs-review] NAT_ORDER: NAT rule 'Mail server out' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+
+Addresses
+  any-example-org  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+  Blocked countries  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted

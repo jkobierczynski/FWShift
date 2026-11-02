@@ -1,0 +1,64 @@
+FWShift conversion report
+  source: scalance
+  target: zscaler
+
+Summary
+  Security rules:     17   exact 7, approximated 1, needs review 6 (5 emitted disabled), skipped 3
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] SCALANCE_RULESET: rule sets (user or digital-input firewall): rules assigned to one apply only while it is active and are not converted; check which rules belong to a set: ruleset name maintenance
+  [needs-review] ZSCALER_BLOCK_RULE: the source blocks what no rule matches. Rule fws-block the rest that does so follows the converted rules, disabled: until it is enabled, the rules of the tenant below it and its default rule decide that traffic
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_INSIDE: no --inside-zone: every zone was taken as a location of ZIA, and every rule as one to the internet; ZIA does not filter traffic between locations or from the internet. Name the zones inside with --inside-zone
+  [needs-review] ZSCALER_LOCATIONS_REQUIRED: rules name these locations, which must exist on the tenant under these names: ipsecALL, vlan1, vlan2, vlan3
+  [info] SCALANCE_SOURCE: 4 interfaces as zones (vlan1, vlan2, vlan3, ipsecALL); 16 IP rules, in ascending priority (prior), equal priorities in the order they were created; the IPv4 rules, then the IPv6 rules. Rules of the firewall itself (device) and the predefined rules are not converted
+  [info] SCALANCE_DEFAULTS: what no rule matches between interfaces is dropped; traffic inside one VLAN does not pass the IP firewall
+  [info] SCALANCE_NAT_ORDER: destination NAT (NAPT, NETMAP of the destination) is done before the firewall, whose rules name the translated address: the rules were rewritten for the address as it arrives. Source NAT, NETMAP of the source and masquerading are done after it. Read in the order NAPT, NETMAP destination, NETMAP source, source NAT, masquerading, one rule of each direction per connection (assumed)
+  [info] SCALANCE_PRERULE: predefined rules (access to services of the firewall itself) are not converted; those the configuration does not list are at their factory setting: ssh ipv4 int vlan 1 enabled, https ipv4 int vlan 2 disabled
+  [info] SCALANCE_NETMAP_DSTINT: the destination interface of a NETMAP rule of the destination is not a condition of the converted rule: netmap destination 1: vlan3
+
+Security rules
+  ipv4rule 5  ->  needs-review, emitted disabled  (emitted as fws-ipv4rule 5)
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type: a network service of ZIA holds TCP and UDP ports, and the predefined ICMP_ANY, GRE_PROTOCOL and ESP_PROTOCOL.
+  ipv4rule 6  ->  needs-review  (emitted as fws-ipv4rule 6)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.2' next to '192.168.30.10' because of NAT rule 'napt 1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'napt 1' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  ipv4rule 7  ->  approximated  (emitted as fws-ipv4rule 7)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.64/30' next to '192.168.30.64/30' because of NAT rule 'netmap destination 1'; check that this rule is meant to cover the translated traffic
+  ipv4rule 11  ->  needs-review, emitted disabled  (emitted as fws-ipv4rule 11)
+      [needs-review] UNSUPPORTED_MATCH: not converted: source DYNAMIC: the address of the user who activates the rule set, or of the digital input.
+  ipv4rule 12  ->  needs-review, emitted disabled  (emitted as fws-ipv4rule 12)
+      [needs-review] UNSUPPORTED_MATCH: not converted: service ENIP is not in the configuration.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ENIP': unsupported or undefined service.
+  ipv4rule 14  ->  needs-review, emitted disabled  (emitted as fws-ipv4rule 14)
+      [needs-review] UNSUPPORTED_MATCH: not converted: assigned to the rule set maintenance: it applies only while the set is activated (by a user or a digital input).
+  ipv4rule 15  ->  needs-review, emitted disabled  (emitted as fws-ipv4rule 15)
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type: a network service of ZIA holds TCP and UDP ports, and the predefined ICMP_ANY, GRE_PROTOCOL and ESP_PROTOCOL.
+  ipv6rule 1  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  ipv6rule 2  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  ipv4rule 10  ->  skipped
+      [info] SCALANCE_DEVICE_RULE: a rule for traffic to or from the firewall itself (device): its own access, not converted
+
+NAT rules
+  napt 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  napt 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  netmap destination 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  src-nat 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  masquerading 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+
+Services
+  ENIP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'ipv4rule 12' but not defined in the input; emitted as a placeholder

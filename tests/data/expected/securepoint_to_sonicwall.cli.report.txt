@@ -1,0 +1,94 @@
+FWShift conversion report
+  source: securepoint
+  target: sonicwall
+
+Summary
+  Security rules:     19   exact 12, approximated 1, needs review 5 (4 emitted disabled), skipped 1
+  NAT rules:           6   exact 0, approximated 3, needs review 0, skipped 3
+  Addresses:          15   exact 15, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 9, approximated 0, needs review 3, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_IMPLIED: commands that change the implicit rules are not converted: group set implied_group "12" active "1"
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
+  [needs-review] NAT_NOTHING_ELSE: SonicOS adds NAT policies of its own (an interface in a WAN zone hides the LAN and DMZ subnets behind its address), and the source translated only what its NAT rules say. The interfaces of the zones are not known (--interface-map), so no policy that translates nothing was written: disable the policies SonicOS added (Network, NAT Policies, Default & Custom), or check that the source's translations are all it does
+  [needs-review] IPV6_PRIORITY_AUTO: IPv6 rules are written without a priority, after every IPv4 rule: SonicOS keeps one list of priorities for the rules of every pair of zones, IPv4 first and with rules of its own among them, so the place of an IPv6 rule is not known beforehand (SonicOS 8.2.2 refused the places FWShift gave). SonicOS places them. Pairs with more than one IPv6 rule, whose order SonicOS decides: internal to external: check it
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, address-object ipv6, nat-policy name and comment, nat-policy priority manual, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): internal, external, vpn-ipsec, dmz1
+  [info] SECUREPOINT_SOURCE: 18 rules of the packet filter in 3 rule groups, first match in the order of the groups; zones from the network objects; what no rule matches is dropped (Default Drop)
+  [info] SECUREPOINT_IMPLIED_RULES: the UTM's implicit rules (Firewall > Implied rules: its own services, VPN, the threat intelligence filter) come before the packet filter and are not converted
+  [info] SECUREPOINT_LOCAL_RULES: 1 rules for the UTM's own services (to or from objects in zones of its own interfaces) are not converted
+  [info] SECUREPOINT_NAT_ORDER: NAT is part of the rules: each rule with NAT became a NAT rule, in the order of the rules. DESTNAT is done before the packet filter and HIDENAT after it (netfilter); a rule's NAT is read as applying whatever its action (assumed)
+  [info] SECUREPOINT_RANGE: network objects with an address range a-b (a form FWShift reads, not documented): printers
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: external=203.0.113.0/29; internal=192.168.10.0/24; dmz1=172.16.20.0/24. --no-source-networks takes none of them
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv4' (all addresses, in two halves) instead of any
+  [info] CATCH_ALL_AS_GROUP: SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule of its pair of zones, changed where the action is the same and refused where it is not ("Rule overlap"). Such rules name their source as group 'FWSHIFT all IPv6' (all addresses, in two halves) instead of any
+  [info] DEFAULT_DENY_ADDED: 32 rules that deny were added, one at the end of each pair of zones and IP version: SonicOS allows some traffic between zones by itself (from LAN to WAN, for example), and the source did not
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  rule-11  ->  approximated
+      [approximated] SECUREPOINT_STATELESS: action STATELESS allows packets whatever the state of their connection, and lets no replies through by itself; the model is stateful and allows the replies of what it allows
+  rule-13  ->  exact  (emitted as rule-13, rule-13 2, rule-13 3, rule-13 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  rule-14  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: NETMAP on the rule: which addresses its packet filter rule names is not documented.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ntp-client': source ports, which a SonicOS service object does not have.
+  rule-15  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmpv6-echo': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  rule-18  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'external-interface' next to 'webserver' because of NAT rule 'rule-2-nat'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'rule-2-nat' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  rule-2  ->  exact
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to external-interface (extern-https) and taken to webserver; that it also allows traffic sent to the server directly is not documented and is not read
+  rule-6  ->  exact
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to public-mail (smtp) and taken to mailserver; that it also allows traffic sent to the server directly is not documented and is not read
+  rule-7  ->  exact
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 1 of 2)
+  rule-7-2  ->  exact
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 2 of 2)
+  rule-12  ->  exact
+      [info] SECUREPOINT_QOS: action QOS: read as ACCEPT; the bandwidth limit of its QoS profile is not converted
+  rule-16  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: flag 'MIRROR' is not one FWShift reads.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'gre': IP protocol 47, for which FWShift does not know the command of SonicOS.
+  rule-9  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-region': address 'geoip:XX' is not a form FWShift reads. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-5  ->  skipped
+      [info] SECUREPOINT_LOCAL_RULE: a rule for the UTM's own services (an object in a zone of its own interfaces, firewall-...): not converted
+
+NAT rules
+  rule-1-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+  rule-10-nat  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from vpn-ipsec only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [approximated] NAT_ZONES: the rule applied to traffic to internal only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  rule-14-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NETMAP (a network mapped onto another of the same size, both ways) is not converted; references 'ntp-client': source ports, which a SonicOS service object does not have; service 'ntp-client' could not be written
+  rule-2-nat  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from external only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  rule-6-nat  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from external only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  rule-8-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+
+Services
+  http  ->  exact  (emitted as http 2)
+      [info] RENAMED: renamed to 'http 2' to fit the target's naming rules
+  https  ->  exact  (emitted as https 2)
+      [info] RENAMED: renamed to 'https 2' to fit the target's naming rules
+  ntp-client  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  icmp-echo-req  ->  exact
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that
+  icmpv6-echo  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  gre  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 47, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  ftp  ->  exact  (emitted as ftp 2)
+      [info] RENAMED: renamed to 'ftp 2' to fit the target's naming rules
+  ssh  ->  exact  (emitted as ssh 2)
+      [info] SECUREPOINT_FACTORY_SERVICE: not defined in the input: read as the service of that name a UTM comes with, with the IANA port of the name (Securepoint does not publish the list; assumed)
+      [info] RENAMED: renamed to 'ssh 2' to fit the target's naming rules

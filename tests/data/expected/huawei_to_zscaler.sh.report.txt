@@ -1,0 +1,58 @@
+FWShift conversion report
+  source: huawei
+  target: zscaler
+
+Summary
+  Security rules:     16   exact 7, approximated 4, needs review 2 (2 emitted disabled), skipped 3
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with display predefined-service: http, https, smtp, dns, ntp, ssh, icmp, ftp
+  [needs-review] ZSCALER_BLOCK_RULE: the source blocks what no rule matches. Rule fws-block the rest that does so follows the converted rules, disabled: until it is enabled, the rules of the tenant below it and its default rule decide that traffic
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_INSIDE: no --inside-zone: every zone was taken as a location of ZIA, and every rule as one to the internet; ZIA does not filter traffic between locations or from the internet. Name the zones inside with --inside-zone
+  [needs-review] ZSCALER_LOST: ZIA filters traffic from locations to the internet only: 0 rules for traffic from the internet and 1 for traffic between or inside zones inside are not written, or only in part. That traffic needs a firewall of its own at the sites
+  [needs-review] ZSCALER_LOCATIONS_REQUIRED: rules name these locations, which must exist on the tenant under these names: dmz, lab, trust, untrust
+  [info] HUAWEI_SOURCE: 4 zones (trust, untrust, dmz, lab); 15 rules of the security policy, first match. The local zone (the firewall itself) is not converted
+  [info] HUAWEI_NAT_ORDER: destination NAT (nat server) is done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT (nat-policy) is done after it
+  [info] HUAWEI_DEFAULTS: what no rule matches: between zones deny, inside a zone permit
+
+Security rules
+  web-in  ->  approximated  (emitted as fws-web-in)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web-tls'; check that this rule is meant to cover the translated traffic
+  mail-in  ->  approximated  (emitted as fws-mail-in)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'mail-server' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+  office-out  ->  approximated  (emitted as fws-office-out)
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  office-dmz  ->  approximated  (emitted as fws-office-dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'dmz-servers' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  lab-tools  ->  needs-review, emitted disabled  (emitted as fws-lab-tools)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type: a network service of ZIA holds TCP and UDP ports, and the predefined ICMP_ANY, GRE_PROTOCOL and ESP_PROTOCOL.
+  ipv6-out  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  video  ->  needs-review, emitted disabled  (emitted as fws-video)
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) YouTube; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  intrazone default  ->  skipped
+      [needs-review] ZSCALER_INTERNAL: a rule for traffic inside a zone, which does not pass ZIA
+  manage-fw  ->  skipped
+      [info] HUAWEI_LOCAL_RULE: a rule for traffic to or from the firewall itself (the local zone): not converted
+
+NAT rules
+  nat-server-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  nat-server-web-tls  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  nat-server-mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  no-nat-vpn  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  office-pat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  lab-easy-ip  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only

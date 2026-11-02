@@ -1,0 +1,99 @@
+add Address IP4Address fws_10.10.0.0_16 Address=10.10.0.0/16
+add Address IP4Address fws_10.20.1.1-10.20.1.50 Address=10.20.1.1-10.20.1.50
+add Address IP4Address fws_198.51.100.53 Address=198.51.100.53
+add Service ServiceTCPUDP fws_DNS Type=TCPUDP DestinationPorts=53
+add Service ServiceTCPUDP fws_SSH Type=TCP DestinationPorts=22
+add Address IP4Address fws_10.10.20.0_24 Address=10.10.20.0/24
+add Address IP6Address fws_2001_db8_10___48 Address=2001:db8:10::/48
+add Address IP4Address fws_198.51.100.0_25 Address=198.51.100.0/25
+add Address IP4Address fws_203.0.113.50 Address=203.0.113.50
+add Address IP6Address fws_2001_db8_200___64 Address=2001:db8:200::/64
+add Service ServiceTCPUDP fws_App-8443 Type=TCP DestinationPorts=8443,8000-8010
+add Service ServiceTCPUDP fws_Web_1 Type=TCP DestinationPorts=443
+add Service ServiceTCPUDP fws_Web_2 Type=TCP DestinationPorts=80
+add Service ServiceTCPUDP fws_HTTPS Type=TCP DestinationPorts=443
+add Address IP4Address fws_10.10.5.10 Address=10.10.5.10
+add Address IP4Address fws_10.10.5.11 Address=10.10.5.11
+add Address IP4Address fws_192.0.2.10-192.0.2.20 Address=192.0.2.10-192.0.2.20
+add Service ServiceTCPUDP fws_Syslog-From-Highport Type=UDP DestinationPorts=514 SourcePorts=1024-65535
+add Service ServiceTCPUDP fws_Infra_1 Type=UDP DestinationPorts=123
+add Service ServiceTCPUDP fws_Infra_2 Type=TCPUDP DestinationPorts=53
+add Service ServiceICMP fws_Infra_3 MessageTypes=All
+add Service ServiceIPProto fws_GRE_PROTOCOL IPProto=47
+add Service ServiceIPProto fws_ESP_PROTOCOL IPProto=50
+add Service ServiceTCPUDP fws_TCP_ANY Type=TCP DestinationPorts=0-65535
+add Service ServiceTCPUDP fws_UDP_ANY Type=UDP DestinationPorts=0-65535
+add Address IP4Address fws_203.0.113.0_24 Address=203.0.113.0/24
+add Service ServiceTCPUDP fws_HTTP Type=TCP DestinationPorts=80
+add Address IP4Address fws_10.30.0.1-10.30.0.99 Address=10.30.0.1-10.30.0.99
+add Service ServiceICMP fws_ICMP_ANY MessageTypes=All
+add Address IP4Address fws_nothing Address=0.0.0.0
+add InterfaceGroup fws_zones Members=ZIA_location_1001,ZIA_location_1002,ZIA_location_1003,ZIA_location_1004,Zscaler_Client_Connector_outside_a_location,internet
+add Address IP4Group fws_Engineering-Nets Members=fws_10.10.0.0_16,fws_10.20.1.1-10.20.1.50
+add Address IP6Group fws_Eng-v6 Members=fws_2001_db8_10___48
+add Address IP4Group fws_Partner-Servers Members=fws_198.51.100.0_25,fws_203.0.113.50
+add Address IP6Group fws_Partner-v6 Members=fws_2001_db8_200___64
+add Service ServiceGroup fws_Web_grp Members=fws_Web_1,fws_Web_2
+add Address IP4Group fws_Printers Members=fws_10.10.5.10,fws_10.10.5.11
+add Service ServiceGroup fws_Infra_grp Members=fws_Infra_1,fws_Infra_2,fws_Infra_3
+add Service ServiceGroup fws_Block_GRE_and_ESP_svc Members=fws_GRE_PROTOCOL,fws_ESP_PROTOCOL
+add Service ServiceGroup fws_Evaluate_apps_svc Members=fws_TCP_ANY,fws_UDP_ANY
+add Address IP4Group fws_Web_for_all_src Members=fws_10.10.0.0_16,fws_10.30.0.1-10.30.0.99
+add InterfaceGroup fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ Members=ZIA_location_1001,ZIA_location_1002,ZIA_location_1003,ZIA_location_1004,Zscaler_Client_Connector_outside_a_location
+add InterfaceGroup fws_if_ZIA_location_1001_ZIA_location_1002 Members=ZIA_location_1002,ZIA_location_1001
+add IPRuleSet fws_rules Comments="Written by FWShift"
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_Allow_DNS_to_resolvers Action=Allow SourceInterface=ZIA_location_1001 SourceNetwork=fws_Engineering-Nets DestinationInterface=internet DestinationNetwork=fws_198.51.100.53 Service=fws_DNS LogEnabled=Yes
+add IPRule Index=2 Name=fws_Block_SSH_out Action=Reject SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=fws_SSH LogEnabled=Yes
+add IPRule Index=3 Name=fws_Block_SSH_out_v6 Action=Reject SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=fws_SSH LogEnabled=Yes
+add IPRule Index=4 Name=fws_Block_malicious_IPs_and_domains Action=Drop SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+set IPRule 4 -disable
+add IPRule Index=5 Name=fws_Block_malicious_IPs_and_domains_v6 Action=Drop SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=all_services LogEnabled=Yes
+set IPRule 5 -disable
+add IPRule Index=6 Name=fws_Office_365_One_Click_Rule Action=Allow SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+set IPRule 6 -disable
+add IPRule Index=7 Name=fws_Office_365_One_Click_Rule_v6 Action=Allow SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=all_services LogEnabled=Yes
+set IPRule 7 -disable
+add IPRule Index=8 Name=fws_Partner_app Action=Allow SourceInterface=ZIA_location_1003 SourceNetwork=fws_10.10.20.0_24 DestinationInterface=internet DestinationNetwork=fws_Partner-Servers Service=fws_App-8443 LogEnabled=Yes
+add IPRule Index=9 Name=fws_Partner_app_v6 Action=Allow SourceInterface=ZIA_location_1003 SourceNetwork=fws_Eng-v6 DestinationInterface=internet DestinationNetwork=fws_Partner-v6 Service=fws_App-8443 LogEnabled=Yes
+add IPRule Index=10 Name=fws_Branch_web Action=Allow SourceInterface=ZIA_location_1002 SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=fws_Web_grp LogEnabled=Yes Comments="branches browse during work hours"
+set IPRule 10 -disable
+add IPRule Index=11 Name=fws_Branch_web_v6 Action=Allow SourceInterface=ZIA_location_1002 SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=fws_Web_grp LogEnabled=Yes Comments="branches browse during work hours"
+set IPRule 11 -disable
+add IPRule Index=12 Name=fws_Engineers_to_SaaS Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=Yes
+set IPRule 12 -disable
+add IPRule Index=13 Name=fws_No_embargoed_countries Action=Drop SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+set IPRule 13 -disable
+add IPRule Index=14 Name=fws_No_embargoed_countries_v6 Action=Drop SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=all_services LogEnabled=Yes
+set IPRule 14 -disable
+add IPRule Index=15 Name=fws_Printers_syslog Action=Allow SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=fws_Printers DestinationInterface=internet DestinationNetwork=fws_192.0.2.10-192.0.2.20 Service=fws_Syslog-From-Highport LogEnabled=Yes
+add IPRule Index=16 Name=fws_Infra_out Action=Allow SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=fws_Infra_grp LogEnabled=Yes
+set IPRule 16 -disable
+add IPRule Index=17 Name=fws_Infra_out_v6 Action=Allow SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=fws_Infra_grp LogEnabled=Yes
+set IPRule 17 -disable
+add IPRule Index=18 Name=fws_Block_GRE_and_ESP Action=Drop SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=fws_Block_GRE_and_ESP_svc LogEnabled=Yes
+add IPRule Index=19 Name=fws_Block_GRE_and_ESP_v6 Action=Drop SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=fws_Block_GRE_and_ESP_svc LogEnabled=Yes
+add IPRule Index=20 Name=fws_Evaluate_apps Action=Drop SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=fws_Evaluate_apps_svc LogEnabled=Yes
+set IPRule 20 -disable
+add IPRule Index=21 Name=fws_Evaluate_apps_v6 Action=Drop SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=fws_Evaluate_apps_svc LogEnabled=Yes
+set IPRule 21 -disable
+add IPRule Index=22 Name=fws_Ranked_web Action=Allow SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=fws_203.0.113.0_24 Service=fws_HTTPS LogEnabled=Yes
+set IPRule 22 -disable
+add IPRule Index=23 Name=fws_Ghent_and_corporate Action=Allow SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002 SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=fws_HTTP LogEnabled=Yes
+set IPRule 23 -disable
+add IPRule Index=24 Name=fws_Ghent_and_corporate_v6 Action=Allow SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002 SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=fws_HTTP LogEnabled=Yes
+set IPRule 24 -disable
+add IPRule Index=25 Name=fws_Web_for_all Action=Allow SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=fws_Web_for_all_src DestinationInterface=internet DestinationNetwork=all-nets Service=fws_Web_grp LogEnabled=Yes
+add IPRule Index=26 Name=fws_Guest_ICMP Action=Allow SourceInterface=ZIA_location_1004 SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=fws_ICMP_ANY LogEnabled=Yes
+add IPRule Index=27 Name=fws_Guest_ICMP_v6 Action=Allow SourceInterface=ZIA_location_1004 SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=fws_ICMP_ANY LogEnabled=Yes
+add IPRule Index=28 Name=fws_Default_Firewall_Filtering_Rule Action=Drop SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets DestinationInterface=internet DestinationNetwork=all-nets Service=all_services LogEnabled=Yes Comments="Default rule"
+add IPRule Index=29 Name=fws_Default_Firewall_Filtering_Rule_v6 Action=Drop SourceInterface=fws_if_ZIA_location_1001_ZIA_location_1002_ZIA_ SourceNetwork=all-nets6 DestinationInterface=internet DestinationNetwork=all-nets6 Service=all_services LogEnabled=Yes Comments="Default rule"
+add IPRule Index=30 Name=fws_default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=31 Name=fws_default_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=32 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=33 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

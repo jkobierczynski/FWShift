@@ -1,0 +1,92 @@
+FWShift conversion report
+  source: routeros
+  target: lancom-uf
+
+Summary
+  Security rules:     27   exact 6, approximated 3, needs review 10 (4 emitted disabled), skipped 8
+  NAT rules:           3   exact 0, approximated 1, needs review 0, skipped 2
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of /ip firewall filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] TABLE_NOT_CONVERTED: /ip firewall mangle has 1 rules and is not converted (it can mark connections and routes, which the filter rules may test)
+  [needs-review] ROUTEROS_DYNAMIC_LIST: address lists that rules fill while the router runs decide what their rules match; those rules are not converted: /ip scanners
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERZONE_DEFAULT: the source allows what no rule matches; the firewall blocks what no connection allows. Add the connections that allow it if that was intended
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): DMZ, GUEST, WAN
+  [info] ROUTEROS_ZONES: the interface lists the rules use do not overlap: each is a zone (DMZ: vlan20-dmz, GUEST: vlan30-guest, LAN: bridge-lan, WAN: ether1); an interface in none of them is a zone of its own
+  [info] ROUTEROS_PASSIVE: 2 rules with action log, passthrough or add-*-to-address-list decide nothing and were left out. A log rule directly before a rule with the same match, or one that matches everything, sets the logging of the rules it logs for
+  [info] ROUTEROS_FQDN_LIST: address lists that hold host names, which RouterOS resolves while it runs: converted as host name objects (mirrors)
+  [info] ROUTEROS_BRIDGE: traffic between the ports of one bridge (bridge-lan) does not pass the IP firewall of the source (use-ip-firewall=no); the conversion is of routed traffic
+  [info] FORWARD_POLICY_ACCEPT: RouterOS accepts what no rule of the forward chain decides; the model records that as its default action
+
+Security rules
+  defconf: accept in ipsec policy  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: ipsec-policy=in,ipsec (traffic of IPsec tunnels); the rule is not written
+  banned scanners  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: address list 'scanners', which rules fill while the router runs. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  web for everyone  ->  needs-review  (emitted as fws-192.168.10.50_31-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.50_31-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.52_30-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.52_30-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.56_30-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.56_30-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  web for everyone-2  ->  needs-review  (emitted as fws-0.0.0.0_1-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-0.0.0.0_1-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-128.0.0.0_2-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-128.0.0.0_2-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.0.0.0_9-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.0.0.0_9-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.128.0.0_11-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.128.0.0_11-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.160.0.0_13-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.160.0.0_13-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.0.0_21-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.0.0_21-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.8.0_23-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.8.0_23-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.0_27-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.0_27-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.32_28-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.32_28-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.48_31-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.48_31-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.60_30-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.60_30-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.64_26-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.64_26-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.128_25-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.10.128_25-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.11.0_24-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.11.0_24-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.12.0_22-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.12.0_22-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.16.0_20-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.16.0_20-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.32.0_19-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.32.0_19-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.64.0_18-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.64.0_18-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.128.0_17-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.168.128.0_17-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.169.0.0_16-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.169.0.0_16-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.170.0.0_15-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.170.0.0_15-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.172.0.0_14-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.172.0.0_14-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.176.0.0_12-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.176.0.0_12-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.192.0.0_10-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-192.192.0.0_10-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-193.0.0.0_8-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-193.0.0.0_8-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-194.0.0.0_7-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-194.0.0.0_7-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-196.0.0.0_6-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-196.0.0.0_6-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-200.0.0.0_5-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-200.0.0.0_5-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-208.0.0.0_4-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-208.0.0.0_4-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080, fws-224.0.0.0_3-any > fws-dmz-web: fws-tcp-80_tcp-443_tcp-8000-8080, fws-224.0.0.0_3-any > fws-203.0.113.3_32-DMZ: fws-tcp-80_tcp-443_tcp-8000-8080)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  ping "echo" only  ->  skipped
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  ping "echo" only-2  ->  skipped
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  old partner access  ->  needs-review
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  nothing but TCP  ->  needs-review  (emitted as taken out of the rules below it)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  nothing but TCP-2  ->  needs-review  (emitted as taken out of the rules below it)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  rest of the DMZ  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-2  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-3  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to the package mirrors  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: the destination 'mirrors' holds addresses that are not known; a desktop object of the firewall names addresses; the rule is not written
+  no other web from guests  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action reset-client: the firewall drops what it does not allow
+  guest DNS, either port-2  ->  skipped
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  guests to the internet  ->  approximated  (emitted as fws-0.0.0.0_0-GUEST > fws-0.0.0.0_0-WAN: fws-svc-4)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+  office hours for staff  ->  skipped
+      [needs-review] SCHEDULE: schedule 'time=8h-18h,mon,tue,wed,thu,fri' is not converted; the rule would apply at all times; the rule is not written
+  defconf: drop all from WAN not DSTNATed (allows publish web)  ->  approximated  (emitted as fws-0.0.0.0_0-WAN > fws-203.0.113.3_32-any: fws-tcp-8443)
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+  defconf: drop all from WAN not DSTNATed (allows publish mail)  ->  approximated  (emitted as fws-0.0.0.0_0-WAN > fws-203.0.113.4_32-any: fws-tcp-25)
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+  defconf: drop all from WAN not DSTNATed  ->  exact  (emitted as taken out of the rules below it)
+      [info] ROUTEROS_DSTNAT_EXCEPTION: connection-nat-state=!dstnat: the rule does not block connections a destination NAT rule translated. Those are allowed by 2 rules ahead of it (defconf: drop all from WAN not DSTNATed (allows publish web), defconf: drop all from WAN not DSTNATed (allows publish mail))
+  ICMPv6 echo  ->  skipped
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  the partners reach the web servers of the LAN by HTTPS and nothing else  ->  skipped
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  drop everything else not coming from LAN  ->  needs-review  (emitted as taken out of the rules below it)
+      [needs-review] ROUTEROS_NEGATED_INTERFACE: negated input interface (on the rule or the jump to its chain): the export does not list every interface of the router, and the rule covers the zones it does show (DMZ, GUEST, WAN). On the source it also blocks traffic of interfaces the export leaves out
+
+NAT rules
+  publish web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  publish mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  defconf: masquerade  ->  approximated  (emitted as masquerading on 2 services of connections)
+      [approximated] ROUTEROS_NAT_IPSEC_EXEMPT: ipsec-policy=out,none: on the source, traffic that goes into an IPsec tunnel is not translated; the converted rule translates it unless the target exempts it

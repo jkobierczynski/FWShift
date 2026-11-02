@@ -1,0 +1,227 @@
+set address h-198.51.100.25 ip-netmask 198.51.100.25
+set address h-198.51.100.26 ip-netmask 198.51.100.26
+set address-group dp-partner-mail static [ h-198.51.100.25 h-198.51.100.26 ]
+set address-group dp-partner-mail description "mail relays of a partner"
+set address n-203.0.113.0_26 ip-netmask 203.0.113.0/26
+set address n-2001_db8_5___48 ip-netmask 2001:db8:5::/48
+set address-group dp-voice-provider static [ n-203.0.113.0_26 n-2001_db8_5___48 ]
+set address n-192.0.2.128_26 ip-netmask 192.0.2.128/26
+set address h-203.0.113.200 ip-netmask 203.0.113.200
+set address-group dp-blocked-ranges static [ n-192.0.2.128_26 h-203.0.113.200 ]
+set address h-198.51.100.123 ip-netmask 198.51.100.123
+set address-group dp-time static h-198.51.100.123
+set address dp-saas-domains ip-netmask 0.0.0.0/32
+set address dp-saas-domains description "FWSHIFT PLACEHOLDER, matches nothing: destination profile dp-saas-domains: host name 'files.example.com'"
+set address h-198.51.100.10 ip-netmask 198.51.100.10
+set address h-198.51.100.11 ip-netmask 198.51.100.11
+set address-group app-ssh-jump static [ h-198.51.100.10 h-198.51.100.11 ]
+set address-group app-ssh-jump description "the destinations of a custom firewall app"
+set address h-203.0.113.40 ip-netmask 203.0.113.40
+set address-group app-rdp-gw static h-203.0.113.40
+set address-group app-rdp-gw description "the destinations of a custom firewall app"
+set service HTTPS protocol tcp port 443
+set service DNS-tcp protocol tcp port 53
+set service DNS-udp protocol udp port 53
+set service-group DNS members [ DNS-tcp DNS-udp ]
+set service svc-mail protocol tcp port 587,993
+set service svc-mail description "submission and IMAPS"
+set service svc-voice-tcp protocol tcp port 5061
+set service svc-voice-tcp description "SIP and media"
+set service svc-voice-udp protocol udp port 5060,10000-20000
+set service svc-voice-udp description "SIP and media"
+set service-group svc-voice members [ svc-voice-tcp svc-voice-udp ]
+set service svc-ntp protocol udp port 123
+set service app-ssh-jump protocol tcp port 22
+set service app-ssh-jump description "the protocols of a custom firewall app"
+set service app-rdp-gw-tcp protocol tcp port 3389
+set service app-rdp-gw-tcp description "the protocols of a custom firewall app"
+set service app-rdp-gw-udp protocol udp port 3389
+set service app-rdp-gw-udp description "the protocols of a custom firewall app"
+set service-group app-rdp-gw members [ app-rdp-gw-tcp app-rdp-gw-udp ]
+set service app-git protocol tcp port 22,9418
+set service app-git description "the protocols of a custom firewall app"
+set service app-any-ftp protocol tcp port 20-21
+set service app-any-ftp description "the protocols of a custom firewall app"
+set rulebase security rules "Block known bad ranges" from [ client ipsec gre ]
+set rulebase security rules "Block known bad ranges" to internet
+set rulebase security rules "Block known bad ranges" source any
+set rulebase security rules "Block known bad ranges" destination dp-blocked-ranges
+set rulebase security rules "Block known bad ranges" source-user any
+set rulebase security rules "Block known bad ranges" category any
+set rulebase security rules "Block known bad ranges" application any
+set rulebase security rules "Block known bad ranges" service any
+set rulebase security rules "Block known bad ranges" action deny
+set rulebase security rules "Block known bad ranges" log-end yes
+set rulebase security rules "Branch mail to partner" from [ ipsec gre ]
+set rulebase security rules "Branch mail to partner" to internet
+set rulebase security rules "Branch mail to partner" source [ 10.20.0.0/16 10.21.0.0/16 ]
+set rulebase security rules "Branch mail to partner" destination dp-partner-mail
+set rulebase security rules "Branch mail to partner" source-user any
+set rulebase security rules "Branch mail to partner" category any
+set rulebase security rules "Branch mail to partner" application any
+set rulebase security rules "Branch mail to partner" service svc-mail
+set rulebase security rules "Branch mail to partner" action allow
+set rulebase security rules "Branch mail to partner" log-end yes
+set rulebase security rules "Voice from sites" from gre
+set rulebase security rules "Voice from sites" to internet
+set rulebase security rules "Voice from sites" source [ 10.30.0.0/16 fd00:30::/48 ]
+set rulebase security rules "Voice from sites" destination dp-voice-provider
+set rulebase security rules "Voice from sites" source-user any
+set rulebase security rules "Voice from sites" category any
+set rulebase security rules "Voice from sites" application any
+set rulebase security rules "Voice from sites" service svc-voice
+set rulebase security rules "Voice from sites" action allow
+set rulebase security rules "Voice from sites" log-end yes
+set rulebase security rules "Admins to jump hosts _app-ssh-jump_" from client
+set rulebase security rules "Admins to jump hosts _app-ssh-jump_" to internet
+set rulebase security rules "Admins to jump hosts _app-ssh-jump_" source 10.99.0.0/24
+set rulebase security rules "Admins to jump hosts _app-ssh-jump_" destination app-ssh-jump
+set rulebase security rules "Admins to jump hosts _app-ssh-jump_" source-user any
+set rulebase security rules "Admins to jump hosts _app-ssh-jump_" category any
+set rulebase security rules "Admins to jump hosts _app-ssh-jump_" application any
+set rulebase security rules "Admins to jump hosts _app-ssh-jump_" service app-ssh-jump
+set rulebase security rules "Admins to jump hosts _app-ssh-jump_" action allow
+set rulebase security rules "Admins to jump hosts _app-ssh-jump_" log-end yes
+set rulebase security rules "Admins to jump hosts _app-rdp-gw_" from client
+set rulebase security rules "Admins to jump hosts _app-rdp-gw_" to internet
+set rulebase security rules "Admins to jump hosts _app-rdp-gw_" source 10.99.0.0/24
+set rulebase security rules "Admins to jump hosts _app-rdp-gw_" destination app-rdp-gw
+set rulebase security rules "Admins to jump hosts _app-rdp-gw_" source-user any
+set rulebase security rules "Admins to jump hosts _app-rdp-gw_" category any
+set rulebase security rules "Admins to jump hosts _app-rdp-gw_" application any
+set rulebase security rules "Admins to jump hosts _app-rdp-gw_" service app-rdp-gw
+set rulebase security rules "Admins to jump hosts _app-rdp-gw_" action allow
+set rulebase security rules "Admins to jump hosts _app-rdp-gw_" log-end yes
+set rulebase security rules "Engineering to git" from client
+set rulebase security rules "Engineering to git" to internet
+set rulebase security rules "Engineering to git" source any
+set rulebase security rules "Engineering to git" destination any
+set rulebase security rules "Engineering to git" source-user any
+set rulebase security rules "Engineering to git" category any
+set rulebase security rules "Engineering to git" application any
+set rulebase security rules "Engineering to git" service app-git
+set rulebase security rules "Engineering to git" action allow
+set rulebase security rules "Engineering to git" log-end yes
+set rulebase security rules "Engineering to git" disabled yes
+set rulebase security rules "Engineering to git" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Block BitTorrent" from [ client ipsec gre ]
+set rulebase security rules "Block BitTorrent" to internet
+set rulebase security rules "Block BitTorrent" source any
+set rulebase security rules "Block BitTorrent" destination any
+set rulebase security rules "Block BitTorrent" source-user any
+set rulebase security rules "Block BitTorrent" category any
+set rulebase security rules "Block BitTorrent" application any
+set rulebase security rules "Block BitTorrent" service any
+set rulebase security rules "Block BitTorrent" action deny
+set rulebase security rules "Block BitTorrent" log-end yes
+set rulebase security rules "Block BitTorrent" disabled yes
+set rulebase security rules "Block BitTorrent" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Not from the server networks_ no NTP" from ipsec
+set rulebase security rules "Not from the server networks_ no NTP" to internet
+set rulebase security rules "Not from the server networks_ no NTP" source [ 10.20.10.0/24 10.20.11.0/25 ]
+set rulebase security rules "Not from the server networks_ no NTP" destination any
+set rulebase security rules "Not from the server networks_ no NTP" source-user any
+set rulebase security rules "Not from the server networks_ no NTP" category any
+set rulebase security rules "Not from the server networks_ no NTP" application any
+set rulebase security rules "Not from the server networks_ no NTP" service svc-ntp
+set rulebase security rules "Not from the server networks_ no NTP" action deny
+set rulebase security rules "Not from the server networks_ no NTP" negate-source yes
+set rulebase security rules "Not from the server networks_ no NTP" log-end yes
+set rulebase security rules "Time servers" from [ client ipsec gre ]
+set rulebase security rules "Time servers" to internet
+set rulebase security rules "Time servers" source any
+set rulebase security rules "Time servers" destination dp-time
+set rulebase security rules "Time servers" source-user any
+set rulebase security rules "Time servers" category any
+set rulebase security rules "Time servers" application any
+set rulebase security rules "Time servers" service svc-ntp
+set rulebase security rules "Time servers" action allow
+set rulebase security rules "Time servers" log-end yes
+set rulebase security rules "Old FTP exception" from ipsec
+set rulebase security rules "Old FTP exception" to internet
+set rulebase security rules "Old FTP exception" source 10.20.5.0/24
+set rulebase security rules "Old FTP exception" destination any
+set rulebase security rules "Old FTP exception" source-user any
+set rulebase security rules "Old FTP exception" category any
+set rulebase security rules "Old FTP exception" application any
+set rulebase security rules "Old FTP exception" service app-any-ftp
+set rulebase security rules "Old FTP exception" action allow
+set rulebase security rules "Old FTP exception" log-end yes
+set rulebase security rules "Old FTP exception" disabled yes
+set rulebase security rules "SaaS files from the office" from gre
+set rulebase security rules "SaaS files from the office" to internet
+set rulebase security rules "SaaS files from the office" source any
+set rulebase security rules "SaaS files from the office" destination dp-saas-domains
+set rulebase security rules "SaaS files from the office" source-user any
+set rulebase security rules "SaaS files from the office" category any
+set rulebase security rules "SaaS files from the office" application any
+set rulebase security rules "SaaS files from the office" service HTTPS
+set rulebase security rules "SaaS files from the office" action allow
+set rulebase security rules "SaaS files from the office" log-end yes
+set rulebase security rules "SaaS files from the office" disabled yes
+set rulebase security rules "SaaS files from the office" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Ping out" from [ client ipsec gre ]
+set rulebase security rules "Ping out" to internet
+set rulebase security rules "Ping out" source any
+set rulebase security rules "Ping out" destination any
+set rulebase security rules "Ping out" source-user any
+set rulebase security rules "Ping out" category any
+set rulebase security rules "Ping out" application [ icmp ping ]
+set rulebase security rules "Ping out" service application-default
+set rulebase security rules "Ping out" action allow
+set rulebase security rules "Ping out" log-end yes
+set rulebase security rules "DNS out" from [ client ipsec gre ]
+set rulebase security rules "DNS out" to internet
+set rulebase security rules "DNS out" source any
+set rulebase security rules "DNS out" destination any
+set rulebase security rules "DNS out" source-user any
+set rulebase security rules "DNS out" category any
+set rulebase security rules "DNS out" application any
+set rulebase security rules "DNS out" service DNS
+set rulebase security rules "DNS out" action allow
+set rulebase security rules "DNS out" log-end yes
+set rulebase security rules "Contractors_ nothing else" from client
+set rulebase security rules "Contractors_ nothing else" to internet
+set rulebase security rules "Contractors_ nothing else" source any
+set rulebase security rules "Contractors_ nothing else" destination any
+set rulebase security rules "Contractors_ nothing else" source-user any
+set rulebase security rules "Contractors_ nothing else" category any
+set rulebase security rules "Contractors_ nothing else" application any
+set rulebase security rules "Contractors_ nothing else" service any
+set rulebase security rules "Contractors_ nothing else" action deny
+set rulebase security rules "Contractors_ nothing else" log-end yes
+set rulebase security rules "Contractors_ nothing else" disabled yes
+set rulebase security rules "Contractors_ nothing else" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Lab network out" from ipsec
+set rulebase security rules "Lab network out" to internet
+set rulebase security rules "Lab network out" source 10.40.0.0/16
+set rulebase security rules "Lab network out" destination any
+set rulebase security rules "Lab network out" source-user any
+set rulebase security rules "Lab network out" category any
+set rulebase security rules "Lab network out" application any
+set rulebase security rules "Lab network out" service any
+set rulebase security rules "Lab network out" action allow
+set rulebase security rules "Lab network out" log-end yes
+set rulebase security rules "Default Action" from [ client ipsec gre ]
+set rulebase security rules "Default Action" to internet
+set rulebase security rules "Default Action" source any
+set rulebase security rules "Default Action" destination any
+set rulebase security rules "Default Action" source-user any
+set rulebase security rules "Default Action" category any
+set rulebase security rules "Default Action" application any
+set rulebase security rules "Default Action" service any
+set rulebase security rules "Default Action" action deny
+set rulebase security rules "Default Action" log-end yes
+set rulebase security rules "Default Action" description "the Default Action of the firewall policy: what no rule matches"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

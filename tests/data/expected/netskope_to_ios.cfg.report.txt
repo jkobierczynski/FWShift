@@ -1,0 +1,59 @@
+FWShift conversion report
+  source: netskope
+  target: ios
+
+Summary
+  Security rules:     16   exact 10, approximated 1, needs review 4 (4 emitted disabled), skipped 1
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] IOS_LOAD: the output is configuration commands for the zone-based firewall (section 10): paste them in configuration mode; nothing changes until interfaces are put in the zones (zone-member security, commented at the end). Names start with FWS-: IOS adds to an access list or class map that exists
+  [needs-review] IOS_ZONE_MEMBERS: an interface in a zone passes only what the zone pairs let through, and nothing to an interface in no zone; traffic to and from the router itself (the self zone) is not written. Put every interface that forwards traffic in a zone
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  [info] IOS_INTRAZONE: zone pairs from a zone to itself decide traffic inside a zone (IOS 15.0(1)M and IOS XE); IOS passes it otherwise
+  [info] LOGGING_CONVERTED: rules of the source log; their drop and pass actions log
+
+Security rules
+  Branch mail to partner  ->  exact
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Voice from sites  ->  exact
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Admins to jump hosts [app-ssh-jump]  ->  exact
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Admins to jump hosts [app-rdp-gw]  ->  exact
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Engineering to git  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+  Block BitTorrent  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Time servers  ->  exact
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Old FTP exception  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a zone-based firewall has no disabled class: not written
+  SaaS files from the office  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp-saas-domains': destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] ZONE_DYNAMIC: the destination 'dp-saas-domains' holds members only its platform knows; an access list names addresses.
+  Ping out  ->  exact
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  DNS out  ->  exact
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Contractors: nothing else  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Lab network out  ->  approximated
+      [approximated] IOS_PASS: protocols other than TCP, UDP and ICMP are let through with pass, which is one way: their replies need a pass from the other zone, which is not written, so the converted rule allows less
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)

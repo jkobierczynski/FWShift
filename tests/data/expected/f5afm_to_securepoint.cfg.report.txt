@@ -1,0 +1,121 @@
+FWShift conversion report
+  source: f5-afm
+  target: securepoint
+
+Summary
+  Security rules:     42   exact 0, approximated 14, needs review 28 (6 emitted disabled), skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): external, internal, dmz. Map other names with --zone-map
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] SECUREPOINT_COMMENTED: 7 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  global/block_bad  ->  needs-review  (emitted as 9 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_dns  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+  global/admins_continue>rd0/outbound/allow_web_out@vs_outbound  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+  global/admins_continue>rd0/dmz_no_inside  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  global/admins_continue>vs_web6/web_in  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+  global/admins_continue>vs_web6/(default)  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  global/admins_continue>vs_web/web_in  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+  global/admins_continue>vs_web/(default)  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  global/admins_continue>vs_web_http/(refused)  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  global/admins_continue>vs_dns/(default)  ->  needs-review  (emitted as 9 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  global/admins_continue>vs_old_app/(refused)  ->  needs-review  (emitted as 9 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  global/admins_continue>vs_inbound_dmz/(default)  ->  needs-review  (emitted as 6 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  global/admins_continue>vs_outbound/(default)  ->  needs-review  (emitted as 6 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  global/reject_telnet  ->  needs-review  (emitted as 9 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [info] RESET_ACTION: action reset-client becomes REJECT, which answers the sender with an ICMP message, not a TCP reset
+  global/ping_in@vs_outbound  ->  approximated  (emitted as 6 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+  global/old_rule  ->  approximated  (emitted as 9 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+      [info] SECUREPOINT_DISABLED: disabled in the source: written as comment lines, which are not loaded
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] SECUREPOINT_FQDN: the source holds host name 'partner.example.com'; that a network object of the UTM takes a host name is not documented.
+  global/partners_in@vs_web  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] SECUREPOINT_FQDN: the source holds host name 'partner.example.com'; that a network object of the UTM takes a host name is not documented.
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SECUREPOINT_FQDN: the source holds host name 'partner.example.com'; that a network object of the UTM takes a host name is not documented. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] SECUREPOINT_FQDN: the source holds host name 'partner.example.com'; that a network object of the UTM takes a host name is not documented.
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] SECUREPOINT_FQDN: the source holds host name 'partner.example.com'; that a network object of the UTM takes a host name is not documented.
+  global/inspect_irule>rd0/dmz_no_inside  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  global/inspect_irule>vs_old_app/(refused)  ->  needs-review  (emitted as 9 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  global/inspect_irule>vs_inbound_dmz/(default)  ->  needs-review  (emitted as 6 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  global/inspect_irule>vs_outbound/(default)  ->  needs-review  (emitted as 6 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  rd0/outbound/allow_dns_out@vs_dns  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+  rd0/outbound/allow_dns_out@vs_outbound  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+  rd0/outbound/allow_web_out@vs_outbound  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+  rd0/dmz_no_inside  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  vs_web6/web_in  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+  vs_web6/web6_in  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+  vs_web6/(default)  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  vs_web/web_in  ->  approximated  (emitted as 3 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+  vs_web/(default)  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  vs_web_http/(refused)  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  vs_dns/dns_from_partners  ->  approximated  (emitted as 9 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched
+  vs_dns/(default)  ->  needs-review  (emitted as 9 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  vs_old_app/(refused)  ->  needs-review  (emitted as 9 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  vs_inbound_dmz/(default)  ->  needs-review  (emitted as 6 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  vs_outbound/(default)  ->  needs-review  (emitted as 6 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (external, internal, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it

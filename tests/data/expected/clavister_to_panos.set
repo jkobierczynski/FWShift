@@ -1,0 +1,374 @@
+set address lan_ip ip-netmask 192.168.10.1/32
+set address lan_net ip-netmask 192.168.10.0/24
+set address dmz_ip ip-netmask 172.16.20.1/32
+set address dmz_net ip-netmask 172.16.20.0/24
+set address wan_ip ip-netmask 203.0.113.10/32
+set address wan_net ip-netmask 203.0.113.0/24
+set address guest_ip ip-netmask 10.30.0.1/32
+set address guest_net ip-netmask 10.30.0.0/24
+set address lan_ip6 ip-netmask 2001:db8:10::1/128
+set address lan_net6 ip-netmask 2001:db8:10::/64
+set address web_srv ip-netmask 172.16.20.80/32
+set address web_srv description "Web server in the DMZ"
+set address mail_srv ip-netmask 172.16.20.25/32
+set address wan_ip2 ip-netmask 203.0.113.12/32
+set address pub_pool ip-range 203.0.113.20-203.0.113.23
+set address srv_base ip-netmask 172.16.20.100/32
+set address admin_hosts_1 ip-netmask 192.168.10.5/32
+set address admin_hosts_2 ip-netmask 192.168.10.6/32
+set address admin_hosts_3 ip-netmask 192.168.10.32/28
+set address v6_web ip-netmask 2001:db8:20::80/128
+set address updates fqdn updates.example.com
+set address-group admin_hosts static [ admin_hosts_1 admin_hosts_2 admin_hosts_3 ]
+set address-group admin_hosts description "IP4Address with a list of addresses"
+set address-group servers static [ web_srv mail_srv ]
+set service smtp-in protocol tcp port 25
+set service web-ports protocol tcp port 80,443,8080-8090
+set service dns-both-tcp protocol tcp port 53
+set service dns-both-udp protocol udp port 53
+set service-group dns-both members [ dns-both-tcp dns-both-udp ]
+set service syslog protocol udp port 514
+set service syslog protocol udp source-port 1024-65535
+set service ftp-alg protocol tcp port 21
+set service netbios-all protocol tcp port 1
+set service netbios-all description "FWSHIFT PLACEHOLDER, matches nothing: a service that is not in the script"
+set service http-all protocol tcp port 80,443
+set service http-all description "predefined service of cOS Core"
+set service dns-all-tcp protocol tcp port 53
+set service dns-all-tcp description "predefined service of cOS Core"
+set service dns-all-udp protocol udp port 53
+set service dns-all-udp description "predefined service of cOS Core"
+set service-group dns-all members [ dns-all-tcp dns-all-udp ]
+set service ssh protocol tcp port 22
+set service ssh description "predefined service of cOS Core"
+set service https protocol tcp port 443
+set service https description "predefined service of cOS Core"
+set service-group mgmt members [ ssh https ]
+set rulebase security rules drop_netbios from any
+set rulebase security rules drop_netbios to any
+set rulebase security rules drop_netbios source 0.0.0.0/0
+set rulebase security rules drop_netbios destination 0.0.0.0/0
+set rulebase security rules drop_netbios source-user any
+set rulebase security rules drop_netbios category any
+set rulebase security rules drop_netbios application any
+set rulebase security rules drop_netbios service netbios-all
+set rulebase security rules drop_netbios action drop
+set rulebase security rules drop_netbios log-end no
+set rulebase security rules drop_netbios disabled yes
+set rulebase security rules drop_netbios description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules allow_web_sat_web from wan
+set rulebase security rules allow_web_sat_web to dmz
+set rulebase security rules allow_web_sat_web source 0.0.0.0/0
+set rulebase security rules allow_web_sat_web destination wan_ip
+set rulebase security rules allow_web_sat_web source-user any
+set rulebase security rules allow_web_sat_web category any
+set rulebase security rules allow_web_sat_web application any
+set rulebase security rules allow_web_sat_web service http-all
+set rulebase security rules allow_web_sat_web action allow
+set rulebase security rules allow_web_sat_web log-end yes
+set rulebase security rules allow_web_sat_web description "Completes sat_web"
+set rulebase security rules block_bad_mail_sat_mail from wan
+set rulebase security rules block_bad_mail_sat_mail to dmz
+set rulebase security rules block_bad_mail_sat_mail source 198.51.100.0/24
+set rulebase security rules block_bad_mail_sat_mail destination wan_ip
+set rulebase security rules block_bad_mail_sat_mail source-user any
+set rulebase security rules block_bad_mail_sat_mail category any
+set rulebase security rules block_bad_mail_sat_mail application any
+set rulebase security rules block_bad_mail_sat_mail service smtp-in
+set rulebase security rules block_bad_mail_sat_mail action reset-client
+set rulebase security rules block_bad_mail_sat_mail log-end yes
+set rulebase security rules nat_mail_sat_mail from [ lan guest ]
+set rulebase security rules nat_mail_sat_mail to dmz
+set rulebase security rules nat_mail_sat_mail source 0.0.0.0/0
+set rulebase security rules nat_mail_sat_mail destination wan_ip
+set rulebase security rules nat_mail_sat_mail source-user any
+set rulebase security rules nat_mail_sat_mail category any
+set rulebase security rules nat_mail_sat_mail application any
+set rulebase security rules nat_mail_sat_mail service smtp-in
+set rulebase security rules nat_mail_sat_mail action allow
+set rulebase security rules nat_mail_sat_mail log-end yes
+set rulebase security rules allow_mail_sat_mail from wan
+set rulebase security rules allow_mail_sat_mail to dmz
+set rulebase security rules allow_mail_sat_mail source 0.0.0.0/0
+set rulebase security rules allow_mail_sat_mail destination wan_ip
+set rulebase security rules allow_mail_sat_mail source-user any
+set rulebase security rules allow_mail_sat_mail category any
+set rulebase security rules allow_mail_sat_mail application any
+set rulebase security rules allow_mail_sat_mail service smtp-in
+set rulebase security rules allow_mail_sat_mail action allow
+set rulebase security rules allow_mail_sat_mail log-end yes
+set rulebase security rules allow_pool_sat_pool from wan
+set rulebase security rules allow_pool_sat_pool to dmz
+set rulebase security rules allow_pool_sat_pool source 0.0.0.0/0
+set rulebase security rules allow_pool_sat_pool destination pub_pool
+set rulebase security rules allow_pool_sat_pool source-user any
+set rulebase security rules allow_pool_sat_pool category any
+set rulebase security rules allow_pool_sat_pool application any
+set rulebase security rules allow_pool_sat_pool service web-ports
+set rulebase security rules allow_pool_sat_pool action allow
+set rulebase security rules allow_pool_sat_pool log-end yes
+set rulebase security rules to_guest_guest_dns from guest
+set rulebase security rules to_guest_guest_dns to wan
+set rulebase security rules to_guest_guest_dns source guest_net
+set rulebase security rules to_guest_guest_dns destination 0.0.0.0/0
+set rulebase security rules to_guest_guest_dns source-user any
+set rulebase security rules to_guest_guest_dns category any
+set rulebase security rules to_guest_guest_dns application any
+set rulebase security rules to_guest_guest_dns service dns-all
+set rulebase security rules to_guest_guest_dns action allow
+set rulebase security rules to_guest_guest_dns log-end yes
+set rulebase security rules to_guest_guest_web from guest
+set rulebase security rules to_guest_guest_web to wan
+set rulebase security rules to_guest_guest_web source guest_net
+set rulebase security rules to_guest_guest_web destination 0.0.0.0/0
+set rulebase security rules to_guest_guest_web source-user any
+set rulebase security rules to_guest_guest_web category any
+set rulebase security rules to_guest_guest_web application any
+set rulebase security rules to_guest_guest_web service http-all
+set rulebase security rules to_guest_guest_web action allow
+set rulebase security rules to_guest_guest_web log-end yes
+set rulebase security rules to_guest_guest_never from guest
+set rulebase security rules to_guest_guest_never to dmz
+set rulebase security rules to_guest_guest_never source guest_net
+set rulebase security rules to_guest_guest_never destination dmz_net
+set rulebase security rules to_guest_guest_never source-user any
+set rulebase security rules to_guest_guest_never category any
+set rulebase security rules to_guest_guest_never application any
+set rulebase security rules to_guest_guest_never service any
+set rulebase security rules to_guest_guest_never action allow
+set rulebase security rules to_guest_guest_never log-end yes
+set rulebase security rules to_guest_guest_never disabled yes
+set rulebase security rules admin_mgmt from lan
+set rulebase security rules admin_mgmt to dmz
+set rulebase security rules admin_mgmt source admin_hosts
+set rulebase security rules admin_mgmt destination servers
+set rulebase security rules admin_mgmt source-user any
+set rulebase security rules admin_mgmt category any
+set rulebase security rules admin_mgmt application any
+set rulebase security rules admin_mgmt service mgmt
+set rulebase security rules admin_mgmt action allow
+set rulebase security rules admin_mgmt log-end yes
+set rulebase security rules lan_dns from lan
+set rulebase security rules lan_dns to wan
+set rulebase security rules lan_dns source lan_net
+set rulebase security rules lan_dns destination 0.0.0.0/0
+set rulebase security rules lan_dns source-user any
+set rulebase security rules lan_dns category any
+set rulebase security rules lan_dns application any
+set rulebase security rules lan_dns service dns-both
+set rulebase security rules lan_dns action allow
+set rulebase security rules lan_dns log-end yes
+set rulebase security rules lan_web from lan
+set rulebase security rules lan_web to wan
+set rulebase security rules lan_web source lan_net
+set rulebase security rules lan_web destination 0.0.0.0/0
+set rulebase security rules lan_web source-user any
+set rulebase security rules lan_web category any
+set rulebase security rules lan_web application any
+set rulebase security rules lan_web service web-ports
+set rulebase security rules lan_web action allow
+set rulebase security rules lan_web log-end yes
+set rulebase security rules lan_updates from lan
+set rulebase security rules lan_updates to wan
+set rulebase security rules lan_updates source lan_net
+set rulebase security rules lan_updates destination updates
+set rulebase security rules lan_updates source-user any
+set rulebase security rules lan_updates category any
+set rulebase security rules lan_updates application any
+set rulebase security rules lan_updates service https
+set rulebase security rules lan_updates action allow
+set rulebase security rules lan_updates log-end yes
+set rulebase security rules lan_to_dmz from lan
+set rulebase security rules lan_to_dmz to dmz
+set rulebase security rules lan_to_dmz source lan_net
+set rulebase security rules lan_to_dmz destination dmz_net
+set rulebase security rules lan_to_dmz source-user any
+set rulebase security rules lan_to_dmz category any
+set rulebase security rules lan_to_dmz application any
+set rulebase security rules lan_to_dmz service any
+set rulebase security rules lan_to_dmz action allow
+set rulebase security rules lan_to_dmz log-end yes
+set rulebase security rules syslog_fast from dmz
+set rulebase security rules syslog_fast to lan
+set rulebase security rules syslog_fast source dmz_net
+set rulebase security rules syslog_fast destination 192.168.10.50/32
+set rulebase security rules syslog_fast source-user any
+set rulebase security rules syslog_fast category any
+set rulebase security rules syslog_fast application any
+set rulebase security rules syslog_fast service syslog
+set rulebase security rules syslog_fast action allow
+set rulebase security rules syslog_fast log-end no
+set rulebase security rules gre_tunnel from dmz
+set rulebase security rules gre_tunnel to wan
+set rulebase security rules gre_tunnel source 172.16.20.9/32
+set rulebase security rules gre_tunnel destination 198.51.100.7/32
+set rulebase security rules gre_tunnel source-user any
+set rulebase security rules gre_tunnel category any
+set rulebase security rules gre_tunnel application gre
+set rulebase security rules gre_tunnel service application-default
+set rulebase security rules gre_tunnel action allow
+set rulebase security rules gre_tunnel log-end yes
+set rulebase security rules gre_tunnel disabled yes
+set rulebase security rules gre_tunnel description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules old_rule from wan
+set rulebase security rules old_rule to dmz
+set rulebase security rules old_rule source 0.0.0.0/0
+set rulebase security rules old_rule destination servers
+set rulebase security rules old_rule source-user any
+set rulebase security rules old_rule category any
+set rulebase security rules old_rule application any
+set rulebase security rules old_rule service ftp-alg
+set rulebase security rules old_rule action allow
+set rulebase security rules old_rule log-end yes
+set rulebase security rules old_rule disabled yes
+set rulebase security rules lan6_web from lan
+set rulebase security rules lan6_web to dmz
+set rulebase security rules lan6_web source lan_net6
+set rulebase security rules lan6_web destination v6_web
+set rulebase security rules lan6_web source-user any
+set rulebase security rules lan6_web category any
+set rulebase security rules lan6_web application any
+set rulebase security rules lan6_web service http-all
+set rulebase security rules lan6_web action allow
+set rulebase security rules lan6_web log-end yes
+set rulebase security rules lan6_ping from lan
+set rulebase security rules lan6_ping to any
+set rulebase security rules lan6_ping source lan_net6
+set rulebase security rules lan6_ping destination ::/0
+set rulebase security rules lan6_ping source-user any
+set rulebase security rules lan6_ping category any
+set rulebase security rules lan6_ping application ping6
+set rulebase security rules lan6_ping service application-default
+set rulebase security rules lan6_ping action allow
+set rulebase security rules lan6_ping log-end yes
+set rulebase security rules pol_dmz_https from wan
+set rulebase security rules pol_dmz_https to dmz
+set rulebase security rules pol_dmz_https source 0.0.0.0/0
+set rulebase security rules pol_dmz_https destination wan_ip2
+set rulebase security rules pol_dmz_https source-user any
+set rulebase security rules pol_dmz_https category any
+set rulebase security rules pol_dmz_https application any
+set rulebase security rules pol_dmz_https service https
+set rulebase security rules pol_dmz_https action allow
+set rulebase security rules pol_dmz_https log-end yes
+set rulebase security rules pol_dmz_out from dmz
+set rulebase security rules pol_dmz_out to wan
+set rulebase security rules pol_dmz_out source dmz_net
+set rulebase security rules pol_dmz_out destination 0.0.0.0/0
+set rulebase security rules pol_dmz_out source-user any
+set rulebase security rules pol_dmz_out category any
+set rulebase security rules pol_dmz_out application any
+set rulebase security rules pol_dmz_out service http-all
+set rulebase security rules pol_dmz_out action allow
+set rulebase security rules pol_dmz_out log-end yes
+set rulebase security rules pol_block_ftp from any
+set rulebase security rules pol_block_ftp to dmz
+set rulebase security rules pol_block_ftp source 0.0.0.0/0
+set rulebase security rules pol_block_ftp destination dmz_net
+set rulebase security rules pol_block_ftp source-user any
+set rulebase security rules pol_block_ftp category any
+set rulebase security rules pol_block_ftp application any
+set rulebase security rules pol_block_ftp service ftp-alg
+set rulebase security rules pol_block_ftp action reset-client
+set rulebase security rules pol_block_ftp log-end yes
+set rulebase security rules DropAll from any
+set rulebase security rules DropAll to any
+set rulebase security rules DropAll source 0.0.0.0/0
+set rulebase security rules DropAll destination 0.0.0.0/0
+set rulebase security rules DropAll source-user any
+set rulebase security rules DropAll category any
+set rulebase security rules DropAll application any
+set rulebase security rules DropAll service any
+set rulebase security rules DropAll action drop
+set rulebase security rules DropAll log-end yes
+set rulebase security rules DropAll6 from any
+set rulebase security rules DropAll6 to any
+set rulebase security rules DropAll6 source ::/0
+set rulebase security rules DropAll6 destination ::/0
+set rulebase security rules DropAll6 source-user any
+set rulebase security rules DropAll6 category any
+set rulebase security rules DropAll6 application any
+set rulebase security rules DropAll6 service any
+set rulebase security rules DropAll6 action drop
+set rulebase security rules DropAll6 log-end yes
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules allow_web_sat_web from wan
+set rulebase nat rules allow_web_sat_web to wan
+set rulebase nat rules allow_web_sat_web source 0.0.0.0/0
+set rulebase nat rules allow_web_sat_web destination wan_ip
+set rulebase nat rules allow_web_sat_web service http-all
+set rulebase nat rules allow_web_sat_web destination-translation translated-address web_srv
+set rulebase nat rules allow_web_sat_web description "Completes sat_web"
+set rulebase nat rules nat_mail_sat_mail from [ lan guest ]
+set rulebase nat rules nat_mail_sat_mail to wan
+set rulebase nat rules nat_mail_sat_mail source 0.0.0.0/0
+set rulebase nat rules nat_mail_sat_mail destination wan_ip
+set rulebase nat rules nat_mail_sat_mail service smtp-in
+set rulebase nat rules nat_mail_sat_mail source-translation dynamic-ip-and-port translated-address 172.16.20.1
+set rulebase nat rules nat_mail_sat_mail destination-translation translated-address mail_srv
+set rulebase nat rules allow_mail_sat_mail from wan
+set rulebase nat rules allow_mail_sat_mail to wan
+set rulebase nat rules allow_mail_sat_mail source 0.0.0.0/0
+set rulebase nat rules allow_mail_sat_mail destination wan_ip
+set rulebase nat rules allow_mail_sat_mail service smtp-in
+set rulebase nat rules allow_mail_sat_mail destination-translation translated-address mail_srv
+set rulebase nat rules allow_pool_sat_pool from wan
+set rulebase nat rules allow_pool_sat_pool to wan
+set rulebase nat rules allow_pool_sat_pool source 0.0.0.0/0
+set rulebase nat rules allow_pool_sat_pool destination pub_pool
+set rulebase nat rules allow_pool_sat_pool service web-ports
+set rulebase nat rules allow_pool_sat_pool destination-translation translated-address 172.16.20.100/30
+set rulebase nat rules to_guest_guest_dns from guest
+set rulebase nat rules to_guest_guest_dns to wan
+set rulebase nat rules to_guest_guest_dns source guest_net
+set rulebase nat rules to_guest_guest_dns destination 0.0.0.0/0
+set rulebase nat rules to_guest_guest_dns service dns-all
+set rulebase nat rules to_guest_guest_dns source-translation dynamic-ip-and-port translated-address 203.0.113.10
+set rulebase nat rules to_guest_guest_web from guest
+set rulebase nat rules to_guest_guest_web to wan
+set rulebase nat rules to_guest_guest_web source guest_net
+set rulebase nat rules to_guest_guest_web destination 0.0.0.0/0
+set rulebase nat rules to_guest_guest_web service http-all
+set rulebase nat rules to_guest_guest_web source-translation dynamic-ip-and-port translated-address 203.0.113.10
+set rulebase nat rules lan_dns from lan
+set rulebase nat rules lan_dns to wan
+set rulebase nat rules lan_dns source lan_net
+set rulebase nat rules lan_dns destination 0.0.0.0/0
+set rulebase nat rules lan_dns service dns-both
+set rulebase nat rules lan_dns source-translation dynamic-ip-and-port translated-address 203.0.113.10
+set rulebase nat rules lan_web from lan
+set rulebase nat rules lan_web to wan
+set rulebase nat rules lan_web source lan_net
+set rulebase nat rules lan_web destination 0.0.0.0/0
+set rulebase nat rules lan_web service web-ports
+set rulebase nat rules lan_web source-translation dynamic-ip-and-port translated-address 203.0.113.11/32
+set rulebase nat rules lan_updates from lan
+set rulebase nat rules lan_updates to wan
+set rulebase nat rules lan_updates source lan_net
+set rulebase nat rules lan_updates destination updates
+set rulebase nat rules lan_updates service https
+set rulebase nat rules lan_updates source-translation dynamic-ip-and-port translated-address 203.0.113.10
+set rulebase nat rules pol_dmz_out from dmz
+set rulebase nat rules pol_dmz_out to wan
+set rulebase nat rules pol_dmz_out source dmz_net
+set rulebase nat rules pol_dmz_out destination 0.0.0.0/0
+set rulebase nat rules pol_dmz_out service http-all
+set rulebase nat rules pol_dmz_out source-translation dynamic-ip-and-port translated-address 203.0.113.10
+set rulebase nat rules sat_unused from wan
+set rulebase nat rules sat_unused to wan
+set rulebase nat rules sat_unused source 0.0.0.0/0
+set rulebase nat rules sat_unused destination wan_ip
+set rulebase nat rules sat_unused service ftp-alg
+set rulebase nat rules sat_unused destination-translation translated-address 172.16.20.21/32
+set rulebase nat rules sat_unused disabled yes

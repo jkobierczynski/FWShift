@@ -1,0 +1,95 @@
+FWShift conversion report
+  source: fmc (Edge)
+  target: cato
+
+Summary
+  Security rules:     22   exact 6, approximated 4, needs review 2 (2 emitted disabled), skipped 10
+  NAT rules:           7   exact 0, approximated 0, needs review 0, skipped 7
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           24   exact 24, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: outside, inside, dmz
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): outside, inside, dmz
+  [approximated] OBJECT_OVERRIDES: 1 object(s) can have another value on a device than the one that was read (they allow overrides): ot-net. The values of the manager were converted; check them against the device the policy is for
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  pre-backup  ->  approximated  (emitted as fws-pre-backup)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  pre-spoofed  ->  exact  (emitted as fws-pre-spoofed)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  pre-partner-gre  ->  skipped
+      [approximated] TUNNEL_RULE: tunnel rule of the prefilter policy: it is converted as a rule for the protocol that carries the tunnel, between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  pre-partner-gre-reverse  ->  skipped
+      [info] TUNNEL_RULE: the other direction of tunnel rule 'pre-partner-gre', which matches tunnels from source and destination
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  prefilter-default-block-tunnels  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP This deny rule is NOT enforced; rules below it may let more through.
+  Block OT outbound  ->  exact  (emitted as fws-Block OT outbound)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  LAN web  ->  exact  (emitted as fws-LAN web)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  LAN DNS and NTP  ->  exact  (emitted as fws-LAN DNS and NTP)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Updates  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: host names as the destination: Cato takes them as destinations on the internet only
+  Inbound web  ->  approximated  (emitted as fws-Inbound web)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Inbound mail  ->  approximated  (emitted as fws-Inbound mail)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Admin access  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Helpdesk RDP  ->  needs-review, emitted disabled  (emitted as fws-Helpdesk RDP)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: source users CORP\helpdesk are not converted.
+  Staff social media  ->  needs-review, emitted disabled  (emitted as fws-Staff social media)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Partner service  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Uncategorised web  ->  approximated  (emitted as fws-Uncategorised web)
+      [approximated] INTERACTIVE_BLOCK: the source showed web users a page from which they could go on to the site (Interactive Block); it is converted as a rule that blocks
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  DNS answers to resolver  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  Branch IPv6  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Ping out  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Reset the rest from inside  ->  exact  (emitted as fws-Reset the rest from inside)
+      [info] REJECT_AS_DENY: action reset-both: written as BLOCK
+  Watch DMZ  ->  skipped
+      [info] MONITOR_RULE: rule with the action Monitor: it logs the traffic and leaves the decision to the rules below it. Nothing to convert
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  nat-2  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  nat-3  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 203.0.113.2
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  nat-4  ->  skipped
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: round robin, flat port range, interface (as fallback)
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  nat-mail-srv  ->  skipped
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: translate DNS replies
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  nat-dmz-net  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  nat-after-auto-1  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself

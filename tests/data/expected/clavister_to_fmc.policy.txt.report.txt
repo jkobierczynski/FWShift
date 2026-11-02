@@ -1,0 +1,94 @@
+FWShift conversion report
+  source: clavister
+  target: fmc
+
+Summary
+  Security rules:     25   exact 10, approximated 9, needs review 5 (2 emitted disabled), skipped 1
+  NAT rules:          12   exact 11, approximated 0, needs review 0, skipped 1
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] FMC_LOAD: the output is a Python script that loads the policy into a Management Center through its REST API. It creates the objects, a new access control policy 'FWShift' and, when there are NAT rules, a NAT policy of the same name, and assigns them to no device: nothing is in force until the policies are assigned and deployed. It changes nothing that exists, and stops before it creates anything when a name is taken. Run it with --show and with --dry-run first. The new access control policy uses the default prefilter policy and no intrusion or file policies. The script was written from Cisco's API documentation and has not been run against a Management Center: use it first where a mistake costs nothing
+  [needs-review] ZONES_REQUIRED: the rules name these security zones (rename them with --zone-map): wan, lan, dmz, guest. A zone that exists on the Management Center is used as it is; one that does not is created empty, and matches no traffic until the interfaces of the devices are put in it
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'pol_dmz_https' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  approximated  (emitted as allow_web_sat_web)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'web_srv' because of NAT rule 'allow_web_sat_web'; check that this rule is meant to cover the translated traffic
+  block_bad_mail+sat_mail  ->  approximated  (emitted as block_bad_mail_sat_mail)
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'allow_mail_sat_mail'; check that this rule is meant to cover the translated traffic
+      [info] RESET_ACTION: action reset-client becomes Block with reset, which resets the connection for both sides
+  nat_mail+sat_mail  ->  approximated  (emitted as nat_mail_sat_mail)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'nat_mail_sat_mail'; check that this rule is meant to cover the translated traffic
+  allow_mail+sat_mail  ->  approximated  (emitted as allow_mail_sat_mail)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip' with post-NAT 'mail_srv' because of NAT rule 'allow_mail_sat_mail'; check that this rule is meant to cover the translated traffic
+  allow_pool+sat_pool  ->  approximated  (emitted as allow_pool_sat_pool)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'pub_pool' with post-NAT '172.16.20.100/30' because of NAT rule 'allow_pool_sat_pool'; check that this rule is meant to cover the translated traffic
+  to_guest/guest_never  ->  needs-review  (emitted as to_guest_guest_never)
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_srv', the address NAT rule 'nat_mail_sat_mail' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  lan_to_dmz  ->  needs-review
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_srv', the address NAT rule 'nat_mail_sat_mail' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  syslog_fast  ->  approximated
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+  gre_tunnel  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  old_rule  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  pol_dmz_https  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'wan_ip2' with post-NAT 'web_srv' because of NAT rule 'pol_dmz_https'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'pol_dmz_https' also translates the port to 8443: the service of this rule (https_2) named the pre-NAT port only, and now names 8443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web_srv', the address NAT rule 'allow_web_sat_web' translates 'wan_ip' to. The target looks rules up after that translation, so traffic sent to 'wan_ip' now matches this rule; on the source it did not
+  pol_dmz_out  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+  pol_block_ftp  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+      [info] RESET_ACTION: action reset-client becomes Block with reset, which resets the connection for both sides
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  lan_updates  ->  skipped
+      [needs-review] NAT_ADDRESSES: the rule needs static addresses as destination
+  sat_unused  ->  exact  (emitted as 1 NAT rule)
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+
+Addresses
+  admin_hosts#1  ->  exact  (emitted as admin_hosts_1)
+      [info] RENAMED: renamed to 'admin_hosts_1' to fit the target's naming rules
+  admin_hosts#2  ->  exact  (emitted as admin_hosts_2)
+      [info] RENAMED: renamed to 'admin_hosts_2' to fit the target's naming rules
+  admin_hosts#3  ->  exact  (emitted as admin_hosts_3)
+      [info] RENAMED: renamed to 'admin_hosts_3' to fit the target's naming rules
+
+Services
+  web-ports  ->  exact  (emitted as web-ports, tcp-80, https_2, tcp-8080-8090)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'web-ports' of 'tcp-80', 'https_2', 'tcp-8080-8090'
+  dns-both  ->  exact  (emitted as dns-both, tcp-53, udp-53)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'dns-both' of 'tcp-53', 'udp-53'
+  syslog  ->  exact  (emitted as syslog_2)
+      [info] RENAMED: renamed to 'syslog_2' to fit the target's naming rules
+  http-all  ->  exact  (emitted as http-all, tcp-80, https_2)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'http-all' of 'tcp-80', 'https_2'
+  dns-all  ->  exact  (emitted as dns-all, tcp-53, udp-53)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'dns-all' of 'tcp-53', 'udp-53'
+  ssh  ->  exact  (emitted as ssh_2)
+      [info] RENAMED: renamed to 'ssh_2' to fit the target's naming rules
+  https  ->  exact  (emitted as https_2)
+      [info] RENAMED: renamed to 'https_2' to fit the target's naming rules

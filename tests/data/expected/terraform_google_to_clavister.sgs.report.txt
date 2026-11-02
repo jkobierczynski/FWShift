@@ -1,0 +1,37 @@
+FWShift conversion report
+  source: terraform-google (vpc-shop)
+  target: clavister
+
+Summary
+  Security rules:     28   exact 27, approximated 0, needs review 1 (1 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 2, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] TERRAFORM_MEMBERS: the instances a rule applies to, and that its source tags and service accounts stand for, are those of this state: instances made elsewhere (another state, by hand, a managed instance group) are not known to the converted policy
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: google_compute_security_policy. The converted policy does not hold what they do
+  [needs-review] CLAVISTER_NO_ZONES: the source names no zones: the rules name the interface 'any', and the policy's default is not written (it would also decide traffic to the firewall itself); what no rule of the new rule set matches goes back to main. Give the rules zones, or map them with --zone-map
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 1 rule sets it sends traffic to; 40 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Google Cloud command line for the same resources: 11 google_compute_firewall, 5 google_compute_instance, 1 google_compute_network, 1 google_compute_network_firewall_policy, 1 google_compute_network_firewall_policy_association, 6 google_compute_network_firewall_policy_rule, 1 google_compute_region_network_firewall_policy, 1 google_compute_region_network_firewall_policy_association, 1 google_compute_region_network_firewall_policy_rule. Resources outside this state (made by hand, or by another state) are not in it
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  old-dns  ->  exact  (emitted as fws_rules 16 (fws_old-dns))
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  pol-shop:geo-and-fqdn (in)  ->  needs-review, emitted disabled  (emitted as fws_rules 21 (fws_pol-shop_geo-and-fqdn__in_), fws_rules 22 (fws_pol-shop_geo-and-fqdn__in__v6))
+      [needs-review] UNSUPPORTED_MATCH: not converted: matches srcFqdns, srcRegionCodes, which the export does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+NAT rules
+  external-192.0.2.10  ->  needs-review  (emitted as fws_snat 1 (fws_external-192.0.2.10_sat), fws_snat 2 (fws_external-192.0.2.10))
+      [needs-review] CLAVISTER_BIDIRECTIONAL: a static translation in both directions: only the source SAT is written; connections to the translated address need a SAT rule of their own
+  external-192.0.2.5  ->  needs-review  (emitted as fws_snat 3 (fws_external-192.0.2.5_sat), fws_snat 4 (fws_external-192.0.2.5))
+      [needs-review] NAT_ORDER: on the source, NAT rule 'external-192.0.2.10' above this one matches part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well
+      [needs-review] CLAVISTER_BIDIRECTIONAL: a static translation in both directions: only the source SAT is written; connections to the translated address need a SAT rule of their own

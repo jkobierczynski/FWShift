@@ -1,0 +1,152 @@
+FWShift conversion report
+  source: cato
+  target: asa
+
+Summary
+  Security rules:     32   exact 0, approximated 16, needs review 16 (16 emitted disabled), skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, internet. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [info] CATO_SOURCE: 4 sites as zones (Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab), remote-users and internet; the WAN Firewall (first match, implicit block) decides between sites and remote users, the Internet Firewall (first match, implicit allow, written as a last rule) from them to the internet; traffic inside one network range does not reach Cato and is allowed
+  [info] CATO_INTERNET_TOP: a hidden rule of Cato above the Internet Firewall blocks connections Cato deems illegal or malicious; it is not in the answer and not converted
+  [info] CATO_INBOUND: traffic from the internet to the sites is decided by Remote Port Forwarding, which is not read: in the model nothing from the internet is allowed
+  [info] CATO_REMOVED: rules marked removed in the revision read: left out: Retired rule
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: Brussels-HQ=10.10.0.0/24,10.10.20.0/24; Antwerp-DC=10.20.0.0/24,10.20.30.0/24; Ghent-Plant=10.30.0.0/24; Leuven-Lab=10.40.0.0/24. --no-source-networks takes none of them
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+  [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
+
+Security rules
+  inside Brussels-HQ range 1  ->  approximated  (emitted as Brussels-HQ_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  inside Brussels-HQ range 2  ->  approximated  (emitted as Brussels-HQ_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  inside Antwerp-DC range 1  ->  approximated  (emitted as Antwerp-DC_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  inside Antwerp-DC range 2  ->  approximated  (emitted as Antwerp-DC_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  inside Ghent-Plant range 1  ->  approximated  (emitted as Ghent-Plant_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Ghent-Plant. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  inside Leuven-Lab range 1  ->  approximated  (emitted as Leuven-Lab_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Leuven-Lab. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Allow HQ to DC servers  ->  approximated  (emitted as Brussels-HQ_access_in)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Allow HQ to DC servers (2)'
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Allow HQ to DC servers (2)  ->  approximated  (emitted as Brussels-HQ_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Block OT to HQ  ->  needs-review, emitted disabled  (emitted as Ghent-Plant_access_in, Leuven-Lab_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Historian both ways  ->  approximated  (emitted as Ghent-Plant_access_in)
+      [info] CATO_BOTH: direction BOTH: written as rules for each direction, the second set with source and destination swapped: 'Historian both ways (2)'
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Historian both ways (2)  ->  approximated  (emitted as Antwerp-DC_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Ghent-Plant. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Remote users to DC  ->  needs-review, emitted disabled  (emitted as remote-users_access_in)
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated destination is written as the 3 address ranges it leaves
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind internet with --zone-network.
+  Modbus to the plant  ->  approximated  (emitted as Brussels-HQ_access_in)
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Modbus to the plant (2)', 'Modbus to the plant (3)'
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Ghent-Plant. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Modbus to the plant (2)  ->  approximated  (emitted as Brussels-HQ_access_in, Antwerp-DC_access_in, Ghent-Plant_access_in, Leuven-Lab_access_in, remote-users_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Ghent-Plant. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Modbus to the plant (3)  ->  approximated  (emitted as Ghent-Plant_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Ghent-Plant. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Finance to ERP  ->  needs-review, emitted disabled  (emitted as Brussels-HQ_access_in, Antwerp-DC_access_in, Ghent-Plant_access_in, Leuven-Lab_access_in, remote-users_access_in)
+      [needs-review] CATO_USERS: users or user groups narrow the rule; they are not converted
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups Finance.
+  Prompt for SSH  ->  needs-review, emitted disabled  (emitted as Brussels-HQ_access_in, Antwerp-DC_access_in, Ghent-Plant_access_in, Leuven-Lab_access_in, remote-users_access_in)
+      [needs-review] CATO_ACTION: action PROMPT: not converted (read as allow)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNSUPPORTED_MATCH: not converted: action PROMPT: the user is asked on a web page.
+  Old block  ->  approximated  (emitted as Brussels-HQ_access_in, Antwerp-DC_access_in, Ghent-Plant_access_in, Leuven-Lab_access_in, remote-users_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Floating range  ->  needs-review, emitted disabled  (emitted as Brussels-HQ_access_in, Antwerp-DC_access_in, Ghent-Plant_access_in, Leuven-Lab_access_in, remote-users_access_in)
+      [needs-review] CATO_OBJECT: floating ranges, system groups or group members whose addresses are not known: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: floating ranges Cloud floating.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Antwerp-DC, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network.
+  Maintenance window  ->  needs-review, emitted disabled  (emitted as Antwerp-DC_access_in)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] SCHEDULE: schedule 'SATURDAY,SUNDAY 22:00:00-23:59:00' is not converted; the rule would apply at all times.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Ghent-Plant, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network.
+  Teams between sites  ->  needs-review, emitted disabled  (emitted as Brussels-HQ_access_in, Antwerp-DC_access_in, Ghent-Plant_access_in, Leuven-Lab_access_in, remote-users_access_in)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application column (applications, categories, domains or addresses as applications).
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind internet, remote-users with --zone-network.
+  Unknown host  ->  needs-review, emitted disabled  (emitted as Brussels-HQ_access_in)
+      [needs-review] CATO_UNRESOLVED: objects that are not in the lookups of the input: they match nothing until they are
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'host_lab-printer': a host that is not in the lookups of the input.
+  Block guest except DNS  ->  needs-review, emitted disabled  (emitted as Brussels-HQ_access_in, Antwerp-DC_access_in, Ghent-Plant_access_in, Leuven-Lab_access_in, remote-users_access_in)
+      [needs-review] CATO_EXCEPTION: exceptions that cannot be cut out of the rule: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: exception dns from one host: source, service (only an exception of one column of addresses or services is cut out). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind internet, remote-users with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block plant to remote users  ->  needs-review, emitted disabled  (emitted as Ghent-Plant_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind internet, remote-users with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block anonymizers  ->  needs-review, emitted disabled  (emitted as Brussels-HQ_access_in, Antwerp-DC_access_in, Ghent-Plant_access_in, Leuven-Lab_access_in, remote-users_access_in)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [info] CATO_SYSTEM_RULE: a system rule of Cato, which cannot be changed or removed
+      [needs-review] UNSUPPORTED_MATCH: not converted: appCategory Anonymizers. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad networks  ->  approximated  (emitted as Brussels-HQ_access_in, Antwerp-DC_access_in, Ghent-Plant_access_in, Leuven-Lab_access_in, remote-users_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Plant has no internet  ->  needs-review, emitted disabled  (emitted as Ghent-Plant_access_in)
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] NEGATION_NOT_STATIC: negated destination with a member that has no fixed addresses (a host name): an access list cannot negate, and what such a list leaves cannot be written out. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  HQ web  ->  needs-review, emitted disabled  (emitted as Brussels-HQ_access_in)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: domains example.org.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network.
+  Isolate unknown sites  ->  needs-review, emitted disabled  (emitted as Brussels-HQ_access_in, Antwerp-DC_access_in, Ghent-Plant_access_in, Leuven-Lab_access_in, remote-users_access_in)
+      [needs-review] CATO_ACTION: action RBI: not converted (read as allow)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action RBI: remote browser isolation.
+      [needs-review] UNSUPPORTED_MATCH: not converted: customCategory Uncategorized.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network.
+  Partner FTP  ->  approximated  (emitted as Brussels-HQ_access_in, Antwerp-DC_access_in, Ghent-Plant_access_in, Leuven-Lab_access_in, remote-users_access_in)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by internet. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Block remote users to SMB  ->  needs-review, emitted disabled  (emitted as Brussels-HQ_access_in, Antwerp-DC_access_in, Ghent-Plant_access_in, Leuven-Lab_access_in, remote-users_access_in)
+      [needs-review] CATO_ORIGIN: connection origins that are not all sites or all remote users: not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: connection origins REMOTE_CLIENT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Internet Firewall implicit allow  ->  needs-review, emitted disabled  (emitted as Brussels-HQ_access_in, Antwerp-DC_access_in, Ghent-Plant_access_in, Leuven-Lab_access_in, remote-users_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by internet, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind remote-users, internet with --zone-network.
+
+Addresses
+  Ghent Plant \ LAN  ->  exact  (emitted as Ghent_Plant___LAN)
+      [info] RENAMED: renamed to 'Ghent_Plant___LAN' to fit the target's naming rules
+  Antwerp DC \ Routed lab  ->  exact  (emitted as Antwerp_DC___Routed_lab)
+      [info] RENAMED: renamed to 'Antwerp_DC___Routed_lab' to fit the target's naming rules
+  Partner net  ->  exact  (emitted as Partner_net)
+      [info] RENAMED: renamed to 'Partner_net' to fit the target's naming rules
+  host lab-printer  ->  exact  (emitted as host_lab-printer)
+      [info] RENAMED: renamed to 'host_lab-printer' to fit the target's naming rules
+  fqdn updates.example.com  ->  exact  (emitted as fqdn_updates.example.com)
+      [info] RENAMED: renamed to 'fqdn_updates.example.com' to fit the target's naming rules
+  fqdn ftp.example.net  ->  exact  (emitted as fqdn_ftp.example.net)
+      [info] RENAMED: renamed to 'fqdn_ftp.example.net' to fit the target's naming rules
+
+Services
+  tcp/8443  ->  exact  (emitted as tcp_8443)
+      [info] RENAMED: renamed to 'tcp_8443' to fit the target's naming rules
+  tcp/1433  ->  exact  (emitted as tcp_1433)
+      [info] RENAMED: renamed to 'tcp_1433' to fit the target's naming rules
+  udp/5000-5010  ->  exact  (emitted as udp_5000-5010)
+      [info] RENAMED: renamed to 'udp_5000-5010' to fit the target's naming rules
+  tcp-udp/53  ->  exact  (emitted as tcp-udp_53)
+      [info] RENAMED: renamed to 'tcp-udp_53' to fit the target's naming rules
+  tcp/502  ->  exact  (emitted as tcp_502)
+      [info] RENAMED: renamed to 'tcp_502' to fit the target's naming rules
+  tcp/5432  ->  exact  (emitted as tcp_5432)
+      [info] RENAMED: renamed to 'tcp_5432' to fit the target's naming rules
+  tcp/9100  ->  exact  (emitted as tcp_9100)
+      [info] RENAMED: renamed to 'tcp_9100' to fit the target's naming rules

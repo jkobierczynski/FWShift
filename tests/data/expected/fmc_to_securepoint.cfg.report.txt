@@ -1,0 +1,71 @@
+FWShift conversion report
+  source: fmc (Edge)
+  target: securepoint
+
+Summary
+  Security rules:     22   exact 8, approximated 7, needs review 6 (3 emitted disabled), skipped 1
+  NAT rules:           7   exact 2, approximated 1, needs review 2, skipped 2
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           24   exact 24, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): inside, dmz, outside, firewall-outside. Map other names with --zone-map
+  [needs-review] SECUREPOINT_INTERFACE_OBJECTS: HIDENAT behind the outgoing interface names the network object of that interface, written as '<zone>-interface' (as the UTM names external-interface); these must exist on the UTM: outside-interface
+  [needs-review] SECUREPOINT_NAT_RULES: NAT rules are written as rules with the action DROP after all others, each carrying its HIDENAT, HIDENAT_EXCLUDE or DESTNAT: the rules above have decided all traffic, and the NAT applies to what the rule matches, as netfilter applies NAT independently of the filter verdict. That the UTM writes the NAT of a DROP rule this way is not documented: check the NAT after 'system update rule'
+  [approximated] OBJECT_OVERRIDES: 1 object(s) can have another value on a device than the one that was read (they allow overrides): ot-net. The values of the manager were converted; check them against the device the policy is for
+  [info] SECUREPOINT_RESERVED_NAME: objects named like objects the UTM comes with were renamed: smtp -> smtp_2
+  [info] SECUREPOINT_COMMENTED: 4 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  pre-backup  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  pre-spoofed  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (outside, inside, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  pre-partner-gre  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] TUNNEL_RULE: tunnel rule of the prefilter policy: it is converted as a rule for the protocol that carries the tunnel, between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted
+  pre-partner-gre-reverse  ->  exact  (emitted as 1 rule of group fwshift)
+      [info] TUNNEL_RULE: the other direction of tunnel rule 'pre-partner-gre', which matches tunnels from source and destination
+  prefilter-default-block-tunnels  ->  needs-review  (emitted as 9 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (outside, inside, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  LAN web  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (file=Block Malware, intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  Updates  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'updates.example.com'; that a network object of the UTM takes a host name is not documented.
+  Inbound mail  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  Admin access  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  Helpdesk RDP  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [needs-review] USER_MATCH: source user match CORP\helpdesk is not converted.
+  Staff social media  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Uncategorised web  ->  approximated  (emitted as 1 rule of group fwshift)
+      [approximated] INTERACTIVE_BLOCK: the source showed web users a page from which they could go on to the site (Interactive Block); it is converted as a rule that blocks
+  Old FTP  ->  exact  (emitted as 1 rule of group fwshift)
+      [info] SECUREPOINT_DISABLED: disabled in the source: written as comment lines, which are not loaded
+  Ping out  ->  approximated  (emitted as 6 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (outside, inside, dmz); traffic of other zones of the UTM is not matched
+  Reset the rest from inside  ->  needs-review  (emitted as 3 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (outside, inside, dmz); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [info] RESET_ACTION: action reset-both becomes REJECT, which answers the sender with an ICMP message, not a TCP reset
+  Watch DMZ  ->  skipped
+      [info] MONITOR_RULE: rule with the action Monitor: it logs the traffic and leaves the decision to the rules below it. Nothing to convert
+
+NAT rules
+  nat-3  ->  approximated  (emitted as 1 rule with DESTNAT)
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 203.0.113.2
+  nat-4  ->  skipped
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: round robin, flat port range, interface (as fallback)
+      [needs-review] SECUREPOINT_NAT_FORM: HIDENAT hides behind one address; the translated address is not one
+  nat-mail-srv  ->  skipped
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: translate DNS replies
+      [needs-review] SECUREPOINT_NAT_FORM: the UTM writes HIDENAT, HIDENAT_EXCLUDE and DESTNAT on a rule; a rule that translates source and destination, a static translation both ways or a pool is none of them
+  nat-dmz-net  ->  needs-review  (emitted as 1 rule with HIDENAT)
+      [needs-review] NAT_ORDER: NAT rule 'nat-mail-srv' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+  nat-after-auto-1  ->  needs-review  (emitted as 3 rules with HIDENAT)
+      [needs-review] NAT_ORDER: NAT rule 'nat-4' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: NAT rule 'nat-mail-srv' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it

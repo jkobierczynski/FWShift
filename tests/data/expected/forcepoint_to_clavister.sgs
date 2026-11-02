@@ -1,0 +1,123 @@
+add Address IP4Address fws_pub-web Address=203.0.113.10
+add Service ServiceTCPUDP fws_HTTPS Type=TCP DestinationPorts=443
+add Address IP4Address fws_net-lan__in_rules_ Address=10.1.0.1-10.1.255.254
+add Address IP4Address fws_net-dmz Address=192.168.10.0/24
+add Address IP4Address fws_192.168.10.25 Address=192.168.10.25
+add Address IP4Address fws_172.16.30.0_24 Address=172.16.30.0/24
+add Service ServiceTCPUDP fws_SG_Control Type=TCP DestinationPorts=3020-3021
+add Address IP4Address fws_dns-01 Address=192.168.10.53
+add Service ServiceTCPUDP fws_DNS Type=TCPUDP DestinationPorts=53
+add Address IP4Address fws_192.168.10.10 Address=192.168.10.10
+add Address IP4Address fws_192.168.10.11 Address=192.168.10.11
+add Service ServiceTCPUDP fws_web-services_1 Type=TCP DestinationPorts=8000-8010
+add Service ServiceTCPUDP fws_web-services_2 Type=TCP DestinationPorts=8443
+add Address IP4Address fws_admins Address=10.1.5.10-10.1.5.20
+add Service ServiceTCPUDP fws_SSH Type=TCP DestinationPorts=22
+add Service ServiceTCPUDP fws_tcp-8443 Type=TCP DestinationPorts=8443
+add Address IP4Address fws_not_to_dmz_dst_not_1 Address=0.0.0.0-192.168.9.255
+add Address IP4Address fws_not_to_dmz_dst_not_2 Address=192.168.11.0-255.255.255.255
+add Service ServiceTCPUDP fws_HTTP Type=TCP DestinationPorts=80
+add Address IP4Address fws_net-lan Address=10.1.0.0/16
+add Address IP6Address fws_2001_db8_30___64 Address=2001:db8:30::/64
+add Service ServiceICMP fws_Echo_Request MessageTypes=Specific EchoRequest=Yes
+add Address IP4Address fws_isp-gw Address=198.51.100.1
+add Service ServiceIPProto fws_GRE IPProto=47
+add Address IP4Address fws_10.1.0.0-10.1.5.9 Address=10.1.0.0-10.1.5.9
+add Address IP4Address fws_10.1.5.21-10.1.255.255 Address=10.1.5.21-10.1.255.255
+add Address IP6Address fws_2001_db8_10__25 Address=2001:db8:10::25
+add Service ServiceTCPUDP fws_syslog-from-514 Type=UDP DestinationPorts=514 SourcePorts=514
+add Service ServiceTCPUDP fws_NetBIOS_1 Type=TCP DestinationPorts=139
+add Service ServiceTCPUDP fws_NetBIOS_2 Type=UDP DestinationPorts=137-138
+add Service ServiceTCPUDP fws_Ident Type=TCP DestinationPorts=113
+add Address IP6Address fws_net-lan-v6 Address=2001:db8:20::/64
+add Address IP6Address fws_web-01-v6 Address=2001:db8:10::10
+add Service ServiceICMPv6 fws_IPv6_Echo_Request MessageTypes=Specific EchoRequest=Yes EchoRequestCodes=0
+add Address IP4Address fws_203.0.113.1 Address=203.0.113.1
+add Address IP4Address fws_203.0.113.25 Address=203.0.113.25
+add Address IP4Address fws_nothing Address=0.0.0.0
+add InterfaceGroup fws_zones Members=Internal,External
+add Address IP4Group fws_mail-01_IPv4 Members=fws_192.168.10.25
+add Address IP4Group fws_net-guest_IPv4 Members=fws_172.16.30.0_24
+add Address IP4Group fws_web-01 Members=fws_192.168.10.10,fws_192.168.10.11
+add Address IP4Group fws_grp-web Members=fws_web-01,fws_net-dmz
+add Service ServiceGroup fws_web-services_grp Members=fws_web-services_1,fws_web-services_2
+add Service ServiceGroup fws_allow_web_svc Members=fws_HTTPS,fws_web-services_grp
+add Address IP4Group fws_not_to_dmz_dst_not Members=fws_not_to_dmz_dst_not_1,fws_not_to_dmz_dst_not_2
+add Address IP4Group fws_net-guest Members=fws_172.16.30.0_24
+add Address IP4Group fws_grp-inside Members=fws_net-lan,fws_net-guest
+add Address IP6Group fws_net-guest_v6 Members=fws_2001_db8_30___64
+add Address IP6Group fws_grp-inside_v6 Members=fws_net-guest_v6
+add Address IP4Group fws_lan_without_admins Members=fws_10.1.0.0-10.1.5.9,fws_10.1.5.21-10.1.255.255
+add Address IP4Group fws_mail-01 Members=fws_192.168.10.25
+add Address IP6Group fws_mail-01_v6 Members=fws_2001_db8_10__25
+add Service ServiceGroup fws_lan_but_admins_svc Members=fws_syslog-from-514,fws_Echo_Request
+add Service ServiceGroup fws_NetBIOS_grp Members=fws_NetBIOS_1,fws_NetBIOS_2
+add IPRuleSet fws_rules Comments="Written by FWShift"
+add IPRuleSet fws_snat Comments="Written by FWShift"
+add IPRuleSet fws_d_publish_web Comments="Written by FWShift"
+cc IPRuleSet fws_snat
+add IPRule Index=1 Name=fws_no_nat_inside Action=Allow SourceInterface=fws_zones SourceNetwork=fws_net-lan__in_rules_ DestinationInterface=any DestinationNetwork=fws_net-dmz Service=all_services LogEnabled=No
+add IPRule Index=2 Name=fws_lan_out Action=NAT SourceInterface=fws_zones SourceNetwork=fws_net-lan__in_rules_ DestinationInterface=any DestinationNetwork=all-nets Service=all_services NATAction=UseSenderAddress NATSenderAddress=fws_203.0.113.1 LogEnabled=No
+add IPRule Index=3 Name=fws_mail_static_sat Action=SAT SourceInterface=fws_zones SourceNetwork=fws_mail-01_IPv4 DestinationInterface=any DestinationNetwork=all-nets Service=all_services SATTranslate=SourceIP SATTranslateToIP=fws_203.0.113.25 LogEnabled=No
+add IPRule Index=4 Name=fws_mail_static Action=Allow SourceInterface=fws_zones SourceNetwork=fws_mail-01_IPv4 DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=5 Name=fws_guests_hide Action=NAT SourceInterface=fws_zones SourceNetwork=fws_net-guest_IPv4 DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=6 Name=fws_snat_allow Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=7 Name=fws_snat_allow_v6 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_publish_web
+add IPRule Index=1 Name=fws_publish_web_not_to_dmz Action=Allow SourceInterface=fws_zones SourceNetwork=fws_net-lan__in_rules_ DestinationInterface=any DestinationNetwork=fws_not_to_dmz_dst_not Service=fws_HTTPS LogEnabled=Yes
+add IPRule Index=2 Name=fws_publish_web_limited_guests Action=Allow SourceInterface=fws_zones SourceNetwork=fws_net-guest DestinationInterface=any DestinationNetwork=all-nets Service=fws_HTTPS LogEnabled=Yes
+add IPRule Index=3 Name=fws_publish_web_Rule__903.0 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+add IPRule Index=4 Name=fws_publish_web_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_publish_web_sat Action=SAT SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_pub-web Service=fws_HTTPS SATTranslate=DestinationIP SATTranslateToIP=fws_192.168.10.10 SATTranslateToPort=8443 LogEnabled=No
+add GotoRule Index=2 Name=fws_publish_web_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_pub-web Service=fws_HTTPS RuleSet=fws_d_publish_web LogEnabled=No
+add IPRule Index=3 Name=fws_Rule__900.0 Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No Comments="SMC communications (abbreviated)"
+set IPRule 3 -disable
+add GotoRule Index=4 Name=fws_dns_to_resolver SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_dns-01 Service=fws_DNS RuleSet=fws_snat LogEnabled=No
+add GotoRule Index=5 Name=fws_allow_web SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_grp-web Service=fws_allow_web_svc RuleSet=fws_snat LogEnabled=Yes
+add GotoRule Index=6 Name=fws_to_admin_sub-policy___admins_in SourceInterface=fws_zones SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=fws_net-dmz Service=fws_SSH RuleSet=fws_snat LogEnabled=Yes
+add IPRule Index=7 Name=fws_to_admin_sub-policy___others_out Action=Drop SourceInterface=fws_zones SourceNetwork=fws_net-lan__in_rules_ DestinationInterface=fws_zones DestinationNetwork=fws_net-dmz Service=fws_SSH LogEnabled=Yes
+add IPRule Index=8 Name=fws_refuse_admins_8443 Action=Reject SourceInterface=fws_zones SourceNetwork=fws_admins DestinationInterface=fws_zones DestinationNetwork=fws_pub-web Service=fws_tcp-8443 LogEnabled=Yes
+add IPRule Index=9 Name=fws_old_block Action=Drop SourceInterface=fws_zones SourceNetwork=fws_net-lan__in_rules_ DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+set IPRule 9 -disable
+add GotoRule Index=10 Name=fws_internal_zone_out SourceInterface=Internal SourceNetwork=fws_net-lan__in_rules_ DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_web-services_grp RuleSet=fws_snat LogEnabled=Yes
+add GotoRule Index=11 Name=fws_not_to_dmz SourceInterface=fws_zones SourceNetwork=fws_net-lan__in_rules_ DestinationInterface=fws_zones DestinationNetwork=fws_not_to_dmz_dst_not Service=fws_HTTPS RuleSet=fws_snat LogEnabled=Yes
+add GotoRule Index=12 Name=fws_zone_or_web_host_out SourceInterface=Internal SourceNetwork=all-nets DestinationInterface=External DestinationNetwork=all-nets Service=fws_HTTP RuleSet=fws_snat LogEnabled=Yes
+add IPRule Index=13 Name=fws_zone_or_web_host_out__2_ Action=Allow SourceInterface=fws_zones SourceNetwork=fws_web-01 DestinationInterface=External DestinationNetwork=all-nets Service=fws_HTTP LogEnabled=Yes
+add IPRule Index=14 Name=fws_vpn_only Action=Allow SourceInterface=fws_zones SourceNetwork=fws_net-lan__in_rules_ DestinationInterface=fws_zones DestinationNetwork=fws_net-dmz Service=all_services LogEnabled=Yes
+set IPRule 14 -disable
+add GotoRule Index=15 Name=fws_ping_out SourceInterface=fws_zones SourceNetwork=fws_grp-inside DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_Echo_Request RuleSet=fws_snat LogEnabled=Yes
+add IPRule Index=16 Name=fws_no_social Action=Drop SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=Yes
+set IPRule 16 -disable
+add IPRule Index=17 Name=fws_helpdesk_to_dmz Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_net-dmz Service=fws_SSH LogEnabled=Yes
+set IPRule 17 -disable
+add IPRule Index=18 Name=fws_unfinished Action=Allow SourceInterface=fws_zones SourceNetwork=fws_net-lan__in_rules_ DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_SSH LogEnabled=Yes
+set IPRule 18 -disable
+add IPRule Index=19 Name=fws_office_web Action=Allow SourceInterface=fws_zones SourceNetwork=fws_net-lan__in_rules_ DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_HTTP LogEnabled=Yes
+set IPRule 19 -disable
+add GotoRule Index=20 Name=fws_limited_guests SourceInterface=fws_zones SourceNetwork=fws_net-guest DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_HTTPS RuleSet=fws_snat LogEnabled=Yes
+add IPRule Index=21 Name=fws_block_list Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+set IPRule 21 -disable
+add GotoRule Index=22 Name=fws_gre_to_isp SourceInterface=fws_zones SourceNetwork=fws_net-lan__in_rules_ DestinationInterface=fws_zones DestinationNetwork=fws_isp-gw Service=fws_GRE RuleSet=fws_snat LogEnabled=Yes
+add GotoRule Index=23 Name=fws_lan_but_admins SourceInterface=fws_zones SourceNetwork=fws_lan_without_admins DestinationInterface=fws_zones DestinationNetwork=fws_mail-01 Service=fws_lan_but_admins_svc RuleSet=fws_snat LogEnabled=Yes
+add IPRule Index=24 Name=fws_Rule__1021.0 Action=Drop SourceInterface=fws_zones SourceNetwork=fws_net-guest DestinationInterface=fws_zones DestinationNetwork=fws_net-lan__in_rules_ Service=all_services LogEnabled=Yes Comments="guests stay out"
+add IPRule Index=25 Name=fws_drop_netbios Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_NetBIOS_grp LogEnabled=No
+add IPRule Index=26 Name=fws_Rule__902.0 Action=Reject SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_Ident LogEnabled=Yes
+add IPRule Index=27 Name=fws_Rule__903.0 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+add IPRule Index=28 Name=fws_v6_web Action=Allow SourceInterface=fws_zones SourceNetwork=fws_net-lan-v6 DestinationInterface=fws_zones DestinationNetwork=fws_web-01-v6 Service=fws_HTTPS LogEnabled=Yes
+add IPRule Index=29 Name=fws_v6_ping Action=Allow SourceInterface=fws_zones SourceNetwork=fws_net-lan-v6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=fws_IPv6_Echo_Request LogEnabled=No
+add IPRule Index=30 Name=fws_v6_mail Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=fws_mail-01_v6 Service=fws_HTTPS LogEnabled=Yes
+add IPRule Index=31 Name=fws_v6_guests Action=Reject SourceInterface=fws_zones SourceNetwork=fws_grp-inside_v6 DestinationInterface=fws_zones DestinationNetwork=fws_web-01-v6 Service=all_services LogEnabled=No
+add IPRule Index=32 Name=fws_Rule__952.0 Action=Reject SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=fws_Ident LogEnabled=Yes
+add IPRule Index=33 Name=fws_Rule__953.0 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=Yes
+add IPRule Index=34 Name=fws_default Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=35 Name=fws_default_v6 Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=36 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=37 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

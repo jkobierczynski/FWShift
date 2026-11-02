@@ -1,0 +1,79 @@
+add Address IP4Address fws_203.0.113.10 Address=203.0.113.10
+add Service ServiceTCPUDP fws_tcp-443 Type=TCP DestinationPorts=443
+add Address IP4Address fws_198.51.100.0_24 Address=198.51.100.0/24
+add Service ServiceTCPUDP fws_tcp-2222 Type=TCP DestinationPorts=2222
+add Service ServiceTCPUDP fws_tcp-23 Type=TCP DestinationPorts=23
+add Address IP4Address fws_10.10.0.0_16 Address=10.10.0.0/16
+add Address IP4Address fws_10.10.8.8 Address=10.10.8.8
+add Address IP4Address fws_10.10.8.9 Address=10.10.8.9
+add Service ServiceTCPUDP fws_tcp-udp-53 Type=TCPUDP DestinationPorts=53
+add Address IP4Address fws_10.10.4.0_24 Address=10.10.4.0/24
+add Address IP4Address fws_192.0.2.0_24 Address=192.0.2.0/24
+add Address IP4Address fws_10.10.8.53 Address=10.10.8.53
+add Address IP6Address fws_2001_db8_10___64 Address=2001:db8:10::/64
+add Address IP4Address fws_10.10.5.0_24 Address=10.10.5.0/24
+add Service ServiceTCPUDP fws_tcp-22 Type=TCP DestinationPorts=22
+add Address IP4Address fws_10.10.1.0_24 Address=10.10.1.0/24
+add Address IP4Address fws_10.10.2.0_24 Address=10.10.2.0/24
+add Service ServiceTCPUDP fws_tcp-1433 Type=TCP DestinationPorts=1433
+add Address IP4Address fws_10.10.9.0_24 Address=10.10.9.0/24
+add Service ServiceICMP fws_icmp MessageTypes=All
+add Address IP4Address fws_10.10.2.10-10.10.2.20 Address=10.10.2.10-10.10.2.20
+add Service ServiceTCPUDP fws_udp-123 Type=UDP DestinationPorts=123
+add Address IP4Address fws_10.10.1.10-10.10.1.20 Address=10.10.1.10-10.10.1.20
+add Address IP4Address fws_10.10.3.0_24 Address=10.10.3.0/24
+add Service ServiceTCPUDP fws_tcp-8000-8080_9000 Type=TCP DestinationPorts=8000-8080,9000
+add Address IP4Address fws_10.10.1.6 Address=10.10.1.6
+add Service ServiceTCPUDP fws_tcp-80_443 Type=TCP DestinationPorts=80,443
+add Address IP4Address fws_10.10.1.4 Address=10.10.1.4
+add Address IP4Address fws_10.10.1.5 Address=10.10.1.5
+add Address IP4Address fws_nothing Address=0.0.0.0
+add Address IP4Group fws_ipg-dns Members=fws_10.10.8.8,fws_10.10.8.9
+add Address IP4Group fws_ipg-servers Members=fws_10.10.1.0_24,fws_10.10.2.10-10.10.2.20
+add IPRuleSet fws_rules Comments="Written by FWShift"
+add IPRuleSet fws_d_dnat-web_web-https Comments="Written by FWShift"
+add IPRuleSet fws_d_dnat-web_ssh-admin Comments="Written by FWShift"
+cc IPRuleSet fws_d_dnat-web_web-https
+add IPRule Index=1 Name=fws_dnat-web_web-https_dnat-web_web-https__DNAT_ Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.10 Service=fws_tcp-443 LogEnabled=No
+add IPRule Index=2 Name=fws_dnat-web_web-https_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_dnat-web_ssh-admin
+add IPRule Index=1 Name=fws_dnat-web_ssh-admin_dnat-web_ssh-admin__DNAT_ Action=Allow SourceInterface=any SourceNetwork=fws_198.51.100.0_24 DestinationInterface=any DestinationNetwork=fws_203.0.113.10 Service=fws_tcp-2222 LogEnabled=No Comments="Admin SSH on a high port"
+add IPRule Index=2 Name=fws_dnat-web_ssh-admin_default Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_dnat-web_web-https_sat Action=SAT SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.10 Service=fws_tcp-443 SATTranslate=DestinationIP SATTranslateToIP=fws_10.10.1.4 LogEnabled=No
+add IPRule Index=2 Name=fws_dnat-web_ssh-admin_sat Action=SAT SourceInterface=any SourceNetwork=fws_198.51.100.0_24 DestinationInterface=any DestinationNetwork=fws_203.0.113.10 Service=fws_tcp-2222 SATTranslate=DestinationIP SATTranslateToIP=fws_10.10.1.5 SATTranslateToPort=22 LogEnabled=No Comments="Admin SSH on a high port"
+add GotoRule Index=3 Name=fws_dnat-web_web-https_goto SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.10 Service=fws_tcp-443 RuleSet=fws_d_dnat-web_web-https LogEnabled=No
+add GotoRule Index=4 Name=fws_dnat-web_ssh-admin_goto SourceInterface=any SourceNetwork=fws_198.51.100.0_24 DestinationInterface=any DestinationNetwork=fws_203.0.113.10 Service=fws_tcp-2222 RuleSet=fws_d_dnat-web_ssh-admin LogEnabled=No
+add IPRule Index=5 Name=fws_dnat-web_web-https__DNAT_ Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.10 Service=fws_tcp-443 LogEnabled=No
+add IPRule Index=6 Name=fws_dnat-web_ssh-admin__DNAT_ Action=Allow SourceInterface=any SourceNetwork=fws_198.51.100.0_24 DestinationInterface=any DestinationNetwork=fws_203.0.113.10 Service=fws_tcp-2222 LogEnabled=No Comments="Admin SSH on a high port"
+add IPRule Index=7 Name=fws_base-deny_deny-telnet Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=fws_tcp-23 LogEnabled=No Comments="Telnet nowhere"
+add IPRule Index=8 Name=fws_base-allow-dns_dns-out Action=Allow SourceInterface=any SourceNetwork=fws_10.10.0.0_16 DestinationInterface=any DestinationNetwork=fws_ipg-dns Service=fws_tcp-udp-53 LogEnabled=No
+add IPRule Index=9 Name=fws_net-partner_every-protocol-to-partner Action=Allow SourceInterface=any SourceNetwork=fws_10.10.4.0_24 DestinationInterface=any DestinationNetwork=fws_192.0.2.0_24 Service=all_services LogEnabled=No
+add IPRule Index=10 Name=fws_net-partner_dns-any-protocol Action=Allow SourceInterface=any SourceNetwork=fws_10.10.0.0_16 DestinationInterface=any DestinationNetwork=fws_10.10.8.53 Service=fws_tcp-udp-53 LogEnabled=No
+add IPRule Index=11 Name=fws_net-partner_v6-ssh Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 11 -disable
+add IPRule Index=12 Name=fws_net-allow-web_web-to-db Action=Allow SourceInterface=any SourceNetwork=fws_10.10.1.0_24 DestinationInterface=any DestinationNetwork=fws_10.10.2.0_24 Service=fws_tcp-1433 LogEnabled=No
+add IPRule Index=13 Name=fws_net-allow-web_icmp-mgmt Action=Allow SourceInterface=any SourceNetwork=fws_10.10.9.0_24 DestinationInterface=any DestinationNetwork=fws_10.10.0.0_16 Service=fws_icmp LogEnabled=No
+add IPRule Index=14 Name=fws_net-allow-web_ntp-out Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 14 -disable
+add IPRule Index=15 Name=fws_net-allow-web_storage Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 15 -disable
+add IPRule Index=16 Name=fws_net-allow-web_app-ports Action=Allow SourceInterface=any SourceNetwork=fws_10.10.1.10-10.10.1.20 DestinationInterface=any DestinationNetwork=fws_10.10.3.0_24 Service=fws_tcp-8000-8080_9000 LogEnabled=No
+add IPRule Index=17 Name=fws_net-allow-web_partner-sftp Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 17 -disable
+add IPRule Index=18 Name=fws_net-deny-lateral_block-lateral Action=Drop SourceInterface=any SourceNetwork=fws_10.10.0.0_16 DestinationInterface=any DestinationNetwork=fws_10.10.0.0_16 Service=all_services LogEnabled=No
+add IPRule Index=19 Name=fws_app-out_allow-updates Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 19 -disable
+add IPRule Index=20 Name=fws_app-out_allow-wsus Action=Allow SourceInterface=any SourceNetwork=fws_ipg-servers DestinationInterface=any DestinationNetwork=all-nets Service=fws_tcp-80_443 LogEnabled=No
+set IPRule 20 -disable
+add IPRule Index=21 Name=fws_app-deny_no-gambling Action=Drop SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=fws_tcp-80_443 LogEnabled=No
+set IPRule 21 -disable
+add ReturnRule Index=22 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=23 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

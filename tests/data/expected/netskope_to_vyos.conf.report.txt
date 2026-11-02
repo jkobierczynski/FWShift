@@ -1,0 +1,54 @@
+FWShift conversion report
+  source: netskope
+  target: vyos
+
+Summary
+  Security rules:     16   exact 12, approximated 0, needs review 4 (4 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NETSKOPE_WEB_TRAFFIC: web traffic (HTTP and HTTPS through the proxy) that no firewall rule matches is decided by the web and cloud app policies and their defaults, which are not converted: the model applies the Default Action to it
+  [needs-review] NETSKOPE_ICMP: ICMP read as ICMP for IPv4; whether it also matches ICMPv6 is not documented: service object svc-ping
+  [needs-review] VYOS_LOAD: load the commands in configuration mode: 'configure', paste them, 'compare', then 'commit-confirm 10' (unless 'confirm' follows within 10 minutes, VyOS goes back to the configuration before; older releases reboot to do so) and 'save'. A commit applies all of them or none. The policy is written as the zone-based firewall: zones client, ipsec, gre, internet, and a chain FWS-<from>-<to> for each pair of zones that needs one. Interfaces of the router in no zone: VyOS drops their traffic into a zone and leaves traffic from a zone to them to the forward filter; that traffic is decided by chain FWS-NO-ZONE (the rules for any destination and the default of the policy), jumped to from rule 10000 of the forward filter for what leaves by an interface not in interface group FWS-ZONES. Check that the forward filter has no rule 10000 (show firewall ipv4 forward filter), or give another number with --policy-id-start; its rules with lower numbers come first, and those after rule 10000 are no longer reached by what the chain decides, as it ends with the default of the policy. The forward filter of the router still applies before the zones (an accept there goes on to the zones, a drop is final). A zone of the same name that exists gets these interfaces and chains in addition to its own; a chain set for a pair that has one replaces it. NAT rules are numbered from 10000: rules of the router with lower numbers come first. To take a conversion away: delete the groups, chains, zones and NAT rules the commands name (all under FWS-, and the NAT rules from 10000 on). Assumed: names of up to 63 characters
+  [needs-review] ZONES_REQUIRED: these zones are written with the interfaces of the source: check that they are interfaces of the router (or map them with --interface-map): client=Client, ipsec=IPSec, gre=GRE, internet=egress
+  [needs-review] VYOS_NO_ZONE: traffic from a zone to an interface in no zone is decided by chain FWS-NO-ZONE; its replies come in from an interface in no zone, which VyOS drops at the zones unless 'firewall global-options state-policy' accepts established and related packets (the commands do not set it, as it applies to the whole router)
+  [info] NETSKOPE_SOURCE: 14 firewall rules of the Real-time Protection policies, first match, from the access methods (zones client, ipsec, gre) to the zone internet, then the Default Action; only traffic steered to Netskope is decided by them, and traffic between users or sites is not in the model
+  [info] NETSKOPE_OTHER_POLICIES: policies of other types, which firewall traffic skips, not read: 1 dlp, 1 web
+  [info] VYOS_TEXT: names and descriptions with characters VyOS does not take in them (or longer than it takes) were changed: FWS-Branch mail to partner-src, FWS-Not from the server networks: no NTP-src
+
+Security rules
+  Block known bad ranges  ->  exact  (emitted as FWS-client-internet rule 10, FWS-ipsec-internet rule 10, FWS-gre-internet rule 10)
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  Branch mail to partner  ->  exact  (emitted as FWS-ipsec-internet rule 20, FWS-gre-internet rule 20)
+      [info] RULE_SPLIT: written in the chains of 2 pairs of zones
+  Admins to jump hosts [app-ssh-jump]  ->  exact  (emitted as FWS-client-internet rule 20)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Admins to jump hosts [app-rdp-gw]  ->  exact  (emitted as FWS-client-internet rule 30)
+      [info] NETSKOPE_APPS_SPLIT: rule Admins to jump hosts names 2 custom firewall apps: one rule per app, in place (exact)
+  Engineering to git  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_USERS: user groups: Engineering; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: firewall app app-git: host name 'git.example.org'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups: Engineering.
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app app-git: host name 'git.example.org'.
+  Block BitTorrent  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_APPLICATION: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: firewall app BitTorrent: a predefined (DPI) application, or a custom app that is not in firewall_apps. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  Time servers  ->  exact  (emitted as FWS-client-internet rule 40, FWS-ipsec-internet rule 40, FWS-gre-internet rule 50)
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  SaaS files from the office  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_NOT_CONVERTED: network locations (Source IP (Egress)): HQ egress; the rule is not converted
+      [needs-review] NETSKOPE_FQDN: destination profile dp-saas-domains: host name 'files.example.com'; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: network locations (Source IP (Egress)): HQ egress.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination profile dp-saas-domains: host name 'files.example.com'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'dp-saas-domains': destination profile dp-saas-domains: host name 'files.example.com'.
+  Ping out  ->  exact  (emitted as FWS-client-internet rule 50, FWS-ipsec-internet rule 60, FWS-gre-internet rule 60)
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  DNS out  ->  exact  (emitted as FWS-client-internet rule 60, FWS-client-internet rule 10 (IPv6), FWS-ipsec-internet rule 70, FWS-ipsec-internet rule 20 (IPv6), FWS-gre-internet rule 70, FWS-gre-internet rule 30 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones
+  Contractors: nothing else  ->  needs-review, emitted disabled
+      [needs-review] NETSKOPE_USERS: users: contractor1@example.com; the rule is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: users: contractor1@example.com. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Default Action  ->  exact  (emitted as FWS-client-internet rule 70, FWS-client-internet rule 20 (IPv6), FWS-ipsec-internet rule 90, FWS-ipsec-internet rule 30 (IPv6), FWS-gre-internet rule 80, FWS-gre-internet rule 40 (IPv6))
+      [info] RULE_SPLIT: written in the chains of 3 pairs of zones

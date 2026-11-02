@@ -1,0 +1,55 @@
+FWShift conversion report
+  source: hisecos (IPv4)
+  target: clavister
+
+Summary
+  Security rules:     14   exact 8, approximated 2, needs review 4 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 2, approximated 0, needs review 1, skipped 2
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HISECOS_NOT_CONVERTED: settings that change what passes and are not converted: deep packet inspection (enforcer profiles)
+  [needs-review] HISECOS_DIRECTION_ORDER: the policy mixes assignments for ingress only with assignments for egress only; the MIB does not say how they are ordered against each other, and they are read as one order by priority: rules assigned for ingress only and rules assigned for egress only
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 2 rule sets it sends traffic to; 29 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: 1_1, 1_2, 1_3, vlan_20
+  [info] HISECOS_SOURCE: 13 rules of the packet filter, 12 of them assigned and enabled, in the order of their priorities; zones are the routing interfaces (port1_1, port1_2, port1_3, vlan20); IPv4 only. The keywords of the commands are FWShift's reading of the MIB and the command list of the CLI reference, not confirmed by its Format lines
+  [info] HISECOS_DEFAULT: what no rule matches meets the default policy, drop (packet-filter l3 defaultpolicy)
+  [info] HISECOS_NAT_ORDER: destination NAT and 1:1 NAT are read as done before the packet filter, whose rules name the translated address (HiSecOS is built on netfilter; not confirmed): the rules were rewritten for the address as it arrives. Masquerading is done after it. The NAT rules are read in the order 1:1 NAT, double NAT, destination NAT, masquerading, each by priority (an assumption)
+  [info] HISECOS_MANAGEMENT: the device's own management access (network management access) is not converted; entries: entry 1
+  [info] HISECOS_EDITS: commands that change or delete rules, carried out in the order of the script: delrule 140
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  rule-10  ->  approximated  (emitted as fws_rules 4 (fws_rule-10))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '172.16.10.30' next to '10.10.0.0/24' because of NAT rule 'doublenat-1-reverse'; check that this rule is meant to cover the translated traffic
+  rule-20  ->  needs-review, emitted disabled  (emitted as fws_rules 5 (fws_rule-20))
+      [needs-review] UNSUPPORTED_MATCH: not converted: traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content.
+  rule-40-2  ->  exact  (emitted as fws_rules 7 (fws_rule-40-2))
+      [info] HISECOS_SPLIT: rule 40 is assigned at more than one place in the order (interfaces, directions or priorities); this is its placement number 2
+  rule-100  ->  needs-review, emitted disabled  (emitted as fws_rules 8 (fws_rule-100))
+      [needs-review] UNSUPPORTED_MATCH: not converted: parameter flags=SYN is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-60  ->  needs-review  (emitted as fws_rules 11 (fws_rule-60))
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '192.0.2.10' next to '10.30.0.10' because of NAT rule 'dnat-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'dnat-1' also translates the port to 80; the service of this rule still names the post-NAT port and must be adjusted
+  rule-110  ->  needs-review  (emitted as fws_rules 12 (fws_rule-110))
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+  rule-70  ->  exact  (emitted as fws_rules 14 (fws_rule-70))
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  rule-80  ->  approximated  (emitted as fws_rules 16 (fws_rule-80))
+      [info] HISECOS_NOT_ASSIGNED: rule 80 is assigned to no interface, so it applies to no traffic: read as disabled, at the end
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '172.16.20.40' next to '10.20.0.0/24' because of NAT rule 'doublenat-1'; check that this rule is meant to cover the translated traffic
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+
+NAT rules
+  1to1nat-1  ->  needs-review  (emitted as fws_snat 1 (fws_1to1nat-1_sat), fws_snat 2 (fws_1to1nat-1))
+      [info] HISECOS_1TO1: 1:1 NAT read as a static translation in both directions: the new target addresses leave as the target addresses, and connections to the target addresses reach the new ones (not confirmed)
+      [needs-review] CLAVISTER_BIDIRECTIONAL: a static translation in both directions: only the source SAT is written; connections to the translated address need a SAT rule of their own
+  doublenat-1  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] CLAVISTER_NAT_FORM: a static source translation together with a destination translation
+  doublenat-1-reverse  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] CLAVISTER_NAT_FORM: a static source translation together with a destination translation

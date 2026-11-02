@@ -1,0 +1,117 @@
+FWShift conversion report
+  source: pfsense
+  target: cato
+
+Summary
+  Security rules:     25   exact 5, approximated 7, needs review 6 (3 emitted disabled), skipped 7
+  NAT rules:           8   exact 0, approximated 0, needs review 0, skipped 8
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] RULE_NOT_LOADED: pfSense does not load 1 rule of the configuration, which it cannot resolve; they are not converted: 'Spare network, not in use' (its interface 'opt3' is not there or not enabled)
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: pfSense drops what arrives there from addresses nobody has been given, by a list it downloads. That list is not in the configuration, and nothing is converted for it
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one network range of a site the traffic does not reach Cato and passes: WAN, LAN, DMZ, GUEST
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): WAN, LAN, DMZ, GUEST
+  [info] FLOATING_LAST_MATCH: 1 floating rule is not 'quick': such a rule decides only where no rule of an interface matched, and of several the last one. In the converted policy it stands behind the rules of the interfaces, the last one first: 'Telnet unless a rule says otherwise'
+  [info] PFSENSE_AUTOMATIC_RULES: pfSense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof), packets from or to 169.254.0.0/16, and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without; and it has rules for itself (anti-lockout, DHCP, IPsec). Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  Nothing leaves towards the sinkhole  ->  exact  (emitted as fws-Nothing leaves towards the sinkhole)
+      [info] CATO_ZONE_EXCEPTION: the destination is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  SSH for the partner - pass  ->  needs-review  (emitted as fws-SSH for the partner - pass)
+      [approximated] AUTOMATIC_RULE: port forward 'SSH for the partner' passes what it forwards without a rule ('Pass' as its filter rule association): pfSense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '192.168.20.25' because of NAT rule 'SSH for the partner'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'SSH for the partner' also translates the port to 22; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Block private networks from WAN  ->  needs-review  (emitted as fws-Block private networks from WAN)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks and loopback addresses' set: pfSense drops what arrives there from those networks before any rule is looked at. This rule stands for that
+      [needs-review] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Ping from the inside  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  DNS from the firewall  ->  approximated  (emitted as fws-DNS from the firewall)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  NAT Web server HTTPS  ->  approximated  (emitted as fws-NAT Web server HTTPS)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to '192.168.20.10' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  NAT Application ports  ->  exact  (emitted as fws-NAT Application ports)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Mail in  ->  approximated  (emitted as fws-Mail in)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Web server over IPv6  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  Ping and errors to the firewall  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Administrators to the servers  ->  approximated  (emitted as fws-Administrators to the servers)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [approximated] CATO_IPV6: IPv6 addresses of the destination are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+  Users to the web servers  ->  approximated  (emitted as fws-Users to the web servers)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'WebServers' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Users to the web server by its outside address  ->  needs-review  (emitted as fws-Users to the web server by its outside address)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '198.51.100.10', the external address of NAT rule 'Web server HTTPS', but not '192.168.20.10' behind it. The source looks rules up after the translation and did not apply this rule to that traffic; the converted rule does
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  No other private network from the LAN  ->  approximated  (emitted as fws-No other private network from the LAN)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] REJECT_AS_DENY: action reset-client: written as BLOCK
+  Default allow LAN to any rule  ->  exact  (emitted as fws-Default allow LAN to any rule)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Default allow LAN IPv6 to any rule  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  Servers fetch their updates  ->  skipped
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] CATO_NOT_WRITTEN: not written: host names as the destination: Cato takes them as destinations on the internet only
+  Mail out, not to the inside  ->  needs-review, emitted disabled  (emitted as fws-Mail out_ not to the inside)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10).
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11).
+  Syslog to the collector  ->  needs-review, emitted disabled  (emitted as fws-Syslog to the collector)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] SCHEDULE: schedule 'OfficeHours' is not converted; the rule would apply at all times.
+  Nothing from the list  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: 'Blocklist' holds members whose addresses are not known This deny rule is NOT enforced; rules below it may let more through.
+  Tunnel of the old application  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  Guests reach nothing private  ->  approximated  (emitted as fws-Guests reach nothing private)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Guests browse  ->  exact  (emitted as fws-Guests browse)
+      [info] POLICY_ROUTING: the rule also sends what it passes to gateway 'WANGW' (policy routing), which is not converted
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+  Phones of the guests  ->  needs-review, emitted disabled  (emitted as fws-Phones of the guests)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches a mark set by another rule (tagged) 'VOICE'.
+
+NAT rules
+  Web server HTTPS  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  Application ports  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  SSH for the partner  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  Mail server - inbound  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  Mail server - outbound  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  DMZ leaves with the web address  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  No NAT towards the partner  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  Automatic outbound NAT on WAN  ->  skipped
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: pfSense translates what leaves by an interface with a gateway and comes from the networks of its other interfaces and of its static routes. This rule stands for that
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself

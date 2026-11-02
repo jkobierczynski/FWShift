@@ -1,0 +1,66 @@
+FWShift conversion report
+  source: barracuda (forwarding firewall)
+  target: securepoint
+
+Summary
+  Security rules:     17   exact 0, approximated 9, needs review 8 (4 emitted disabled), skipped 0
+  Addresses:           8   exact 8, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CONNECTION_NOT_READ: rules whose connection object translates the source address: 'LAN-2-INTERNET'. Source NAT is not read; the rules are, as they match
+  [needs-review] SECUREPOINT_LOAD: the output is commands of the UTM's CLI (section 10): network objects, services and the rule group 'fwshift' with its rules, nothing deleted. A new rule group comes after the groups the UTM has, whose rules decide first: move it in the web interface (Firewall > Packet filter) where it belongs. Apply with 'system update rule' and keep with 'system config save' after checking
+  [needs-review] ZONES_REQUIRED: the network objects name these zones, which must exist on the UTM (Network > Zones, each bound to its interface; the output creates none): port1, port2. Map other names with --zone-map
+  [info] BARRACUDA_FORMAT: read 15 forwarding rules, 10 network objects and 8 service objects from 19 answers of the REST API. Barracuda documents that API by examples only: the keys read are those its examples and published tools show, and a key of a rule, an object or an entry this parser does not know makes it unusable
+  [info] ICMP_LIMITS: service objects that limit the size or rate of ICMP echo requests: 'Ping'. The limits are not converted: the rules allow ICMP of any size and rate
+  [info] SECUREPOINT_COMMENTED: 5 rules are written as comment lines (disabled in the source, or not convertible), which are not loaded
+
+Security rules
+  BLOCK-BAD  ->  needs-review  (emitted as 4 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  BLOCK-BAD-V6  ->  needs-review  (emitted as 4 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+  ADMIN-SSH (port2)  ->  approximated  (emitted as 2 rules of group fwshift)
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched
+  ADMIN-SSH (port1)  ->  approximated  (emitted as 2 rules of group fwshift)
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched
+  LAN-2-INTERNET  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched
+  WEB-IN  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Dst NAT: how the API spells its target list is not known, so the translation is not read.
+  SERVER-SYNC  ->  approximated  (emitted as 4 rules of group fwshift)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched
+  SERVER-SYNC (back)  ->  approximated  (emitted as 4 rules of group fwshift)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched
+  DNS-OUT  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched
+      [info] SECUREPOINT_DISABLED: disabled in the source: written as comment lines, which are not loaded
+  PING-ALL  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] ICMP_LIMITS: service 'Ping' limits the size or rate of ICMP echo requests; the limits are not converted
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched
+  UPDATES  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched
+      [needs-review] SECUREPOINT_FQDN: the destination holds host name 'updates.example.com'; that a network object of the UTM takes a host name is not documented.
+  V6-WEB  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched
+  DENY-LAN-DMZ  ->  needs-review  (emitted as 4 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [info] RESET_ACTION: action reset-client becomes REJECT, which answers the sender with an ICMP message, not a TCP reset
+  GRE-LAB  ->  approximated  (emitted as 4 rules of group fwshift)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application=urlFilter, ips=Default); attach equivalent inspection on the target
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched
+  TO-LAB  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Cascade: the rules of the rule list it hands traffic to are not read, and they decide that traffic. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ODD  ->  needs-review, emitted disabled  (emitted as a comment line)
+      [approximated] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched
+      [needs-review] SCHEDULE: schedule '{"type": "recurring", "name": "Work-Hours"}' is not converted; the rule would apply at all times.
+  BLOCKALL  ->  needs-review  (emitted as 4 rules of group fwshift)
+      [needs-review] SECUREPOINT_ZONE_ANY: a side of 'any' zone is written for the zones the policy knows (port1, port2); traffic of other zones of the UTM is not matched, and this blocking rule does not block it

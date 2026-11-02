@@ -280,6 +280,29 @@ validate`); the XML profile; IPv6; deep packet inspection and the user firewall.
 Still open for Moxa: MX-ROS (EDR-G9010, EDR-G9004, EDR-8010), whose policy commands could not be read; the default
 of the classic firmware; the Layer 2 policy.
 
+Done in **0.44.0**, all from documentation and none loaded on a device or a tenant: **Clavister cOS Core** (the CLI
+script, both ways), **Securepoint UTM** (CLI commands, both ways), **LANCOM R&S Unified Firewall** (REST API JSON, read;
+a curl script, written), **Zscaler Internet Access** and **Cato Networks** (their API JSON, read; curl scripts,
+written) and the **Netskope Cloud Firewall** (its policy export, read only). Conversions between them are in the goldens.
+
+Still open for Clavister: the backup format; IPv6 in every corner; SAT with FwdFast; a lab (cOS Core runs as a virtual
+appliance).
+
+Still open for Securepoint: the `.utm` export; whether a DROP rule's NAT applies (the output relies on it); the CLI
+parameters against the current reference; NETMAP.
+
+Still open for LANCOM R&S Unified Firewall: the JSON of hosts, ranges, groups, Internet objects and service groups;
+whether the policy really is order-free; port forwarding and connection NAT; IPv6.
+
+Still open for Zscaler: admin rank against order, `BLOCK_ICMP` and `EVAL_NWAPP`, sub-locations and location groups;
+IPv6; checking the script against a tenant.
+
+Still open for Cato: BOTH with services, site references by name, the lookups' field names; IPv6, ICMP types, source
+ports.
+
+Still open for Netskope: the shape of the export (a real export from a tenant); a target, if Netskope publishes a way
+to write the rules.
+
 
 ## Rule usage
 

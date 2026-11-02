@@ -42,6 +42,7 @@ from .emitters import huawei as emit_huawei
 from .emitters import ios as emit_ios
 from .emitters import junos as emit_junos
 from .emitters import meraki as emit_meraki
+from .emitters import cato as emit_cato
 from .emitters import nftables as emit_nftables
 from .emitters import nsx as emit_nsx
 from .emitters import oci as emit_oci
@@ -58,6 +59,10 @@ from .emitters import zyxel as emit_zyxel
 from .emitters import moxa as emit_moxa
 from .emitters import scalance as emit_scalance
 from .emitters import hisecos as emit_hisecos
+from .emitters import zscaler as emit_zscaler
+from .emitters import securepoint as emit_securepoint
+from .emitters import lancomuf as emit_lancomuf
+from .emitters import clavister as emit_clavister
 from .errors import FwshiftError
 from .model import ANY, AddressKind, Policy
 from .netutil import parse_literal
@@ -85,6 +90,7 @@ from .parsers import huawei as parse_huawei
 from .parsers import ios as parse_ios
 from .parsers import junos as parse_junos
 from .parsers import meraki as parse_meraki
+from .parsers import cato as parse_cato
 from .parsers import nftables as parse_nftables
 from .parsers import nsx as parse_nsx
 from .parsers import oci as parse_oci
@@ -104,6 +110,11 @@ from .parsers import zyxel as parse_zyxel
 from .parsers import moxa as parse_moxa
 from .parsers import scalance as parse_scalance
 from .parsers import hisecos as parse_hisecos
+from .parsers import netskope as parse_netskope
+from .parsers import zscaler as parse_zscaler
+from .parsers import securepoint as parse_securepoint
+from .parsers import lancomuf as parse_lancomuf
+from .parsers import clavister as parse_clavister
 from .report import Report, Severity
 
 EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
@@ -128,6 +139,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "huawei": emit_huawei.emit,
     "stormshield": emit_stormshield.emit,
     "meraki": emit_meraki.emit,
+    "cato": emit_cato.emit,
     "sophos": emit_sophos.emit,
     "pfsense": emit_pfsense.emit,
     "opnsense": emit_opnsense.emit,
@@ -148,9 +160,13 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "moxa": emit_moxa.emit,
     "scalance": emit_scalance.emit,
     "hisecos": emit_hisecos.emit,
+    "securepoint": emit_securepoint.emit,
     "mguard": emit_mguard.emit,
     "kubernetes": emit_kubernetes.emit,
     "calico": emit_calico.emit,
+    "zscaler": emit_zscaler.emit,
+    "lancom-uf": emit_lancomuf.emit,
+    "clavister": emit_clavister.emit,
 }
 VENDORS = ("panos", "fortios", "checkpoint", "asa", "ios", "huawei", "stormshield", "meraki", "fmc", "fdm", "sophos", "pfsense", "opnsense", "sonicwall", "watchguard", "barracuda", "junos",
            "iptables", "ip6tables", "nftables", "nsx", "aws", "azure", "terraform-aws", "terraform-azure", "terraform-google", "gcp", "routeros", "forcepoint",
@@ -158,8 +174,9 @@ VENDORS = ("panos", "fortios", "checkpoint", "asa", "ios", "huawei", "stormshiel
            "hillstone", "zyxel", "moxa",
            "scalance",
            "hisecos", "mguard",
-           "kubernetes", "calico")  # fmt: skip
-SOURCES = VENDORS + ("screenos", "pix")  # what can be read; the last ones are read only
+           "kubernetes", "calico",
+           "zscaler", "securepoint", "lancom-uf", "cato", "clavister")  # fmt: skip
+SOURCES = VENDORS + ("screenos", "pix", "netskope")  # what can be read; the last ones are read only
 
 
 def detect_format(data: bytes) -> str:
@@ -200,6 +217,8 @@ def detect_format(data: bytes) -> str:
         raise FwshiftError("a Terraform state or plan without the firewall resources FWShift reads (the security groups and network "
                            "ACLs of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and network "
                            "firewall policies of hashicorp/google)")  # fmt: skip
+    if parse_netskope.looks_like_netskope(data):
+        return "netskope"  # (rules of the Netskope policy engine: rule_data with match_criteria_action)
     if parse_kubernetes.looks_like_calico(data):
         return "calico"
     if parse_kubernetes.looks_like_kubernetes(data):
@@ -216,14 +235,20 @@ def detect_format(data: bytes) -> str:
         return "sonicwall"
     if parse_watchguard.looks_like_watchguard(data):
         return "watchguard"
+    if parse_lancomuf.looks_like_lancomuf(data):
+        return "lancom-uf"
     if parse_barracuda.looks_like_barracuda(data):
         return "barracuda"
     if parse_nftables.looks_like_nftables(data):
         return "nftables"
     if parse_nsx.looks_like_nsx(data):
         return "nsx"
+    if parse_zscaler.looks_like_zscaler(data):
+        return "zscaler"  # (before Meraki: a bundle of ZIA answers may hold an "action" and ports)
     if parse_meraki.looks_like_meraki(data):
         return "meraki"
+    if parse_cato.looks_like_cato(data):
+        return "cato"
     if parse_awsnfw.looks_like_awsnfw(data):
         return "aws-network-firewall"
     if parse_aws.looks_like_aws(data):
@@ -245,6 +270,8 @@ def detect_format(data: bytes) -> str:
         return "f5-afm"
     if parse_mguard.looks_like_mguard(data):
         return "mguard"  # (a #version line, then variables in capitals)
+    if parse_securepoint.looks_like_securepoint(data):
+        return "securepoint"  # (node new, rule new, ... commands of its CLI)
     head = data.lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(b"<"):
         return "panos"
@@ -260,6 +287,8 @@ def detect_format(data: bytes) -> str:
         return "moxa"  # (its "!" header and interface lines are not those of IOS or an ASA)
     if parse_hisecos.looks_like_hisecos(head):
         return "hisecos"  # (its packet-filter and nat commands are its own)
+    if parse_clavister.looks_like_clavister(head):
+        return "clavister"  # (add/set commands with the object types of cOS Core)
     if parse_zyxel.looks_like_zyxel(head):
         return "zyxel"  # (before pf: a zone of ZLD has a line "block")
     if parse_pf.looks_like_pf(head):
@@ -307,6 +336,8 @@ def load(
         return parse_stormshield.parse(data, report, slot=policy)
     if source == "meraki":
         return parse_meraki.parse(data, report)
+    if source == "cato":
+        return parse_cato.parse(data, report)
     if source == "sophos":
         return parse_sophos.parse(data, report)
     if source == "pfsense":
@@ -351,6 +382,8 @@ def load(
         return parse_screenos.parse(data, report)
     if source == "pix":
         return parse_pix.parse(data, report)
+    if source == "netskope":
+        return parse_netskope.parse(data, report)
     if source == "vyos":
         return parse_vyos.parse(data, report)
     if source == "aws-network-firewall":
@@ -373,8 +406,16 @@ def load(
         return parse_hisecos.parse(data, report)
     if source == "mguard":
         return parse_mguard.parse(data, report)
+    if source == "securepoint":
+        return parse_securepoint.parse(data, report)
+    if source == "clavister":
+        return parse_clavister.parse(data, report)
     if source in ("kubernetes", "calico"):
         return parse_kubernetes.parse(data, report, dialect=source)
+    if source == "zscaler":
+        return parse_zscaler.parse(data, report)
+    if source == "lancom-uf":
+        return parse_lancomuf.parse(data, report)
     raise FwshiftError(f"unknown source format '{source}'")
 
 
@@ -723,7 +764,7 @@ def build_parser() -> argparse.ArgumentParser:
     conv.add_argument(
         "--inside-zone", action="append", default=[], metavar="ZONE",
         help="AWS and Azure targets (also terraform-aws and terraform-azure): a zone whose networks (--zone-network) are inside the VPC or virtual network; only its "
-        "addresses get security groups (Azure: only it gets a network security group). OCI: inside the VCN; only its addresses get NSGs. Meraki: a zone of the LAN of the MX; the others are the internet. Kubernetes: a zone whose every pod gets a group label. Repeatable",
+        "addresses get security groups (Azure: only it gets a network security group). OCI: inside the VCN; only its addresses get NSGs. Meraki: a zone of the LAN of the MX; the others are the internet. Zscaler: a zone that is a location of ZIA; the others are the internet. Kubernetes: a zone whose every pod gets a group label. Repeatable",
     )  # fmt: skip
     conv.add_argument("--app-map", metavar="FILE", help="JSON file: application name -> list of port specs")
     conv.add_argument("--compare", nargs="?", const="", metavar="FILE",
@@ -748,7 +789,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="OPNsense target: the series to write for: 24.7, 25.1, 25.7, 26.1 or 26.7 (default: 26.7)",
     )  # fmt: skip
     conv.add_argument(
-        "--policy-id-start", type=int, default=0, metavar="N", help="FortiOS target: first policy id (default: automatic); VyOS target: number of the forward filter rule that jumps to the policy and of the first NAT rule (default 10000); Zyxel target: position of the first rule and policy route inserted (default 1); Hillstone target: first rule id and first NAT rule id (default 10000); HiSecOS target: first rule index of the packet filter (default 1001)"
+        "--policy-id-start", type=int, default=0, metavar="N", help="FortiOS target: first policy id (default: automatic); VyOS target: number of the forward filter rule that jumps to the policy and of the first NAT rule (default 10000); Zyxel target: position of the first rule and policy route inserted (default 1); Hillstone target: first rule id and first NAT rule id (default 10000); HiSecOS target: first rule index of the packet filter (default 1001); Zscaler target: order of the first firewall filtering rule (default 1)"
     )
     conv.add_argument(
         "--target-layer", default="Network", metavar="NAME", help="Check Point target: access layer (default: Network)"
@@ -761,7 +802,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--target-prefix", default="", metavar="TEXT",
-        help="Check Point, ASA, IOS, Huawei, Stormshield, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Cisco Secure Firewall, NSX, AWS, Azure, Kubernetes and Zyxel "
+        help="Check Point, ASA, IOS, Huawei, Stormshield, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Cisco Secure Firewall, NSX, AWS, Azure, Kubernetes, Zyxel and Zscaler "
              "targets (also as Terraform), and the policy Google Cloud targets create: prefix for the names of created objects",
     )  # fmt: skip
     conv.add_argument(
@@ -1135,12 +1176,14 @@ def _run_compare(args: argparse.Namespace) -> int:
 # The targets that use the networks behind the zones (--zone-network), and take them from the source where it says.
 NETWORK_TARGETS = ("asa", "pfsense", "opnsense", "barracuda", "nsx", "aws", "azure", "gcp", "terraform-aws", "terraform-azure",
                    "terraform-google", "meraki", "sonicwall", "azure-firewall", "aws-network-firewall", "oci", "windows-firewall",
-                   "kubernetes", "calico")  # fmt: skip
+                   "kubernetes", "calico", "cato")  # fmt: skip
 READ_BACK = ("asa", "azure", "fdm", "fortios", "huawei", "ios", "iptables", "ip6tables", "junos", "nftables", "nsx", "panos", "routeros", "sophos", "watchguard",
              "azure-firewall", "vyos", "f5-afm",
              "hillstone", "zyxel", "moxa",
              "scalance",
-             "hisecos")
+             "hisecos",
+             "securepoint",
+             "clavister")
 
 
 def _alignment(source: Policy, back: Policy, options: Options) -> Tuple[Dict[str, str], List[str]]:

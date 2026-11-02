@@ -1,0 +1,56 @@
+FWShift conversion report
+  source: vyos
+  target: lancom-uf
+
+Summary
+  Security rules:     13   exact 6, approximated 1, needs review 3 (1 emitted disabled), skipped 3
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 rule-set WAN_LOCAL on pppoe0 local filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] PARTS_NOT_READ: parts of the configuration this parser does not read: port-forward (EdgeOS)
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERZONE_DEFAULT: the source allows what no rule matches; the firewall blocks what no connection allows. Add the connections that allow it if that was intended
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): pppoe0
+  [info] VYOS_FORMAT: read as the configuration of EdgeOS (Vyatta), release v2.0.9: rule-sets on interfaces, accept in a rule-set and the zone policy were read as VyOS 1.4 has them after its own migration (a jump from the forward filter for each rule-set on an interface, the in ones first; accept as return, so that the rule-set of the other interface still decides)
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+
+Security rules
+  no media from the guests  ->  needs-review  (emitted as taken out of the rules below it)
+      [needs-review] NAT_REDIRECT: NAT rule 'plex from outside' sends traffic for every destination to 192.168.1.30, and the source applied this rule to it after that translation. The converted rule still names the translated address: a platform that looks rules up before NAT will not match the redirected traffic with it
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  plex to the media box  ->  needs-review  (emitted as fws-0.0.0.0_1-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-128.0.0.0_2-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.0.0.0_9-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.128.0.0_11-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.160.0.0_13-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.168.0.0_21-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.168.8.0_23-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.168.11.0_24-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.168.12.0_22-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.168.16.0_20-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.168.32.0_19-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.168.64.0_18-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.168.128.0_17-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.169.0.0_16-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.170.0.0_15-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.172.0.0_14-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.176.0.0_12-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-192.192.0.0_10-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-193.0.0.0_8-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-194.0.0.0_7-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-196.0.0.0_6-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-200.0.0.0_5-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-208.0.0.0_4-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400, fws-224.0.0.0_3-pppoe0 > fws-192.168.1.30_32-any: fws-tcp-32400)
+      [needs-review] NAT_REDIRECT: NAT rule 'plex from outside' sends traffic for every destination to 192.168.1.30, and the source applied this rule to it after that translation. The converted rule still names the translated address: a platform that looks rules up before NAT will not match the redirected traffic with it
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+  ping the nas  ->  skipped
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  syn to the mail server  ->  approximated  (emitted as fws-0.0.0.0_0-pppoe0 > fws-192.168.1.25_32-any: fws-tcp-25)
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+  no media from the guests-2  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sessions of the voip box  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent count 5 (a match on recent connections of a source); the rule is not written
+      [needs-review] UNSUPPORTED_MATCH: not converted: recent time 60 (a match on recent connections of a source); the rule is not written
+      [needs-review] UNSUPPORTED_MATCH: not converted: source mac-address 00:53:00:12:34:56 (a match on a MAC address); the rule is not written
+  no media from the guests-3  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: the firewall drops what it does not allow
+  Allow IPv6 ping  ->  skipped
+      [approximated] DENY_ZONE_WIDENED: a blocking rule above it for some zones is taken out of this rule for every zone, since an object at interface 'any' cannot leave a zone out: the rule allows less
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+
+NAT rules
+  plex from outside  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  web on 8443 to the nas  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nas leaves as its own address  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  masquerade for WAN  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)

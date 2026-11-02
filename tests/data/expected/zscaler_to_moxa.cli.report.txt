@@ -1,0 +1,76 @@
+FWShift conversion report
+  source: zscaler
+  target: moxa
+
+Summary
+  Security rules:     17   exact 0, approximated 0, needs review 17 (17 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZSCALER_OUTBOUND_ONLY: ZIA filters traffic to the internet only: traffic between locations, inside one and from the internet does not pass it, and the model blocks it (no rule allows it). A target that sees such traffic needs rules for it
+  [needs-review] ZSCALER_FIREWALL_OFF: locations whose firewall is off (ofwEnabled false): the rules do not decide their traffic on ZIA, the model applies them anyway: Guest-WiFi
+  [needs-review] ZSCALER_RANK: admin ranks out of the rule order: read in the rule order: Ranked web (rank 3 below rank 7)
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [needs-review] MOXA_ZONES: zones that are not interfaces of the router (lan, wan1, wan2); their rules are written disabled: give --zone-map ZONE=lan|wan1|wan2 for HQ-Brussels, internet, Branch-Ghent, HQ-Servers, Guest-WiFi, road-warrior
+  [info] ZSCALER_SOURCE: 4 locations (HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi), road-warrior (Client Connector outside a location) and internet; the rules decide traffic from the locations to the internet, first match in ascending order, and the default rule decides the rest
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  Allow DNS to resolvers  ->  needs-review, emitted disabled  (emitted as firewall 1)
+      [needs-review] ZSCALER_SUBLOCATION: location HQ-Brussels has sub-locations (HQ-Servers): read as the location without them, which may be narrower than ZIA
+      [needs-review] MOXA_ZONE: zones HQ-Brussels, internet: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Block SSH out  ->  needs-review, emitted disabled  (emitted as firewall 2)
+      [needs-review] MOXA_ZONE: zones HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [approximated] MOXA_RESET_AS_DROP: action reset-client written as drop, which answers nobody
+  Block malicious IPs and domains  ->  needs-review, emitted disabled  (emitted as firewall 3)
+      [needs-review] ZSCALER_CATEGORY: destination IP categories BOTNET, MALWARE_SITE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination IP categories BOTNET, MALWARE_SITE. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Office 365 One Click Rule  ->  needs-review, emitted disabled  (emitted as firewall 4)
+      [needs-review] ZSCALER_APPLICATION: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: network applications SHAREPOINT_ONLINE, OUTLOOK_ONLINE.
+      [needs-review] MOXA_ZONE: zones HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Partner app  ->  needs-review, emitted disabled  (emitted as firewall 5)
+      [needs-review] MOXA_ZONE: zones HQ-Servers, internet: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Branch web  ->  needs-review, emitted disabled  (emitted as firewall 6)
+      [needs-review] SCHEDULE: schedule 'Work hours' is not converted; the rule would apply at all times.
+      [needs-review] MOXA_ZONE: zones Branch-Ghent, internet: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Engineers to SaaS  ->  needs-review, emitted disabled  (emitted as firewall 7)
+      [needs-review] ZSCALER_FQDN: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold
+      [needs-review] ZSCALER_IDENTITY: groups Engineering: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination group SaaS-Domains: a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups Engineering.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'SaaS-Domains': a destination group of FQDNs (DSTN_FQDN), which the model does not hold.
+      [needs-review] MOXA_ZONE: zones HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  No embargoed countries  ->  needs-review, emitted disabled  (emitted as firewall 8)
+      [needs-review] ZSCALER_COUNTRY: destination countries COUNTRY_KP: narrows the match and is not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination countries COUNTRY_KP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Printers syslog  ->  needs-review, emitted disabled  (emitted as firewall 9)
+      [needs-review] MOXA_ZONE: zones HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Infra out  ->  needs-review, emitted disabled  (emitted as firewall 10)
+      [needs-review] MOXA_ZONE: zones HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Block GRE and ESP  ->  needs-review, emitted disabled  (emitted as firewall 11)
+      [info] ZSCALER_BLOCK_ICMP: BLOCK_ICMP drops and answers with an ICMP unreachable: read as deny
+      [needs-review] MOXA_ZONE: zones HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Evaluate apps  ->  needs-review, emitted disabled  (emitted as firewall 12)
+      [needs-review] ZSCALER_EVAL_NWAPP: action EVAL_NWAPP hands the decision to the network application of the traffic: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action EVAL_NWAPP: the decision waits for the network application, which is not modelled. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Ranked web  ->  needs-review, emitted disabled  (emitted as firewall 13)
+      [needs-review] ZSCALER_FQDN: destination files.example.org: ZIA matches a domain by the names it sees in the traffic; not modelled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination FQDN files.example.org.
+      [needs-review] MOXA_ZONE: zones HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Ghent and corporate  ->  needs-review, emitted disabled  (emitted as firewall 14)
+      [needs-review] ZSCALER_LOCATION_GROUP: the rule names locations and location groups: whether ZIA takes either or both is not documented
+      [needs-review] UNSUPPORTED_MATCH: not converted: both locations and location groups: how ZIA combines them is not known.
+      [needs-review] MOXA_ZONE: zones Branch-Ghent, HQ-Brussels, internet: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Web for all  ->  needs-review, emitted disabled  (emitted as firewall 15)
+      [needs-review] MOXA_ZONE: zones HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Guest ICMP  ->  needs-review, emitted disabled  (emitted as firewall 16)
+      [needs-review] MOXA_ZONE: zones Guest-WiFi, internet: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Default Firewall Filtering Rule  ->  needs-review, emitted disabled  (emitted as firewall 17)
+      [needs-review] MOXA_ZONE: zones HQ-Brussels, Branch-Ghent, HQ-Servers, Guest-WiFi: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.

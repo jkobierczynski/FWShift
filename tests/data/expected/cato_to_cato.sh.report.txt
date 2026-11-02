@@ -1,0 +1,98 @@
+FWShift conversion report
+  source: cato
+  target: cato
+
+Summary
+  Security rules:     32   exact 13, approximated 2, needs review 10 (10 emitted disabled), skipped 7
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [info] CATO_SOURCE: 4 sites as zones (Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab), remote-users and internet; the WAN Firewall (first match, implicit block) decides between sites and remote users, the Internet Firewall (first match, implicit allow, written as a last rule) from them to the internet; traffic inside one network range does not reach Cato and is allowed
+  [info] CATO_INTERNET_TOP: a hidden rule of Cato above the Internet Firewall blocks connections Cato deems illegal or malicious; it is not in the answer and not converted
+  [info] CATO_INBOUND: traffic from the internet to the sites is decided by Remote Port Forwarding, which is not read: in the model nothing from the internet is allowed
+  [info] CATO_REMOVED: rules marked removed in the revision read: left out: Retired rule
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: Brussels-HQ=10.10.0.0/24,10.10.20.0/24; Antwerp-DC=10.20.0.0/24,10.20.30.0/24; Ghent-Plant=10.30.0.0/24; Leuven-Lab=10.40.0.0/24. --no-source-networks takes none of them
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  inside Brussels-HQ range 1  ->  skipped
+      [info] CATO_LOCAL: traffic inside one network range does not reach Cato: not written
+  inside Brussels-HQ range 2  ->  skipped
+      [info] CATO_LOCAL: traffic inside one network range does not reach Cato: not written
+  inside Antwerp-DC range 1  ->  skipped
+      [info] CATO_LOCAL: traffic inside one network range does not reach Cato: not written
+  inside Antwerp-DC range 2  ->  skipped
+      [info] CATO_LOCAL: traffic inside one network range does not reach Cato: not written
+  inside Ghent-Plant range 1  ->  skipped
+      [info] CATO_LOCAL: traffic inside one network range does not reach Cato: not written
+  inside Leuven-Lab range 1  ->  skipped
+      [info] CATO_LOCAL: traffic inside one network range does not reach Cato: not written
+  Allow HQ to DC servers  ->  approximated  (emitted as fws-Allow HQ to DC servers)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Allow HQ to DC servers (2)'
+      [info] ZONE_BY_NETWORKS: the destination lies in the networks of zone Antwerp-DC: written as its addresses
+  Historian both ways  ->  exact  (emitted as fws-Historian both ways)
+      [info] CATO_BOTH: direction BOTH: written as rules for each direction, the second set with source and destination swapped: 'Historian both ways (2)'
+      [info] ZONE_BY_NETWORKS: the source lies in the networks of zone Ghent-Plant: written as its addresses
+      [info] ZONE_BY_NETWORKS: the destination lies in the networks of zone Antwerp-DC: written as its addresses
+  Historian both ways (2)  ->  exact  (emitted as fws-Historian both ways (2))
+      [info] ZONE_BY_NETWORKS: the source lies in the networks of zone Antwerp-DC: written as its addresses
+      [info] ZONE_BY_NETWORKS: the destination lies in the networks of zone Ghent-Plant: written as its addresses
+  Remote users to DC  ->  exact  (emitted as fws-Remote users to DC)
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+  Modbus to the plant  ->  exact  (emitted as fws-Modbus to the plant)
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Modbus to the plant (2)', 'Modbus to the plant (3)'
+      [info] ZONE_BY_NETWORKS: the destination lies in the networks of zone Ghent-Plant: written as its addresses
+  Modbus to the plant (2)  ->  exact  (emitted as fws-Modbus to the plant (2))
+      [info] ZONE_BY_NETWORKS: the destination lies in the networks of zone Ghent-Plant: written as its addresses
+  Modbus to the plant (3)  ->  exact  (emitted as fws-Modbus to the plant (3))
+      [info] ZONE_BY_NETWORKS: the source lies in the networks of zone Ghent-Plant: written as its addresses
+      [info] ZONE_BY_NETWORKS: the destination lies in the networks of zone Ghent-Plant: written as its addresses
+  Finance to ERP  ->  needs-review, emitted disabled  (emitted as fws-Finance to ERP)
+      [needs-review] CATO_USERS: users or user groups narrow the rule; they are not converted
+      [info] ZONE_BY_NETWORKS: the destination lies in the networks of zone Antwerp-DC: written as its addresses
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups Finance.
+  Prompt for SSH  ->  needs-review, emitted disabled  (emitted as fws-Prompt for SSH)
+      [needs-review] CATO_ACTION: action PROMPT: not converted (read as allow)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: action PROMPT: the user is asked on a web page.
+  Floating range  ->  needs-review, emitted disabled  (emitted as fws-Floating range)
+      [needs-review] CATO_OBJECT: floating ranges, system groups or group members whose addresses are not known: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: floating ranges Cloud floating.
+  Maintenance window  ->  needs-review, emitted disabled  (emitted as fws-Maintenance window)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] SCHEDULE: schedule 'SATURDAY,SUNDAY 22:00:00-23:59:00' is not converted; the rule would apply at all times.
+  Teams between sites  ->  needs-review, emitted disabled  (emitted as fws-Teams between sites)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application column (applications, categories, domains or addresses as applications).
+  Unknown host  ->  skipped
+      [needs-review] CATO_UNRESOLVED: objects that are not in the lookups of the input: they match nothing until they are
+      [needs-review] CATO_NOT_WRITTEN: not written: 'host lab-printer' holds members whose addresses are not known
+  Block guest except DNS  ->  needs-review, emitted disabled  (emitted as fws-Block guest except DNS)
+      [needs-review] CATO_EXCEPTION: exceptions that cannot be cut out of the rule: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: exception dns from one host: source, service (only an exception of one column of addresses or services is cut out). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block anonymizers  ->  needs-review, emitted disabled  (emitted as fws-Block anonymizers)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [info] CATO_SYSTEM_RULE: a system rule of Cato, which cannot be changed or removed
+      [needs-review] UNSUPPORTED_MATCH: not converted: appCategory Anonymizers. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Plant has no internet  ->  exact  (emitted as fws-Plant has no internet)
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+  HQ web  ->  needs-review, emitted disabled  (emitted as fws-HQ web)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: domains example.org.
+  Isolate unknown sites  ->  needs-review, emitted disabled  (emitted as fws-Isolate unknown sites)
+      [needs-review] CATO_ACTION: action RBI: not converted (read as allow)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action RBI: remote browser isolation.
+      [needs-review] UNSUPPORTED_MATCH: not converted: customCategory Uncategorized.
+  Partner FTP  ->  approximated  (emitted as fws-Partner FTP)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+  Block remote users to SMB  ->  needs-review, emitted disabled  (emitted as fws-Block remote users to SMB)
+      [needs-review] CATO_ORIGIN: connection origins that are not all sites or all remote users: not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: connection origins REMOTE_CLIENT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Internet Firewall implicit allow  ->  exact
+      [info] CATO_DEFAULT_ALLOW: allows everything to the internet at the end: what the implicit allow of the Internet Firewall does, so it is not written

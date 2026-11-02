@@ -1,0 +1,91 @@
+FWShift conversion report
+  source: checkpoint (Network)
+  target: lancom-uf
+
+Summary
+  Security rules:     22   exact 10, approximated 2, needs review 1, skipped 9
+  NAT rules:           9   exact 1, approximated 0, needs review 0, skipped 8
+  Addresses:          16   exact 13, approximated 1, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): ExternalZone, InternalZone
+
+Security rules
+  rule-2  ->  needs-review  (emitted as fws-10.10.5.10_31-any > fws-web-1: fws-tcp-22, fws-10.10.5.10_31-any > fws-mail-1: fws-tcp-22, fws-10.10.5.10_31-any > fws-web-1_valid_address: fws-tcp-22, fws-10.10.5.12_30-any > fws-web-1: fws-tcp-22, fws-10.10.5.12_30-any > fws-mail-1: fws-tcp-22, fws-10.10.5.12_30-any > fws-web-1_valid_address: fws-tcp-22, fws-10.10.5.16_30-any > fws-web-1: fws-tcp-22, fws-10.10.5.16_30-any > fws-mail-1: fws-tcp-22, fws-10.10.5.16_30-any > fws-web-1_valid_address: fws-tcp-22, fws-10.10.5.20_32-any > fws-web-1: fws-tcp-22, fws-10.10.5.20_32-any > fws-mail-1: fws-tcp-22, fws-10.10.5.20_32-any > fws-web-1_valid_address: fws-tcp-22)
+      [needs-review] DEVICE_TARGET: the rule is installed only on gw-edge; decide whether it belongs on the target firewall
+  Web out  ->  approximated  (emitted as fws-0.0.0.0_0-InternalZone > fws-0.0.0.0_0-ExternalZone: fws-tcp-80_tcp-443)
+      [approximated] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written
+  Social  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Facebook': object of type 'application-site'; the rule is not written
+  Admins  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netadmins': access role whose networks and users are not in the export (add the output of 'show access-roles details-level full'); the rule is not written
+  PLC access (plc-operators)  ->  skipped
+      [needs-review] ACCESS_ROLE: access role plc-operators: the rule matches the networks of the role for its users ad_group_PLC-Operators, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [needs-review] USER_MATCH: source user match ad_group_PLC-Operators is not converted; the rule is not written
+  PLC access (vendor-support)  ->  skipped
+      [needs-review] ACCESS_ROLE: access role vendor-support: the rule matches the networks of the role for its users ad_group_Vendor-Support, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [needs-review] USER_MATCH: source user match ad_group_Vendor-Support is not converted; the rule is not written
+  DMZ users  ->  skipped
+      [needs-review] ACCESS_ROLE: access role all-identified: the rule matches the networks of the role for all identified users, written 'known-user' as PAN-OS calls them
+      [needs-review] USER_MATCH: source user match known-user is not converted; the rule is not written
+  Updates  ->  skipped
+      [needs-review] SCHEDULE: schedule 'Work-Hours' is not converted; the rule would apply at all times; the rule is not written
+      [needs-review] UNCONVERTIBLE_OBJECT: the destination '.updates.example.com' holds a host name; a desktop object of the firewall names addresses; the rule is not written
+  Partners  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: VPN community match Partner-VPN; the rule is not written
+  IPv6 out  ->  skipped
+      [needs-review] IPV6_NOT_WRITTEN: the rule allows IPv6, and desktop objects of the firewall hold IPv4 addresses: the IPv6 part is not written, and nothing else is left: the rule is not written
+  Public web  ->  exact  (emitted as fws-0.0.0.0_5-any > fws-web-1: fws-tcp-443, fws-0.0.0.0_5-any > fws-web-1_valid_address: fws-tcp-443, fws-8.0.0.0_7-any > fws-web-1: fws-tcp-443, fws-8.0.0.0_7-any > fws-web-1_valid_address: fws-tcp-443, fws-10.0.0.0_13-any > fws-web-1: fws-tcp-443, fws-10.0.0.0_13-any > fws-web-1_valid_address: fws-tcp-443, fws-10.8.0.0_15-any > fws-web-1: fws-tcp-443, fws-10.8.0.0_15-any > fws-web-1_valid_address: fws-tcp-443, fws-10.10.0.0_17-any > fws-web-1: fws-tcp-443, fws-10.10.0.0_17-any > fws-web-1_valid_address: fws-tcp-443, fws-10.10.128.0_18-any > fws-web-1: fws-tcp-443, fws-10.10.128.0_18-any > fws-web-1_valid_address: fws-tcp-443, fws-10.10.192.0_21-any > fws-web-1: fws-tcp-443, fws-10.10.192.0_21-any > fws-web-1_valid_address: fws-tcp-443, fws-10.10.201.0_24-any > fws-web-1: fws-tcp-443, fws-10.10.201.0_24-any > fws-web-1_valid_address: fws-tcp-443, fws-10.10.202.0_23-any > fws-web-1: fws-tcp-443, fws-10.10.202.0_23-any > fws-web-1_valid_address: fws-tcp-443, fws-10.10.204.0_22-any > fws-web-1: fws-tcp-443, fws-10.10.204.0_22-any > fws-web-1_valid_address: fws-tcp-443, fws-10.10.208.0_20-any > fws-web-1: fws-tcp-443, fws-10.10.208.0_20-any > fws-web-1_valid_address: fws-tcp-443, fws-10.10.224.0_19-any > fws-web-1: fws-tcp-443, fws-10.10.224.0_19-any > fws-web-1_valid_address: fws-tcp-443, fws-10.11.0.0_16-any > fws-web-1: fws-tcp-443, fws-10.11.0.0_16-any > fws-web-1_valid_address: fws-tcp-443, fws-10.12.0.0_14-any > fws-web-1: fws-tcp-443, fws-10.12.0.0_14-any > fws-web-1_valid_address: fws-tcp-443, fws-10.16.0.0_12-any > fws-web-1: fws-tcp-443, fws-10.16.0.0_12-any > fws-web-1_valid_address: fws-tcp-443, fws-10.32.0.0_11-any > fws-web-1: fws-tcp-443, fws-10.32.0.0_11-any > fws-web-1_valid_address: fws-tcp-443, fws-10.64.0.0_10-any > fws-web-1: fws-tcp-443, fws-10.64.0.0_10-any > fws-web-1_valid_address: fws-tcp-443, fws-10.128.0.0_9-any > fws-web-1: fws-tcp-443, fws-10.128.0.0_9-any > fws-web-1_valid_address: fws-tcp-443, fws-11.0.0.0_8-any > fws-web-1: fws-tcp-443, fws-11.0.0.0_8-any > fws-web-1_valid_address: fws-tcp-443, fws-12.0.0.0_6-any > fws-web-1: fws-tcp-443, fws-12.0.0.0_6-any > fws-web-1_valid_address: fws-tcp-443, fws-16.0.0.0_4-any > fws-web-1: fws-tcp-443, fws-16.0.0.0_4-any > fws-web-1_valid_address: fws-tcp-443, fws-32.0.0.0_3-any > fws-web-1: fws-tcp-443, fws-32.0.0.0_3-any > fws-web-1_valid_address: fws-tcp-443, fws-64.0.0.0_2-any > fws-web-1: fws-tcp-443, fws-64.0.0.0_2-any > fws-web-1_valid_address: fws-tcp-443, fws-128.0.0.0_1-any > fws-web-1: fws-tcp-443, fws-128.0.0.0_1-any > fws-web-1_valid_address: fws-tcp-443)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  DMZ access / Web in  ->  exact  (emitted as fws-0.0.0.0_5-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-8.0.0.0_7-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.0.0.0_13-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.8.0.0_15-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.10.0.0_17-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.10.128.0_18-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.10.192.0_21-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.10.201.0_24-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.10.202.0_23-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.10.204.0_22-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.10.208.0_20-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.10.224.0_19-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.11.0.0_16-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.12.0.0_14-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.16.0.0_12-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.32.0.0_11-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.64.0.0_10-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-10.128.0.0_9-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-11.0.0.0_8-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-12.0.0.0_6-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-16.0.0.0_4-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-32.0.0.0_3-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-64.0.0.0_2-any > fws-web-1: fws-tcp-443_tcp-9000-9010, fws-128.0.0.0_1-any > fws-web-1: fws-tcp-443_tcp-9000-9010)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  DMZ access / Mail in  ->  exact  (emitted as fws-0.0.0.0_5-any > fws-mail-1: fws-tcp-25, fws-8.0.0.0_7-any > fws-mail-1: fws-tcp-25, fws-10.0.0.0_13-any > fws-mail-1: fws-tcp-25, fws-10.8.0.0_15-any > fws-mail-1: fws-tcp-25, fws-10.10.0.0_17-any > fws-mail-1: fws-tcp-25, fws-10.10.128.0_18-any > fws-mail-1: fws-tcp-25, fws-10.10.192.0_21-any > fws-mail-1: fws-tcp-25, fws-10.10.201.0_24-any > fws-mail-1: fws-tcp-25, fws-10.10.202.0_23-any > fws-mail-1: fws-tcp-25, fws-10.10.204.0_22-any > fws-mail-1: fws-tcp-25, fws-10.10.208.0_20-any > fws-mail-1: fws-tcp-25, fws-10.10.224.0_19-any > fws-mail-1: fws-tcp-25, fws-10.11.0.0_16-any > fws-mail-1: fws-tcp-25, fws-10.12.0.0_14-any > fws-mail-1: fws-tcp-25, fws-10.16.0.0_12-any > fws-mail-1: fws-tcp-25, fws-10.32.0.0_11-any > fws-mail-1: fws-tcp-25, fws-10.64.0.0_10-any > fws-mail-1: fws-tcp-25, fws-10.128.0.0_9-any > fws-mail-1: fws-tcp-25, fws-11.0.0.0_8-any > fws-mail-1: fws-tcp-25, fws-12.0.0.0_6-any > fws-mail-1: fws-tcp-25, fws-16.0.0.0_4-any > fws-mail-1: fws-tcp-25, fws-32.0.0.0_3-any > fws-mail-1: fws-tcp-25, fws-64.0.0.0_2-any > fws-mail-1: fws-tcp-25, fws-128.0.0.0_1-any > fws-mail-1: fws-tcp-25)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  DMZ access / Ping from LAN  ->  skipped
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  DMZ access (cleanup of DMZ-Layer)  ->  exact  (emitted as taken out of the rules below it)
+      [info] INLINE_CLEANUP: added for the implicit cleanup of inline layer 'DMZ-Layer', which is drop
+  Tunnels  ->  approximated  (emitted as fws-0.0.0.0_5-any > fws-gw-edge: fws-gre, fws-8.0.0.0_7-any > fws-gw-edge: fws-gre, fws-10.0.0.0_13-any > fws-gw-edge: fws-gre, fws-10.8.0.0_15-any > fws-gw-edge: fws-gre, fws-10.10.0.0_17-any > fws-gw-edge: fws-gre, fws-10.10.128.0_18-any > fws-gw-edge: fws-gre, fws-10.10.192.0_21-any > fws-gw-edge: fws-gre, fws-10.10.201.0_24-any > fws-gw-edge: fws-gre, fws-10.10.202.0_23-any > fws-gw-edge: fws-gre, fws-10.10.204.0_22-any > fws-gw-edge: fws-gre, fws-10.10.208.0_20-any > fws-gw-edge: fws-gre, fws-10.10.224.0_19-any > fws-gw-edge: fws-gre, fws-10.11.0.0_16-any > fws-gw-edge: fws-gre, fws-10.12.0.0_14-any > fws-gw-edge: fws-gre, fws-10.16.0.0_12-any > fws-gw-edge: fws-gre, fws-10.32.0.0_11-any > fws-gw-edge: fws-gre, fws-10.64.0.0_10-any > fws-gw-edge: fws-gre, fws-10.128.0.0_9-any > fws-gw-edge: fws-gre, fws-11.0.0.0_8-any > fws-gw-edge: fws-gre, fws-12.0.0.0_6-any > fws-gw-edge: fws-gre, fws-16.0.0.0_4-any > fws-gw-edge: fws-gre, fws-32.0.0.0_3-any > fws-gw-edge: fws-gre, fws-64.0.0.0_2-any > fws-gw-edge: fws-gre, fws-128.0.0.0_1-any > fws-gw-edge: fws-gre)
+      [approximated] GATEWAY_OBJECT: matches gateway object gw-edge, which stood for every address of the gateway; only its main address is known, so the converted rule no longer applies to its other addresses
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  No ident  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action reset-client: the firewall drops what it does not allow
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-6  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-7  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  nat-9  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+
+Addresses
+  web-1  ->  exact
+      [info] AUTOMATIC_NAT: the object has automatic static NAT to 203.0.113.10: as on Check Point, rules and groups that name it also match that address, written as 'web-1_valid_address'
+  netadmins  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: access role whose networks and users are not in the export (add the output of 'show access-roles details-level full') cannot be converted
+  lan-without-guests  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'group-with-exclusion' cannot be converted
+  gw-edge  ->  approximated
+      [approximated] GATEWAY_OBJECT: a gateway object stands for every address of the gateway; only its main address 198.51.100.1 is in the export
+
+Services
+  Facebook  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: object of type 'application-site': not converted

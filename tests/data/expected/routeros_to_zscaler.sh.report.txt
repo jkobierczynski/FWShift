@@ -1,0 +1,99 @@
+FWShift conversion report
+  source: routeros
+  target: zscaler
+
+Summary
+  Security rules:     27   exact 10, approximated 0, needs review 14 (12 emitted disabled), skipped 3
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of /ip firewall filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] TABLE_NOT_CONVERTED: /ip firewall mangle has 1 rules and is not converted (it can mark connections and routes, which the filter rules may test)
+  [needs-review] ROUTEROS_DYNAMIC_LIST: address lists that rules fill while the router runs decide what their rules match; those rules are not converted: /ip scanners
+  [needs-review] ZSCALER_DEFAULT_RULE: the source allows what no rule matches; the default rule of the tenant decides that traffic, and the API cannot change it: set its action to Allow by hand if that was intended
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_INSIDE: no --inside-zone: every zone was taken as a location of ZIA, and every rule as one to the internet; ZIA does not filter traffic between locations or from the internet. Name the zones inside with --inside-zone
+  [needs-review] ZSCALER_LOST: ZIA filters traffic from locations to the internet only: 16 rules for traffic from the internet and 0 for traffic between or inside zones inside are not written, or only in part. That traffic needs a firewall of its own at the sites
+  [needs-review] ZSCALER_LOCATIONS_REQUIRED: rules name these locations, which must exist on the tenant under these names: DMZ, GUEST, LAN, WAN
+  [info] ROUTEROS_ZONES: the interface lists the rules use do not overlap: each is a zone (DMZ: vlan20-dmz, GUEST: vlan30-guest, LAN: bridge-lan, WAN: ether1); an interface in none of them is a zone of its own
+  [info] ROUTEROS_PASSIVE: 2 rules with action log, passthrough or add-*-to-address-list decide nothing and were left out. A log rule directly before a rule with the same match, or one that matches everything, sets the logging of the rules it logs for
+  [info] ROUTEROS_FQDN_LIST: address lists that hold host names, which RouterOS resolves while it runs: converted as host name objects (mirrors)
+  [info] ROUTEROS_BRIDGE: traffic between the ports of one bridge (bridge-lan) does not pass the IP firewall of the source (use-ip-firewall=no); the conversion is of routed traffic
+  [info] FORWARD_POLICY_ACCEPT: RouterOS accepts what no rule of the forward chain decides; the model records that as its default action
+
+Security rules
+  defconf: accept in ipsec policy  ->  needs-review, emitted disabled  (emitted as fws-defconf_ accept in ipsec po)
+      [needs-review] UNSUPPORTED_MATCH: not converted: ipsec-policy=in,ipsec (traffic of IPsec tunnels).
+  banned scanners  ->  needs-review, emitted disabled  (emitted as fws-banned scanners)
+      [needs-review] UNSUPPORTED_MATCH: not converted: address list 'scanners', which rules fill while the router runs. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  web for everyone  ->  needs-review  (emitted as fws-web for everyone)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  web for everyone-2  ->  needs-review  (emitted as fws-web for everyone-2)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not source admins' is written as the addresses that are left
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  ping "echo" only  ->  needs-review, emitted disabled  (emitted as fws-ping _echo_ only)
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type: a network service of ZIA holds TCP and UDP ports, and the predefined ICMP_ANY, GRE_PROTOCOL and ESP_PROTOCOL.
+  ping "echo" only-2  ->  needs-review, emitted disabled  (emitted as fws-ping _echo_ only-2)
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not source admins' is written as the addresses that are left
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type: a network service of ZIA holds TCP and UDP ports, and the predefined ICMP_ANY, GRE_PROTOCOL and ESP_PROTOCOL.
+  old partner access  ->  needs-review, emitted disabled  (emitted as fws-old partner access)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] SERVICE_NEGATE: every service but some: ZIA has no negation.
+  old partner access-2  ->  needs-review, emitted disabled  (emitted as fws-old partner access-2)
+      [needs-review] SERVICE_NOT_WRITTEN: port 0, which ZIA does not take.
+  nothing but TCP  ->  needs-review, emitted disabled  (emitted as fws-nothing but TCP)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] SERVICE_NEGATE: every service but some: ZIA has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nothing but TCP-2  ->  needs-review, emitted disabled  (emitted as fws-nothing but TCP-2)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not source admins' is written as the addresses that are left
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] SERVICE_NEGATE: every service but some: ZIA has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ  ->  needs-review, emitted disabled  (emitted as fws-rest of the DMZ)
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not destination 172.16.20.0/25' is written as the addresses that are left
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-2  ->  needs-review, emitted disabled  (emitted as fws-rest of the DMZ-2)
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not destination 172.16.20.0/25' is written as the addresses that are left
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NEGATE: every service but some: ZIA has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-3  ->  needs-review, emitted disabled  (emitted as fws-rest of the DMZ-3)
+      [info] NEGATION_EXPANDED: ZIA has no negation: 'not destination 172.16.20.0/25' is written as the addresses that are left
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: port 0, which ZIA does not take. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  office hours for staff  ->  needs-review, emitted disabled  (emitted as fws-office hours for staff)
+      [needs-review] SCHEDULE: schedule 'time=8h-18h,mon,tue,wed,thu,fri' is not converted; the rule would apply at all times.
+  defconf: drop all from WAN not DSTNATed  ->  exact  (emitted as fws-defconf_ drop all from WA_3)
+      [info] ROUTEROS_DSTNAT_EXCEPTION: connection-nat-state=!dstnat: the rule does not block connections a destination NAT rule translated. Those are allowed by 2 rules ahead of it (defconf: drop all from WAN not DSTNATed (allows publish web), defconf: drop all from WAN not DSTNATed (allows publish mail))
+  ICMPv6 echo  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  the partners reach the web servers of the LAN by HTTPS and nothing else  ->  skipped
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the destination are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  drop everything else not coming from LAN  ->  skipped
+      [needs-review] ROUTEROS_NEGATED_INTERFACE: negated input interface (on the rule or the jump to its chain): the export does not list every interface of the router, and the rule covers the zones it does show (DMZ, GUEST, WAN). On the source it also blocks traffic of interfaces the export leaves out
+      [needs-review] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): what the rule blocks of IPv6 is not blocked
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+
+NAT rules
+  publish web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  publish mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  defconf: masquerade  ->  skipped
+      [approximated] ROUTEROS_NAT_IPSEC_EXEMPT: ipsec-policy=out,none: on the source, traffic that goes into an IPsec tunnel is not translated; the converted rule translates it unless the target exempts it
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only

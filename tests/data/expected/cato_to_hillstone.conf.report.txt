@@ -1,0 +1,89 @@
+FWShift conversion report
+  source: cato
+  target: hillstone
+
+Summary
+  Security rules:     32   exact 18, approximated 2, needs review 12 (12 emitted disabled), skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10236 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] CATO_SOURCE: 4 sites as zones (Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab), remote-users and internet; the WAN Firewall (first match, implicit block) decides between sites and remote users, the Internet Firewall (first match, implicit allow, written as a last rule) from them to the internet; traffic inside one network range does not reach Cato and is allowed
+  [info] CATO_INTERNET_TOP: a hidden rule of Cato above the Internet Firewall blocks connections Cato deems illegal or malicious; it is not in the answer and not converted
+  [info] CATO_INBOUND: traffic from the internet to the sites is decided by Remote Port Forwarding, which is not read: in the model nothing from the internet is allowed
+  [info] CATO_REMOVED: rules marked removed in the revision read: left out: Retired rule
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface Brussels HQ / zone "FWS_Brussels-HQ"; interface Antwerp DC / zone "FWS_Antwerp-DC"; interface Ghent Plant / zone "FWS_Ghent-Plant"; interface Leuven Lab / zone "FWS_Leuven-Lab"; interface Cato client (remote users) / zone "FWS_remote-users"; interface internet / zone "FWS_internet"
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log lines
+
+Security rules
+  Allow HQ to DC servers  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Allow HQ to DC servers (2)'
+  Block OT to HQ  ->  exact  (emitted as 4 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Historian both ways  ->  exact  (emitted as 1 rule of policy-global)
+      [info] CATO_BOTH: direction BOTH: written as rules for each direction, the second set with source and destination swapped: 'Historian both ways (2)'
+  Remote users to DC  ->  exact  (emitted as 2 rules of policy-global)
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [info] NEGATION_EXPANDED: a rule of StoneOS cannot negate: written as an address entry of the addresses that are left
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Modbus to the plant  ->  exact  (emitted as 1 rule of policy-global)
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Modbus to the plant (2)', 'Modbus to the plant (3)'
+  Finance to ERP  ->  needs-review, emitted disabled  (emitted as 5 rules of policy-global)
+      [needs-review] CATO_USERS: users or user groups narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups Finance.
+  Prompt for SSH  ->  needs-review, emitted disabled  (emitted as 25 rules of policy-global)
+      [needs-review] CATO_ACTION: action PROMPT: not converted (read as allow)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: action PROMPT: the user is asked on a web page.
+  Floating range  ->  needs-review, emitted disabled  (emitted as 10 rules of policy-global)
+      [needs-review] CATO_OBJECT: floating ranges, system groups or group members whose addresses are not known: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: floating ranges Cloud floating.
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Maintenance window  ->  needs-review, emitted disabled  (emitted as 2 rules of policy-global)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] SCHEDULE: schedule 'SATURDAY,SUNDAY 22:00:00-23:59:00' is not converted; the rule would apply at all times.
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Teams between sites  ->  needs-review, emitted disabled  (emitted as 50 rules of policy-global)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application column (applications, categories, domains or addresses as applications).
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Unknown host  ->  needs-review, emitted disabled  (emitted as 5 rules of policy-global)
+      [needs-review] CATO_UNRESOLVED: objects that are not in the lookups of the input: they match nothing until they are
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'host lab-printer': a host that is not in the lookups of the input.
+      [needs-review] ZONE_DYNAMIC: 'host lab-printer' holds members only its platform knows.
+  Block guest except DNS  ->  needs-review, emitted disabled  (emitted as 25 rules of policy-global)
+      [needs-review] CATO_EXCEPTION: exceptions that cannot be cut out of the rule: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: exception dns from one host: source, service (only an exception of one column of addresses or services is cut out). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block plant to remote users  ->  exact  (emitted as 10 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Block anonymizers  ->  needs-review, emitted disabled  (emitted as 10 rules of policy-global)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [info] CATO_SYSTEM_RULE: a system rule of Cato, which cannot be changed or removed
+      [needs-review] UNSUPPORTED_MATCH: not converted: appCategory Anonymizers. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Plant has no internet  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [needs-review] FQDN_NOT_SUPPORTED: every address but 'fqdn updates.example.com', which holds a host name or members only its platform knows. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  HQ web  ->  needs-review, emitted disabled  (emitted as 2 rules of policy-global)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: domains example.org.
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Isolate unknown sites  ->  needs-review, emitted disabled  (emitted as 10 rules of policy-global)
+      [needs-review] CATO_ACTION: action RBI: not converted (read as allow)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action RBI: remote browser isolation.
+      [needs-review] UNSUPPORTED_MATCH: not converted: customCategory Uncategorized.
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Partner FTP  ->  approximated  (emitted as 5 rules of policy-global)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [approximated] HILLSTONE_FQDN: a host name is written into an IPv4 address entry: the rule matches the IPv4 addresses it resolves to, not its IPv6 ones
+  Block remote users to SMB  ->  needs-review, emitted disabled  (emitted as 10 rules of policy-global)
+      [needs-review] CATO_ORIGIN: connection origins that are not all sites or all remote users: not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: connection origins REMOTE_CLIENT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule
+  Internet Firewall implicit allow  ->  exact  (emitted as 10 rules of policy-global)
+      [info] IP_VERSION_SPLIT: an address entry of StoneOS is of one IP version: written as an IPv4 and an IPv6 rule

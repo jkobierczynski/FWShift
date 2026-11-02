@@ -1,0 +1,119 @@
+FWShift conversion report
+  source: cato
+  target: calico
+
+Summary
+  Security rules:     32   exact 11, approximated 4, needs review 17 (17 emitted disabled), skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CALICO_LOAD: the output is one GlobalNetworkPolicy (fwshift) for calicoctl apply -f FILE, or kubectl apply -f FILE where the Calico API server is installed. It applies to the endpoints labelled fwshift/policy=fwshift and to nothing else: label the pods it is for (kubectl label pod POD fwshift/policy=fwshift). It stands in the default tier with order 100, before the Kubernetes network policies (order 1000), and ends with the source's default, so that it decides everything for those endpoints; a policy of the same name is replaced
+  [info] CATO_SOURCE: 4 sites as zones (Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab), remote-users and internet; the WAN Firewall (first match, implicit block) decides between sites and remote users, the Internet Firewall (first match, implicit allow, written as a last rule) from them to the internet; traffic inside one network range does not reach Cato and is allowed
+  [info] CATO_INTERNET_TOP: a hidden rule of Cato above the Internet Firewall blocks connections Cato deems illegal or malicious; it is not in the answer and not converted
+  [info] CATO_INBOUND: traffic from the internet to the sites is decided by Remote Port Forwarding, which is not read: in the model nothing from the internet is allowed
+  [info] CATO_REMOVED: rules marked removed in the revision read: left out: Retired rule
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: Brussels-HQ=10.10.0.0/24,10.10.20.0/24; Antwerp-DC=10.20.0.0/24,10.20.30.0/24; Ghent-Plant=10.30.0.0/24; Leuven-Lab=10.40.0.0/24. --no-source-networks takes none of them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; the Calico rules written do not (a rule with action Log before a rule would log what it matches)
+
+Security rules
+  Allow HQ to DC servers  ->  approximated  (emitted as rules 7-8)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Allow HQ to DC servers (2)'
+      [info] ZONE_BY_NETWORKS: the source in zone Brussels-HQ is written as the addresses of the networks given for it with --zone-network
+  Allow HQ to DC servers (2)  ->  needs-review, emitted disabled
+      [info] ZONE_BY_NETWORKS: the source in zone Brussels-HQ is written as the addresses of the networks given for it with --zone-network
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a Calico rule names no zone: give the networks behind remote-users with --zone-network.
+  Block OT to HQ  ->  approximated  (emitted as rule 9)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Ghent-Plant, Leuven-Lab; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Brussels-HQ; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  Historian both ways  ->  exact  (emitted as rules 10-11)
+      [info] CATO_BOTH: direction BOTH: written as rules for each direction, the second set with source and destination swapped: 'Historian both ways (2)'
+  Remote users to DC  ->  needs-review, emitted disabled
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [info] ZONE_BY_NETWORKS: the destination in zone Antwerp-DC is written as the addresses of the networks given for it with --zone-network
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone remote-users, and a Calico rule names no zone: give the networks behind remote-users with --zone-network.
+  Modbus to the plant  ->  exact  (emitted as rule 14)
+      [info] CATO_RULE_SPLIT: a column holds sites and addresses (or addresses of several sites), which Cato reads as alternatives: written as one rule per part, which together match the same: 'Modbus to the plant (2)', 'Modbus to the plant (3)'
+      [info] ZONE_BY_NETWORKS: the source in zone Brussels-HQ is written as the addresses of the networks given for it with --zone-network
+  Modbus to the plant (2)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a Calico rule names no zone: give the networks behind remote-users with --zone-network.
+  Finance to ERP  ->  needs-review, emitted disabled
+      [needs-review] CATO_USERS: users or user groups narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: user groups Finance.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a Calico rule names no zone: give the networks behind remote-users with --zone-network.
+  Prompt for SSH  ->  needs-review, emitted disabled
+      [needs-review] CATO_ACTION: action PROMPT: not converted (read as allow)
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] UNSUPPORTED_MATCH: not converted: action PROMPT: the user is asked on a web page.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a Calico rule names no zone: give the networks behind remote-users with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a Calico rule names no zone: give the networks behind remote-users with --zone-network.
+  Floating range  ->  needs-review, emitted disabled
+      [needs-review] CATO_OBJECT: floating ranges, system groups or group members whose addresses are not known: not converted
+      [info] ZONE_BY_NETWORKS: the destination in zone Antwerp-DC is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: floating ranges Cloud floating.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a Calico rule names no zone: give the networks behind remote-users with --zone-network.
+  Maintenance window  ->  needs-review, emitted disabled
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] ZONE_BY_NETWORKS: the source in zone Antwerp-DC is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone Ghent-Plant is written as the addresses of the networks given for it with --zone-network
+      [needs-review] SCHEDULE: schedule 'SATURDAY,SUNDAY 22:00:00-23:59:00' is not converted; the rule would apply at all times.
+  Teams between sites  ->  needs-review, emitted disabled
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application column (applications, categories, domains or addresses as applications).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a Calico rule names no zone: give the networks behind remote-users with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a Calico rule names no zone: give the networks behind remote-users with --zone-network.
+  Unknown host  ->  needs-review, emitted disabled
+      [needs-review] CATO_UNRESOLVED: objects that are not in the lookups of the input: they match nothing until they are
+      [info] ZONE_BY_NETWORKS: the source in zone Brussels-HQ is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'host lab-printer': a host that is not in the lookups of the input.
+  Block guest except DNS  ->  needs-review, emitted disabled
+      [needs-review] CATO_EXCEPTION: exceptions that cannot be cut out of the rule: not converted
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: exception dns from one host: source, service (only an exception of one column of addresses or services is cut out). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block plant to remote users  ->  approximated  (emitted as rule 16)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Ghent-Plant; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  Block anonymizers  ->  needs-review, emitted disabled
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [info] CATO_SYSTEM_RULE: a system rule of Cato, which cannot be changed or removed
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: appCategory Anonymizers. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad networks  ->  approximated  (emitted as rule 17)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  Plant has no internet  ->  needs-review, emitted disabled
+      [info] CATO_EXCEPTION_CUT: 1 exception(s) cut out of the rule: it does not match what they match, as on Cato
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Ghent-Plant; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] FQDN_NOT_SUPPORTED: host name object fqdn updates.example.com: a Calico rule names networks (domain names are a feature of Calico Enterprise and Cloud). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  HQ web  ->  needs-review, emitted disabled
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [info] ZONE_BY_NETWORKS: the source in zone Brussels-HQ is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: domains example.org.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a Calico rule names no zone: give the networks behind internet with --zone-network.
+  Isolate unknown sites  ->  needs-review, emitted disabled
+      [needs-review] CATO_ACTION: action RBI: not converted (read as allow)
+      [needs-review] CATO_APPLICATION: applications, categories, domains, countries, ASNs or containers narrow the rule; they are not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: action RBI: remote browser isolation.
+      [needs-review] UNSUPPORTED_MATCH: not converted: customCategory Uncategorized.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a Calico rule names no zone: give the networks behind remote-users with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a Calico rule names no zone: give the networks behind internet with --zone-network.
+  Partner FTP  ->  needs-review, emitted disabled
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [needs-review] FQDN_NOT_SUPPORTED: host name object fqdn ftp.example.net: a Calico rule names networks (domain names are a feature of Calico Enterprise and Cloud).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a Calico rule names no zone: give the networks behind remote-users with --zone-network.
+  Block remote users to SMB  ->  needs-review, emitted disabled
+      [needs-review] CATO_ORIGIN: connection origins that are not all sites or all remote users: not converted
+      [approximated] CATO_STANDARD_SERVICE: standard services read by name as the well-known ports of their protocol; Cato does not publish what they hold
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone internet; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: connection origins REMOTE_CLIENT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Internet Firewall implicit allow  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Brussels-HQ, Antwerp-DC, Ghent-Plant, Leuven-Lab, remote-users, and a Calico rule names no zone: give the networks behind remote-users with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone internet, and a Calico rule names no zone: give the networks behind internet with --zone-network.

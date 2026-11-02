@@ -1,0 +1,97 @@
+FWShift conversion report
+  source: securepoint
+  target: moxa
+
+Summary
+  Security rules:     19   exact 0, approximated 0, needs review 18 (18 emitted disabled), skipped 1
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Addresses:          15   exact 15, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_IMPLIED: commands that change the implicit rules are not converted: group set implied_group "12" active "1"
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [needs-review] MOXA_ZONES: zones that are not interfaces of the router (lan, wan1, wan2); their rules are written disabled: give --zone-map ZONE=lan|wan1|wan2 for internal, external, vpn-ipsec, dmz1
+  [info] SECUREPOINT_SOURCE: 18 rules of the packet filter in 3 rule groups, first match in the order of the groups; zones from the network objects; what no rule matches is dropped (Default Drop)
+  [info] SECUREPOINT_IMPLIED_RULES: the UTM's implicit rules (Firewall > Implied rules: its own services, VPN, the threat intelligence filter) come before the packet filter and are not converted
+  [info] SECUREPOINT_LOCAL_RULES: 1 rules for the UTM's own services (to or from objects in zones of its own interfaces) are not converted
+  [info] SECUREPOINT_NAT_ORDER: NAT is part of the rules: each rule with NAT became a NAT rule, in the order of the rules. DESTNAT is done before the packet filter and HIDENAT after it (netfilter); a rule's NAT is read as applying whatever its action (assumed)
+  [info] SECUREPOINT_RANGE: network objects with an address range a-b (a form FWShift reads, not documented): printers
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  rule-1  ->  needs-review, emitted disabled  (emitted as firewall 1)
+      [needs-review] MOXA_ZONE: zones internal, external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  rule-4  ->  needs-review, emitted disabled  (emitted as firewall 2)
+      [needs-review] MOXA_ZONE: zones internal, external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  rule-10  ->  needs-review, emitted disabled  (emitted as firewall 3)
+      [needs-review] MOXA_ZONE: zones vpn-ipsec, internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  rule-11  ->  needs-review, emitted disabled  (emitted as firewall 4)
+      [approximated] SECUREPOINT_STATELESS: action STATELESS allows packets whatever the state of their connection, and lets no replies through by itself; the model is stateful and allows the replies of what it allows
+      [needs-review] MOXA_ZONE: zones internal, external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object update-host: a policy names IPv4 addresses only.
+  rule-13  ->  needs-review, emitted disabled  (emitted as firewall 5)
+      [needs-review] MOXA_ZONE: zones internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  rule-14  ->  needs-review, emitted disabled  (emitted as firewall 6)
+      [needs-review] UNSUPPORTED_MATCH: not converted: NETMAP on the rule: which addresses its packet filter rule names is not documented.
+      [needs-review] MOXA_ZONE: zones internal, vpn-ipsec: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  rule-15  ->  needs-review, emitted disabled  (emitted as firewall 7)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] MOXA_ZONE: zones internal, external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match.
+  rule-18  ->  needs-review, emitted disabled  (emitted as firewall 8)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'external-interface' next to 'webserver' because of NAT rule 'rule-2-nat'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'rule-2-nat' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] MOXA_ZONE: zones external, dmz1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-2  ->  needs-review, emitted disabled  (emitted as firewall 9)
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to external-interface (extern-https) and taken to webserver; that it also allows traffic sent to the server directly is not documented and is not read
+      [needs-review] MOXA_ZONE: zones external, dmz1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  rule-6  ->  needs-review, emitted disabled  (emitted as firewall 10)
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to public-mail (smtp) and taken to mailserver; that it also allows traffic sent to the server directly is not documented and is not read
+      [needs-review] MOXA_ZONE: zones external, dmz1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  rule-7  ->  needs-review, emitted disabled  (emitted as firewall 11)
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 1 of 2)
+      [needs-review] MOXA_ZONE: zones internal, dmz1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  rule-7-2  ->  needs-review, emitted disabled  (emitted as firewall 12)
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 2 of 2)
+      [needs-review] MOXA_ZONE: zones vpn-ipsec, dmz1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  rule-8  ->  needs-review, emitted disabled  (emitted as firewall 13)
+      [needs-review] MOXA_ZONE: zones dmz1, external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  rule-12  ->  needs-review, emitted disabled  (emitted as firewall 14)
+      [info] SECUREPOINT_QOS: action QOS: read as ACCEPT; the bandwidth limit of its QoS profile is not converted
+      [needs-review] MOXA_ZONE: zones internal, dmz1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  rule-16  ->  needs-review, emitted disabled  (emitted as firewall 15)
+      [needs-review] UNSUPPORTED_MATCH: not converted: flag 'MIRROR' is not one FWShift reads.
+      [needs-review] MOXA_ZONE: zones internal, dmz1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP.
+  rule-3  ->  needs-review, emitted disabled  (emitted as firewall 16)
+      [needs-review] MOXA_ZONE: zones internal, external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-9  ->  needs-review, emitted disabled  (emitted as firewall 17)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-region': address 'geoip:XX' is not a form FWShift reads. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones internal, external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-17  ->  needs-review, emitted disabled  (emitted as firewall 18)
+      [needs-review] MOXA_ZONE: zones internal, dmz1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-5  ->  skipped
+      [info] SECUREPOINT_LOCAL_RULE: a rule for the UTM's own services (an object in a zone of its own interfaces, firewall-...): not converted
+
+NAT rules
+  rule-1-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  rule-10-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  rule-14-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  rule-2-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  rule-6-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  rule-8-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+
+Services
+  ssh  ->  exact
+      [info] SECUREPOINT_FACTORY_SERVICE: not defined in the input: read as the service of that name a UTM comes with, with the IANA port of the name (Securepoint does not publish the list; assumed)

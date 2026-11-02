@@ -1,0 +1,66 @@
+FWShift conversion report
+  source: zyxel
+  target: clavister
+
+Summary
+  Security rules:     19   exact 11, approximated 1, needs review 6 (4 emitted disabled), skipped 1
+  NAT rules:           9   exact 4, approximated 1, needs review 2, skipped 2
+  Addresses:          17   exact 17, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           16   exact 16, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZYXEL_DEFAULT_SNAT: the default SNAT of the WAN trunk (connections from internal interfaces leave with the address of the WAN interface) is not a rule of the configuration and is not converted: give the target the source NAT it needs
+  [needs-review] ZYXEL_BLOCK_INTRAZONE: zones that block traffic between their members: read as a rule at the top that denies inside the zone, whatever the rules say (not confirmed on a device): DMZ
+  [needs-review] ZYXEL_FQDN: address objects of a host name (fqdn), read as names resolved for IPv4; the form is not in the CLI Reference Guide FWShift could read: PORTAL
+  [needs-review] CLAVISTER_LOAD: the output is a cOS Core CLI script (section 10): it adds objects, the rule set fws_rules (and 5 rule sets it sends traffic to; 42 entries in all), and two Goto rules at the top of main that send what arrives on the interfaces of the policy there. It deletes nothing and activates nothing: run it with 'script -execute -name=FILE', read the changes, then 'activate' and, within the timeout, 'commit' (without commit cOS Core goes back to the configuration before). Traffic the new rule set does not decide (to the firewall itself, to other interfaces) returns to main after the Goto rules
+  [needs-review] INTERFACES_REQUIRED: zones are written as the interfaces of the firewall; these names must be its interfaces (Ethernet, VLAN, tunnels), or cOS Core refuses the rules that name them. Map them with --zone-map or --interface-map: ge1, ge3, ge4, ge5, ge6
+  [info] ZYXEL_SOURCE: 4 zones (WAN, LAN1, DMZ, LAB); 18 rules of the security policy, first match, IPv4 and IPv6 lists one after the other. Rules to and from the firewall itself (ZyWALL) are not converted
+  [info] ZYXEL_NAT_ORDER: virtual servers and 1:1 NAT are done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT of policy routes is done after it
+  [info] ZYXEL_UNZONED: interfaces in no zone, which only rules from any or to any match: ge7
+  [info] ZYXEL_INTERFACE_OBJECT: address objects of an interface, read with the static address the configuration gives the interface: interface-subnet ge3, interface-subnet ge4, interface-ip ge1
+  [info] ZYXEL_ICMP_NAMES: ICMP types by name, read with the numbers of the IANA registry: echo, echo-request
+  [info] ZYXEL_DEFAULTS: what no rule matches (secure-policy default-rule): IPv4 deny, IPv6 deny
+  [info] CLAVISTER_SAT_ORDER: destination NAT is written as SAT rules at the top of the rule set, each followed by a Goto rule to a rule set that decides the traffic it translates: the rules of the policy, for the zone the translated address is routed to, with the untranslated addresses. Of several SAT rules that match, the first one translates, and the SAT carries over into the rule set of the Goto (both assumed)
+  [info] CLAVISTER_SNAT_SET: source NAT is written in the rule set fws_snat, one entry per NAT rule in their order and an Allow at the end; a rule that allows traffic a NAT rule may translate is a Goto rule to it. The log setting of such a rule is that of the Goto rule
+
+Security rules
+  WAN_to_Web  ->  needs-review  (emitted as fws_rules 13 (fws_WAN_to_Web))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'PUBLIC_WEB' next to 'WEB_SRV' because of NAT rule 'virtual-server WEB_VS'; check that this rule is meant to cover the translated traffic
+      [needs-review] CLAVISTER_DNAT_ZONE: the zone NAT rule virtual-server WEB_VS translates to is not known (no network of a zone, --zone-network, holds it) or only partly among the zones of this rule: for the translated traffic the rule is not written
+      [needs-review] CLAVISTER_DNAT_ZONE: the zone NAT rule virtual-server ALT_VS translates to is not known (no network of a zone, --zone-network, holds it) or only partly among the zones of this rule: for the translated traffic the rule is not written
+  WAN_to_Mail  ->  needs-review  (emitted as fws_rules 14 (fws_WAN_to_Mail))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to 'MAIL_SRV' because of NAT rule 'virtual-server MAIL_VS'; check that this rule is meant to cover the translated traffic
+      [needs-review] CLAVISTER_DNAT_ZONE: the zone NAT rule virtual-server MAIL_VS translates to is not known (no network of a zone, --zone-network, holds it) or only partly among the zones of this rule: for the translated traffic the rule is not written
+  Admin_Mgmt  ->  approximated  (emitted as fws_rules 15 (fws_Admin_Mgmt))
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default_av); attach equivalent inspection on the target
+  Old_Rule  ->  exact  (emitted as fws_rules 18 (fws_Old_Rule))
+      [info] CLAVISTER_DISABLED: disabled in the source; written disabled
+  Alice_Workhours  ->  needs-review, emitted disabled  (emitted as fws_rules 19 (fws_Alice_Workhours))
+      [needs-review] SCHEDULE: schedule 'WORKHOURS' is not converted; the rule would apply at all times.
+      [needs-review] USER_MATCH: source user match alice is not converted.
+  Country_Block  ->  needs-review, emitted disabled  (emitted as fws_rules 21 (fws_Country_Block), a placeholder, disabled)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'COUNTRY_X': geography XX: not an address FWShift can read. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Portal_Access  ->  needs-review, emitted disabled  (emitted as fws_rules 22 (fws_Portal_Access), a placeholder, disabled)
+      [needs-review] CLAVISTER_FQDN: the destination holds the host name PORTAL, which is not written.
+  VS_Only  ->  needs-review, emitted disabled  (emitted as fws_rules 23 (fws_VS_Only))
+      [needs-review] UNSUPPORTED_MATCH: not converted: ctmatch dnat: matches only connections that a virtual server translated.
+  LAN1_to_Device  ->  skipped
+      [info] ZYXEL_DEVICE_RULE: a rule for traffic to the firewall itself (LAN1 to ZyWALL): not converted
+
+NAT rules
+  virtual-server WEB_VS  ->  approximated  (emitted as fws_rules 1 (fws_virtual-server_WEB_VS_sat))
+      [approximated] ZYXEL_NAT_LOOPBACK: nat-loopback: hosts behind the firewall that use the original address are translated as well (and their source is translated to the firewall); only the translation for traffic that arrives on the interface is converted
+  virtual-server ONE2ONE  ->  needs-review  (emitted as fws_snat 1 (fws_virtual-server_ONE2ONE_sat), fws_snat 2 (fws_virtual-server_ONE2ONE))
+      [needs-review] CLAVISTER_BIDIRECTIONAL: a static translation in both directions: only the source SAT is written; connections to the translated address need a SAT rule of their own
+  virtual-server MANY2ONE  ->  needs-review  (emitted as fws_snat 3 (fws_virtual-server_MANY2ONE_sat), fws_snat 4 (fws_virtual-server_MANY2ONE))
+      [needs-review] CLAVISTER_BIDIRECTIONAL: a static translation in both directions: only the source SAT is written; connections to the translated address need a SAT rule of their own
+  virtual-server OLD_VS  ->  exact  (emitted as fws_rules 4 (fws_virtual-server_OLD_VS_sat))
+      [info] NAT_DISABLED: disabled in the source; written disabled
+  policy-route 1  ->  skipped
+      [info] ZYXEL_ROUTE_NO_SNAT: a policy route without SNAT above one with SNAT: kept as a rule that translates nothing, so that the SNAT of the routes below it does not apply to its traffic
+      [needs-review] NAT_NOT_CONVERTED: references 'LAB_SUBNET': interface-subnet ge6: interface-subnet of ge6: the interface gets its address by dhcp
+  policy-route 3  ->  skipped
+      [info] ZYXEL_SNAT_POOL: SNAT to the addresses of PUBLIC_RANGE, read as translation with port translation (the documentation does not say)
+      [needs-review] CLAVISTER_NAT_FORM: a source translation to more than one address (a NAT pool, which is not written)

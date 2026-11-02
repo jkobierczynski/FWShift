@@ -1,0 +1,112 @@
+add Address IP4Address fws_203.0.113.3 Address=203.0.113.3
+add Service ServiceTCPUDP fws_tcp-8443 Type=TCP DestinationPorts=8443
+add Address IP4Address fws_203.0.113.4 Address=203.0.113.4
+add Service ServiceTCPUDP fws_tcp-25 Type=TCP DestinationPorts=25
+add Address IP4Address fws_192.168.10.50-192.168.10.59 Address=192.168.10.50-192.168.10.59
+add Address IP4Address fws_172.16.20.10 Address=172.16.20.10
+add Address IP4Address fws_172.16.20.11 Address=172.16.20.11
+add Service ServiceTCPUDP fws_tcp-22 Type=TCP DestinationPorts=22
+add Service ServiceTCPUDP fws_tcp-80_443_8000-8080 Type=TCP DestinationPorts=80,443,8000-8080
+add Address IP4Address fws_web_for_everyone-2_src_not_1 Address=0.0.0.0-192.168.10.49
+add Address IP4Address fws_web_for_everyone-2_src_not_2 Address=192.168.10.60-255.255.255.255
+add Service ServiceICMP fws_icmp-8-0 MessageTypes=Specific EchoRequest=Yes EchoRequestCodes=0
+add Address IP4Address fws_198.51.100.0_24 Address=198.51.100.0/24
+add Service ServiceTCPUDP fws_tcp-0-21_23-65535 Type=TCP DestinationPorts=0-21,23-65535
+add Address IP4Address fws_rest_of_the_DMZ_dst_not_1 Address=0.0.0.0-172.16.19.255
+add Address IP4Address fws_rest_of_the_DMZ_dst_not_2 Address=172.16.20.128-255.255.255.255
+add Address IP4Address fws_0.0.0.0-192.168.10.49 Address=0.0.0.0-192.168.10.49
+add Address IP4Address fws_192.168.10.60-255.255.255.255 Address=192.168.10.60-255.255.255.255
+add Address IP4Address fws_192.0.2.80 Address=192.0.2.80
+add Service ServiceTCPUDP fws_tcp-80_443 Type=TCP DestinationPorts=80,443
+add Service ServiceTCPUDP fws_udp-53 Type=UDP DestinationPorts=53
+add Service ServiceTCPUDP fws_udp-any-from-53 Type=UDP DestinationPorts=0-65535 SourcePorts=53
+add Address IP4Address fws_192.168.10.0_25 Address=192.168.10.0/25
+add Service ServiceICMPv6 fws_icmp6-128 MessageTypes=Specific EchoRequest=Yes
+add Address IP6Address fws_2001_db8_99___48 Address=2001:db8:99::/48
+add Address IP6Address fws_2001_db8_10___64 Address=2001:db8:10::/64
+add Service ServiceTCPUDP fws_tcp-443 Type=TCP DestinationPorts=443
+add Address IP4Address fws_nothing Address=0.0.0.0
+add InterfaceGroup fws_zones Members=vlan20-dmz,bridge-lan,vlan30-guest,ether1
+add Address IP4Group fws_admins Members=fws_192.168.10.50-192.168.10.59
+add Address IP4Group fws_dmz-web Members=fws_172.16.20.10,fws_172.16.20.11
+add Address IP4Group fws_web_for_everyone_dst Members=fws_dmz-web,fws_203.0.113.3
+add Address IP4Group fws_web_for_everyone-2_src_not Members=fws_web_for_everyone-2_src_not_1,fws_web_for_everyone-2_src_not_2
+add Address IP4Group fws_web_for_everyone-2_dst Members=fws_dmz-web,fws_203.0.113.3
+add Address IP4Group fws_partners Members=fws_198.51.100.0_24
+add Address IP4Group fws_rest_of_the_DMZ_dst_not Members=fws_rest_of_the_DMZ_dst_not_1,fws_rest_of_the_DMZ_dst_not_2
+add Address IP4Group fws_rest_of_the_DMZ-2_src Members=fws_0.0.0.0-192.168.10.49,fws_192.168.10.60-255.255.255.255
+add Address IP4Group fws_rest_of_the_DMZ-3_src Members=fws_0.0.0.0-192.168.10.49,fws_192.168.10.60-255.255.255.255
+add Address IP4Group fws_mirrors Members=fws_192.0.2.80
+add Address IP6Group fws_partners-ipv6 Members=fws_2001_db8_99___48
+add Address IP6Group fws_lan6 Members=fws_2001_db8_10___64
+add InterfaceGroup fws_if_ether1_vlan20-dmz_vlan30-guest Members=vlan20-dmz,vlan30-guest,ether1
+add IPRuleSet fws_rules Comments="Written by FWShift"
+add IPRuleSet fws_snat Comments="Written by FWShift"
+add IPRuleSet fws_d_publish_web Comments="Written by FWShift"
+add IPRuleSet fws_d_publish_mail Comments="Written by FWShift"
+cc IPRuleSet fws_snat
+add IPRule Index=1 Name=fws_defconf__masquerade Action=NAT SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=ether1 DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=2 Name=fws_snat_allow Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=3 Name=fws_snat_allow_v6 Action=Allow SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_publish_web
+add IPRule Index=1 Name=fws_publish_web_defconf__drop_all_from_WAN_not_DSTNATed__allows Action=Allow SourceInterface=ether1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.3 Service=fws_tcp-8443 LogEnabled=No Comments="what RouterOS rule forward-15 does not block: connections that destination NAT rule dstnat-1 translates"
+add IPRule Index=2 Name=fws_publish_web_defconf__drop_all_from_WAN_not_DSTNATed Action=Drop SourceInterface=ether1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=3 Name=fws_publish_web_default Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_d_publish_mail
+add IPRule Index=1 Name=fws_publish_mail_defconf__drop_all_from_WAN_not_DSTNATed__allow Action=Allow SourceInterface=ether1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.4 Service=fws_tcp-25 LogEnabled=No Comments="what RouterOS rule forward-15 does not block: connections that destination NAT rule dstnat-2 translates"
+add IPRule Index=2 Name=fws_publish_mail_defconf__drop_all_from_WAN_not_DSTNATed Action=Drop SourceInterface=ether1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=3 Name=fws_publish_mail_default Action=Allow SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+cc
+cc IPRuleSet fws_rules
+add IPRule Index=1 Name=fws_publish_web_sat Action=SAT SourceInterface=ether1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.3 Service=fws_tcp-8443 SATTranslate=DestinationIP SATTranslateToIP=fws_172.16.20.10 SATTranslateToPort=443 LogEnabled=No
+add IPRule Index=2 Name=fws_publish_mail_sat Action=SAT SourceInterface=ether1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.4 Service=fws_tcp-25 SATTranslate=DestinationIP SATTranslateToIP=fws_172.16.20.11 LogEnabled=No
+add GotoRule Index=3 Name=fws_publish_web_goto SourceInterface=ether1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.3 Service=fws_tcp-8443 RuleSet=fws_d_publish_web LogEnabled=No
+add GotoRule Index=4 Name=fws_publish_mail_goto SourceInterface=ether1 SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=fws_203.0.113.4 Service=fws_tcp-25 RuleSet=fws_d_publish_mail LogEnabled=No
+add IPRule Index=5 Name=fws_defconf__accept_in_ipsec_policy Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+set IPRule 5 -disable
+add IPRule Index=6 Name=fws_banned_scanners Action=Drop SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+set IPRule 6 -disable
+add IPRule Index=7 Name=fws_ssh_from_the_admins Action=Allow SourceInterface=fws_zones SourceNetwork=fws_admins DestinationInterface=vlan20-dmz DestinationNetwork=fws_dmz-web Service=fws_tcp-22 LogEnabled=No
+add IPRule Index=8 Name=fws_web_for_everyone Action=Allow SourceInterface=fws_zones SourceNetwork=fws_admins DestinationInterface=vlan20-dmz DestinationNetwork=fws_web_for_everyone_dst Service=fws_tcp-80_443_8000-8080 LogEnabled=No
+add GotoRule Index=9 Name=fws_web_for_everyone-2 SourceInterface=fws_zones SourceNetwork=fws_web_for_everyone-2_src_not DestinationInterface=vlan20-dmz DestinationNetwork=fws_web_for_everyone-2_dst Service=fws_tcp-80_443_8000-8080 RuleSet=fws_snat LogEnabled=No Comments="RouterOS /ip firewall filter rule forward-6.to-dmz-3"
+add IPRule Index=10 Name=fws_ping__echo__only Action=Allow SourceInterface=fws_zones SourceNetwork=fws_admins DestinationInterface=vlan20-dmz DestinationNetwork=all-nets Service=fws_icmp-8-0 LogEnabled=No
+add GotoRule Index=11 Name=fws_ping__echo__only-2 SourceInterface=fws_zones SourceNetwork=fws_web_for_everyone-2_src_not DestinationInterface=vlan20-dmz DestinationNetwork=all-nets Service=fws_icmp-8-0 RuleSet=fws_snat LogEnabled=No Comments="RouterOS /ip firewall filter rule forward-6.to-dmz-4"
+add IPRule Index=12 Name=fws_old_partner_access Action=Allow SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 12 -disable
+add IPRule Index=13 Name=fws_old_partner_access-2 Action=Allow SourceInterface=fws_zones SourceNetwork=fws_partners DestinationInterface=vlan20-dmz DestinationNetwork=all-nets Service=fws_tcp-0-21_23-65535 LogEnabled=No Comments="RouterOS /ip firewall filter rule forward-6.to-dmz-5"
+set IPRule 13 -disable
+add IPRule Index=14 Name=fws_nothing_but_TCP Action=Drop SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No
+set IPRule 14 -disable
+add IPRule Index=15 Name=fws_nothing_but_TCP-2 Action=Drop SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No Comments="RouterOS /ip firewall filter rule forward-6.to-dmz-6"
+set IPRule 15 -disable
+add IPRule Index=16 Name=fws_rest_of_the_DMZ Action=Drop SourceInterface=fws_zones SourceNetwork=fws_admins DestinationInterface=vlan20-dmz DestinationNetwork=fws_rest_of_the_DMZ_dst_not Service=all_services LogEnabled=No
+set IPRule 16 -disable
+add IPRule Index=17 Name=fws_rest_of_the_DMZ-2 Action=Drop SourceInterface=any SourceNetwork=fws_nothing DestinationInterface=any DestinationNetwork=fws_nothing Service=all_services LogEnabled=No Comments="RouterOS /ip firewall filter rule forward-6.to-dmz-7"
+set IPRule 17 -disable
+add IPRule Index=18 Name=fws_rest_of_the_DMZ-3 Action=Drop SourceInterface=fws_zones SourceNetwork=fws_rest_of_the_DMZ-3_src DestinationInterface=vlan20-dmz DestinationNetwork=fws_rest_of_the_DMZ_dst_not Service=fws_tcp-0-21_23-65535 LogEnabled=No Comments="RouterOS /ip firewall filter rule forward-6.to-dmz-7"
+set IPRule 18 -disable
+add GotoRule Index=19 Name=fws_LAN_to_the_package_mirrors SourceInterface=bridge-lan SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_mirrors Service=fws_tcp-80_443 RuleSet=fws_snat LogEnabled=No
+add IPRule Index=20 Name=fws_no_other_web_from_guests Action=Reject SourceInterface=vlan30-guest SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=fws_tcp-80_443 LogEnabled=No
+add GotoRule Index=21 Name=fws_guest_DNS__either_port SourceInterface=vlan30-guest SourceNetwork=all-nets DestinationInterface=ether1 DestinationNetwork=all-nets Service=fws_udp-53 RuleSet=fws_snat LogEnabled=No
+add GotoRule Index=22 Name=fws_guest_DNS__either_port-2 SourceInterface=vlan30-guest SourceNetwork=all-nets DestinationInterface=ether1 DestinationNetwork=all-nets Service=fws_udp-any-from-53 RuleSet=fws_snat LogEnabled=No Comments="RouterOS /ip firewall filter rule forward-9"
+add GotoRule Index=23 Name=fws_guests_to_the_internet SourceInterface=vlan30-guest SourceNetwork=all-nets DestinationInterface=ether1 DestinationNetwork=all-nets Service=all_services RuleSet=fws_snat LogEnabled=Yes
+add IPRule Index=24 Name=fws_office_hours_for_staff Action=Allow SourceInterface=bridge-lan SourceNetwork=fws_192.168.10.0_25 DestinationInterface=ether1 DestinationNetwork=all-nets Service=all_services LogEnabled=No
+set IPRule 24 -disable
+add IPRule Index=25 Name=fws_no_guests_elsewhere Action=Drop SourceInterface=vlan30-guest SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=Yes
+add GotoRule Index=26 Name=fws_defconf__drop_all_from_WAN_not_DSTNATed__allows_publish_web SourceInterface=ether1 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.3 Service=fws_tcp-8443 RuleSet=fws_snat LogEnabled=No Comments="what RouterOS rule forward-15 does not block: connections that destination NAT rule dstnat-1 translates"
+add GotoRule Index=27 Name=fws_defconf__drop_all_from_WAN_not_DSTNATed__allows_publish_mai SourceInterface=ether1 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=fws_203.0.113.4 Service=fws_tcp-25 RuleSet=fws_snat LogEnabled=No Comments="what RouterOS rule forward-15 does not block: connections that destination NAT rule dstnat-2 translates"
+add IPRule Index=28 Name=fws_defconf__drop_all_from_WAN_not_DSTNATed Action=Drop SourceInterface=ether1 SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=29 Name=fws_ICMPv6_echo Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=fws_icmp6-128 LogEnabled=No
+add IPRule Index=30 Name=fws_the_partners_reach_the_web_servers_of_the_LAN_by_HTTPS_and_ Action=Allow SourceInterface=fws_zones SourceNetwork=fws_partners-ipv6 DestinationInterface=fws_zones DestinationNetwork=fws_lan6 Service=fws_tcp-443 LogEnabled=No
+add IPRule Index=31 Name=fws_drop_everything_else_not_coming_from_LAN Action=Drop SourceInterface=fws_if_ether1_vlan20-dmz_vlan30-guest SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add IPRule Index=32 Name=fws_default Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=fws_zones DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add IPRule Index=33 Name=fws_default_v6 Action=Allow SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=fws_zones DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+add ReturnRule Index=34 Name=fws_return SourceInterface=any SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services LogEnabled=No
+add ReturnRule Index=35 Name=fws_return_v6 SourceInterface=any SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services LogEnabled=No
+cc
+cc IPRuleSet main
+add GotoRule Index=1 Name=fws_goto SourceInterface=fws_zones SourceNetwork=all-nets DestinationInterface=any DestinationNetwork=all-nets Service=all_services RuleSet=fws_rules LogEnabled=No
+add GotoRule Index=2 Name=fws_goto_v6 SourceInterface=fws_zones SourceNetwork=all-nets6 DestinationInterface=any DestinationNetwork=all-nets6 Service=all_services RuleSet=fws_rules LogEnabled=No
+cc

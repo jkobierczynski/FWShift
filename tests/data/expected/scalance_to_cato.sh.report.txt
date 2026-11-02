@@ -1,0 +1,91 @@
+FWShift conversion report
+  source: scalance
+  target: cato
+
+Summary
+  Security rules:     17   exact 6, approximated 0, needs review 3 (2 emitted disabled), skipped 8
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] SCALANCE_RULESET: rule sets (user or digital-input firewall): rules assigned to one apply only while it is active and are not converted; check which rules belong to a set: ruleset name maintenance
+  [needs-review] CATO_INSIDE: no --inside-zone: every zone was taken as a site; a zone that is the internet then gets WAN Firewall rules, which Cato never matches for traffic to the internet
+  [needs-review] CATO_LOAD: the output is a shell script for the Cato GraphQL API (section 10): it adds WAN Firewall and Internet Firewall rules from a position, each after the one before it, and changes nothing else; it does not publish the revision, which a person reviews and publishes
+  [needs-review] CATO_SITE_NAMES: zones are written as sites by name, which must exist in the account (map them with --zone-map, or give their networks with --zone-network): ipsecALL
+  [info] SCALANCE_SOURCE: 4 interfaces as zones (vlan1, vlan2, vlan3, ipsecALL); 16 IP rules, in ascending priority (prior), equal priorities in the order they were created; the IPv4 rules, then the IPv6 rules. Rules of the firewall itself (device) and the predefined rules are not converted
+  [info] SCALANCE_DEFAULTS: what no rule matches between interfaces is dropped; traffic inside one VLAN does not pass the IP firewall
+  [info] SCALANCE_NAT_ORDER: destination NAT (NAPT, NETMAP of the destination) is done before the firewall, whose rules name the translated address: the rules were rewritten for the address as it arrives. Source NAT, NETMAP of the source and masquerading are done after it. Read in the order NAPT, NETMAP destination, NETMAP source, source NAT, masquerading, one rule of each direction per connection (assumed)
+  [info] SCALANCE_PRERULE: predefined rules (access to services of the firewall itself) are not converted; those the configuration does not list are at their factory setting: ssh ipv4 int vlan 1 enabled, https ipv4 int vlan 2 disabled
+  [info] SCALANCE_NETMAP_DSTINT: the destination interface of a NETMAP rule of the destination is not a condition of the converted rule: netmap destination 1: vlan3
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: vlan1=192.168.10.0/24,10.20.0.0/16; vlan2=198.51.100.0/24; vlan3=192.168.30.0/24. --no-source-networks takes none of them
+  [info] CATO_INTRAZONE: the source allows traffic inside a zone that no rule matches; between two network ranges of one site it passes the WAN Firewall, so a rule at the end allows it: vlan1, vlan2, vlan3, ipsecALL
+  [info] CATO_NO_INTERNET: no zone is the internet: no Internet Firewall rules are written
+  [info] LOGGING_CONVERTED: rules of the source log; their rules generate events
+
+Security rules
+  ipv4rule 4  ->  exact  (emitted as fws-ipv4rule 4)
+      [info] ZONE_BY_NETWORKS: the source in zone vlan1 is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan2 is written as the addresses of the networks given for it
+  ipv4rule 2  ->  exact  (emitted as fws-ipv4rule 2)
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan1 is written as the addresses of the networks given for it
+  ipv4rule 1  ->  exact  (emitted as fws-ipv4rule 1)
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan1 is written as the addresses of the networks given for it
+  ipv4rule 3  ->  exact  (emitted as fws-ipv4rule 3)
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan1 is written as the addresses of the networks given for it
+  ipv4rule 5  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  ipv4rule 6  ->  needs-review  (emitted as fws-ipv4rule 6)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.2' next to '192.168.30.10' because of NAT rule 'napt 1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'napt 1' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan3 is written as the addresses of the networks given for it
+  ipv4rule 7  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.64/30' next to '192.168.30.64/30' because of NAT rule 'netmap destination 1'; check that this rule is meant to cover the translated traffic
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: source ports: a service of Cato has destination ports only
+  ipv4rule 8  ->  exact  (emitted as fws-ipv4rule 8)
+      [info] ZONE_BY_NETWORKS: the source in zone vlan3 is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan1 is written as the addresses of the networks given for it
+      [info] REJECT_AS_DENY: action reset-client: written as BLOCK
+  ipv4rule 9  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  ipv4rule 11  ->  needs-review, emitted disabled  (emitted as fws-ipv4rule 11)
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan1 is written as the addresses of the networks given for it
+      [needs-review] UNSUPPORTED_MATCH: not converted: source DYNAMIC: the address of the user who activates the rule set, or of the digital input.
+  ipv4rule 12  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: references 'ENIP': unsupported or undefined service
+  ipv4rule 13  ->  exact  (emitted as fws-ipv4rule 13)
+      [info] CATO_ZONE_EXCEPTION: the source is kept to its zones by naming them and an exception for every IPv4 address outside its addresses (a column of Cato holds alternatives)
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan1 is written as the addresses of the networks given for it
+  ipv4rule 14  ->  needs-review, emitted disabled  (emitted as fws-ipv4rule 14)
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan1 is written as the addresses of the networks given for it
+      [needs-review] UNSUPPORTED_MATCH: not converted: assigned to the rule set maintenance: it applies only while the set is activated (by a user or a digital input).
+  ipv4rule 15  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  ipv6rule 1  ->  skipped
+      [approximated] CATO_IPV6: IPv6 addresses of the source are left out: the Cato API takes IPv4 addresses only; the rule no longer matches them
+      [needs-review] CATO_NOT_WRITTEN: not written: no IPv4 address as the source
+  ipv6rule 2  ->  skipped
+      [needs-review] CATO_NOT_WRITTEN: not written: its services cannot be written: an ICMP type, ICMPv6, SCTP or another IP protocol: a custom service of Cato is TCP, UDP or ICMP
+  ipv4rule 10  ->  skipped
+      [info] SCALANCE_DEVICE_RULE: a rule for traffic to or from the firewall itself (device): its own access, not converted
+
+NAT rules
+  napt 1  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  napt 2  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  netmap destination 1  ->  skipped
+      [needs-review] CATO_NAT: not written: the WAN and Internet Firewall do no NAT; traffic from the internet comes in by Remote Port Forwarding, and other translations are settings of the sites, which the script does not change
+  src-nat 1  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+  masquerading 1  ->  skipped
+      [info] CATO_NAT: not written: Cato translates traffic to the internet to the addresses of the account by itself
+
+Services
+  ENIP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'ipv4rule 12' but not defined in the input; emitted as a placeholder

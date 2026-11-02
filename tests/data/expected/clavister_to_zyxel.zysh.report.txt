@@ -1,0 +1,78 @@
+FWShift conversion report
+  source: clavister
+  target: zyxel
+
+Summary
+  Security rules:     25   exact 17, approximated 4, needs review 3 (3 emitted disabled), skipped 1
+  NAT rules:          12   exact 0, approximated 5, needs review 0, skipped 7
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] ZYXEL_LOAD: the output is a script of CLI commands (section 10): new objects, zones without members, rules inserted from position 1 of the security policy on (before the rules the firewall has, which still decide what these do not match), virtual servers and policy routes, which take effect at once. Check, then save with write
+  [needs-review] ZYXEL_NAT_INTERFACES: virtual servers and policy routes name the interfaces of the zones as the source names them (after --interface-map): check that the firewall has them (ge1, wan1 ...): dmz, guest, lan
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have log
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  exact  (emitted as 1 rules of the security policy)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+  block_bad_mail+sat_mail  ->  exact  (emitted as 1 rules of the security policy)
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+  nat_mail+sat_mail  ->  exact  (emitted as 2 rules of the security policy)
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+  allow_mail+sat_mail  ->  exact  (emitted as 1 rules of the security policy)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+  allow_pool+sat_pool  ->  exact  (emitted as 1 rules of the security policy)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+  to_guest/guest_never  ->  exact  (emitted as 1 rules of the security policy)
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+  lan_updates  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: the form of an address object of a host name is not in the documentation FWShift could read.
+  syslog_fast  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+  gre_tunnel  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  old_rule  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  pol_dmz_out  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+  pol_block_ftp  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  allow_web+sat_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  nat_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  allow_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  to_guest/guest_dns  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  to_guest/guest_web  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  lan_dns  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  lan_web  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  lan_updates  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  pol_dmz_https  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route
+  pol_dmz_out  ->  approximated  (emitted as policy route)
+      [approximated] ZYXEL_SNAT_EGRESS: a policy route cannot name the interface traffic leaves by: the source NAT applies wherever routing sends the traffic it matches
+  sat_unused  ->  skipped
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZLD writes a virtual server for one address or port (or a range of ports) arriving on the interfaces of a zone, a 1:1 NAT of one address or range, and source NAT to the outgoing interface or to one pool by a policy route

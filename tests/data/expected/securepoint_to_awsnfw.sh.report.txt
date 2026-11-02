@@ -1,0 +1,100 @@
+FWShift conversion report
+  source: securepoint
+  target: aws-network-firewall
+
+Summary
+  Security rules:     19   exact 5, approximated 4, needs review 7 (6 emitted disabled), skipped 3
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Addresses:          15   exact 15, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SECUREPOINT_IMPLIED: commands that change the implicit rules are not converted: group set implied_group "12" active "1"
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
+  [needs-review] AWSNFW_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 sends each with --dry-run, without either it creates the stateful rule group fwshift-rules and the firewall policy fwshift, and stops if one of that name exists. The policy is attached to no firewall: nothing changes until you associate it (aws network-firewall associate-firewall-policy)
+  [needs-review] AWSNFW_ORDER: the policy decides every packet the firewall sees, in strict order: no stateless rules (every packet goes to the stateful engine), the rules of the model in their order, each for the first packet of a connection (flow:to_server), then aws:drop_strict for what no rule passed. Check it against what the firewall's route tables send through it
+  [info] SECUREPOINT_SOURCE: 18 rules of the packet filter in 3 rule groups, first match in the order of the groups; zones from the network objects; what no rule matches is dropped (Default Drop)
+  [info] SECUREPOINT_IMPLIED_RULES: the UTM's implicit rules (Firewall > Implied rules: its own services, VPN, the threat intelligence filter) come before the packet filter and are not converted
+  [info] SECUREPOINT_LOCAL_RULES: 1 rules for the UTM's own services (to or from objects in zones of its own interfaces) are not converted
+  [info] SECUREPOINT_NAT_ORDER: NAT is part of the rules: each rule with NAT became a NAT rule, in the order of the rules. DESTNAT is done before the packet filter and HIDENAT after it (netfilter); a rule's NAT is read as applying whatever its action (assumed)
+  [info] SECUREPOINT_RANGE: network objects with an address range a-b (a form FWShift reads, not documented): printers
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: external=203.0.113.0/29; internal=192.168.10.0/24; dmz1=172.16.20.0/24. --no-source-networks takes none of them
+  [info] AWSNFW_REPLIES: with aws:drop_strict every packet is decided on its own: the first rule of the group passes the packets that go back to the client of a flow (flow:to_client), the replies of the connections the rules below pass on their first packet
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a pass rule of Network Firewall does not, a drop or reject rule sends an alert when the firewall has alert logging configured
+
+Security rules
+  rule-1  ->  exact  (emitted as 3 rules of the rule group (sid 1-3))
+      [info] ZONE_BY_NETWORKS: the destination in zone external is written as the addresses of the networks given for it with --zone-network
+  rule-4  ->  skipped
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone external is written as the addresses of the networks given for it with --zone-network
+      [info] MATCHES_NOTHING: after the negation and the networks of its zones, the rule matches no connection
+  rule-10  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vpn-ipsec, and a rule of Network Firewall names no zone: give the networks behind vpn-ipsec with --zone-network.
+  rule-11  ->  needs-review, emitted disabled
+      [approximated] SECUREPOINT_STATELESS: action STATELESS allows packets whatever the state of their connection, and lets no replies through by itself; the model is stateful and allows the replies of what it allows
+      [needs-review] FQDN_NOT_SUPPORTED: host name object update-host: a rule of Network Firewall names addresses (a domain list matches TLS and HTTP names, which is something else).
+  rule-14  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: NETMAP on the rule: which addresses its packet filter rule names is not documented.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vpn-ipsec, and a rule of Network Firewall names no zone: give the networks behind vpn-ipsec with --zone-network.
+  rule-15  ->  skipped
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone external is written as the addresses of the networks given for it with --zone-network
+      [info] MATCHES_NOTHING: after the negation and the networks of its zones, the rule matches no connection
+  rule-18  ->  needs-review  (emitted as 1 rule of the rule group (sid 5))
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'external-interface' next to 'webserver' because of NAT rule 'rule-2-nat'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'rule-2-nat' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'webserver', the address NAT rule 'rule-2-nat' translates 'external-interface' to. The target looks rules up after that translation, so traffic sent to 'external-interface' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone dmz1; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  rule-2  ->  approximated  (emitted as 1 rule of the rule group (sid 6))
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to external-interface (extern-https) and taken to webserver; that it also allows traffic sent to the server directly is not documented and is not read
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'external-interface' with post-NAT 'webserver' because of NAT rule 'rule-2-nat'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'rule-2-nat' also translates the port to 443: the service of this rule (extern-https) named the pre-NAT port only, and now names 443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [info] ZONE_BY_NETWORKS: the source in zone external is written as the addresses of the networks given for it with --zone-network
+  rule-6  ->  approximated  (emitted as 1 rule of the rule group (sid 7))
+      [info] SECUREPOINT_DESTNAT: a DESTNAT rule: read for the traffic it translates, sent to public-mail (smtp) and taken to mailserver; that it also allows traffic sent to the server directly is not documented and is not read
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'public-mail' with post-NAT 'mailserver' because of NAT rule 'rule-6-nat'; check that this rule is meant to cover the translated traffic
+      [info] ZONE_BY_NETWORKS: the source in zone external is written as the addresses of the networks given for it with --zone-network
+  rule-7  ->  exact  (emitted as 1 rule of the rule group (sid 8))
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 1 of 2)
+  rule-7-2  ->  needs-review, emitted disabled
+      [info] SECUREPOINT_SPLIT: rule 7 names members of several zones; it is one rule per pair of zones, each with the members of its zones, which together match what it matches (this is part 2 of 2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vpn-ipsec, and a rule of Network Firewall names no zone: give the networks behind vpn-ipsec with --zone-network.
+  rule-8  ->  exact  (emitted as 1 rule of the rule group (sid 9))
+      [info] ZONE_BY_NETWORKS: the destination in zone external is written as the addresses of the networks given for it with --zone-network
+  rule-12  ->  exact  (emitted as 1 rule of the rule group (sid 10))
+      [info] SECUREPOINT_QOS: action QOS: read as ACCEPT; the bandwidth limit of its QoS profile is not converted
+  rule-16  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: flag 'MIRROR' is not one FWShift reads.
+  rule-3  ->  approximated  (emitted as 1 rule of the rule group (sid 11))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone internal; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone external; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  rule-9  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone internal; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-region': address 'geoip:XX' is not a form FWShift reads. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-17  ->  approximated  (emitted as 1 rule of the rule group (sid 12))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone internal; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone dmz1; a rule of Network Firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  rule-5  ->  skipped
+      [info] SECUREPOINT_LOCAL_RULE: a rule for the UTM's own services (an object in a zone of its own interfaces, firewall-...): not converted
+
+NAT rules
+  rule-1-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  rule-10-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  rule-14-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  rule-2-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  rule-6-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+  rule-8-nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Network Firewall does no NAT (the internet gateway and NAT gateways do, outside it). The rules were written for the private addresses, which is what the firewall sees
+
+Services
+  ssh  ->  exact
+      [info] SECUREPOINT_FACTORY_SERVICE: not defined in the input: read as the service of that name a UTM comes with, with the IANA port of the name (Securepoint does not publish the list; assumed)

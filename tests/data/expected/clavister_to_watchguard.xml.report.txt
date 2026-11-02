@@ -1,0 +1,86 @@
+FWShift conversion report
+  source: clavister
+  target: watchguard
+
+Summary
+  Security rules:     25   exact 14, approximated 4, needs review 6 (3 emitted disabled), skipped 1
+  NAT rules:          12   exact 1, approximated 0, needs review 0, skipped 11
+  Addresses:          20   exact 20, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CLAVISTER_MISSING_OBJECT: rules name addresses or services the script does not define (an interface address of the InterfaceAddresses folder, or a predefined service FWShift does not know, for instance); their rules are not converted: add those objects to the script: netbios-all
+  [needs-review] WATCHGUARD_LOAD: the output is the policy part of a configuration file of Policy Manager: address groups, aliases, services, static NAT actions and policies in manual order. It holds no interfaces and no system settings, so it is not a file to restore on a Firebox as it is (a restore replaces the whole configuration). Merge its lists into a configuration saved from the target, open the result in Policy Manager and check it there before it goes to the Firebox. WatchGuard publishes no schema of the file: the elements are those of the published readers of the format, and the words for the action of a policy (Allow, Deny) are assumed
+  [needs-review] INTERFACES_REQUIRED: the policies name these zones as interfaces of the Firebox, which must exist under these names (or be renamed with --zone-map): dmz, guest, lan, wan
+  [info] CLAVISTER_SOURCE: read from the CLI script: rule sets main, guest_rules (main first, the others where Goto rules send traffic); interfaces are the zones; what no rule matches is dropped without a log
+  [info] CLAVISTER_SAT_ORDER: a SAT rule is completed by the next Allow, NAT or FwdFast rule that matches the untranslated addresses; of several SAT rules the first one for each address is carried out (from the older guides, not confirmed for 14.00 and 15.00)
+  [info] CLAVISTER_PREDEFINED_SERVICE: predefined services the script does not define, read as FWShift knows them (not confirmed): http-all, dns-all, ssh, https
+  [info] CLAVISTER_FQDN: FQDN addresses, read as resolved for IPv4 (not confirmed): updates
+
+Security rules
+  drop_netbios  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netbios-all': a service that is not in the script. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow_web+sat_web  ->  approximated  (emitted as allow_web+sat_web.2)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_web for the traffic SAT rule sat_web translates to web_srv: the destinations before translation, the zone after it (dmz)
+      [approximated] NAT_ZONE_DROPPED: the rule is for traffic to zone dmz; with the static NAT action of 'allow_web+sat_web' the policy names the public address, and allows the translated traffic wherever its server is
+  block_bad_mail+sat_mail  ->  exact
+      [info] CLAVISTER_SAT_PART: the part of rule block_bad_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [info] RESET_ACTION: action reset-client becomes Deny
+  nat_mail+sat_mail  ->  needs-review
+      [info] CLAVISTER_SAT_PART: the part of rule nat_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [needs-review] NAT_NOT_IN_POLICY: the rule allows the destination of NAT rule 'allow_web+sat_web' for other services or zones than the NAT rule translates: on a Firebox the translation is part of the policy, and it is not written into this one, which allows the address without translating it
+  allow_mail+sat_mail  ->  needs-review  (emitted as allow_mail+sat_mail.2)
+      [info] CLAVISTER_SAT_PART: the part of rule allow_mail for the traffic SAT rule sat_mail translates to mail_srv: the destinations before translation, the zone after it (dmz)
+      [needs-review] NAT_NOT_IN_POLICY: the rule allows the destination of NAT rule 'allow_web+sat_web' for other services or zones than the NAT rule translates: on a Firebox the translation is part of the policy, and it is not written into this one, which allows the address without translating it
+  allow_pool+sat_pool  ->  exact
+      [info] CLAVISTER_SAT_PART: the part of rule allow_pool for the traffic SAT rule sat_pool translates to 172.16.20.100/30: the destinations before translation, the zone after it (dmz)
+  to_guest/guest_never  ->  exact
+      [info] CLAVISTER_UNREACHED: after a Return that takes back all the traffic the Goto sends here: never reached
+  syslog_fast  ->  needs-review, emitted disabled
+      [approximated] CLAVISTER_FWDFAST: FwdFast (a stateless policy): the source passes packets one by one and needs a rule for the replies; the converted rule is stateful and lets the replies of what it allows through
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'syslog': source ports, which a service of Fireware does not match.
+      [needs-review] UNCONVERTIBLE_OBJECT: the services of the rule hold source ports, which a service of Fireware does not match.
+  gre_tunnel  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  old_rule  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+  pol_dmz_https  ->  needs-review  (emitted as pol_dmz_https.2)
+      [needs-review] NAT_NOT_IN_POLICY: the rule allows the destination of NAT rule 'pol_dmz_https' for other services or zones than the NAT rule translates: on a Firebox the translation is part of the policy, and it is not written into this one, which allows the address without translating it
+  pol_dmz_out  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (web content filtering=Yes); attach equivalent inspection on the target
+  pol_block_ftp  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (alg=ftp-alg: ftp-inbound); attach equivalent inspection on the target
+      [info] RESET_ACTION: action reset-client becomes Deny
+  ping_fw  ->  skipped
+      [info] CLAVISTER_CORE_RULE: a rule for traffic to the firewall itself (core as the destination interface): not converted
+
+NAT rules
+  nat_mail+sat_mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  allow_mail+sat_mail  ->  skipped
+      [info] NAT_NO_POLICY: on a Firebox static NAT is part of a policy, and no rule allows exactly the traffic this rule translates: the action is written and used by no policy
+  allow_pool+sat_pool  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: translated destination '172.16.20.100/30' is not one IPv4 address
+  to_guest/guest_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  to_guest/guest_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  lan_dns  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  lan_web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  lan_updates  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  pol_dmz_https  ->  skipped
+      [info] NAT_NO_POLICY: on a Firebox static NAT is part of a policy, and no rule allows exactly the traffic this rule translates: the action is written and used by no policy
+  pol_dmz_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  sat_unused  ->  skipped
+      [info] CLAVISTER_SAT_UNUSED: a SAT rule that no Allow, NAT or FwdFast rule below it completes: it translates nothing (read as disabled)
+      [info] NAT_NO_POLICY: on a Firebox static NAT is part of a policy, and no rule allows exactly the traffic this rule translates: the action is written and used by no policy
+
+Services
+  syslog  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a service of Fireware does not match: not written, and the policies that use it are disabled

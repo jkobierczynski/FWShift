@@ -1,0 +1,81 @@
+FWShift conversion report
+  source: meraki
+  target: zscaler
+
+Summary
+  Security rules:     20   exact 5, approximated 2, needs review 6 (1 emitted disabled), skipped 7
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] ZSCALER_BLOCK_RULE: the source blocks what no rule matches. Rule fws-block the rest that does so follows the converted rules, disabled: until it is enabled, the rules of the tenant below it and its default rule decide that traffic
+  [needs-review] ZSCALER_LOAD: the output is a shell script for the ZIA API (curl and jq, section 10): it looks up the locations and predefined services it names, creates IP groups, network services and firewall filtering rules from order 1 on, refuses a name that is taken, and changes or deletes nothing. It does not activate: POST /status/activate is left to you, but a legacy API session that ends (logout or timeout) activates what it changed. Run it with DRY_RUN=1 first
+  [needs-review] ZSCALER_LOST: ZIA filters traffic from locations to the internet only: 4 rules for traffic from the internet and 15 for traffic between or inside zones inside are not written, or only in part. That traffic needs a firewall of its own at the sites
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+
+Security rules
+  inside a VLAN  ->  skipped
+      [needs-review] ZSCALER_INTERNAL: a rule for traffic inside a zone, which does not pass ZIA
+  layer 7 rule 2  ->  needs-review  (emitted as fws-layer 7 rule 2)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [needs-review] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+  layer 7 rule 3  ->  needs-review  (emitted as fws-layer 7 rule 3)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [needs-review] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+  office to servers web  ->  approximated  (emitted as fws-office to servers web)
+      [info] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  historian  ->  exact  (emitted as fws-historian)
+      [info] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+  eng ws to plc  ->  exact  (emitted as fws-eng ws to plc)
+      [info] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+  ot cell isolated  ->  needs-review  (emitted as fws-ot cell isolated)
+      [needs-review] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+  ot no internet  ->  needs-review  (emitted as fws-ot no internet)
+      [needs-review] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+  block update site  ->  needs-review  (emitted as fws-block update site)
+      [needs-review] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+  dns to servers  ->  exact  (emitted as fws-dns to servers)
+      [info] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+  ping servers  ->  approximated  (emitted as fws-ping servers)
+      [info] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+  office ipv6 out  ->  skipped
+      [info] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+      [approximated] ZSCALER_IPV6: the IPv6 addresses of the source are not written (ZIA's addresses in a rule and in IP groups are IPv4): the rule allows less
+      [needs-review] ZSCALER_IPV6_ONLY: the rule matches IPv6 only on one side, which ZIA's rules cannot name: not written
+  passive ftp  ->  exact  (emitted as fws-passive ftp)
+      [info] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+  bad ports  ->  needs-review, emitted disabled  (emitted as fws-bad ports)
+      [info] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+  Default rule  ->  exact  (emitted as fws-Default rule)
+      [info] ZSCALER_INTERNAL: written for traffic to the internet only: the part between zones inside does not pass ZIA
+  vpn-portal  ->  skipped
+      [needs-review] ZSCALER_INBOUND: a rule for traffic from the internet: ZIA does not let in connections from the internet; what it allows has to reach the servers another way
+  mail (1)  ->  skipped
+      [needs-review] ZSCALER_INBOUND: a rule for traffic from the internet: ZIA does not let in connections from the internet; what it allows has to reach the servers another way
+  mail (2)  ->  skipped
+      [needs-review] ZSCALER_INBOUND: a rule for traffic from the internet: ZIA does not let in connections from the internet; what it allows has to reach the servers another way
+  scada-view  ->  skipped
+      [needs-review] ZSCALER_INBOUND: a rule for traffic from the internet: ZIA does not let in connections from the internet; what it allows has to reach the servers another way
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT vpn-portal  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  NAT mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  NAT scada-view  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only
+  NAT to the uplink  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: ZIA translates the source to its own public addresses by itself, and its NAT control policy redirects outbound traffic only

@@ -1,0 +1,73 @@
+FWShift conversion report
+  source: mguard
+  target: lancom-uf
+
+Summary
+  Security rules:     19   exact 11, approximated 4, needs review 0, skipped 4
+  NAT rules:           5   exact 1, approximated 0, needs review 0, skipped 4
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_USER_FIREWALL: the user firewall is on, with 1 templates (service technicians): rules that apply to users who log in; not converted. With it on, the mGuard lets through more than the converted policy
+  [needs-review] MGUARD_VPN_FIREWALL: 1 VPN connections have firewall rules of their own (FW_INCOMING, FW_OUTGOING of the connection): not converted, nor the VPN traffic they decide
+  [needs-review] LANCOM_UF_LOAD: the output is a shell script that creates network objects, user-defined services and desktop connections through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. It stops before it creates anything when a name it would create is taken, and at the first call the firewall refuses; nothing takes effect until the configuration is activated (Activate). LANCOM publishes the API by the examples of its LMC add-ins: the paths and keys of networks, connections and user-defined services follow them; assumed are the base path and the header of the token, that a created object's answer carries its id, the interface 'any' for a network, a user-defined service of a protocol without ports, and the names of protocols other than TCP and UDP
+  [needs-review] INTERFACES_REQUIRED: the objects written are connected through these interfaces of the firewall, which must exist under these names (or give the right names with --interface-map): dmz, external, internal
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] MGUARD_SOURCE: mGuard profile 8.6.1.default, router mode; zones internal, external, dmz; tables read: FW_INCOMING, FW_OUTGOING, FW_INCOMING_WAN_DMZ, FW_INCOMING_DMZ_LAN, FW_OUTGOING_LANDMZ. Each table is first match; what no rule matches is dropped; port forwarding skips the packet filter
+  [info] MGUARD_INTERNAL_ROUTED: the internal side has more than one network (LOCAL_ALIASES): the outgoing rules also decide connections from one of them to another, so they are read for internal -> internal as well
+  [info] MGUARD_IPV4_ONLY: the packet filter of the mGuard is IPv4: 0.0.0.0/0 is read as every IPv4 address, and the rules match no IPv6
+  [info] MGUARD_DEFAULT_LOG: connection attempts no rule covers are logged (LOG_DEFAULT_INCOMING); the model has no place for that
+  [info] MGUARD_MANAGEMENT_ACCESS: access to the mGuard itself is not converted (it protects the device, not forwarded traffic): HTTPS_REMOTE_ACCESS_RULES (1 rows); HTTPS_REMOTE_ENABLE yes; FW_ICMP ping
+  [info] MGUARD_HOSTNAME: host names in IP groups, resolved by the DNS settings of the mGuard; read as names resolved for IPv4: scada: historian.example.com
+  [info] MGUARD_REJECT: Reject: the mGuard sends the packets back and tells the sender; read as reset-both: FW_INCOMING row 4
+  [info] MGUARD_PORTS_IGNORED: ports in rules for a protocol other than tcp and udp, which the mGuard ignores: FW_INCOMING row 7
+
+Security rules
+  portforward-1  ->  exact  (emitted as fws-0.0.0.0_0-external > fws-mguard-extern: fws-tcp-8443)
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+  portforward-2  ->  exact  (emitted as fws-vendor_vpn > fws-203.0.113.3_32-dmz: fws-udp-47808)
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+  incoming-1  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: the source 'scada' holds addresses that are not known; a desktop object of the firewall names addresses; the rule is not written
+  incoming-2  ->  approximated  (emitted as fws-198.51.100.0_24-external > fws-192.168.10.0_24-internal: fws-icmp, fws-198.51.100.0_24-external > fws-203.0.113.8_29-internal: fws-icmp)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+  incoming-3  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+  incoming-4  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action reset-both: the firewall drops what it does not allow
+  incoming-5.maintenance-1  ->  skipped
+      [needs-review] MGUARD_RULESET_SWITCHED: a rule of rule set maintenance, which cmd1 switches on and off: not converted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule set maintenance is switched on and off (cmd1); its rules apply only while it is active; the rule is not written
+  incoming-6.vendor-1  ->  approximated  (emitted as fws-vendor_vpn > fws-192.168.10.0_24-internal: fws-tcp-102_tcp-20000-20010, fws-vendor_vpn > fws-203.0.113.8_29-internal: fws-tcp-102_tcp-20000-20010)
+      [info] MGUARD_RULESET: rule 1 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+  incoming-6.vendor-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] MGUARD_RULESET: rule 2 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+  incoming-8  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '192.168.10.50' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+      [needs-review] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+      [needs-review] NOTHING_WRITTEN: nothing of what the rule allows can be written on the desktop (see the findings above); the rule is not written
+  incoming-9  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_UNREAD: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group
+      [needs-review] UNSUPPORTED_MATCH: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group; the rule is not written
+  outgoing-2  ->  exact  (emitted as fws-192.168.10.0_28-internal > fws-192.168.10.1_32-external: fws-udp-53, fws-192.168.10.16_30-internal > fws-192.168.10.1_32-external: fws-udp-53, fws-192.168.10.30_31-internal > fws-192.168.10.1_32-external: fws-udp-53, fws-192.168.10.32_29-internal > fws-192.168.10.1_32-external: fws-udp-53, fws-192.168.10.41_32-internal > fws-192.168.10.1_32-external: fws-udp-53, fws-192.168.10.42_31-internal > fws-192.168.10.1_32-external: fws-udp-53, fws-192.168.10.44_30-internal > fws-192.168.10.1_32-external: fws-udp-53, fws-192.168.10.48_28-internal > fws-192.168.10.1_32-external: fws-udp-53, fws-192.168.10.64_26-internal > fws-192.168.10.1_32-external: fws-udp-53, fws-192.168.10.128_25-internal > fws-192.168.10.1_32-external: fws-udp-53, fws-192.168.10.0_28-internal > fws-192.168.10.1_32-internal: fws-udp-53, fws-192.168.10.16_30-internal > fws-192.168.10.1_32-internal: fws-udp-53, fws-192.168.10.30_31-internal > fws-192.168.10.1_32-internal: fws-udp-53, fws-192.168.10.32_29-internal > fws-192.168.10.1_32-internal: fws-udp-53, fws-192.168.10.41_32-internal > fws-192.168.10.1_32-internal: fws-udp-53, fws-192.168.10.42_31-internal > fws-192.168.10.1_32-internal: fws-udp-53, fws-192.168.10.44_30-internal > fws-192.168.10.1_32-internal: fws-udp-53, fws-192.168.10.48_28-internal > fws-192.168.10.1_32-internal: fws-udp-53, fws-192.168.10.64_26-internal > fws-192.168.10.1_32-internal: fws-udp-53, fws-192.168.10.128_25-internal > fws-192.168.10.1_32-internal: fws-udp-53)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  outgoing-3  ->  exact  (emitted as fws-192.168.10.0_28-internal > fws-0.0.0.0_0-external: fws-tcp-80_tcp-443, fws-192.168.10.16_30-internal > fws-0.0.0.0_0-external: fws-tcp-80_tcp-443, fws-192.168.10.30_31-internal > fws-0.0.0.0_0-external: fws-tcp-80_tcp-443, fws-192.168.10.32_29-internal > fws-0.0.0.0_0-external: fws-tcp-80_tcp-443, fws-192.168.10.41_32-internal > fws-0.0.0.0_0-external: fws-tcp-80_tcp-443, fws-192.168.10.42_31-internal > fws-0.0.0.0_0-external: fws-tcp-80_tcp-443, fws-192.168.10.44_30-internal > fws-0.0.0.0_0-external: fws-tcp-80_tcp-443, fws-192.168.10.48_28-internal > fws-0.0.0.0_0-external: fws-tcp-80_tcp-443, fws-192.168.10.64_26-internal > fws-0.0.0.0_0-external: fws-tcp-80_tcp-443, fws-192.168.10.128_25-internal > fws-0.0.0.0_0-external: fws-tcp-80_tcp-443, fws-192.168.10.0_28-internal > fws-0.0.0.0_0-internal: fws-tcp-80_tcp-443, fws-192.168.10.16_30-internal > fws-0.0.0.0_0-internal: fws-tcp-80_tcp-443, fws-192.168.10.30_31-internal > fws-0.0.0.0_0-internal: fws-tcp-80_tcp-443, fws-192.168.10.32_29-internal > fws-0.0.0.0_0-internal: fws-tcp-80_tcp-443, fws-192.168.10.41_32-internal > fws-0.0.0.0_0-internal: fws-tcp-80_tcp-443, fws-192.168.10.42_31-internal > fws-0.0.0.0_0-internal: fws-tcp-80_tcp-443, fws-192.168.10.44_30-internal > fws-0.0.0.0_0-internal: fws-tcp-80_tcp-443, fws-192.168.10.48_28-internal > fws-0.0.0.0_0-internal: fws-tcp-80_tcp-443, fws-192.168.10.64_26-internal > fws-0.0.0.0_0-internal: fws-tcp-80_tcp-443, fws-192.168.10.128_25-internal > fws-0.0.0.0_0-internal: fws-tcp-80_tcp-443)
+      [info] DENY_SUBTRACTED: the firewall has no rule that blocks: the rule is written without what the blocking rules above it match
+  lan-dmz-1  ->  approximated  (emitted as fws-0.0.0.0_0-internal > fws-0.0.0.0_0-dmz: fws-svc-10)
+      [approximated] LANCOM_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a user-defined service (source ports, ICMP types, every protocol but some, a protocol the firewall has no name for) and is not written; the converted rule allows less
+
+NAT rules
+  portforward-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  portforward-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates the destination (DMZ / port forwarding), whose keys in the API are not known. Set NAT on the service of the connection by hand (Advanced tab)
+  1to1-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: it translates to an address of its own (NAT source IP), whose key in the API is not known. Set NAT on the service of the connection by hand (Advanced tab)
+  masquerade-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: no connection written carries the traffic it translates. Set NAT on the service of the connection by hand (Advanced tab)
