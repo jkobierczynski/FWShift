@@ -1,0 +1,91 @@
+FWShift conversion report
+  source: calico
+  target: windows-firewall
+
+Summary
+  Security rules:     67   exact 51, approximated 0, needs review 14 (2 emitted disabled), skipped 2
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     17   exact 17, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CALICO_HOST_ENDPOINTS: global policy platform.dns applies to host endpoints as well (node-a-eth0, node-b-eth0); what it does for them is not converted
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] CALICO_HOST_ENDPOINTS: the export holds 2 host endpoints: their addresses are matched by selectors, but the policies that apply to them are not converted
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] CALICO_HOST_ONLY: policy security.raw-untracked has doNotTrack or preDNAT: it applies to host endpoints only, which are not converted
+  [info] CALICO_LOG_RULE: security.ping: a ingress rule with action Log only logs and goes on; it is left out
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+  [info] CALICO_NODE_TRAFFIC: traffic between a pod and its node is decided by Felix's configuration and the policies of host endpoints; it is not converted
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+
+Security rules
+  platform.dns/egress-2  ->  exact  (emitted as FWShift-platform.dns_egress-2-1, FWShift-platform.dns_egress-2-2)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  shop/web-calico/egress-3  ->  needs-review  (emitted as FWShift-shop_web-calico_egress-3-1, FWShift-shop_web-calico_egress-3-2, FWShift-shop_web-calico_egress-3-3, FWShift-shop_web-calico_egress-3-4, FWShift-shop_web-calico_egress-3-5, FWShift-shop_web-calico_egress-3-6)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  platform.dns/egress-2-2  ->  exact  (emitted as FWShift-platform.dns_egress-2-2-1, FWShift-platform.dns_egress-2-2-2)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  default tier end/egress  ->  needs-review  (emitted as FWShift-default_tier_end_egress-1, FWShift-default_tier_end_egress-2, FWShift-default_tier_end_egress-3, FWShift-default_tier_end_egress-4, FWShift-default_tier_end_egress-5, FWShift-default_tier_end_egress-6)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  platform.dns/egress-2-3  ->  exact  (emitted as FWShift-platform.dns_egress-2-3-1, FWShift-platform.dns_egress-2-3-2)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  default tier end/egress-2  ->  needs-review  (emitted as FWShift-default_tier_end_egress-2-1, FWShift-default_tier_end_egress-2-2, FWShift-default_tier_end_egress-2-3, FWShift-default_tier_end_egress-2-4)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  platform.dns/egress-2-4  ->  exact  (emitted as FWShift-platform.dns_egress-2-4-1, FWShift-platform.dns_egress-2-4-2)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  platform.dns/egress-2-5  ->  exact  (emitted as FWShift-platform.dns_egress-2-5-1, FWShift-platform.dns_egress-2-5-2)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  default tier end/egress-3  ->  needs-review  (emitted as FWShift-default_tier_end_egress-3-1, FWShift-default_tier_end_egress-3-2, FWShift-default_tier_end_egress-3-3, FWShift-default_tier_end_egress-3-4, FWShift-default_tier_end_egress-3-5, FWShift-default_tier_end_egress-3-6)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  platform.dns/egress-2-6  ->  exact  (emitted as FWShift-platform.dns_egress-2-6-1, FWShift-platform.dns_egress-2-6-2)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  platform.dns/egress-2-7  ->  exact  (emitted as FWShift-platform.dns_egress-2-7-1, FWShift-platform.dns_egress-2-7-2)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  shop/web-calico/ingress-2  ->  needs-review  (emitted as FWShift-shop_web-calico_ingress-2-1, FWShift-shop_web-calico_ingress-2-2)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  shop/web-calico/ingress-3  ->  exact  (emitted as FWShift-shop_web-calico_ingress-3-1, FWShift-shop_web-calico_ingress-3-2)
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+  shop/web-calico/ingress-4  ->  skipped
+      [needs-review] WINFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a rule of Windows Firewall (every protocol but some, ports of SCTP, more ICMP types and codes than are listed) and is not written; the converted rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  shop/web-calico/ingress-5  ->  needs-review, emitted disabled  (emitted as FWShift-shop_web-calico_ingress-5-1, FWShift-shop_web-calico_ingress-5-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an HTTP match (application layer policy).
+  default tier end/ingress  ->  needs-review  (emitted as FWShift-default_tier_end_ingress-1, FWShift-default_tier_end_ingress-2, FWShift-default_tier_end_ingress-3, FWShift-default_tier_end_ingress-4, FWShift-default_tier_end_ingress-5, FWShift-default_tier_end_ingress-6, FWShift-default_tier_end_ingress-7, FWShift-default_tier_end_ingress-8, FWShift-default_tier_end_ingress-9, FWShift-default_tier_end_ingress-10, FWShift-default_tier_end_ingress-11, FWShift-default_tier_end_ingress-12, FWShift-default_tier_end_ingress-13, FWShift-default_tier_end_ingress-14, FWShift-default_tier_end_ingress-15, FWShift-default_tier_end_ingress-16)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  default tier end/ingress-2  ->  needs-review  (emitted as FWShift-default_tier_end_ingress-2-1, FWShift-default_tier_end_ingress-2-2, FWShift-default_tier_end_ingress-2-3, FWShift-default_tier_end_ingress-2-4)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  default tier end/ingress-3  ->  needs-review  (emitted as FWShift-default_tier_end_ingress-3-1, FWShift-default_tier_end_ingress-3-2, FWShift-default_tier_end_ingress-3-3, FWShift-default_tier_end_ingress-3-4, FWShift-default_tier_end_ingress-3-5, FWShift-default_tier_end_ingress-3-6)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  payments/api-ingress/ingress-1-2  ->  skipped
+      [needs-review] WINFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a rule of Windows Firewall (every protocol but some, ports of SCTP, more ICMP types and codes than are listed) and is not written; the converted rule allows less
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  payments/api-ingress/ingress-3  ->  needs-review, emitted disabled  (emitted as FWShift-payments_api-ingress_ingress-3-1, FWShift-payments_api-ingress_ingress-3-2)
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).
+  default tier end/ingress-4  ->  needs-review  (emitted as FWShift-default_tier_end_ingress-4-1, FWShift-default_tier_end_ingress-4-2, FWShift-default_tier_end_ingress-4-3, FWShift-default_tier_end_ingress-4-4)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  isolated/ingress  ->  needs-review  (emitted as FWShift-isolated_ingress-1, FWShift-isolated_ingress-2, FWShift-isolated_ingress-3, FWShift-isolated_ingress-4)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  isolated/ingress-2  ->  exact  (emitted as FWShift-isolated_ingress-2-1, FWShift-isolated_ingress-2-2)
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+  not isolated: from pods  ->  needs-review  (emitted as FWShift-not_isolated__from_pods-1, FWShift-not_isolated__from_pods-2, FWShift-not_isolated__from_pods-3, FWShift-not_isolated__from_pods-4, FWShift-not_isolated__from_pods-5, FWShift-not_isolated__from_pods-6, FWShift-not_isolated__from_pods-7, FWShift-not_isolated__from_pods-8, FWShift-not_isolated__from_pods-9, FWShift-not_isolated__from_pods-10, FWShift-not_isolated__from_pods-11, FWShift-not_isolated__from_pods-12, FWShift-not_isolated__from_pods-13, FWShift-not_isolated__from_pods-14, FWShift-not_isolated__from_pods-15, FWShift-not_isolated__from_pods-16, FWShift-not_isolated__from_pods-17, FWShift-not_isolated__from_pods-18, FWShift-not_isolated__from_pods-19, FWShift-not_isolated__from_pods-20, FWShift-not_isolated__from_pods-21, FWShift-not_isolated__from_pods-22, FWShift-not_isolated__from_pods-23, FWShift-not_isolated__from_pods-24, FWShift-not_isolated__from_pods-25, FWShift-not_isolated__from_pods-26, FWShift-not_isolated__from_pods-27, FWShift-not_isolated__from_pods-28, FWShift-not_isolated__from_pods-29, FWShift-not_isolated__from_pods-30, FWShift-not_isolated__from_pods-31)
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+      [needs-review] WINFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a rule of Windows Firewall (every protocol but some, ports of SCTP, more ICMP types and codes than are listed) and is not written; the converted rule allows less
+  not isolated: to pods  ->  needs-review  (emitted as FWShift-not_isolated__to_pods-1, FWShift-not_isolated__to_pods-2, FWShift-not_isolated__to_pods-3, FWShift-not_isolated__to_pods-4, FWShift-not_isolated__to_pods-5, FWShift-not_isolated__to_pods-6, FWShift-not_isolated__to_pods-7, FWShift-not_isolated__to_pods-8, FWShift-not_isolated__to_pods-9, FWShift-not_isolated__to_pods-10, FWShift-not_isolated__to_pods-11, FWShift-not_isolated__to_pods-12, FWShift-not_isolated__to_pods-13, FWShift-not_isolated__to_pods-14, FWShift-not_isolated__to_pods-15, FWShift-not_isolated__to_pods-16, FWShift-not_isolated__to_pods-17, FWShift-not_isolated__to_pods-18, FWShift-not_isolated__to_pods-19, FWShift-not_isolated__to_pods-20, FWShift-not_isolated__to_pods-21, FWShift-not_isolated__to_pods-22, FWShift-not_isolated__to_pods-23, FWShift-not_isolated__to_pods-24, FWShift-not_isolated__to_pods-25, FWShift-not_isolated__to_pods-26, FWShift-not_isolated__to_pods-27, FWShift-not_isolated__to_pods-28, FWShift-not_isolated__to_pods-29, FWShift-not_isolated__to_pods-30, FWShift-not_isolated__to_pods-31, FWShift-not_isolated__to_pods-32, FWShift-not_isolated__to_pods-33)
+      [info] WINFW_ALLOW_CUT: block rules above it are left to the default of the profile (they are not written): the rule is written without what they match
+      [needs-review] WINFW_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a rule of Windows Firewall (every protocol but some, ports of SCTP, more ICMP types and codes than are listed) and is not written; the converted rule allows less

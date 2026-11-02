@@ -1,0 +1,114 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "LAN web (not written, see the report); LAN DNS (not written, see the report); LAN DNS-2 (not written, see the report); Inbound web (not written, see the report); Inbound mail (not written, see the report); Admins SSH (not written, see the report); Admins RDP (not written, see the report); SCADA to PLCs (not written, see the report); DMZ updates (not written, see the report); Rate limited mail (not written, see the report); Ping the DMZ (not written, see the report); Partner tunnel (not written, see the report)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "198.51.100.66/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block bad host"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.10.200.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Guests stay in"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "OT no internet"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "198.51.100.66/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block bad host"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.10.200.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Guests stay in"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "OT no internet"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

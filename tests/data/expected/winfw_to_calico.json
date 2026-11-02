@@ -1,0 +1,230 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "Management over IPsec, overriding block rules (not written, see the report); Allow WinRM from management (not written, see the report); Web out on private networks (not written, see the report); DNS out on private networks (not written, see the report); SMB from the local subnet (not written, see the report); SSH from the IPv6 jump hosts (not written, see the report); DNS server (not written, see the report); Echo request (ICMPv4-In) (not written, see the report); Echo request (ICMPv6-In) (not written, see the report); Fragmentation needed and time exceeded (not written, see the report); Remote Desktop from the admin networks (not written, see the report); Web server (not written, see the report); FTP passive ports (not written, see the report); SNMP from the local subnet (not written, see the report); GRE from the tunnel peer (not written, see the report); Example application server (not written, see the report); Print spooler (RPC) (not written, see the report); OpenSSH server (disabled in the source); mDNS on wireless (not written, see the report); Game server through edge traversal (not written, see the report); Printer port (not written, see the report); A rule Windows cannot parse (disabled in the source); SSDP discovery (not written, see the report); DNS server (local copy) (disabled in the source); Backup agent to the backup server (not written, see the report); (default) outbound (not written, see the report)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "192.0.2.66/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block a known bad host"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "destination": {
+          "nets": [
+            "2001:db8:66::1/128"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block a known bad host"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "192.0.2.128/25"
+          ]
+        },
+        "destination": {
+          "ports": [
+            3389
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block RDP from the guest half of the admin network"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            23
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block telnet out"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "198.51.100.10/31",
+            "198.51.100.12/30",
+            "198.51.100.16/30",
+            "198.51.100.20/32",
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block the scanner networks"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            445,
+            139
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block SMB on public networks"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "192.0.2.66/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block a known bad host"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "destination": {
+          "nets": [
+            "2001:db8:66::1/128"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block a known bad host"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "192.0.2.128/25"
+          ]
+        },
+        "destination": {
+          "ports": [
+            3389
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block RDP from the guest half of the admin network"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            23
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block telnet out"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "198.51.100.10/31",
+            "198.51.100.12/30",
+            "198.51.100.16/30",
+            "198.51.100.20/32",
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block the scanner networks"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            445,
+            139
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block SMB on public networks"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

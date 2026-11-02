@@ -1,0 +1,55 @@
+FWShift conversion report
+  source: f5-afm
+  target: hisecos
+
+Summary
+  Security rules:     42   exact 31, approximated 0, needs review 6 (6 emitted disabled), skipped 5
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] HISECOS_LOAD: the output is a CLI script of HiSecOS (section 10): commands of the Global Config mode that add rules 1001 to 1053 of the packet filter (they must be free) with their interface assignments, and NAT rules, and that delete nothing. The keywords are FWShift's reading of Belden's MIBs and command list, not confirmed on a device: check the script with 'script validate' first. Nothing applies until you commit: read 'show packet-filter l3 pending', then 'packet-filter l3 commit' (and 'nat dnat commit', 'nat masq commit', 'nat 1to1nat commit'). Rules of the device with lower priorities on the same interfaces come first, and its default policy is not changed. To take the rules away again: 'packet-filter l3 delif' for each assignment, then 'packet-filter l3 delrule N' for N from 1001 to 1053
+  [needs-review] INTERFACES_REQUIRED: zones are written as the routing interfaces of the device (1/1, vlan/10): these names are not such interfaces, and the device refuses the assignments that name them. Map the zones with --zone-map, or their interfaces with --interface-map: external, internal, dmz
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] HISECOS_IPV4_ONLY: HiSecOS filters IPv4: the IPv6 addresses and ICMPv6 of these rules are not written: global/admins_continue>rd0/outbound/allow_dns_out@vs_dns, global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound, global/admins_continue>rd0/outbound/allow_web_out@vs_outbound, global/admins_continue>rd0/dmz_no_inside, global/admins_continue>vs_web6/web_in, global/admins_continue>vs_web6/(default), global/admins_continue>vs_web/web_in, global/admins_continue>vs_web/(default), global/admins_continue>vs_web_http/(refused), global/admins_continue>vs_dns/(default), global/admins_continue>vs_old_app/(refused), global/admins_continue>vs_inbound_dmz/(default) ...
+
+Security rules
+  global/admins_continue>vs_web6/web_in  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  global/admins_continue>vs_web6/(default)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  global/reject_telnet  ->  exact  (emitted as rule 1028)
+      [info] RESET_ACTION: action reset-client becomes reject, which answers the sender with an ICMP message, not a TCP reset
+  global/old_rule  ->  exact  (emitted as rule 1030)
+      [info] HISECOS_DISABLED: disabled in the source; written with disablerule
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled  (emitted as rule 1031)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled  (emitted as rule 1032 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] HISECOS_FQDN: the source holds host names (partner.example.com); a rule of HiSecOS takes addresses only.
+  global/partners_in@vs_web  ->  needs-review, emitted disabled  (emitted as rule 1033 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] HISECOS_FQDN: the source holds host names (partner.example.com); a rule of HiSecOS takes addresses only.
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled  (emitted as rule 1034 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] HISECOS_FQDN: the source holds host names (partner.example.com); a rule of HiSecOS takes addresses only. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled  (emitted as rule 1035 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] HISECOS_FQDN: the source holds host names (partner.example.com); a rule of HiSecOS takes addresses only.
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as rule 1036 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] HISECOS_FQDN: the source holds host names (partner.example.com); a rule of HiSecOS takes addresses only.
+  vs_web6/web_in  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  vs_web6/web6_in  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  vs_web6/(default)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)

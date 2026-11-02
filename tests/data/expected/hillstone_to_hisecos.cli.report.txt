@@ -1,0 +1,70 @@
+FWShift conversion report
+  source: hillstone
+  target: hisecos
+
+Summary
+  Security rules:     14   exact 3, approximated 1, needs review 9 (7 emitted disabled), skipped 1
+  NAT rules:           9   exact 3, approximated 0, needs review 0, skipped 6
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_NAT_ORDER: DNAT is looked up before the route and the policy, SNAT after the route; the rules were read as naming the destination before DNAT and the zone after it, which is what Hillstone's troubleshooting guide shows (one of its configuration examples names the translated address instead): check the rules for translated traffic on the firewall
+  [needs-review] HILLSTONE_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with show service predefined: HTTP, HTTPS, SSH, PING, DNS
+  [needs-review] HISECOS_LOAD: the output is a CLI script of HiSecOS (section 10): commands of the Global Config mode that add rules 1001 to 1056 of the packet filter (they must be free) with their interface assignments, and NAT rules, and that delete nothing. The keywords are FWShift's reading of Belden's MIBs and command list, not confirmed on a device: check the script with 'script validate' first. Nothing applies until you commit: read 'show packet-filter l3 pending', then 'packet-filter l3 commit' (and 'nat dnat commit', 'nat masq commit', 'nat 1to1nat commit'). Rules of the device with lower priorities on the same interfaces come first, and its default policy is not changed. To take the rules away again: 'packet-filter l3 delif' for each assignment, then 'packet-filter l3 delrule N' for N from 1001 to 1056
+  [needs-review] INTERFACES_REQUIRED: zones are written as the routing interfaces of the device (1/1, vlan/10): these names are not such interfaces, and the device refuses the assignments that name them. Map the zones with --zone-map, or their interfaces with --interface-map: ethernet0/1, ethernet0/0, ethernet0/2, ethernet0/3
+  [info] HILLSTONE_SOURCE: 4 zones (trust, untrust, dmz, lab); 14 rules of the policy, first match in the order of the configuration (not by id)
+  [info] HILLSTONE_ANY: the address Any is read as every IPv4 address and IPv6-any as every IPv6 address
+  [info] HILLSTONE_REJECT: action reject: read as a deny that answers the client: lab-to-inside
+  [info] HILLSTONE_SCHEDULE: rules with a schedule: schedules are not converted, a target writes these rules disabled: app-clients: office-hours
+  [info] HILLSTONE_DEFAULTS: what no rule matches, between zones and inside a zone (default-action): deny
+  [info] HISECOS_IPV4_ONLY: HiSecOS filters IPv4: the IPv6 addresses and ICMPv6 of these rules are not written: v6-out
+  [info] HISECOS_NAT_WRITTEN: destination NAT and 1:1 NAT are done before the packet filter (assumed, as on netfilter): the rules were written for the translated address
+
+Security rules
+  publish-web  ->  approximated  (emitted as rule 1004)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'pub-web' with post-NAT 'web-srv' because of NAT rule 'dnatrule 1'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'dnatrule 1' also translates the port to 8080: the service of this rule (HTTP) named the pre-NAT port only, and now names 8080, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+  block-country  ->  needs-review, emitted disabled  (emitted as rule 1005 (a placeholder, disabled))
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-country': address entry blocked-country: country XX, which the configuration does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  lab-to-inside  ->  needs-review  (emitted as rule 1006)
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [info] RESET_ACTION: action reset-client becomes reject, which answers the sender with an ICMP message, not a TCP reset
+  inside-to-servers  ->  needs-review  (emitted as rules 1007-1048)
+      [needs-review] HILLSTONE_DNAT_INSIDE: names servers, which holds an address that dnatrule 1, dnatrule 2, dnatrule 3 translate(s) to: read as the address a packet has before DNAT; if the firewall matches rules after DNAT, the rule also matches the connections translated to it
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-srv', the address NAT rule 'dnatrule 1' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'dnatrule 2' translates '203.0.113.11' to. The target looks rules up after that translation, so traffic sent to '203.0.113.11' now matches this rule; on the source it did not
+  lab-updates  ->  needs-review, emitted disabled  (emitted as rule 1049 (a placeholder, disabled))
+      [needs-review] HISECOS_FQDN: the destination holds host names (update-site); a rule of HiSecOS takes addresses only.
+  app-clients  ->  needs-review, emitted disabled  (emitted as rule 1050 (a placeholder, disabled))
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] HISECOS_FQDN: the destination holds host names (files.example.org); a rule of HiSecOS takes addresses only.
+  p2p  ->  needs-review, emitted disabled  (emitted as rule 1051)
+      [needs-review] UNSUPPORTED_MATCH: not converted: application BitTorrent: application identification narrows the match.
+  v6-out  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  tunnels-to-partners  ->  needs-review, emitted disabled  (emitted as rule 1052 (a placeholder, disabled))
+      [needs-review] HISECOS_FQDN: the destination holds host names (partners/partner.example.net); a rule of HiSecOS takes addresses only.
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any.
+  to-branch-vpn  ->  needs-review, emitted disabled  (emitted as rule 1053)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action tunnel vpn-to-branch: traffic of a VPN tunnel only.
+  contractors-out  ->  needs-review, emitted disabled  (emitted as rule 1054 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'wild-hosts': address entry wild-hosts: wildcard address '10.10.0.5 0.0.255.0'.
+      [needs-review] USER_MATCH: source user match role contractors is not converted.
+
+NAT rules
+  bnatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a BNAT rule (bidirectional NAT), which is not converted
+  dnatrule 3  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: destination NAT of HiSecOS translates to one IPv4 address
+  dnatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT between IPv4 and IPv6, which is not converted
+  snatrule 1  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: the destination holds a host name
+  snatrule 3  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: the source is not one IPv4 address or network
+  snatrule 4  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: HiSecOS writes destination NAT to one address, masquerading behind the interface and 1:1 NAT of networks; this rule is none of them

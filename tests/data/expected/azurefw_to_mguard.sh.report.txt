@@ -1,0 +1,74 @@
+FWShift conversion report
+  source: azure-firewall (fwpol-shop)
+  target: mguard
+
+Summary
+  Security rules:     17   exact 11, approximated 0, needs review 0, skipped 6
+  NAT rules:           2   exact 0, approximated 2, needs review 0, skipped 0
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZFW_DYNAMIC: addresses only Azure knows: IP group ipg-partners, service tag Storage.WestEurope. They are dynamic groups, which only an Azure Firewall target writes again; add the IP groups (az network ip-group list) and the service tags (az network list-service-tags) to the export to convert them for other targets
+  [needs-review] AZFW_THREAT_INTEL: threat intelligence mode Deny: it is applied before the rules and blocks traffic of known malicious addresses and names, which the converted policy does not. It is not a rule and is not converted
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] AZFW_ORDER: read in the order Azure Firewall takes the rules: firewall policy fwpol-base > fwpol-shop: DNAT rules, then network rules, then application rules, each by the priority of the rule collection group and of the rule collection, the groups of the base policy before those of the child. What no rule allows is denied; rules of one collection have one action and no order among themselves
+  [info] AZFW_IPV4_ONLY: Azure Firewall filters IPv4 only: '*' is read as 0.0.0.0/0, and the converted policy says nothing for IPv6
+  [info] AZFW_UNFILTERED: the firewall decides only what is routed through it (user-defined routes, a secured hub); traffic inside a virtual network that is not routed to it, and network security groups on the way, are not in this export
+  [info] AZFW_ANY_PROTOCOL: protocol Any with every port is every IP protocol, as Microsoft documents it since November 2020 (before, it meant TCP, UDP and ICMP); with ports it is TCP and UDP on them
+  [info] AZFW_ICMP_INTERNET: rules for ICMP do not apply to traffic to the internet, which the firewall cannot translate for it (a known issue Microsoft documents); between networks of Azure they do
+  [info] AZFW_IDPS: IDPS in mode Alert: it alerts and does not block; not converted
+  [info] AZFW_SNAT: Azure Firewall translates the source of what a network rule allows to its public address unless the destination is in its private ranges (IANAPrivateRanges, 198.51.100.0/24); of what an application rule allows always (to one of its private addresses); and, community sources say, of what a DNAT rule translates. None of that is a rule of the policy: no source NAT rule is in the model
+  [info] AZFW_INFRASTRUCTURE: after the application rules Azure Firewall allows the FQDNs of its built-in infrastructure rule collection (platform image repository, managed disk status, diagnostics), unless an application rule denies all; the model does not hold them
+
+Security rules
+  dnat-web/web-https (DNAT)  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] AZFW_DNAT_ALLOWS: Azure Firewall allows what DNAT rule fwpol-shop/DefaultDnatRuleCollectionGroup/dnat-web/web-https translates, before any network rule sees it: this rule says so, for the addresses before translation
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  dnat-web/ssh-admin (DNAT)  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] AZFW_DNAT_ALLOWS: Azure Firewall allows what DNAT rule fwpol-shop/DefaultDnatRuleCollectionGroup/dnat-web/ssh-admin translates, before any network rule sees it: this rule says so, for the addresses before translation
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  base-deny/deny-telnet  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  base-allow-dns/dns-out  ->  exact  (emitted as 2 rows of FW_OUTGOING, 2 rows of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as 2 rows of FW_OUTGOING, 2 rows of FW_INCOMING
+  net-partner/every-protocol-to-partner  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  net-partner/dns-any-protocol  ->  exact  (emitted as 2 rows of FW_OUTGOING, 2 rows of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as 2 rows of FW_OUTGOING, 2 rows of FW_INCOMING
+  net-partner/v6-ssh  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: IPv6 source address '2001:db8:10::/64', which Azure Firewall does not take.
+  net-allow-web/web-to-db  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  net-allow-web/icmp-mgmt  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  net-allow-web/ntp-out  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_HOSTNAME: host names are written into an IP group: the mGuard resolves them for IPv4 with its own DNS settings (an FL MGUARD 2000 takes none)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  net-allow-web/storage  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Storage.WestEurope': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'Storage.WestEurope' holds members only its platform knows, or an address the profile does not hold.
+  net-allow-web/app-ports  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  net-allow-web/partner-sftp  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ipg-partners': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'ipg-partners' holds members only its platform knows, or an address the profile does not hold.
+  net-deny-lateral/block-lateral  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  app-out/allow-updates  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: target FQDNs *.example.com, updates.example.net.
+  app-out/allow-wsus  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: FQDN tags WindowsUpdate.
+  app-deny/no-gambling  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application rule matches by the name the client asks for (HTTP Host header, TLS SNI), not by address: web categories Gambling. This deny rule is NOT enforced; rules below it may match more traffic.
+
+NAT rules
+  dnat-web/web-https  ->  approximated  (emitted as port forwarding)
+      [info] MGUARD_FORWARD_ALLOWED: port forwarding skips the packet filter; the rules of the model allow all of what it forwards
+      [approximated] MGUARD_NAT_ZONES: the rule is for traffic from every zone; port forwarding applies to what arrives for its address
+  dnat-web/ssh-admin  ->  approximated  (emitted as port forwarding)
+      [info] MGUARD_FORWARD_ALLOWED: port forwarding skips the packet filter; the rules of the model allow all of what it forwards
+      [approximated] MGUARD_NAT_ZONES: the rule is for traffic from every zone; port forwarding applies to what arrives for its address

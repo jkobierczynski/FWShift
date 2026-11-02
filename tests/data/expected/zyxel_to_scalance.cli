@@ -1,0 +1,97 @@
+configure terminal
+firewall
+service name FWS_SSH proto tcp src all dst port 22
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_tcp_443 proto tcp src all dst port 443
+service name FWS_tcp_8080-8089 proto tcp src all dst range 8080 - 8089
+service name FWS_tcp_8443 proto tcp src all dst port 8443
+service name FWS_SMTP proto tcp src all dst port 25
+icmp name FWS_PING type 8 code 0 ver ipv4
+service name FWS_DNS-sourceport-1024-65535 proto udp src range 1024 - 65535 dst port 53
+proto name FWS_ESP num 50
+icmp name FWS_PING6 type 128 code 0 ver ipv6
+ipv4rule from LAN1 to WAN srcip 10.10.0.0/24 dstip 0.0.0.0/0 action acc log info prior 1
+ipv4rule from LAN1 to WAN srcip 10.20.0.0/24 dstip 0.0.0.0/0 action acc log info prior 1
+ipv4rule from LAN1 to WAN srcip 10.30.0.10 dstip 0.0.0.0/0 action acc log info prior 1
+ipv4rule from LAN1 to WAN srcip 10.30.0.25 dstip 0.0.0.0/0 action acc log info prior 1
+ipv4rule from WAN to DMZ srcip 203.0.113.0/25 dstip 10.30.0.10 action drop service FWS_SSH log info prior 2
+ipv4rule from WAN to DMZ srcip 203.0.113.0/25 dstip 10.30.0.25 action drop service FWS_SSH log info prior 2
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 10.30.0.10 action acc service FWS_tcp_80 log no prior 3
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 10.30.0.10 action acc service FWS_tcp_443 log no prior 3
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 10.30.0.10 action acc service FWS_tcp_8080-8089 log no prior 3
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 10.30.0.10 action acc service FWS_tcp_8443 log no prior 3
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 10.30.0.25 action acc service FWS_SMTP log info prior 4
+ipv4rule from LAN1 to DMZ srcip 10.10.0.50-10.10.0.59 dstip 10.30.0.10 action acc service FWS_SSH log no prior 5
+ipv4rule from LAN1 to DMZ srcip 10.10.0.50-10.10.0.59 dstip 10.30.0.10 action acc service FWS_tcp_80 log no prior 5
+ipv4rule from LAN1 to DMZ srcip 10.10.0.50-10.10.0.59 dstip 10.30.0.10 action acc service FWS_tcp_443 log no prior 5
+ipv4rule from LAN1 to DMZ srcip 10.10.0.50-10.10.0.59 dstip 10.30.0.10 action acc service FWS_tcp_8080-8089 log no prior 5
+ipv4rule from LAN1 to DMZ srcip 10.10.0.50-10.10.0.59 dstip 10.30.0.10 action acc service FWS_tcp_8443 log no prior 5
+ipv4rule from LAN1 to DMZ srcip 10.10.0.50-10.10.0.59 dstip 10.30.0.25 action acc service FWS_SSH log no prior 5
+ipv4rule from LAN1 to DMZ srcip 10.10.0.50-10.10.0.59 dstip 10.30.0.25 action acc service FWS_tcp_80 log no prior 5
+ipv4rule from LAN1 to DMZ srcip 10.10.0.50-10.10.0.59 dstip 10.30.0.25 action acc service FWS_tcp_443 log no prior 5
+ipv4rule from LAN1 to DMZ srcip 10.10.0.50-10.10.0.59 dstip 10.30.0.25 action acc service FWS_tcp_8080-8089 log no prior 5
+ipv4rule from LAN1 to DMZ srcip 10.10.0.50-10.10.0.59 dstip 10.30.0.25 action acc service FWS_tcp_8443 log no prior 5
+ipv4rule from LAN1 to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action rej log info prior 6
+ipv4rule from WAN to LAN1 srcip 192.0.2.0/24 dstip 0.0.0.0/0 action acc service FWS_PING log no prior 7
+ipv4rule from WAN to DMZ srcip 192.0.2.0/24 dstip 0.0.0.0/0 action acc service FWS_PING log no prior 7
+ipv4rule from WAN to LAB srcip 192.0.2.0/24 dstip 0.0.0.0/0 action acc service FWS_PING log no prior 7
+ipv4rule from LAN1 to WAN srcip 192.0.2.0/24 dstip 0.0.0.0/0 action acc service FWS_PING log no prior 7
+ipv4rule from LAN1 to DMZ srcip 192.0.2.0/24 dstip 0.0.0.0/0 action acc service FWS_PING log no prior 7
+ipv4rule from LAN1 to LAB srcip 192.0.2.0/24 dstip 0.0.0.0/0 action acc service FWS_PING log no prior 7
+ipv4rule from DMZ to WAN srcip 192.0.2.0/24 dstip 0.0.0.0/0 action acc service FWS_PING log no prior 7
+ipv4rule from DMZ to LAN1 srcip 192.0.2.0/24 dstip 0.0.0.0/0 action acc service FWS_PING log no prior 7
+ipv4rule from DMZ to LAB srcip 192.0.2.0/24 dstip 0.0.0.0/0 action acc service FWS_PING log no prior 7
+ipv4rule from LAB to WAN srcip 192.0.2.0/24 dstip 0.0.0.0/0 action acc service FWS_PING log no prior 7
+ipv4rule from LAB to LAN1 srcip 192.0.2.0/24 dstip 0.0.0.0/0 action acc service FWS_PING log no prior 7
+ipv4rule from LAB to DMZ srcip 192.0.2.0/24 dstip 0.0.0.0/0 action acc service FWS_PING log no prior 7
+ipv4rule from LAN1 to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_DNS-sourceport-1024-65535 log no prior 7
+ipv4rule from DMZ to WAN srcip 10.30.0.20/30 dstip 0.0.0.0/0 action acc service FWS_ESP log no prior 7
+ipv6rule from LAN1 to WAN srcip 2001:db8:10::/64 dstip ::/0 action acc log no prior 7
+ipv6rule from LAN1 to DMZ srcip 2001:db8:10::50-2001:db8:10::59 dstip 2001:db8:30::10 action acc service FWS_SSH log no prior 7
+ipv6rule from LAN1 to DMZ srcip 2001:db8:10::50-2001:db8:10::59 dstip 2001:db8:30::10 action acc service FWS_tcp_80 log no prior 7
+ipv6rule from LAN1 to DMZ srcip 2001:db8:10::50-2001:db8:10::59 dstip 2001:db8:30::10 action acc service FWS_tcp_443 log no prior 7
+ipv6rule from LAN1 to DMZ srcip 2001:db8:10::50-2001:db8:10::59 dstip 2001:db8:30::10 action acc service FWS_tcp_8080-8089 log no prior 7
+ipv6rule from LAN1 to DMZ srcip 2001:db8:10::50-2001:db8:10::59 dstip 2001:db8:30::10 action acc service FWS_tcp_8443 log no prior 7
+ipv6rule from WAN to LAN1 srcip ::/0 dstip ::/0 action acc service FWS_PING6 log no prior 7
+ipv6rule from WAN to DMZ srcip ::/0 dstip ::/0 action acc service FWS_PING6 log no prior 7
+ipv6rule from WAN to LAB srcip ::/0 dstip ::/0 action acc service FWS_PING6 log no prior 7
+ipv6rule from LAN1 to WAN srcip ::/0 dstip ::/0 action acc service FWS_PING6 log no prior 7
+ipv6rule from LAN1 to DMZ srcip ::/0 dstip ::/0 action acc service FWS_PING6 log no prior 7
+ipv6rule from LAN1 to LAB srcip ::/0 dstip ::/0 action acc service FWS_PING6 log no prior 7
+ipv6rule from DMZ to WAN srcip ::/0 dstip ::/0 action acc service FWS_PING6 log no prior 7
+ipv6rule from DMZ to LAN1 srcip ::/0 dstip ::/0 action acc service FWS_PING6 log no prior 7
+ipv6rule from DMZ to LAB srcip ::/0 dstip ::/0 action acc service FWS_PING6 log no prior 7
+ipv6rule from LAB to WAN srcip ::/0 dstip ::/0 action acc service FWS_PING6 log no prior 7
+ipv6rule from LAB to LAN1 srcip ::/0 dstip ::/0 action acc service FWS_PING6 log no prior 7
+ipv6rule from LAB to DMZ srcip ::/0 dstip ::/0 action acc service FWS_PING6 log no prior 7
+ipv4rule from WAN to LAN1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from WAN to LAN1 srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from WAN to DMZ srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from WAN to LAB srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from WAN to LAB srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from LAN1 to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from LAN1 to WAN srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from LAN1 to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from LAN1 to DMZ srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from LAN1 to LAB srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from LAN1 to LAB srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from DMZ to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from DMZ to WAN srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from DMZ to LAN1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from DMZ to LAN1 srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from DMZ to LAB srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from DMZ to LAB srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from LAB to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from LAB to WAN srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from LAB to LAN1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from LAB to LAN1 srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from LAB to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from LAB to DMZ srcip ::/0 dstip ::/0 action drop log no prior 8
+exit
+firewallnat
+napt srcint WAN proto tcp type ipv4 dstip 198.51.100.10 transip 10.30.0.10 dstport 443 transport 8443
+napt srcint WAN proto tcp type ipv4 dstip 198.51.100.11 transip 10.30.0.25 dstport 25 transport 25
+src-nat srcint LAN1 dstint WAN type ipv4 srcip 10.10.0.0/24 dstip 0.0.0.0/0 transip auto
+exit
+end

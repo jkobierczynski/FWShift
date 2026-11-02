@@ -1,0 +1,48 @@
+FWShift conversion report
+  source: moxa
+  target: asa
+
+Summary
+  Security rules:     10   exact 2, approximated 3, needs review 5 (5 emitted disabled), skipped 0
+  NAT rules:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MOXA_DEFAULT_ACCEPT: what no policy matches is read as passing: the configuration names no default action, and FWShift found none for the classic firmware in Moxa's documentation (not confirmed on a device). If the router drops it, add a policy at the end of the converted policy that drops everything
+  [needs-review] MOXA_NAT_ORDER: port forwarding and 1-to-1 NAT are read as done before the Layer 3 policy, whose policies name the inside address (as iptables does it on Linux; Moxa's documentation does not say, not confirmed): the policies were rewritten for the address as it arrives. N-to-1 NAT is done after it
+  [needs-review] MOXA_DPI: the Modbus filter (DPI) checks Modbus TCP traffic beyond addresses and ports; not converted: modbus-filter 1
+  [needs-review] MOXA_L2_POLICY: the Layer 2 policy filters bridged traffic before the Layer 3 policy; not converted: l2-filter 1 enable
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: lan, wan1, wan2. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside a zone unless a rule denies it. An ASA does not send traffic back out of the interface it came in on unless 'same-security-traffic permit intra-interface' is set, and then only what the access lists permit
+  [needs-review] INTERZONE_DEFAULT: the source accepts traffic between zones that no rule matches: the global access list ends with 'permit ip any any', which also holds for traffic that leaves by the interface it came in on where the ASA is set to send that
+  [info] MOXA_SOURCE: EDR-810-VPN-2GSFP: 10 policies of the Layer 3 policy, first match by index; zones are the interfaces lan, wan1 and wan2. IPv4 only
+  [info] MOXA_TRUSTED_ACCESS: trusted access, which limits who reaches the router itself; not converted: lan 192.168.127.0 255.255.255.0 enable
+  [info] MOXA_DOS: DoS defence settings; not converted: syn-flood 300, null-scan
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+
+Security rules
+  firewall 1  ->  approximated  (emitted as lan_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  firewall 2  ->  needs-review, emitted disabled  (emitted as wan1_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by lan, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind wan2, lan with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  firewall 3  ->  approximated  (emitted as wan1_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by lan. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  firewall 4  ->  needs-review, emitted disabled  (emitted as lan_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan2, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind wan1, wan2 with --zone-network.
+  firewall 6  ->  needs-review, emitted disabled  (emitted as wan2_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by lan, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind wan1, lan with --zone-network.
+  firewall 7  ->  needs-review, emitted disabled  (emitted as lan_access_in)
+      [needs-review] UNSUPPORTED_MATCH: not converted: source MAC address 00:90:e8:00:00:01, which the model cannot match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: mode MAC: the policy filters by source MAC address, which the model cannot match.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind wan2, wan1 with --zone-network.
+  firewall 8  ->  needs-review, emitted disabled  (emitted as wan2_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by lan. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'session-limit 50' is not converted.
+  firewall 10  ->  approximated  (emitted as wan2_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by lan. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+
+NAT rules
+  ip nat 4  ->  exact  (emitted as 2 NAT lines)
+      [info] MOXA_NAT_AUTO: outside wan auto: the address of whichever WAN interface the traffic leaves by

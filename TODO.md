@@ -258,6 +258,28 @@ IPsec rules (also Windows to Windows), connection security rules and Windows
 Service Hardening, edge traversal; outbound is exact only where the profile
 blocks outbound by default; the host's own rules next to the written ones.
 
+Done in **0.43.0**, all from documentation and none loaded on a device or a cluster: **Kubernetes NetworkPolicy** and
+**Calico** (kubectl and calicoctl JSON, read; NetworkPolicies or one GlobalNetworkPolicy, written), **Phoenix Contact
+mGuard** (the `.atv` profile, read; a gaiconfig script, written), **Siemens SCALANCE SC-600/S615** (the CLI, both
+ways), **Hirschmann HiSecOS** (EAGLE40, the CLI script, both ways) and **Moxa** (EDR, classic firmware, both ways).
+Conversions between the six are in the goldens.
+
+Still open for Kubernetes and Calico: YAML input; Services, AdminNetworkPolicy, staged policies, host endpoints'
+own behaviour and Calico's `http` and `services` matches; reading the output back for `--compare`; a lab (kind with
+Calico, probes with `kubectl exec`).
+
+Still open for the mGuard: IPv6; the user firewall, VPN connection firewalls and switched rule sets; reading the output
+back; confirming the profile syntax that Phoenix does not publish, and that a table without a matching row drops.
+
+Still open for SCALANCE: the current CLI manuals (the syntax is from 2015 and 2017); first match and the order of
+equal priorities; `ipv6rule`; rule sets and the MAC firewall.
+
+Still open for HiSecOS: every command keyword against the CLI reference's Format lines or a device (`script
+validate`); the XML profile; IPv6; deep packet inspection and the user firewall.
+
+Still open for Moxa: MX-ROS (EDR-G9010, EDR-G9004, EDR-8010), whose policy commands could not be read; the default
+of the classic firmware; the Layer 2 policy.
+
 
 ## Rule usage
 
@@ -446,9 +468,11 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
 
 * the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
   the reload commands of OPNsense and pfSense);
-* AWS Network Firewall in tier 1 (0.41.7): the first run failed (with strict order and `aws:drop_strict` each packet
-  is decided on its own, so the replies were dropped; the routes to the endpoint did their part). 0.41.8 passes the
-  replies with a rule `flow:to_client` and reads such policies per packet: its rerun;
+* AWS Network Firewall in tier 1 (0.41.7): three runs failed because their probes came before the endpoint forwarded
+  (0.42.2); a run of 0.42.3 waits for it. Then: whether the reply rule is needed under `aws:drop_strict` (the test
+  without it in `diagnose.txt`), and if not, take it out of the emitter and the per-packet reading out of the parser;
+* WatchGuard Firebox Cloud in tier 3 (0.42.1, scripted from WatchGuard's documentation, never run): its first run; the
+  interface entries of its configuration, the import of a merged file, static NAT on a secondary address;
 * Sophos Firewall in tier 3 (passed in 0.41.5): the XML API is switched on by hand, since only the web console does it
   on SFOS 22; the REST API of SFOS 23 may change that;
 * tier 3 on Google Cloud: each firewall's zone interfaces written Google Cloud's way (a `/32` address or DHCP, and the

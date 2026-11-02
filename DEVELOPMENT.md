@@ -8,10 +8,10 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.42.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy); Azure Firewall (read a firewall policy with its rule collection groups and base policies, or the classic rules of a firewall, as the Azure CLI, the REST API or an exported template give them; write an ARM template that creates a new policy, associated with no firewall); AWS Network Firewall (read the JSON of the AWS CLI for one firewall policy and its rule groups: stateless rules, 5-tuple and Suricata rules, domain lists; write a shell script of AWS CLI calls that creates a stateful rule group and a policy, associated with no firewall); pf of OpenBSD and FreeBSD (read `pf.conf` or `pfctl -sr`, with FreeBSD's `nat`, `rdr` and `binat`; write a ruleset for the anchor `fwshift`); VyOS 1.4 and later (read set commands or the configuration in braces, also of VyOS 1.3, Vyatta and EdgeOS; write set commands for a configuration session); Juniper ScreenOS 5.x and 6.x (read `get config`) and Cisco PIX 6.x (read `write terminal`), read only; F5 BIG-IP AFM (read `tmsh list`, write a file for `tmsh load sys config merge`); Oracle Cloud Infrastructure (read the OCI CLI JSON of a VCN, write a script that creates NSGs); Hillstone StoneOS (read `show configuration`, write configuration-mode commands); Zyxel ZLD (read the configuration file, write a shell script); Windows Defender Firewall (read `reg export`, write a PowerShell script) |
-| Tests | 8681, all passing (a dozen of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below); with NAT, and read back from the FortiGate, in 0.40.17. **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace); with NAT in 0.40.17. **SonicWall**: the same on a SonicWall NSv (SonicOSX 8.2.2-8015, AWS Marketplace), NAT included (0.40.16, below). **Check Point**: the same on the All-In-One (R82.20, AWS Marketplace), installed on its gateway, NAT included and read back (0.40.21, below). **Cisco IOS XE**: on a Catalyst 8000V, with NAT in 0.40.17. **Cisco ASA**: on an ASAv (9.24.10), with NAT in 0.40.21. **Sophos Firewall**: on the PAYG image (SFOS 22.0 MR2), with NAT, through the XML API, passed in 0.41.5. **Juniper SRX**: on a vSRX, with NAT in 0.41.0. **pfSense**: on pfSense Plus (26.07), with NAT in 0.41.0. **OPNsense**: on OPNsense (26.1.5 in 0.36.4), with NAT in 0.41.2. **AWS Network Firewall**: the lab policy's conversion loaded on a firewall in 0.41.7; the run failed (the replies were dropped, 0.41.8), the fix not rerun yet. Nothing has been loaded on a Huawei USG, a Stormshield firewall, a Meraki MX, a Firebox, a CloudGen Firewall, an NSX Manager, a MikroTik router, a Forcepoint SMC, a Cisco Management Center, a Device Manager, an Azure Firewall, a pf firewall, a VyOS router, a BIG-IP, an OCI tenancy, a Hillstone, a Zyxel or a Windows host, no ScreenOS or PIX configuration was read from a device, and no Terraform output was applied with Terraform |
+| Version | 0.43.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy); Azure Firewall (read a firewall policy with its rule collection groups and base policies, or the classic rules of a firewall, as the Azure CLI, the REST API or an exported template give them; write an ARM template that creates a new policy, associated with no firewall); AWS Network Firewall (read the JSON of the AWS CLI for one firewall policy and its rule groups: stateless rules, 5-tuple and Suricata rules, domain lists; write a shell script of AWS CLI calls that creates a stateful rule group and a policy, associated with no firewall); pf of OpenBSD and FreeBSD (read `pf.conf` or `pfctl -sr`, with FreeBSD's `nat`, `rdr` and `binat`; write a ruleset for the anchor `fwshift`); VyOS 1.4 and later (read set commands or the configuration in braces, also of VyOS 1.3, Vyatta and EdgeOS; write set commands for a configuration session); Juniper ScreenOS 5.x and 6.x (read `get config`) and Cisco PIX 6.x (read `write terminal`), read only; F5 BIG-IP AFM (read `tmsh list`, write a file for `tmsh load sys config merge`); Oracle Cloud Infrastructure (read the OCI CLI JSON of a VCN, write a script that creates NSGs); Hillstone StoneOS (read `show configuration`, write configuration-mode commands); Zyxel ZLD (read the configuration file, write a shell script); Windows Defender Firewall (read `reg export`, write a PowerShell script); Kubernetes NetworkPolicy and Calico (read kubectl/calicoctl JSON, write NetworkPolicies or a GlobalNetworkPolicy); Phoenix Contact mGuard (read the `.atv` profile, write a gaiconfig script); Siemens SCALANCE SC-600/S615 (read and write the CLI); Hirschmann HiSecOS, EAGLE40 (read and write the CLI script); Moxa EDR, classic firmware (read the configuration file, write console commands) |
+| Tests | 9669, all passing (a dozen of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below); with NAT, and read back from the FortiGate, in 0.40.17. **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace); with NAT in 0.40.17. **SonicWall**: the same on a SonicWall NSv (SonicOSX 8.2.2-8015, AWS Marketplace), NAT included (0.40.16, below). **Check Point**: the same on the All-In-One (R82.20, AWS Marketplace), installed on its gateway, NAT included and read back (0.40.21, below). **Cisco IOS XE**: on a Catalyst 8000V, with NAT in 0.40.17. **Cisco ASA**: on an ASAv (9.24.10), with NAT in 0.40.21. **Sophos Firewall**: on the PAYG image (SFOS 22.0 MR2), with NAT, through the XML API, passed in 0.41.5. **Juniper SRX**: on a vSRX, with NAT in 0.41.0. **pfSense**: on pfSense Plus (26.07), with NAT in 0.41.0. **OPNsense**: on OPNsense (26.1.5 in 0.36.4), with NAT in 0.41.2. **AWS Network Firewall**: the lab policy's conversion loaded on a firewall in 0.41.7; the run failed (the replies were dropped, 0.41.8), the fix not rerun yet. Nothing has been loaded on a Huawei USG, a Stormshield firewall, a Meraki MX, a Firebox, a CloudGen Firewall, an NSX Manager, a MikroTik router, a Forcepoint SMC, a Cisco Management Center, a Device Manager, an Azure Firewall, a pf firewall, a VyOS router, a BIG-IP, an OCI tenancy, a Hillstone, a Zyxel, a Windows host, a Kubernetes cluster, an mGuard, a SCALANCE, an EAGLE or a Moxa router, no ScreenOS or PIX configuration was read from a device, and no Terraform output was applied with Terraform |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
 | Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
 | Next | the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
@@ -107,6 +107,15 @@ src/fwshift/
                       defaults, virtual servers before the policy, SNAT routes)
         winfw.py      reg export of Windows Defender Firewall -> model (stores
                       merged; block beats allow; the host and its profiles)
+        kubernetes.py kubectl and calicoctl JSON -> model (selectors worked out on
+                      the pods; isolation, Calico tiers and order composed)
+        mguard.py     mGuard .atv profile -> model (packet filter tables, rule
+                      sets in place, port forwarding before the filter)
+        scalance.py   SCALANCE SC-600/S615 CLI -> model (rules by priority)
+        hisecos.py    HiSecOS CLI script -> model (rules by the priority of
+                      their interface assignments; NAT)
+        moxa.py       Moxa EDR CLI configuration -> model (Layer 3 policy by
+                      index; NAT); MX-ROS refused
         screenos.py   ScreenOS get config -> model (pairs of zones, then global
                       policies; intra-zone blocking; MIP, VIP, DIP, NAT mode);
                       read only
@@ -184,6 +193,14 @@ src/fwshift/
                       virtual servers, SNAT policy routes)
         winfw.py      model -> a PowerShell script of New-NetFirewallRule (block
                       rules without what the allow rules above them allow)
+        kubernetes.py model -> NetworkPolicies (deny rules subtracted, pods by
+                      group label)
+        calico.py     model -> one Calico GlobalNetworkPolicy, in order
+        mguard.py     model -> a shell script of gaiconfig calls (rows appended)
+        scalance.py   model -> SCALANCE CLI commands (priorities from 1)
+        hisecos.py    model -> a HiSecOS CLI script (rules from index 1001,
+                      assignments, NAT; nothing committed)
+        moxa.py       model -> Moxa console commands (firewall N, ip nat)
     regions.py        sets of connections as boxes (IP version, sources,
                       destinations, services): subtraction, and services back
                       to entries; for AWS, which cannot block
@@ -330,6 +347,16 @@ tests/
                       script, random files, models and round trips
     test_winfw.py     Windows Defender Firewall both ways: a judge of the
                       registry stores, a strict reader of the script
+    test_kubernetes.py Kubernetes and Calico both ways: judges of NetworkPolicy
+                      and of Calico's tiers, random clusters and models
+    test_mguard.py    mGuard both ways: a judge of profiles, a strict reader of
+                      the gaiconfig script, the script under sh
+    test_scalance.py  SCALANCE both ways: a strict reader of the CLI deciding by
+                      priority, random device configurations
+    test_hisecos.py   HiSecOS both ways: a strict reader of the script, random
+                      configurations judged as the MIB reads them
+    test_moxa.py      Moxa both ways: a judge of the CLI from Moxa's manual,
+                      random models and configurations
     test_screenos.py  ScreenOS: random configurations against a made-up device
                       judged from the generator's own data
     test_pix.py       PIX 6.x: the same, with statics, nat and global,
@@ -949,7 +976,7 @@ policy behaves unexpectedly.
 | Every packet meets the stateless rules first (groups by policy priority, rules by priority, first match; pass, drop, forward to the stateful engine; custom actions only publish metrics); what none matches gets the default for full packets, UDP fragments their own default, other fragments are dropped. Confirmed by the developer guide (how Network Firewall filters traffic, rule actions) | AWS Network Firewall parser |
 | Stateless rules match single packets, so a connection needs both its first packet and its reply passed; a stateless rule's ports apply to TCP and UDP only (other protocols in its list match whatever the ports). The first from the documentation; the second is how FWShift reads "only used for protocols 6 and 17" (not confirmed). A rule with ports and no protocol is not converted | AWS Network Firewall parser |
 | Stateful: `DEFAULT_ACTION_ORDER` evaluates pass, then drop, then reject, then alert, and passes what nothing matches; `STRICT_ORDER` goes by group priority and rule order; `aws:drop_strict` drops every packet no rule passes (each packet on its own: the FWShift lab, 0.41.7); `aws:drop_established` passes the TCP handshake, drops established packets no rule passed, and drops UDP and ICMP at once. Confirmed by the developer guide (evaluation order). That other IP protocols (GRE) are dropped at once like UDP, and that the application-layer variants decide L3/L4 flows like `aws:drop_established`, is not confirmed | AWS Network Firewall parser |
-| Stateful: with `DEFAULT_ACTION_ORDER` (and `aws:drop_established`) a pass on a packet passes the rest of the flow, both directions; with `STRICT_ORDER` and `aws:drop_strict` it does not: every packet is decided on its own, so the replies and the established packets each need a rule that passes them. The first is in the developer guide (for action order); the second was seen in the FWShift lab (0.41.7: pass rules with `flow:to_server` alone blocked every connection, all twenty that the lab policy allows). A rule matches packets in the direction of its header (so a rule without `flow:to_server` matches the first reply of a flow opened the other way); a rule with no `flow` keyword is IP-only, evaluated on the first packet of each direction; a `flow` keyword without a state matches the established packets too. From the developer guide and Suricata's documentation; that a pass or drop on the first reply decides the flow as on a first packet (`aws:drop_established`) is FWShift's reading, not confirmed on a firewall | AWS Network Firewall parser and emitter |
+| Stateful: with `DEFAULT_ACTION_ORDER` (and `aws:drop_established`) a pass on a packet passes the rest of the flow, both directions; with `STRICT_ORDER` and `aws:drop_strict` it does not: every packet is decided on its own, so the replies and the established packets each need a rule that passes them. The first is in the developer guide (for action order); the second is FWShift's inference from the FWShift lab (0.41.7: pass rules with `flow:to_server` alone blocked every connection, all twenty that the lab policy allows), **not confirmed**: the third run (0.42.2) showed that none of the three runs had tested it, since the firewall received no packet during their probes (its endpoint did not forward yet); 0.42.3 waits for it and probes the converted rules without the reply rule. A rule matches packets in the direction of its header (so a rule without `flow:to_server` matches the first reply of a flow opened the other way); a rule with no `flow` keyword is IP-only, evaluated on the first packet of each direction; a `flow` keyword without a state matches the established packets too. From the developer guide and Suricata's documentation; that a pass or drop on the first reply decides the flow as on a first packet (`aws:drop_established`) is FWShift's reading, not confirmed on a firewall | AWS Network Firewall parser and emitter |
 | An application protocol (`tls`, `http`, ...) is identified once data flows over TCP, on the first packet over UDP. The guide says a TCP rule can match the handshake before the protocol is known; the UDP part is Suricata's behaviour, not confirmed | AWS Network Firewall parser |
 | `HOME_NET` defaults to the inspection VPC's CIDR; `EXTERNAL_NET` is the negation of the policy's `HOME_NET` unless the rule group sets it, also when the group sets its own `HOME_NET`. Confirmed by the developer guide (limitations and caveats) | AWS Network Firewall parser |
 | A 5-tuple rule is the Suricata rule `action proto src sport ->\|<> dst dport (options)` without added flow keywords (`ANY` direction is `<>`). Confirmed by the developer guide (Suricata examples). Domain lists generate a pass rule per name and a drop for the rest of TLS or HTTP from `$HOME_NET` to `$EXTERNAL_NET` with `flow:to_server, established`: the keywords are in the guide, the variables are not confirmed | AWS Network Firewall parser |
@@ -1065,6 +1092,67 @@ policy behaves unexpectedly.
 | A rule of the same id in Group Policy replaces the local one (New-NetFirewallRule: same name in merged stores, only one exists); which store wins not confirmed | parser |
 | `New-NetFirewallRule` parameters and values as written (Direction, Action, Enabled 'True'/'False', Profile 'Domain,Private', Protocol name or number, LocalPort/RemotePort only with TCP/UDP, IcmpType 't' or 't:c', addresses as single, CIDR, range, keywords with suffix 4/6 on the remote side only), `-WhatIf`, `-Group`, `-PolicyStore`. Confirmed by documentation; that `0.0.0.0-255.255.255.255` and `::-ffff:...` are taken as "all of one IP version", and the length limits of Name and the address lists, not confirmed | emitter |
 | A block rule drops without an answer (TCP reset not sent). Not confirmed (stealth mode) | emitter (`ACTION_DROP`) |
+| Kubernetes and Calico, all rows below: from the Kubernetes documentation (Network Policies concept page, its source in kubernetes/website, the NetworkPolicy API reference) and Calico's documentation (GlobalNetworkPolicy, NetworkPolicy, Tier, NetworkSet references, tiered policy guide); nothing was applied to a cluster | Kubernetes parser and emitters |
+| A pod is isolated for a direction once a policy of that type selects it; the rules of all such policies are a union of allows; a connection between pods needs the source's egress and the destination's ingress; replies are allowed; traffic between a pod and its node is always allowed; a pod cannot block itself. Confirmed by documentation | Kubernetes parser, NetworkPolicy emitter |
+| `policyTypes` left out is `Ingress`, plus `Egress` when the policy has egress rules (non-empty; the API reference says "contain an egress section", the concept page "any egress rules"; FWShift reads non-empty as the API server's defaulting does). Partly confirmed | Kubernetes parser |
+| A peer with both selectors is an AND, two peers an OR; `ipBlock` excludes `except`; ports default to TCP; `endPort` needs a numeric `port`; empty `from`/`to`/`ports` match everything (every protocol). Confirmed by the API reference | Kubernetes parser |
+| A named port is resolved against the container ports (name and protocol) of the destination pod; in an egress rule to an address that is no pod it matches nothing. The API says "named port on a pod"; the protocol match and the egress case are not confirmed | Kubernetes parser |
+| Whether `ipBlock` matches pod addresses is the plugin's matter (documentation: "should be cluster-external IPs"); FWShift reads it as matching every address in it (`K8S_IPBLOCK_PODS`). Not confirmed per plugin | Kubernetes parser, NetworkPolicy emitter |
+| A NetworkPolicy is only guaranteed to decide TCP, UDP and SCTP; ICMP and other protocols are plugin-defined. Confirmed by documentation; FWShift reads "no ports" as every protocol | Kubernetes parser and emitter |
+| Calico: tiers by `order` (none = 1,000,000, the default tier's), `defaultAction` Deny (default) or Pass when a tier applies but decides nothing; Pass skips the rest of the tier; after the last tier the endpoint's profile applies. Confirmed by documentation | Calico parser |
+| Calico: policies of a tier by `order`, a policy without order after the others, equal orders by name (with the namespace first); a Kubernetes NetworkPolicy is in the default tier with order 1000, named `knp.default.NAME`. Not confirmed by documentation (Felix's sorting and libcalico-go's conversion, from memory) | Calico parser |
+| Calico: the profile of a Kubernetes workload allows everything (Kubernetes conformance). Calico's tiered-policy page says "allow ingress from the same namespace" for Kubernetes workloads without policy, which contradicts that; not confirmed | Calico parser |
+| Calico `types` left out: Ingress if `ingress` is present or neither list is, Egress if `egress` is present (presence, even empty, as the documentation warns). Confirmed by documentation; `calicoctl get` normally shows it filled in | Calico parser |
+| Calico rule selectors: a namespaced policy's selector without `namespaceSelector` picks pods and network sets of its namespace, a global policy's those of every namespace plus global network sets and host endpoints; `namespaceSelector: global()` reaches global network sets and host endpoints; `notSelector` negates the endpoint match (alone it matches outside addresses too); a selector matches an address in any matched network set. Confirmed by documentation | Calico parser |
+| Calico pod labels for selectors: the pod's labels, `projectcalico.org/namespace`, `projectcalico.org/orchestrator=k8s`, `projectcalico.org/serviceaccount`, the namespace's labels as `pcns.KEY`; namespaces carry `projectcalico.org/name`. The `pcns.` prefix and `orchestrator` are from memory, not confirmed | Calico parser |
+| Calico: `doNotTrack`/`preDNAT` policies apply to host endpoints only; `nets`/`notNets` of one rule must be of one IP version; empty match lists do not restrict; ICMP type 0-254, code 0-255. Confirmed by documentation | Calico parser and emitter |
+| Calico output: one GlobalNetworkPolicy with the same first-match list as ingress and egress gives the model's verdict at each end; it applies only to endpoints labelled `fwshift/policy=NAME`; order 100 puts it before Kubernetes policies (order 1000, not confirmed). The format from the reference, not applied to a cluster | Calico emitter |
+| NetworkPolicy output: no `metadata.namespace` (kubectl applies it in `-n`); label values up to 63 characters, names DNS subdomains; ports 1-65535 (a range from 0 is written from 1). Confirmed by the Kubernetes documentation of names and labels and the API reference | NetworkPolicy emitter |
+| mGuard, all rows below: from Phoenix Contact's gaiconfig User Guides (mGuard 8.9/9.0, 107326_en_08; mGuard 10.4, 110193_en_05), the mGuard 8.7 and 10.4/10.5/10.6 firmware manuals (Network Security menu, Management menu, basics), the configuration example 108406 (connecting networks through the mGuard) and the mdm manuals; the syntax of the file beyond what the guides show from the public reader of GriffinPlus mguard-config-tool (MIT, Go). Nothing was run on an mGuard | mGuard parser and emitter |
+| Variable names and values: `FW_INCOMING.x.{EXT_IF,PROTO,FROM_IP,FROM_PORT,IN_IP,IN_PORT,TARGET_REF,COMMENT,LOG}`, `FW_OUTGOING`, the DMZ tables, `FW_*_GLOBAL` accept/drop/ping/rules, `FW_GROUP_IP.x.{NAME,ENTRY.y.IP}`, `FW_GROUP_PORT.x.{NAME,ENTRY.y.PORT}`, `FW_RULESETS.x.{FRIENDLY_NAME,SET_ACTIVE,CONTROL,TIMEOUT,SET.y.*}`, `FW_PORTFORWARDING.x.{PROTO,SRC_IP,SRC_PORT,IN_IP,IN_PORT,OUT_IP,OUT_PORT}` (`IN_IP` may be `%extern`), `FW_1TO1_NAT.x.{LOCAL_NET,REMOTE_NET,MASK,ENABLE_ARP}`, `FW_NAT.x.{EXT_IF,IN_IP}`, `NETWORKMODE`, `ROUTER_MODE`, interface variables. Confirmed by documentation (gaiconfig User Guides) | mGuard parser and emitter |
+| File syntax: `#version X.Y.Z.suffix` first, `//` comments, `NAME = "value"`, a table `NAME = { {row} ... }`, a row starting `{ rid = "ID" }`, a reference `{ rowref = "ID" }`, a value with attributes `{ value = "..." uuid = "..." }`; in strings only `\"` and `\\` are escapes. Not confirmed: Phoenix shows only the brace form of tables; the rest is from GriffinPlus mguard-config-tool's lexer | mGuard parser |
+| Each table is first match from the top ("queried starting from the top of the list of entries until an appropriate rule is found"); incoming = connections opened from outside (WAN -> LAN), outgoing = LAN -> WAN and VLAN to VLAN on the LAN side; the four DMZ directions on the FL MGUARD 4305. Confirmed by documentation (manual 8.7, 10.4) | mGuard parser and emitter |
+| Port forwarding is applied before the packet filter and skips it ("Any existing firewall rules that have been configured via Network Security >> Packet Filter are not taken into consideration"); TCP, UDP and GRE only; `%extern` is the first external address. Confirmed by documentation (108406) | mGuard parser (allow rule at the top), emitter (written only where the model allows all it forwards) |
+| With 1:1 NAT the incoming rules name the real (internal) address. Partly confirmed (108406 describes the rule for the real address); that rules for traffic from other zones are not translated is assumed | mGuard parser (`rewrite_destinations` for rules from the external side), emitter (`to_post_nat_lookup`) |
+| Ports in a rule apply to tcp and udp only; for other protocols they are ignored. Confirmed by documentation (manual: "From port / To port (TCP and UDP only)"; mdm manual) | mGuard parser and emitter |
+| A rule set entered by a rule: its rules first match in the rule's place; when none matches the next rule of the table decides; a disabled set (or inactive without control) has no influence. Not confirmed (the manuals do not say how an inactive set is evaluated) | mGuard parser |
+| Reject sends the packets back and informs the sender; read as reset-both. Confirmed by documentation (wording only; what is sent is not stated) | mGuard parser and emitter |
+| IPv4 only: no IPv6 variables in the gaiconfig guides 9.0 and 10.4. Confirmed by documentation (absence); that the mGuard forwards no IPv6 is not confirmed | mGuard parser and emitter |
+| Service names in port fields (the manual: "pop3 for 110"): FWShift's table has IANA names; which names the mGuard takes is not published. Not confirmed | mGuard parser |
+| gaiconfig: options may be chained in one call (`--goto T --add-row --set .F v ...`, the guide's example); `--add-row` appends; `--get-rowcount`, `--get`, `--set-refname VAR ROW`, `--silent` exist. Confirmed by documentation. That `--set-refname` finds an IP or port group by its `NAME`, that `--goto T.N.ENTRY --add-row` adds an entry to group N, that `any` is taken in a port field, and that a call without `--silent` reconfigures from everything the silent calls wrote: not confirmed | mGuard emitter |
+| `--get TABLE` prints the table as ATV, with `NAME = "..."` lines (the guide shows `--get` output for a table in that form). Partly confirmed | mGuard emitter (the check for names that are taken) |
+| SCALANCE, all rows below: from Siemens's *SCALANCE S615 Command Line Interface* configuration manual (06/2015, C79000-G8976-C406-02, read page by page on ManualsLib), the *SCALANCE SC-600 CLI* configuration manual (12/2017, its table of contents on cache.industry.siemens.com), the *SCALANCE SC-600 Web Based Management* manual (10/2021, C79000-G8976-C475-03, page by page on ManualsLib), the S615 Getting Started (06/2017) and a Siemens Italia note on the basic firewall configuration (S615, M800, SC-600). The current CLI manuals (S615 V8, SC-600 V3.2) are on cache.industry.siemens.com, but only their tables of contents could be read; nothing was loaded on a device | SCALANCE parser and emitter |
+| IP rules are processed in ascending priority: the SC-600 WBM manual says the precedence "defines the sequence in which the IP rules of the firewall are processed (ascending from 0 ... 999)". Confirmed by documentation. Not confirmed: that the first matching rule decides, that rules of equal priority keep the order in which they were created (their index), and that a rule written without `prior` has priority 0 | SCALANCE parser (sort), emitter (`prior`: one level per run of rules with the same action and logging, so the order within a level never decides a verdict) |
+| Traffic inside one VLAN is switched and does not pass the IP firewall. Not confirmed (inferred from the device being a router between VLAN interfaces) | SCALANCE parser (`default_intrazone` allow), emitter (`SCALANCE_INTRAZONE`) |
+| Destination NAT is done before the firewall, whose rules name the translated destination ("Translated Destination IP Subnet"); source NAT after it, on the original source. Confirmed by documentation (SC-600 WBM, NETMAP and source NAT pages). That NAPT behaves as NETMAP of the destination here is assumed | SCALANCE parser (`rewrite_destinations`), emitter (`to_post_nat_lookup`) |
+| Of each direction one NAT rule applies to a connection, in the order NAPT, NETMAP destination, NETMAP source, source NAT, masquerading. Not confirmed (the order among the NAT kinds is not documented) | SCALANCE parser (`combines`), emitter (`note_nat_order`, per-direction) |
+| CLI syntax: `ipv4rule from <if> [<n>] to <if> [<n>] srcip <ip> dstip <ip> action {drop\|acc\|rej} [service <name>] [log {no\|info\|war\|cri}] [prior <n>]`; `ipv4rule idx N set {action\|dstip\|from\|log\|prior\|service\|srcip\|to} ...`; `service name N proto {tcp\|udp} src {all\|port P\|range A - B} dst {...}`; `icmp name N type T code C ver ipv4`; `proto name N num P` (1-254, default 254); `masquerading <if> <n>`; `napt srcint <if> [<n>] proto {tcp\|udp} type ipv4 dstip {auto\|A} transip B dstport P [- Q] transport R [- S]`; `src-nat srcint .. dstint .. type ipv4 srcip .. dstip .. transip {auto\|A}`; `netmap destination srcint .. dstint .. type ipv4 srcip <subnet> dstip <subnet> transip <subnet>`. Confirmed by documentation (S615 CLI 2015; the SC-600 CLI of 2017 has the same command list). Not confirmed: `ipv6rule` and `icmp ... ver ipv6` (read and written as the IPv4 forms), `netmap source` (as the destination form), how `show running-config` prints rules of a newer firmware, the deleting form `no ipv4rule idx N`, the rule-set assignment `ipv4rule idx N set ruleset NAME`, the range `A-B` written as one word | SCALANCE parser and emitter |
+| Names of IP services, ICMP services and protocols: up to 32 characters (`string(32)`); the character set is not published (kept to letters, digits, `_`, `-`, `.`). Length confirmed by documentation | `names.SCALANCE`, emitter |
+| Limits: the S615 CLI of 2015 numbers rules 1 to 100 and takes priorities 0 to 64; the SC-600 WBM takes priorities 0 to 999. Confirmed by documentation for those versions; the limits of current firmware are not known | Emitter (`SCALANCE_RULE_COUNT`, `SCALANCE_PRIORITY_RANGE`, `SCALANCE_PRIORITY`) |
+| `rej` rejects with a message to the sender (which one is not said): read as a reset of the client; a reset is written as `rej`. Confirmed by documentation for the meaning, not the form | SCALANCE parser and emitter (`SCALANCE_REJECT`) |
+| HiSecOS, all rows below: from Belden's HM2-FW-MIB (revision 2020-05-26), HM2-NAT-MIB and HM2-NETOBJ-MIB (read in the Observium mirror), the table of contents and the first chapters of the CLI reference (RM CLI HiSecOS 07.0, 05.1 and 04.8), the GUI reference of the EAGLE40-4F 7.0 (Load/Save) and the HiSecOS GUI reference 3.0 (Packet Filter, page 132 on ManualsLib); the Format lines of the packet-filter and NAT commands could not be read, and nothing was loaded on a device | HiSecOS parser and emitter |
+| A rule of the packet filter is applied only where it is assigned to a routing interface for ingress, egress or both; the device applies the first matching rule; what no rule matches meets the default policy, accept by default; the filter is stateful. Confirmed by documentation (GUI reference 3.0, Packet Filter; hm2DefaultPolicy DEFVAL accept) | parser, emitter |
+| Assignments: an ingress and an egress assignment mean "arriving on the ingress AND leaving on the egress interface", a rule with one of them matches every interface of the other direction, `both` applies to packets coming in and going out; priorities ascending, no defined order for equal priorities. Confirmed by documentation (hm2L3IfmDirection, hm2L3IfmPriority) | parser (`_placements`), emitter |
+| One order by priority across all interfaces and directions; equal priorities in the order of the rule index; `both` as two placements (in on the interface, out on it). Not confirmed (the MIB does not say how assignments of different interfaces are ordered; `HISECOS_DIRECTION_ORDER`, `HISECOS_PRIORITY_TIE`). The emitter gives every rule an ingress assignment and its index as priority, so its output does not depend on this | parser, emitter |
+| Rule fields: source `any`, an address, CIDR, asset name, `$netobject`, `!` for the complement (source only); ports `any`, lists and ranges, at most 15 (a range counts two); protocols icmp, igmp, ipip, tcp, udp, esp, ah, icmpv6, any (or a name of the protocol table); parameters `type=`, `code=` (ICMP), `flags=` (TCP), `state=`, `mac=`, `frag=`; actions accept, drop, reject (ICMP), enforce-modbus/opc/iec104/ethernetip/dnp3; description up to 32 characters; index 1 to 2048. Confirmed by documentation (hm2L3RuleTable) | parser, emitter |
+| The CLI keywords of the fields and of assignments and NAT rules (`srcip`, `dstport`, `rule`, `direction`, `priority`, `newdstip`, `ingress-if`, ...), that `addrule` takes the index first, that `enablerule`/`disablerule` set the state, and that the script needs no `configure` line (Global Config commands, as `show running-config script` prints them). **Not confirmed** (the Format lines could not be read) | parser (`RULE_WORDS`, `_mapping`), emitter |
+| `show running-config script` without `all` leaves out default values, so a script without `defaultpolicy` has the default, accept. Partly confirmed (the `all` option exists, CLI reference 8.5.2; that defaults are left out is from napalm-hios, community); `HISECOS_DEFAULT_ASSUMED` | parser |
+| HiSecOS routes and filters IPv4 only: the CLI reference has a chapter for IPv4 and none for IPv6, and the MIB shows IPv4 forms only. Not confirmed as a statement | parser (scope IPv4), emitter |
+| HiSecOS is built on Linux netfilter (hm2ConnTrackValidateCheckSum: "connection tracking in the Linux kernel"); destination NAT and 1:1 NAT are done before the packet filter, whose rules name the translated address; masquerading after it. Not confirmed (the netfilter base is documented, the order is inferred) | parser (`lookup_after_dnat`), emitter (`to_post_nat_lookup`) |
+| NAT: DNAT matches source, source port, destination, destination port and protocol, translates to one address and one port or `any`, assigned for ingress only; masquerading matches source, source port and protocol (tcp, udp, any), assigned for egress only, with `ipsec-exempt`; 1:1 NAT maps a target network to a new one, with an ingress and an egress interface and a priority; double NAT has local and remote internal and external addresses. Confirmed by documentation (HM2-NAT-MIB) | parser, emitter |
+| 1:1 NAT translates both directions (the new target addresses leave as the target addresses); double NAT translates both ways (two rules); the NAT functions apply in the order 1:1, double NAT, DNAT, masquerading. Not confirmed (`HISECOS_1TO1`, `HISECOS_DOUBLE_NAT`, `HISECOS_NAT_ORDER`) | parser |
+| VLAN routing interfaces are named `vlan/N` and created with `routing add N` in `vlan database`; ports are `slot/port`. Partly confirmed (`routing add` in the CLI reference's contents, hm2AgentSwitchIpVlanIfIndex in the MIB; the name `vlan/N` from HiOS usage, not confirmed) | parser, emitter |
+| A script is loaded with *Load running-config from script* ("applies script files additionally to the current settings") or `script validate` / `script apply`; nothing applies to the packet filter or NAT until `commit` ("until committed, the rule will not be applied"). Confirmed by documentation (GUI reference 7.0, 1.4; CLI reference 42.1; hm2L3RowStatus) | emitter, manual section 10 |
+| Moxa, all rows below: from Moxa's *Industrial Secure Router CLI Command Set* manuals (1.0, June 2014, read in full as far as the fetch tool went; 3.0, August 2023, chapter 1 only), the EDR-G902/G903 user's manual (2nd ed., Moxa's, hosted by a distributor), the Industrial Secure Router and TN-4900 user manuals (the parts that could be read), the EDR-G9010 user manual 2.0 (through ManualsLib) and the release notes of the EDR-810 and EDR-G9010; nothing was run on a router | Moxa parser and emitter |
+| The exported configuration file of the classic firmware (EDR-810 from 3.4) is CLI text, the commands `show running-config` prints, headed `! ---------- MODEL ----------` (release notes 3.4, CLI manual 1.0 and 3.0). **Confirmed by documentation**; that sub-commands of a block are indented and end with `exit` in the file is **not confirmed** (the reader takes both forms) | Moxa parser |
+| Layer 3 policy: first match from index 1 ("It starts by checking the packet with the first policy (Index=1)"), up to 256 policies on an EDR-G903 (user's manual) and 1024 on an EDR-G9010; `firewall N` with `action accept|drop`, `mode IP|MAC`, `protocol all|tcp|udp|icmp`, `src-ip`/`dst-ip` `all|single A|range A B`, `src-port`/`dst-port` `all|single P|range P Q`, `src-mac`, `interface {all,lan,wan1,wan2} {all,lan,wan1,wan2}` (from, to); defaults accept, IP, all; `firewall N enable|disable`, `no firewall N`. **Confirmed by documentation** (CLI manual 1.0, user's manuals); which interface word is from and which to is read from the web console's "Interface From/To" | Moxa parser and emitter |
+| Port forwarding and 1-to-1 NAT happen before the Layer 3 policy, whose policies name the inside address; N-to-1 NAT after it. **Not confirmed**: Moxa does not say; assumed from the router being Linux-based (iptables order) | Moxa parser (`MOXA_NAT_ORDER`), emitter |
+| NAT: `ip nat static inside lan A outside wan N B [index]` (1-to-1, both ways), `ip nat dynamic inside lan A B outside wan N|auto [index]` (N-to-1, the address of the WAN interface with ports), `ip nat static all|tcp|udp inside lan A P outside wan N Q [index]` (port forward); "The new rule is appended to the last rule if the index field of command is not set"; NAT first match by index. **Confirmed by documentation** (CLI manual 1.0, EDR-G9010 manual); that the index inserts at that position, and that `all` is TCP and UDP, are **assumed** | Moxa parser and emitter |
+| The Layer 2 policy filters bridged traffic and "has a higher priority than L3 policies" (EDR-G9010 manual; Elmark's guide says the same for the EDR-810). **Confirmed by documentation**; not converted | Moxa parser (`MOXA_L2_POLICY`) |
+| Policies are IPv4 (the CLI takes IPv4 addresses only). **Confirmed by documentation** as far as the syntax goes; whether the router forwards IPv6 at all is not known | Moxa parser and emitter |
+| Emitter, assumed: `configure` enters global configuration mode (the CLI manual shows the prompt `router(config)#`, not the command); `!` lines are comments in pasted commands; a sub-command takes effect when it is entered (hence `src-ip single 0.0.0.0` first and the real source last); `firewall N` enters an existing policy N and changes it; `firewall N disable` after the block switches it off. **Not confirmed** | Moxa emitter, `MOXA_LOAD` |
+| Logging of a policy: the CLI manual 1.0 shows none; `log`, `log enable`, `log disable`, `no log` are read where found (assumed). MX-ROS policies have Log, Severity, Log Destination (EDR-G9010 manual) | Moxa parser (`MOXA_LOG_WORDS`), emitter (`MOXA_LOG_NOT_WRITTEN`) |
+| MX-ROS (not read): object-based Layer 3-7 policy since 2.0 (release notes); fields Enforcement, Index (max 1024), Name (32), Description (128), Log, Severity, Log Destination, Incoming/Outgoing Interface (Any, WAN, LAN), Action (Allow, Deny), Filter Mode (IP and Port Filtering, IP and Source MAC Binding, Source MAC Filtering), Source/Destination IP and Port (Any or an object); first match from index 1; NAT 1-to-1, N-to-1, PAT and Advance, Priority 1 to 128, first match, up to 512 rules (EDR-G9010 manual 2.0). **Confirmed by documentation**; the command syntax is **not known** | (refusal in the Moxa parser) |
 
 ## Development log
 
@@ -2374,6 +2462,161 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-11-02: version 0.43.0
+
+**Six platforms, both ways: Kubernetes NetworkPolicy, Calico, Phoenix Contact mGuard, Siemens SCALANCE, Hirschmann
+HiSecOS (EAGLE40) and Moxa** (the third wave of the platforms list: one cloud-native, four industrial). Each was built
+in a copy of 0.42.3 of its own, from the vendor's documentation, and merged; none was loaded on a device or a cluster.
+
+**Built**
+
+* **Kubernetes NetworkPolicy and Calico** (`kubernetes`, `calico`). `parsers/kubernetes.py` reads the JSON of `kubectl`
+  and `calicoctl` (Lists, single objects, documents one after the other): pods (addresses, labels, named ports, node),
+  namespaces, NetworkPolicies, and for Calico tiers, policies, global policies, network sets and host endpoints. The
+  selectors of Kubernetes and Calico's selector language are worked out on the pods, so the model is a snapshot
+  (`K8S_SNAPSHOT`). Isolation per direction, the union of allows, Calico's tiers, orders, Allow, Deny, Pass, Log and
+  the end of a tier become one first-match list, with both ends of a connection composed. YAML is not read (a partial
+  reader could misread a selector; `kubectl create --dry-run=client -o json` converts a file). `emitters/calico.py`
+  writes one GlobalNetworkPolicy in order, exactly, for the pods labelled `fwshift/policy=NAME`;
+  `emitters/kubernetes.py` NetworkPolicies cut by address as the AWS target cuts security groups (deny rules
+  subtracted, `ipBlock` with `except`), each for the pods labelled `fwshift/group=GROUP`. Not read back.
+* **Phoenix Contact mGuard** (`mguard`). `parsers/mguard.py` reads a configuration profile (`.atv`, or `gaiconfig
+  --get-all`): the packet filter tables (incoming, outgoing, the DMZ tables) as one first-match list over the zones
+  internal, external, external2 and dmz, IP and port groups, rule sets in place of the rule that enters them, port
+  forwarding (which skips the packet filter) as destination NAT and an allow rule at the top, 1:1 NAT and IP
+  masquerading. `emitters/mguard.py` writes a shell script of `gaiconfig` calls that appends groups and rows and stops
+  before writing when a table already has rows (`FWSHIFT_APPEND=yes` adds after them). The syntax of the profile file
+  beyond the variable names is not published by Phoenix Contact: it was taken from the reader of a public tool, as
+  knowledge of the format (no code of it is in FWShift), and is marked assumed.
+* **Siemens SCALANCE SC-600 and S615** (`scalance`). `parsers/scalance.py` reads the CLI configuration: VLAN
+  interfaces as zones, IP, ICMP and protocol services, `ipv4rule`/`ipv6rule` by ascending priority, NAPT, NETMAP,
+  source NAT and masquerading (destination NAT before the firewall). `emitters/scalance.py` writes CLI commands for the
+  FIREWALL and FIREWALL NAT modes: a rule per pair of interfaces, address and service, priorities from
+  `--policy-id-start`, a new level only where action or logging changes (so the undocumented order of equal priorities
+  never decides), then the source's default for every pair of zones. The syntax comes from the 2015 and 2017 CLI
+  manuals; the current ones could not be read past their contents.
+* **Hirschmann HiSecOS** (`hisecos`; EAGLE40, EAGLE20/30, routed mode). `parsers/hisecos.py` replays the CLI script:
+  routing interfaces as zones, the packet filter as one first-match list by the priority of the rules' interface
+  assignments (an ingress and an egress assignment as a pair of zones), DNAT, masquerading, 1:1 and double NAT.
+  `emitters/hisecos.py` writes a script that adds rules from index 1001 with an ingress assignment each and its index
+  as priority, the default as closing rules, and NAT; nothing deleted or committed. The command names are from the CLI
+  reference's command list and the fields from Belden's MIBs; the keywords could not be checked against the
+  reference's Format lines: the manual says to run `script validate` first.
+* **Moxa industrial secure routers** (`moxa`; EDR-810, EDR-G902/G903, TN-4900 with the classic firmware). `parsers/moxa.py`
+  reads the CLI-based configuration file: the Layer 3 policy (`firewall N`, first match by index), the interfaces lan,
+  wan1 and wan2 as zones, NAT (port forwarding, 1-to-1, N-to-1, before the policy). `emitters/moxa.py` writes console
+  commands, each policy entered matching nothing and given its source last. MX-ROS (EDR-G9010, EDR-G9004, EDR-8010) is
+  refused: its commands could not be read in Moxa's documentation.
+* Tests: each platform has a judge of its own written from the documentation and a strict reader of its output, with
+  random configurations against the parser, random models against the output and round trips
+  (`test_kubernetes.py` 100 tests, `test_mguard.py` 110, `test_scalance.py` 86, `test_hisecos.py` 71, `test_moxa.py`
+  111). Goldens: each sample to every target, every sample to each new target, and the conversions between the six.
+* The merge: as for 0.42.0; the manual's shared rows (the introduction, the `FORMAT` list, `--from` detection,
+  `--to hisecos`, `--target-prefix`, `--compare`, the list of output not loaded on a device) completed by hand.
+  The mGuard agent cloned the public tool it read (the brief forbids git); it read the code, did not run it, deleted
+  it, and nothing of it is in the project.
+
+**Open on devices** (the assumptions marked not confirmed above): Kubernetes, the order of policies of equal order in
+Calico and how Calico places a Kubernetes policy; mGuard, a table without a matching row dropping and the gaiconfig
+group references; SCALANCE, first match and equal priorities; HiSecOS, every command keyword; Moxa, the default of the
+classic firmware and NAT before the policy.
+
+**Verified**
+
+* The suite: 9,669 tests passed (6 skipped: SCALANCE models with a rule the CLI cannot say, as reported) on Python 3.9 and on 3.13 (where only the version test, run before the version was raised, differed); mypy on both and pyflakes clean.
+
+### 2026-11-01: version 0.42.3
+
+**AWS Network Firewall: the probes ran before the firewall forwarded.** The third run (`fwlab2611010404148a`, tier 1,
+us-east-1, 0.42.2) failed as the others did (FAIL 20), and its `diagnose.txt` says why: the routes to the endpoint were
+active, and the firewall's counters held **0 packets received** for the probes, which started as soon as it was READY
+and IN_SYNC; minutes later the control (one rule that passes everything) passed all six of its flows, TCP, UDP and
+ICMP, and the counters held their 40 packets (40 received and 40 passed by the stateful engine). So none of the three
+runs reached the firewall with the lab's traffic: READY and IN_SYNC come before the endpoint takes traffic. The
+diagnosis of 0.41.8 (the replies dropped under `aws:drop_strict`) was made on a run that showed nothing about the rules,
+and is not confirmed; the reply rule FWShift writes since then passes no more than the replies of what the rules
+allow, and stays until the lab says whether it is needed.
+
+**Built**
+
+* `lab/awsnfw.py`: after READY and IN_SYNC the run waits until the firewall forwards (`warm_up`, `warmup.txt`): the six
+  CONTROL flows, which the lab policy allows, probed every minute until one passes (at most 15 minutes, then the probes
+  go on and `diagnose.txt` says more).
+* The diagnosis now also probes the six flows with the converted rules **without** the rule for the replies (always, a
+  run that passed too): all six through means a pass rule for the first packet passes the whole connection under
+  strict order and `aws:drop_strict`, and the reply rule and FWShift's per-packet reading of such policies (the parser's
+  `strict-replies-dropped`) are not needed; none through confirms them. The control with everything passed stays for
+  a run that failed.
+* The manual and the vendor behaviour say what the runs did and did not show.
+
+**Verified**
+
+* The tests of the lab and those that read the documents and the version (3,194); pyflakes. The converter is as in 0.42.0, whose suite passed in full.
+
+### 2026-11-01: version 0.42.2
+
+**AWS Network Firewall: the second lab run failed as the first did.** `fwlab261101030705d6` (tier 1, us-east-1, 0.42.1):
+the firewall READY and IN_SYNC, the rule group as written, with `pass ip any any -> any any (msg:"fwshift-replies";
+flow:to_client)` first, and the read-back without a difference; FAIL 20 again, every connection the lab policy allows
+blocked, ICMP and UDP as well as TCP (differs-announced 1, local 32, ok 107, FAILED). So the reading of 0.41.8, that
+`aws:drop_strict` drops the replies a `flow:to_server` pass does not cover, was not the cause, or not the only one:
+with the replies passed, nothing got through either. Nothing in the run says whether the firewall saw the packets at all
+(the routes more specific than the VPC's own, between subnets of one VPC through one endpoint, have never been seen
+working in the lab).
+
+**Built**
+
+* `lab/awsnfw.py`: after the probes the run keeps what the firewall saw (`diagnose.txt`): the route tables of the VPC
+  with each route's state (`blackhole` where the endpoint is not taken), the firewall's own counters from CloudWatch
+  (ReceivedPackets, PassedPackets, DroppedPackets per engine, summed over the run), and, after a run that failed, a
+  control: the rule group replaced by one rule that passes everything (`pass ip any any <> any any`), and six of the
+  allowed flows (TCP, UDP, ICMP) probed again (`control/`). Passed: the firewall forwards, and the converted rules (or
+  how FWShift reads strict order) blocked them; blocked: the routes or the endpoint, not the rules.
+* The per-packet reading of `aws:drop_strict` stays in the emitter (its reply rule passes no more than the replies of
+  what the rules allow) and in the parser, marked an inference in the manual and in the vendor behaviour above.
+* Tests: the diagnosis of a failed run and of a passed one (no control).
+
+**Verified**
+
+* The tests of the lab and those that read the documents and the version (3,194); pyflakes. The converter is as in 0.42.0, whose suite passed in full.
+
+### 2026-11-01: version 0.42.1
+
+**WatchGuard Firebox Cloud in the lab, tier 3; scripted, never run.** `python3 lab/lab.py run tier3 watchguard`. Its
+output is the policy part of a Policy Manager configuration, which until now had no way onto a Firebox but Policy
+Manager, a Windows program; the Fireware CLI can export and import the whole configuration file, so the lab does the
+merge the manual describes.
+
+**Built**
+
+* `lab/watchguard.py`: after the setup wizard of the Web UI (by hand: the licence agreement and new passphrases, which
+  nothing documented takes without a browser; the lab says what to do and waits for Enter, or for the file
+  `wizard-done` without a terminal), the CLI (SSH on 4118, `admin`, the run's key) runs `export config to tftp://...`;
+  the lab reads the interfaces the Firebox gives eth1 to eth3 from that file (the interface whose entry holds the
+  device name), merges FWShift's lists into it (an entry of the same name replaced; the Firebox's own policies out
+  except those to the Firebox itself, so that its Outgoing and Ping policies decide no lab traffic; manual order) with
+  the output's zones renamed to those interfaces, and the CLI runs `import config from tftp://...`. The read-back
+  exports again and compares with the lab's zones mapped to the Firebox's names.
+* `lab/tftpd.py`: a TFTP server (RFC 1350, standard library), run as root on in10 while the Firebox writes or reads,
+  one folder, plain file names; the Firebox reaches it on its own subnet (eth1).
+* `lab/tier3.py`: the vendor (c5.xlarge for four cards; eth0 external and management; the Web UI and CLI ports open
+  to the admin address), a step by hand before the CLI is waited for (`first_step`), the read-back through the lab's
+  export. `labrun.ssh_prefix` takes a port given as `Port=N` (ssh takes the first value it gets, and `-p 22` came
+  first).
+* Tests: the merge on a configuration written for the test (interfaces found by device, zones renamed, policies taken
+  out and kept, manual order, read by FWShift), the TFTP server's round trip with a client of the test's own, the dry
+  run.
+
+What is not known before the first run: whether the CLI works before the setup wizard, the element that holds an
+interface's device name, whether Firebox Cloud lists eth2 and eth3 in its configuration by itself, whether it takes a
+configuration whose policies hold only the elements FWShift writes (WATCHGUARD_LOAD has never been checked), whether
+`import config` asks or restarts, and what a static NAT action needs of the outside interface (the published address
+is a secondary address of the card in AWS, which the Firebox does not configure).
+
+**Verified**
+
+* The tests of the lab (130) and those that read the documents and the version (3,063); pyflakes. The converter is as in 0.42.0, whose suite passed in full.
 
 ### 2026-10-30: version 0.42.0
 

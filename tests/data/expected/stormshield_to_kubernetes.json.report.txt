@@ -1,0 +1,61 @@
+FWShift conversion report
+  source: stormshield
+  target: kubernetes
+
+Summary
+  Security rules:     18   exact 4, approximated 0, needs review 12 (8 emitted disabled), skipped 2
+  Addresses:          22   exact 22, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  [needs-review] STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  [needs-review] STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  [needs-review] STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+  [needs-review] K8S_LOAD: the output is a List of NetworkPolicies for kubectl apply -n NAMESPACE -f FILE (kubectl apply --dry-run=server checks it first). It names no namespace: apply it in the namespace of the pods it is for, and in each such namespace. Policies of the same name are replaced; nothing else is changed. A policy selects the pods labelled fwshift/group=<its group>, and no pod has that label yet: nothing changes until pods are labelled
+  [needs-review] K8S_LABEL_PODS: 5 groups: label each pod with fwshift/group=<group> of the policy whose fwshift/addresses annotation holds the pod's address (kubectl label pod POD ...). A pod's address changes when it is created again: label the pods through their Deployment or StatefulSet template, where every address the template's pods get must be in that group. A pod with addresses of both IP versions needs a group that holds both
+  [needs-review] K8S_IPBLOCK_PODS: the peers are written as ipBlock. Whether an ipBlock matches the addresses of pods depends on the network plugin (the Kubernetes documentation says ipBlock is meant for addresses outside the cluster); where it does not, rules between pods allow nothing
+  [info] STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  [info] STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+  [info] K8S_PLATFORM_ALLOWS: a NetworkPolicy always allows traffic between a pod and the node it runs on, and a pod to itself; and it is only guaranteed to decide TCP, UDP and SCTP (for ICMP and other protocols the network plugin decides)
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a NetworkPolicy does not (some network plugins can log on their own)
+
+Security rules
+  local 1  ->  needs-review, emitted disabled
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone in, and a NetworkPolicy names no zone: give the networks behind in with --zone-network.
+  local 2  ->  needs-review
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [needs-review] K8S_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a NetworkPolicy (ICMP or another protocol on its own, every protocol but some, a range of source ports) and is not written; the converted rule allows less
+  local 4  ->  needs-review  (emitted as NetworkPolicies fwshift-addresses, fwshift-network-internals)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (inspection=ips); attach equivalent inspection on the target
+      [info] DENY_SUBTRACTED: a NetworkPolicy cannot block: the rule is written without what the blocking rules above it match
+  local 5  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone in, and a NetworkPolicy names no zone: give the networks behind in with --zone-network.
+  local 6  ->  needs-review  (emitted as taken out of the rules below it)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 8  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone out, and a NetworkPolicy names no zone: give the networks behind out with --zone-network.
+  local 9  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone out, and a NetworkPolicy names no zone: give the networks behind out with --zone-network.
+  local 10  ->  needs-review, emitted disabled
+      [needs-review] STORMSHIELD_BRIDGE: names a bridge or a port of one: read as that interface only; whether the firewall matches the bridge for its ports, or the reverse, is not documented
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lab, and a NetworkPolicy names no zone: give the networks behind lab with --zone-network.
+  local 11  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match staff@corp.example is not converted.
+  local 12  ->  needs-review
+      [info] DENY_SUBTRACTED: a NetworkPolicy cannot block: the rule is written without what the blocking rules above it match
+      [needs-review] K8S_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a NetworkPolicy (ICMP or another protocol on its own, every protocol but some, a range of source ports) and is not written; the converted rule allows less
+  local 13  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: a NetworkPolicy names addresses.
+  local 15  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application protocol=http); attach equivalent inspection on the target
+      [needs-review] FQDN_NOT_SUPPORTED: host name object www.example.org: a NetworkPolicy names addresses.
+  global 2  ->  skipped
+      [info] STORMSHIELD_DELEG: deleg of everything: the rest goes to the local policy
+  local 7  ->  skipped
+      [info] STORMSHIELD_NON_TERMINAL: action decrypt: the firewall goes on to the next rule; nothing is decided here

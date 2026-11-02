@@ -1,0 +1,33 @@
+FWShift conversion report
+  source: moxa
+  target: fmc
+
+Summary
+  Security rules:     10   exact 8, approximated 0, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MOXA_DEFAULT_ACCEPT: what no policy matches is read as passing: the configuration names no default action, and FWShift found none for the classic firmware in Moxa's documentation (not confirmed on a device). If the router drops it, add a policy at the end of the converted policy that drops everything
+  [needs-review] MOXA_NAT_ORDER: port forwarding and 1-to-1 NAT are read as done before the Layer 3 policy, whose policies name the inside address (as iptables does it on Linux; Moxa's documentation does not say, not confirmed): the policies were rewritten for the address as it arrives. N-to-1 NAT is done after it
+  [needs-review] MOXA_DPI: the Modbus filter (DPI) checks Modbus TCP traffic beyond addresses and ports; not converted: modbus-filter 1
+  [needs-review] MOXA_L2_POLICY: the Layer 2 policy filters bridged traffic before the Layer 3 policy; not converted: l2-filter 1 enable
+  [needs-review] FMC_LOAD: the output is a Python script that loads the policy into a Management Center through its REST API. It creates the objects, a new access control policy 'FWShift' and, when there are NAT rules, a NAT policy of the same name, and assigns them to no device: nothing is in force until the policies are assigned and deployed. It changes nothing that exists, and stops before it creates anything when a name is taken. Run it with --show and with --dry-run first. The new access control policy uses the default prefilter policy and no intrusion or file policies. The script was written from Cisco's API documentation and has not been run against a Management Center: use it first where a mistake costs nothing
+  [needs-review] ZONES_REQUIRED: the rules name these security zones (rename them with --zone-map): wan1, wan2, lan. A zone that exists on the Management Center is used as it is; one that does not is created empty, and matches no traffic until the interfaces of the devices are put in it
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside a zone unless a rule denies it; a Cisco Secure Firewall asks its access rules about traffic between the interfaces of a zone as about any other. Check zones with several interfaces
+  [needs-review] INTERZONE_DEFAULT: the source allows traffic between zones that no rule matches; the new access control policy blocks it by default. Add a final rule that allows it if that was intended
+  [info] MOXA_SOURCE: EDR-810-VPN-2GSFP: 10 policies of the Layer 3 policy, first match by index; zones are the interfaces lan, wan1 and wan2. IPv4 only
+  [info] MOXA_TRUSTED_ACCESS: trusted access, which limits who reaches the router itself; not converted: lan 192.168.127.0 255.255.255.0 enable
+  [info] MOXA_DOS: DoS defence settings; not converted: syn-flood 300, null-scan
+
+Security rules
+  firewall 7  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: source MAC address 00:90:e8:00:00:01, which the model cannot match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: mode MAC: the policy filters by source MAC address, which the model cannot match.
+  firewall 8  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'session-limit 50' is not converted.
+
+NAT rules
+  ip nat 4  ->  exact  (emitted as 2 NAT rules)
+      [info] MOXA_NAT_AUTO: outside wan auto: the address of whichever WAN interface the traffic leaves by

@@ -1,0 +1,244 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "SSH for the partner - pass (not written, see the report); Ping from the inside (not written, see the report); DNS from the firewall (not written, see the report); NAT Web server HTTPS (not written, see the report); NAT Application ports (not written, see the report); Mail in (not written, see the report); Web server over IPv6 (not written, see the report); Ping and errors to the firewall (not written, see the report); Administrators to the servers (not written, see the report); Users to the web servers (not written, see the report); Users to the web server by its outside address (not written, see the report); Default allow LAN to any rule (not written, see the report); Default allow LAN IPv6 to any rule (not written, see the report); Servers fetch their updates (not written, see the report); Mail out, not to the inside (not written, see the report); Syslog to the collector (not written, see the report); Nothing from the list (not written, see the report); Tunnel of the old application (disabled in the source); Guests browse (not written, see the report); Phones of the guests (not written, see the report)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "203.0.113.128/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Nothing leaves towards the sinkhole"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.0.0.0/8",
+            "127.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block private networks from WAN"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "source": {
+          "nets": [
+            "fc00::/7"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block private networks from WAN"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "192.168.10.0/24"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "No other private network from the LAN"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "192.168.30.0/24"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Guests reach nothing private"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            23
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Telnet unless a rule says otherwise"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "203.0.113.128/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Nothing leaves towards the sinkhole"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.0.0.0/8",
+            "127.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block private networks from WAN"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "source": {
+          "nets": [
+            "fc00::/7"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block private networks from WAN"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "192.168.10.0/24"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "No other private network from the LAN"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "192.168.30.0/24"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Guests reach nothing private"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            23
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Telnet unless a rule says otherwise"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,185 @@
+FWShift conversion report
+  source: ios
+  target: hisecos
+
+Summary
+  Security rules:    204   exact 130, approximated 8, needs review 23 (20 emitted disabled), skipped 43
+  NAT rules:           3   exact 1, approximated 0, needs review 0, skipped 2
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] HISECOS_LOAD: the output is a CLI script of HiSecOS (section 10): commands of the Global Config mode that add rules 1001 to 1572 of the packet filter (they must be free) with their interface assignments, and NAT rules, and that delete nothing. The keywords are FWShift's reading of Belden's MIBs and command list, not confirmed on a device: check the script with 'script validate' first. Nothing applies until you commit: read 'show packet-filter l3 pending', then 'packet-filter l3 commit' (and 'nat dnat commit', 'nat masq commit', 'nat 1to1nat commit'). Rules of the device with lower priorities on the same interfaces come first, and its default policy is not changed. To take the rules away again: 'packet-filter l3 delif' for each assignment, then 'packet-filter l3 delrule N' for N from 1001 to 1572
+  [needs-review] INTERFACES_REQUIRED: zones are written as the routing interfaces of the device (1/1, vlan/10): these names are not such interfaces, and the device refuses the assignments that name them. Map the zones with --zone-map, or their interfaces with --interface-map: GigabitEthernet0/0/0, GigabitEthernet0/0/1, GigabitEthernet0/0/2, GigabitEthernet0/0/3, GigabitEthernet0
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] HISECOS_IPV4_ONLY: HiSecOS filters IPv4: the IPv6 addresses and ICMPv6 of these rules are not written: WAN6-IN-10 (OUTSIDE to OUTSIDE), WAN6-IN-20 (OUTSIDE to OUTSIDE), WAN6-IN-30 (OUTSIDE to OUTSIDE), WAN6-IN-40 (OUTSIDE to OUTSIDE), WAN6-IN-50 (OUTSIDE to OUTSIDE), WAN6-IN implicit deny (OUTSIDE to OUTSIDE), WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE), WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE), WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE), WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE), WAN6-IN-50 (OUTSIDE to INSIDE), WAN6-IN implicit deny (OUTSIDE to INSIDE) ...
+  [info] HISECOS_NAT_WRITTEN: destination NAT and 1:1 NAT are done before the packet filter (assumed, as on netfilter): the rules were written for the translated address
+
+Security rules
+  WAN-IN-60 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as rule 1005)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-110 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as rule 1012 (a placeholder, disabled))
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any.
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as rule 1014)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN6-IN-10 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-20 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-30 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-40 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-50 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN implicit deny (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as rule 1021)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as rule 1124 (a placeholder, disabled))
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as rule 1125 (a placeholder, disabled))
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as rule 1159)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review  (emitted as rules 1160-1191)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as rule 1192 (a placeholder, disabled))
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177', which translates only some of the services of this rule: for the others the rule now names '10.20.0.25', sent there directly, and no longer '203.0.113.2'
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-177' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] HISECOS_NEGATED_SERVICE: a negated service: a rule of HiSecOS cannot negate its protocol or ports. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-3  ->  approximated  (emitted as rule 1193)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-50 (OUTSIDE to INSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN implicit deny (OUTSIDE to INSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN-IN-60 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  approximated  (emitted as rule 1199)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as rule 1304 (a placeholder, disabled))
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as rule 1305 (a placeholder, disabled))
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as rule 1339)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review  (emitted as rule 1345)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)-2  ->  approximated  (emitted as rule 1346)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review  (emitted as rules 1395-1426)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as rule 1427 (a placeholder, disabled))
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177', which translates only some of the services of this rule: for the others the rule now names '10.20.0.25', sent there directly, and no longer '203.0.113.2'
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-177' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] HISECOS_NEGATED_SERVICE: a negated service: a rule of HiSecOS cannot negate its protocol or ports. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-3  ->  approximated  (emitted as rule 1428)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN6-IN-10 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-20 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-30 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-40 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-50 (OUTSIDE to DMZ)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN implicit deny (OUTSIDE to DMZ)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as rule 1434)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as rule 1441 (a placeholder, disabled))
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as rule 1443)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-50 (OUTSIDE to LAB)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN implicit deny (OUTSIDE to LAB)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as rule 1450)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as rule 1457 (a placeholder, disabled))
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as rule 1459)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN-50 (OUTSIDE to MGMT)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  WAN6-IN implicit deny (OUTSIDE to MGMT)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as rule 1467 (a placeholder, disabled))
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)-2  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  DMZ (in): no access list + no outbound access list (DMZ to DMZ)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as rule 1518)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)-2  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT class-default (LAB to OUTSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as rule 1524)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as rule 1538)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to DMZ (LAB to DMZ)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as rule 1544)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAB (in): no access list (LAB to LAB)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as rule 1550)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+
+NAT rules
+  nat-176  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: 1:1 NAT of HiSecOS needs one network on each side and the zone of each side
+  nat-178  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: the source is not one IPv4 address or network

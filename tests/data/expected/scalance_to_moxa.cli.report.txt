@@ -1,0 +1,84 @@
+FWShift conversion report
+  source: scalance
+  target: moxa
+
+Summary
+  Security rules:     17   exact 0, approximated 0, needs review 16 (16 emitted disabled), skipped 1
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] SCALANCE_RULESET: rule sets (user or digital-input firewall): rules assigned to one apply only while it is active and are not converted; check which rules belong to a set: ruleset name maintenance
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [needs-review] MOXA_ZONES: zones that are not interfaces of the router (lan, wan1, wan2); their rules are written disabled: give --zone-map ZONE=lan|wan1|wan2 for vlan1, vlan2, vlan3, ipsecALL
+  [info] SCALANCE_SOURCE: 4 interfaces as zones (vlan1, vlan2, vlan3, ipsecALL); 16 IP rules, in ascending priority (prior), equal priorities in the order they were created; the IPv4 rules, then the IPv6 rules. Rules of the firewall itself (device) and the predefined rules are not converted
+  [info] SCALANCE_DEFAULTS: what no rule matches between interfaces is dropped; traffic inside one VLAN does not pass the IP firewall
+  [info] SCALANCE_NAT_ORDER: destination NAT (NAPT, NETMAP of the destination) is done before the firewall, whose rules name the translated address: the rules were rewritten for the address as it arrives. Source NAT, NETMAP of the source and masquerading are done after it. Read in the order NAPT, NETMAP destination, NETMAP source, source NAT, masquerading, one rule of each direction per connection (assumed)
+  [info] SCALANCE_PRERULE: predefined rules (access to services of the firewall itself) are not converted; those the configuration does not list are at their factory setting: ssh ipv4 int vlan 1 enabled, https ipv4 int vlan 2 disabled
+  [info] SCALANCE_NETMAP_DSTINT: the destination interface of a NETMAP rule of the destination is not a condition of the converted rule: netmap destination 1: vlan3
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  ipv4rule 4  ->  needs-review, emitted disabled  (emitted as firewall 1)
+      [needs-review] MOXA_ZONE: zones vlan1, vlan2: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  ipv4rule 2  ->  needs-review, emitted disabled  (emitted as firewall 2)
+      [needs-review] MOXA_ZONE: zones vlan2, vlan1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv4rule 1  ->  needs-review, emitted disabled  (emitted as firewall 3)
+      [needs-review] MOXA_ZONE: zones vlan2, vlan1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  ipv4rule 3  ->  needs-review, emitted disabled  (emitted as firewall 4)
+      [needs-review] MOXA_ZONE: zones vlan2, vlan1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  ipv4rule 5  ->  needs-review, emitted disabled  (emitted as firewall 5)
+      [needs-review] MOXA_ZONE: zones vlan1, vlan2: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  ipv4rule 6  ->  needs-review, emitted disabled  (emitted as firewall 6)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.2' next to '192.168.30.10' because of NAT rule 'napt 1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'napt 1' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] MOXA_ZONE: zones vlan2, vlan3: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  ipv4rule 7  ->  needs-review, emitted disabled  (emitted as firewall 7)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.64/30' next to '192.168.30.64/30' because of NAT rule 'netmap destination 1'; check that this rule is meant to cover the translated traffic
+      [needs-review] MOXA_ZONE: zones vlan2, vlan3: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  ipv4rule 8  ->  needs-review, emitted disabled  (emitted as firewall 8)
+      [needs-review] MOXA_ZONE: zones vlan3, vlan1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [approximated] MOXA_RESET_AS_DROP: action reset-client written as drop, which answers nobody
+  ipv4rule 9  ->  needs-review, emitted disabled  (emitted as firewall 9)
+      [needs-review] MOXA_ZONE: zones vlan1, vlan3: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP.
+  ipv4rule 11  ->  needs-review, emitted disabled  (emitted as firewall 10)
+      [needs-review] UNSUPPORTED_MATCH: not converted: source DYNAMIC: the address of the user who activates the rule set, or of the digital input.
+      [needs-review] MOXA_ZONE: zones vlan2, vlan1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  ipv4rule 12  ->  needs-review, emitted disabled  (emitted as firewall 11)
+      [needs-review] UNSUPPORTED_MATCH: not converted: service ENIP is not in the configuration.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ENIP': unsupported or undefined service.
+      [needs-review] MOXA_ZONE: zones vlan2, vlan1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  ipv4rule 13  ->  needs-review, emitted disabled  (emitted as firewall 12)
+      [needs-review] MOXA_ZONE: zones ipsecALL, vlan1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  ipv4rule 14  ->  needs-review, emitted disabled  (emitted as firewall 13)
+      [needs-review] UNSUPPORTED_MATCH: not converted: assigned to the rule set maintenance: it applies only while the set is activated (by a user or a digital input).
+      [needs-review] MOXA_ZONE: zones vlan2, vlan1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  ipv4rule 15  ->  needs-review, emitted disabled  (emitted as firewall 14)
+      [needs-review] MOXA_ZONE: zones vlan3, vlan2: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  ipv6rule 1  ->  needs-review, emitted disabled  (emitted as firewall 15)
+      [needs-review] MOXA_ZONE: zones vlan2, vlan1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  ipv6rule 2  ->  needs-review, emitted disabled  (emitted as firewall 16)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] MOXA_ZONE: zones vlan1, vlan2: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match.
+  ipv4rule 10  ->  skipped
+      [info] SCALANCE_DEVICE_RULE: a rule for traffic to or from the firewall itself (device): its own access, not converted
+
+NAT rules
+  napt 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  napt 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  netmap destination 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  src-nat 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  masquerading 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+
+Services
+  ENIP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'ipv4rule 12' but not defined in the input; emitted as a placeholder

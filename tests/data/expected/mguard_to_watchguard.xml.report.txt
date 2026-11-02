@@ -1,0 +1,68 @@
+FWShift conversion report
+  source: mguard
+  target: watchguard
+
+Summary
+  Security rules:     19   exact 11, approximated 5, needs review 3 (3 emitted disabled), skipped 0
+  NAT rules:           5   exact 2, approximated 0, needs review 0, skipped 3
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_USER_FIREWALL: the user firewall is on, with 1 templates (service technicians): rules that apply to users who log in; not converted. With it on, the mGuard lets through more than the converted policy
+  [needs-review] MGUARD_VPN_FIREWALL: 1 VPN connections have firewall rules of their own (FW_INCOMING, FW_OUTGOING of the connection): not converted, nor the VPN traffic they decide
+  [needs-review] WATCHGUARD_LOAD: the output is the policy part of a configuration file of Policy Manager: address groups, aliases, services, static NAT actions and policies in manual order. It holds no interfaces and no system settings, so it is not a file to restore on a Firebox as it is (a restore replaces the whole configuration). Merge its lists into a configuration saved from the target, open the result in Policy Manager and check it there before it goes to the Firebox. WatchGuard publishes no schema of the file: the elements are those of the published readers of the format, and the words for the action of a policy (Allow, Deny) are assumed
+  [needs-review] INTERFACES_REQUIRED: the policies name these zones as interfaces of the Firebox, which must exist under these names (or be renamed with --zone-map): dmz, external, internal
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] MGUARD_SOURCE: mGuard profile 8.6.1.default, router mode; zones internal, external, dmz; tables read: FW_INCOMING, FW_OUTGOING, FW_INCOMING_WAN_DMZ, FW_INCOMING_DMZ_LAN, FW_OUTGOING_LANDMZ. Each table is first match; what no rule matches is dropped; port forwarding skips the packet filter
+  [info] MGUARD_INTERNAL_ROUTED: the internal side has more than one network (LOCAL_ALIASES): the outgoing rules also decide connections from one of them to another, so they are read for internal -> internal as well
+  [info] MGUARD_IPV4_ONLY: the packet filter of the mGuard is IPv4: 0.0.0.0/0 is read as every IPv4 address, and the rules match no IPv6
+  [info] MGUARD_DEFAULT_LOG: connection attempts no rule covers are logged (LOG_DEFAULT_INCOMING); the model has no place for that
+  [info] MGUARD_MANAGEMENT_ACCESS: access to the mGuard itself is not converted (it protects the device, not forwarded traffic): HTTPS_REMOTE_ACCESS_RULES (1 rows); HTTPS_REMOTE_ENABLE yes; FW_ICMP ping
+  [info] MGUARD_HOSTNAME: host names in IP groups, resolved by the DNS settings of the mGuard; read as names resolved for IPv4: scada: historian.example.com
+  [info] MGUARD_REJECT: Reject: the mGuard sends the packets back and tells the sender; read as reset-both: FW_INCOMING row 4
+  [info] MGUARD_PORTS_IGNORED: ports in rules for a protocol other than tcp and udp, which the mGuard ignores: FW_INCOMING row 7
+
+Security rules
+  portforward-1  ->  approximated  (emitted as portforward-1.2)
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+      [approximated] NAT_ZONE_DROPPED: the rule is for traffic to zone internal; with the static NAT action of 'portforward-1' the policy names the public address, and allows the translated traffic wherever its server is
+  portforward-2  ->  approximated  (emitted as portforward-2.2)
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+      [approximated] NAT_ZONE_DROPPED: the rule is for traffic to zone dmz; with the static NAT action of 'portforward-2' the policy names the public address, and allows the translated traffic wherever its server is
+  incoming-2  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+  incoming-3  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+  incoming-4  ->  exact
+      [info] RESET_ACTION: action reset-both becomes Deny
+  incoming-5.maintenance-1  ->  needs-review, emitted disabled
+      [needs-review] MGUARD_RULESET_SWITCHED: a rule of rule set maintenance, which cmd1 switches on and off: not converted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule set maintenance is switched on and off (cmd1); its rules apply only while it is active.
+  incoming-6.vendor-1  ->  approximated
+      [info] MGUARD_RULESET: rule 1 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+  incoming-6.vendor-2  ->  exact
+      [info] MGUARD_RULESET: rule 2 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+  incoming-8  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '192.168.10.50' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tcp-8000-8080-from-1024-65535': source ports, which a service of Fireware does not match.
+      [needs-review] UNCONVERTIBLE_OBJECT: the services of the rule hold source ports, which a service of Fireware does not match.
+  incoming-9  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.8/29' next to '192.168.10.0/24' because of NAT rule '1to1-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_UNREAD: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group
+      [needs-review] UNSUPPORTED_MATCH: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group.
+
+NAT rules
+  1to1-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  masquerade-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  masquerade-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+
+Services
+  tcp-8000-8080-from-1024-65535  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a service of Fireware does not match: not written, and the policies that use it are disabled

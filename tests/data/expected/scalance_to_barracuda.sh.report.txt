@@ -1,0 +1,86 @@
+FWShift conversion report
+  source: scalance
+  target: barracuda
+
+Summary
+  Security rules:     17   exact 4, approximated 3, needs review 8 (7 emitted disabled), skipped 2
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Services:           13   exact 9, approximated 0, needs review 4, skipped 0
+
+Notes for the whole policy
+  [needs-review] SCALANCE_RULESET: rule sets (user or digital-input firewall): rules assigned to one apply only while it is active and are not converted; check which rules belong to a set: ruleset name maintenance
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [needs-review] INTERZONE_DEFAULT: the source allows what no rule matches; the firewall blocks it at the end of its rule list. Add a rule that allows it if that was intended
+  [info] SCALANCE_SOURCE: 4 interfaces as zones (vlan1, vlan2, vlan3, ipsecALL); 16 IP rules, in ascending priority (prior), equal priorities in the order they were created; the IPv4 rules, then the IPv6 rules. Rules of the firewall itself (device) and the predefined rules are not converted
+  [info] SCALANCE_DEFAULTS: what no rule matches between interfaces is dropped; traffic inside one VLAN does not pass the IP firewall
+  [info] SCALANCE_NAT_ORDER: destination NAT (NAPT, NETMAP of the destination) is done before the firewall, whose rules name the translated address: the rules were rewritten for the address as it arrives. Source NAT, NETMAP of the source and masquerading are done after it. Read in the order NAPT, NETMAP destination, NETMAP source, source NAT, masquerading, one rule of each direction per connection (assumed)
+  [info] SCALANCE_PRERULE: predefined rules (access to services of the firewall itself) are not converted; those the configuration does not list are at their factory setting: ssh ipv4 int vlan 1 enabled, https ipv4 int vlan 2 disabled
+  [info] SCALANCE_NETMAP_DSTINT: the destination interface of a NETMAP rule of the destination is not a condition of the converted rule: netmap destination 1: vlan3
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: vlan1=192.168.10.0/24,10.20.0.0/16; vlan2=198.51.100.0/24; vlan3=192.168.30.0/24. --no-source-networks takes none of them
+
+Security rules
+  ipv4rule 2  ->  approximated  (emitted as ipv4rule_2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan2; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone vlan1; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv4rule 5  ->  needs-review, emitted disabled  (emitted as ipv4rule_5)
+      [approximated] ZONE_BY_NETWORKS: the destination in zone vlan2 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'PING': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+  ipv4rule 6  ->  needs-review  (emitted as ipv4rule_6)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.2' next to '192.168.30.10' because of NAT rule 'napt 1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'napt 1' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan3 is written as the addresses of the networks given for it with --zone-network
+  ipv4rule 7  ->  approximated  (emitted as ipv4rule_7)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.64/30' next to '192.168.30.64/30' because of NAT rule 'netmap destination 1'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan3 is written as the addresses of the networks given for it with --zone-network
+  ipv4rule 8  ->  approximated  (emitted as ipv4rule_8)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan3; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone vlan1; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv4rule 11  ->  needs-review, emitted disabled  (emitted as ipv4rule_11)
+      [approximated] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [needs-review] UNSUPPORTED_MATCH: not converted: source DYNAMIC: the address of the user who activates the rule set, or of the digital input.
+  ipv4rule 12  ->  needs-review, emitted disabled  (emitted as ipv4rule_12)
+      [approximated] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [needs-review] UNSUPPORTED_MATCH: not converted: service ENIP is not in the configuration.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ENIP': a service without content.
+  ipv4rule 13  ->  needs-review, emitted disabled  (emitted as ipv4rule_13)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone ipsecALL, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind ipsecALL with --zone-network.
+  ipv4rule 14  ->  needs-review, emitted disabled  (emitted as ipv4rule_14)
+      [needs-review] UNSUPPORTED_MATCH: not converted: assigned to the rule set maintenance: it applies only while the set is activated (by a user or a digital input).
+  ipv4rule 15  ->  needs-review, emitted disabled  (emitted as ipv4rule_15)
+      [approximated] ZONE_BY_NETWORKS: the destination in zone vlan2 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'UNREACH': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+  ipv6rule 1  ->  skipped
+      [approximated] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [approximated] ZONE_BY_NETWORKS: the destination in zone vlan1 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
+  ipv6rule 2  ->  needs-review, emitted disabled  (emitted as ipv6rule_2)
+      [approximated] ZONE_BY_NETWORKS: the source in zone vlan1 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [approximated] ZONE_BY_NETWORKS: the destination in zone vlan2 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'PING6': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+  ipv4rule 10  ->  skipped
+      [info] SCALANCE_DEVICE_RULE: a rule for traffic to or from the firewall itself (device): its own access, not converted
+
+NAT rules
+  napt 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  napt 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  netmap destination 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  src-nat 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  masquerading 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+
+Services
+  PING  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
+  PING6  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
+  UNREACH  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
+  ENIP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'ipv4rule 12' but not defined in the input; emitted as a placeholder

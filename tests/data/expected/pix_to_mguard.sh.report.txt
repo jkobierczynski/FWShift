@@ -1,0 +1,109 @@
+FWShift conversion report
+  source: pix (PIX Version 6.3(5))
+  target: mguard
+
+Summary
+  Security rules:     21   exact 7, approximated 2, needs review 2, skipped 10
+  NAT rules:          11   exact 0, approximated 4, needs review 1, skipped 6
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PIX_OUTBOUND: outbound lists (outbound and apply) limit what interfaces without an access list let out: partner: outbound list 10 (outgoing_src: deny 0.0.0.0 0.0.0.0 0 0; permit 10.30.0.0 255.255.255.0 80 tcp). The PIX decides them by the best match, not in order; they are not converted, and the implicit rules of those interfaces are written disabled. Write their restrictions as rules
+  [needs-review] PIX_ESTABLISHED: the established command lets connections in that belong to connections out (established tcp 6000 0 permitto tcp 6000). It is not converted: the result does not allow those connections; write rules for them if they are needed
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): outside=external, inside=internal
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] ICMP_STATELESS: a PIX 6.x keeps no state for ICMP: the reply to a permitted ICMP request got through only where an access list or conduit permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: 'sysopt connection permit-ipsec' lets traffic that arrives through VPN tunnels past the access lists and conduits. The converted rules do not allow that traffic; add rules for it on the target
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [info] UNBOUND_ACL: 3 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: inside_nat0, partner_nat, unused
+  [info] PIX_CONDUIT_IGNORED: the PIX ignores conduits for interfaces with an access list: outside, dmz
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; inside=10.10.0.0/16,10.11.0.0/16; lab=10.40.0.0/24; outside=0.0.0.0/0,203.0.113.0/24; partner=10.30.0.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] EGRESS_BY_ROUTE: a PIX access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the statics that publish them and from the interface addresses and static routes in the configuration
+  [info] PIX_NO_TRANSLATION: no translation (nat with a global, static, exemption) covers traffic from inside to lab, lab to outside, lab to dmz, lab to partner: the PIX passes none of it, and no implicit rule was written for it
+  [info] PIX_FIXUP: application inspection (fixup) is not converted; the targets inspect with helpers of their own. On: dns maximum-length, ftp 21, http 80, smtp 25, sqlnet 1521. Off: sip 5060.
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  outside_in-1  ->  approximated  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.10' with post-NAT '10.20.0.10' because of NAT rule 'static-1'; check that this rule is meant to cover the translated traffic
+  outside_in-2  ->  approximated  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.20.0.25' because of NAT rule 'static-2'; check that this rule is meant to cover the translated traffic
+  outside_in-4  ->  skipped
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers outside to inside: destinations 0.0.0.0/0; outside to dmz: destinations 0.0.0.0-203.0.113.1, 203.0.113.3-203.0.113.9, 203.0.113.11-203.0.113.24 ...; outside to lab: destinations 0.0.0.0/0; outside to partner: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [needs-review] MGUARD_ZONE_UNKNOWN: lab, partner: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  outside_in-5  ->  exact  (emitted as 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ
+  outside_in-6  ->  needs-review  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers outside to dmz: destinations 10.20.0.10. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.10', the address NAT rule 'static-1' translates '203.0.113.10' to. The target looks rules up after that translation, so traffic sent to '203.0.113.10' now matches this rule; on the source it did not
+  outside_in-7  ->  exact  (emitted as 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ
+  dmz_in-1  ->  skipped
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 0.0.0.0-10.10.0.49, 10.10.0.51-255.255.255.255; dmz to lab: destinations 0.0.0.0/0; dmz to partner: sources 10.20.0.10, 10.20.0.25. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [needs-review] MGUARD_ZONE_UNKNOWN: lab, partner: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  dmz_in-2  ->  skipped
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 0.0.0.0-10.10.0.49, 10.10.0.51-255.255.255.255; dmz to lab: destinations 0.0.0.0/0; dmz to partner: sources 10.20.0.25. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [needs-review] MGUARD_ZONE_UNKNOWN: lab, partner: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  dmz_in-4  ->  needs-review  (emitted as 1 row of FW_INCOMING_DMZ_LAN)
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers dmz to inside: destinations 10.10.0.0-10.10.0.49, 10.10.0.51-10.10.255.255. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+  dmz_in-5  ->  exact  (emitted as 1 row of FW_INCOMING_DMZ_LAN, 1 row of FW_OUTGOING_DMZWAN)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING_DMZ_LAN, a row of FW_OUTGOING_DMZWAN
+  implicit-inside-outside  ->  exact  (emitted as 1 row of FW_OUTGOING)
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'outside' (security level 0), for every source (NAT is mandatory). This rule says so
+  implicit-inside-dmz  ->  exact  (emitted as 1 row of FW_OUTGOING_LANDMZ)
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'dmz' (security level 50), for the sources a translation covers (NAT is mandatory). This rule says so
+  implicit-inside-partner  ->  skipped
+      [info] IMPLICIT_PERMIT: interface 'inside' (security level 100) has no access list: the PIX lets its traffic out to 'partner' (security level 20), for the sources a translation covers (NAT is mandatory). This rule says so
+      [needs-review] MGUARD_ZONE_UNKNOWN: partner: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  implicit-partner-outside  ->  skipped
+      [info] IMPLICIT_PERMIT: interface 'partner' (security level 20) has no access list: the PIX lets its traffic out to 'outside' (security level 0), for the sources a translation covers (NAT is mandatory). This rule says so
+      [needs-review] UNSUPPORTED_MATCH: not converted: outbound list 10 (outgoing_src: deny 0.0.0.0 0.0.0.0 0 0; permit 10.30.0.0 255.255.255.0 80 tcp) applied to partner, which is not converted.
+      [needs-review] MGUARD_ZONE_UNKNOWN: partner: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  conduit-1  ->  skipped
+      [info] PIX_CONDUIT: from the conduit 'conduit permit tcp host terminal-srv eq 3389 10.30.0.0 255.255.255.0', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers lab to inside: destinations 10.10.0.60. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [needs-review] MGUARD_ZONE_UNKNOWN: lab, partner: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  conduit-2  ->  skipped
+      [info] PIX_CONDUIT: from the conduit 'conduit permit icmp any any echo-reply', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers lab to inside: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [needs-review] MGUARD_ZONE_UNKNOWN: lab: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  conduit-2-2  ->  skipped
+      [info] PIX_CONDUIT: from the conduit 'conduit permit icmp any any echo-reply', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] PIX_TRANSLATION_REQUIRED: NAT is mandatory on a PIX 6.x: it passes a connection to a lower security level only from a source a translation covers, and to a higher one only to an address a static or an exemption publishes. No translation covers partner to inside: destinations 0.0.0.0-10.9.255.255, 10.11.0.0-255.255.255.255; partner to dmz: destinations 0.0.0.0/0; partner to lab: destinations 0.0.0.0/0. The PIX drops that traffic, the converted rule allows it: narrow the rule, or add the translation on the target
+      [needs-review] MGUARD_ZONE_UNKNOWN: partner, lab: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  conduit-3  ->  skipped
+      [info] PIX_CONDUIT: from the conduit 'conduit deny tcp any eq telnet any', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] MGUARD_ZONE_UNKNOWN: lab: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  conduit-3-2  ->  skipped
+      [info] PIX_CONDUIT: from the conduit 'conduit deny tcp any eq telnet any', which applies to every interface without an access list, towards the interfaces of a higher security level its destination is behind
+      [needs-review] MGUARD_ZONE_UNKNOWN: partner, lab: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+
+NAT rules
+  nat0-inside-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule that translates nothing (an exemption): the mGuard has none
+  static-1  ->  approximated  (emitted as 1:1 NAT)
+      [approximated] MGUARD_NAT_ZONES: 1:1 NAT maps between the internal and the external side; the zones of the rule are dmz -> external
+  static-2  ->  approximated  (emitted as 1:1 NAT)
+      [approximated] MGUARD_NAT_ZONES: 1:1 NAT maps between the internal and the external side; the zones of the rule are dmz -> external
+  static-4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule that translates nothing (an exemption): the mGuard has none
+  static-5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule that translates nothing (an exemption): the mGuard has none
+  static-3  ->  approximated  (emitted as port forwarding)
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the configuration, 203.0.113.2
+      [info] MGUARD_FORWARD_ALLOWED: port forwarding skips the packet filter; the rules of the model allow all of what it forwards
+  nat3-inside-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the mGuard translates a source only to the address of an interface, or a network 1:1
+  nat2-inside  ->  skipped
+      [approximated] PIX_PAT_FALLBACK: the PIX hands out the addresses of the pool and, when they run out, translates to the PAT address of global (outside) 2; only the pool is converted
+      [needs-review] NAT_NOT_CONVERTED: not converted: the mGuard translates a source only to the address of an interface, or a network 1:1
+  nat1-inside-outside  ->  needs-review  (emitted as IP masquerading)
+      [approximated] MGUARD_NAT_ZONES: the rule is for traffic from internal; IP masquerading applies to traffic from every zone
+      [needs-review] NAT_ORDER: NAT rule 'nat3-inside-1' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: NAT rule 'nat2-inside' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+  nat1-inside-dmz  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the mGuard translates a source only to the address of an interface, or a network 1:1
+  nat1-partner  ->  approximated  (emitted as IP masquerading)
+      [approximated] MGUARD_NAT_ZONES: the rule is for traffic from partner; IP masquerading applies to traffic from every zone

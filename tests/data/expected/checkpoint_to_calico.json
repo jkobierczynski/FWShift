@@ -1,0 +1,672 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "Web out (not written, see the report); Social (not written, see the report); Admins (not written, see the report); PLC access (plc-operators) (not written, see the report); PLC access (vendor-support) (not written, see the report); DMZ users (not written, see the report); Updates (not written, see the report); Old rule (disabled in the source); Partners (not written, see the report)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "nets": [
+            "10.10.0.0/16",
+            "10.20.0.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "192.0.2.53/32",
+            "192.0.2.54/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DNS"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/16",
+            "10.20.0.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "192.0.2.53/32",
+            "192.0.2.54/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DNS"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.5.10/31",
+            "10.10.5.12/30",
+            "10.10.5.16/30",
+            "10.10.5.20/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.20.0.10/32",
+            "10.20.0.25/32",
+            "203.0.113.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "rule-2"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.10.200.0/24"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "192.0.2.53/32",
+            "192.0.2.54/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Guests stay out"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.5.10/31",
+            "10.10.5.12/30",
+            "10.10.5.16/30",
+            "10.10.5.20/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "PLC access"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.5.10/31",
+            "10.10.5.12/30",
+            "10.10.5.16/30",
+            "10.10.5.20/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "PLC access"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "2001:db8:10::/48"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "IPv6 out"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "10.20.0.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Public web"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "10.20.0.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DMZ access / Web in"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            "9000:9010"
+          ],
+          "nets": [
+            "10.20.0.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DMZ access / Web in"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            25
+          ],
+          "nets": [
+            "10.20.0.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DMZ access / Mail in"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "icmp": {
+          "type": 8
+        },
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.0.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DMZ access / Ping from LAN"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "10.20.0.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DMZ access (cleanup of DMZ-Layer)"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": 47,
+        "destination": {
+          "nets": [
+            "198.51.100.1/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Tunnels"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            113
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "No ident"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Cleanup rule"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "nets": [
+            "10.10.0.0/16",
+            "10.20.0.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "192.0.2.53/32",
+            "192.0.2.54/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DNS"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/16",
+            "10.20.0.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "192.0.2.53/32",
+            "192.0.2.54/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DNS"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.5.10/31",
+            "10.10.5.12/30",
+            "10.10.5.16/30",
+            "10.10.5.20/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.20.0.10/32",
+            "10.20.0.25/32",
+            "203.0.113.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "rule-2"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.10.200.0/24"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "192.0.2.53/32",
+            "192.0.2.54/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Guests stay out"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.5.10/31",
+            "10.10.5.12/30",
+            "10.10.5.16/30",
+            "10.10.5.20/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "PLC access"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.5.10/31",
+            "10.10.5.12/30",
+            "10.10.5.16/30",
+            "10.10.5.20/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "PLC access"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "2001:db8:10::/48"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "IPv6 out"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "10.20.0.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Public web"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "10.20.0.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DMZ access / Web in"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            "9000:9010"
+          ],
+          "nets": [
+            "10.20.0.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DMZ access / Web in"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            25
+          ],
+          "nets": [
+            "10.20.0.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DMZ access / Mail in"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "icmp": {
+          "type": 8
+        },
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.0.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DMZ access / Ping from LAN"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "10.20.0.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DMZ access (cleanup of DMZ-Layer)"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": 47,
+        "destination": {
+          "nets": [
+            "198.51.100.1/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Tunnels"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            113
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "No ident"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Cleanup rule"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

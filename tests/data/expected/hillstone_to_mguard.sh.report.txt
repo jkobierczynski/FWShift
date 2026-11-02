@@ -1,0 +1,76 @@
+FWShift conversion report
+  source: hillstone
+  target: mguard
+
+Summary
+  Security rules:     14   exact 2, approximated 0, needs review 1, skipped 11
+  NAT rules:           9   exact 1, approximated 0, needs review 0, skipped 8
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HILLSTONE_NAT_ORDER: DNAT is looked up before the route and the policy, SNAT after the route; the rules were read as naming the destination before DNAT and the zone after it, which is what Hillstone's troubleshooting guide shows (one of its configuration examples names the translated address instead): check the rules for translated traffic on the firewall
+  [needs-review] HILLSTONE_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with show service predefined: HTTP, HTTPS, SSH, PING, DNS
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): trust=internal, untrust=external
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [info] HILLSTONE_SOURCE: 4 zones (trust, untrust, dmz, lab); 14 rules of the policy, first match in the order of the configuration (not by id)
+  [info] HILLSTONE_ANY: the address Any is read as every IPv4 address and IPv6-any as every IPv6 address
+  [info] HILLSTONE_REJECT: action reject: read as a deny that answers the client: lab-to-inside
+  [info] HILLSTONE_SCHEDULE: rules with a schedule: schedules are not converted, a target writes these rules disabled: app-clients: office-hours
+  [info] HILLSTONE_DEFAULTS: what no rule matches, between zones and inside a zone (default-action): deny
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  inside-ping  ->  skipped
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  inside-to-web  ->  exact  (emitted as 2 rows of FW_OUTGOING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as 2 rows of FW_OUTGOING
+  block-country  ->  skipped
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'blocked-country': address entry blocked-country: country XX, which the configuration does not resolve to addresses. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'blocked-country' holds members only its platform knows, or an address the profile does not hold. This deny rule is NOT enforced; rules below it may match more traffic.
+  lab-to-inside  ->  skipped
+      [needs-review] HILLSTONE_ANY_IPV4: a blocking rule that names Any, read as every IPv4 address; the configuration has IPv6: if Any takes in IPv6 addresses on the firewall, the converted rule blocks less
+      [needs-review] MGUARD_ZONE_UNKNOWN: lab: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  inside-to-servers  ->  needs-review  (emitted as 1 row of FW_OUTGOING_LANDMZ)
+      [needs-review] HILLSTONE_DNAT_INSIDE: names servers, which holds an address that dnatrule 1, dnatrule 2, dnatrule 3 translate(s) to: read as the address a packet has before DNAT; if the firewall matches rules after DNAT, the rule also matches the connections translated to it
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: the ICMP of the rule is left out, so it allows less
+  lab-updates  ->  skipped
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  app-clients  ->  skipped
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  p2p  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: application BitTorrent: application identification narrows the match.
+  v6-out  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  tunnels-to-partners  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: lab: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  to-branch-vpn  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: action tunnel vpn-to-branch: traffic of a VPN tunnel only.
+  contractors-out  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'wild-hosts': address entry wild-hosts: wildcard address '10.10.0.5 0.0.255.0'.
+      [needs-review] USER_MATCH: source user match role contractors is not converted.
+      [needs-review] ZONE_DYNAMIC: 'wild-hosts' holds members only its platform knows, or an address the profile does not hold.
+  rule 13  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: lab: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+
+NAT rules
+  bnatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: not converted on the source: a BNAT rule (bidirectional NAT), which is not converted
+  dnatrule 1  ->  skipped
+      [needs-review] MGUARD_FORWARD_BLOCKED: port forwarding skips the packet filter, and the rules of the model do not allow all of what it would forward (rule inside-to-web may decide part of it, and the zone the forwarded traffic goes to is not known): not written, as it would let in more
+  dnatrule 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: port forwarding takes tcp or udp with a port, or gre
+  dnatrule 3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a translation to one of several addresses
+  dnatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: not converted on the source: NAT between IPv4 and IPv6, which is not converted
+  snatrule 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule that translates nothing (an exemption): the mGuard has none
+  snatrule 3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the mGuard translates a source only to the address of an interface, or a network 1:1
+  snatrule 4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is disabled on the source

@@ -1,0 +1,87 @@
+FWShift conversion report
+  source: vyos
+  target: scalance
+
+Summary
+  Security rules:     42   exact 28, approximated 1, needs review 6, skipped 7
+  NAT rules:           6   exact 3, approximated 0, needs review 0, skipped 3
+  Addresses:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: ipv4 input filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] VYOS_EMPTY_GROUP: groups without a member: a rule that names one matches nothing (VyOS warns about them and takes them): address-group EMPTY
+  [needs-review] VYOS_QUEUE: rules hand packets to a program (action queue), which decides them: ipv4 name VPN-DMZ rule 20
+  [needs-review] SCALANCE_DEFAULT_ACCEPT: the source accepts what no rule matches: the rules at the end accept everything between the zones written, which the device would otherwise drop
+  [needs-review] SCALANCE_LOAD: the output is CLI commands for the FIREWALL and FIREWALL NAT modes (section 10): 255 IP rules with priorities 1 to 20. The device processes rules by ascending priority: rules it has with a lower priority come first. Commands take effect as they are entered; nothing is deleted and nothing is saved
+  [needs-review] SCALANCE_ZONE_NAMES: zones that are not interfaces of the device (vlan N, ipsecALL, ipsec N, sinemarcall, ppp 0, usb 0) are written as they are, and the device refuses those rules: map them with --zone-map ZONE=vlanN: GUEST, LAN, WAN, DMZ, VPN, br0
+  [needs-review] SCALANCE_IPV6: ipv6rule and ICMP services of IPv6 are written in the form of the IPv4 commands; no Siemens manual FWShift could read shows them: check them on the device
+  [info] VYOS_FORMAT: read as the configuration of VyOS 1.4 or later
+  [info] VYOS_FQDN: host names (domain-group, fqdn), which the router resolves while it runs: converted as host name objects (UPDATES)
+  [info] VYOS_ZONES: the zone-based firewall was read after the forward filter, as a second chain at the forward hook: traffic into a zone from an interface in no zone, or from a zone without a rule-set for its IP version, is dropped; traffic to an interface in no zone is decided by the forward filter alone
+  [info] VYOS_LOCAL_ZONE: the local zone (traffic to and from the router itself) is not converted
+  [info] FORWARD_POLICY_ACCEPT: VyOS accepts what no rule of the forward filter decides unless its default-action is drop; the model records that as its default action
+  [info] SCALANCE_DEFAULT_RULES: after the converted rules, rules that accept what no rule matches, as the source does, for every pair of the 6 zones written (priority 20); traffic inside one zone does not pass the IP firewall
+  [info] SCALANCE_ANY_ZONE: a rule names one interface each way: a rule from or to any zone is written for every zone the policy names (GUEST, LAN, WAN, DMZ, VPN, br0); traffic of other interfaces of the device meets its own rules
+  [info] SCALANCE_RULE_COUNT: 255 IP rules: the S615 CLI manual of 2015 numbers rules 1 to 100; check how many the firmware takes
+  [info] LOGGING_CONVERTED: rules of the source log; their rules log at the level info
+  [info] SCALANCE_NAT_WRITTEN: destination NAT is done before the firewall: the rules were written for the translated address
+
+Security rules
+  drop the blocklist  ->  needs-review  (emitted as 60 IP rules, priority 1)
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  spoofed inside sources  ->  needs-review  (emitted as 30 IP rules, priority 2)
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  forward-30  ->  skipped
+      [needs-review] NAT_REDIRECT: NAT rule 'ssh on 2222 to the jump host' sends traffic for every destination to 192.168.30.22:22, and the source applied this rule to it after that translation. The converted rule still names the translated address and port: a platform that looks rules up before NAT will not match the redirected traffic with it
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  forward-40  ->  needs-review  (emitted as 25 IP rules, priority 3)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  zone-WAN.from-LAN.LAN-WAN-20  ->  skipped
+      [needs-review] ZONE_DYNAMIC: 'UPDATES' holds members only its platform knows.
+  zone-WAN.default  ->  exact  (emitted as 5 IP rules, priority 7)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-LAN.intra  ->  skipped
+      [needs-review] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  zone-LAN.default  ->  needs-review  (emitted as 5 IP rules, priority 9)
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  zone-GUEST.default  ->  exact  (emitted as 5 IP rules, priority 9)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1)  ->  approximated  (emitted as 1 IP rules, priority 10)
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'https to web1'
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'https to web1 destination' with post-NAT '192.168.30.10' because of NAT rule 'https to web1'; check that this rule is meant to cover the translated traffic
+  zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host)  ->  needs-review  (emitted as 1 IP rules, priority 10)
+      [needs-review] VYOS_DNAT_STATUS_ANY: destination NAT rule 'ssh on 2222 to the jump host' translates whatever the destination: this rule names the connections as they arrive, which a target that looks rules up after destination NAT (VyOS, iptables, nftables, RouterOS, FortiOS, Junos) no longer sees after the translation. There, write it for the translated address and port
+      [info] VYOS_DNAT_STATUS: connection-status nat destination: the rule is for the connections the destination NAT rules translate, and was written as a rule for each of them, as they arrive; this one for 'ssh on 2222 to the jump host'
+  office hours only  ->  skipped
+      [needs-review] SCHEDULE: schedule 'starttime 08:00:00, stoptime 18:00:00' is not converted; the rule would apply at all times.
+  zone-DMZ.from-WAN.WAN-DMZ-50  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: limit rate 10/second (a match on a rate limit).
+  zone-DMZ.from-VPN.VPN-DMZ-20  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: action queue. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  zone-DMZ.default  ->  exact  (emitted as 5 IP rules, priority 15)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  zone-VPN.default  ->  exact  (emitted as 5 IP rules, priority 15)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-WAN.default  ->  exact  (emitted as 5 IP rules, priority 17)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-LAN.intra  ->  skipped
+      [needs-review] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  ipv6-zone-LAN.default  ->  needs-review  (emitted as 5 IP rules, priority 17)
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  ipv6-zone-GUEST.default  ->  exact  (emitted as 5 IP rules, priority 17)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-DMZ.default  ->  exact  (emitted as 5 IP rules, priority 19)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+  ipv6-zone-VPN.default  ->  exact  (emitted as 5 IP rules, priority 19)
+      [info] VYOS_INTERFACES_RESOLVED: a negated or wildcard input interface was resolved against the interfaces of the configuration; an interface the router adds while it runs (a PPP session, a tunnel) is not covered
+
+NAT rules
+  ssh on 2222 to the jump host  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  destination-30  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  source-120  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption

@@ -1,0 +1,70 @@
+FWShift conversion report
+  source: windows-firewall (Group Policy, local)
+  target: scalance
+
+Summary
+  Security rules:     31   exact 17, approximated 1, needs review 0, skipped 13
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           23   exact 23, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] WINFW_BYPASS: rules with authenticated bypass let IPsec-authenticated connections through block rules; they are first in the converted policy and not converted: Management over IPsec, overriding block rules
+  [needs-review] SCALANCE_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the device passes everything: Host, Domain, Private, Public
+  [needs-review] SCALANCE_LOAD: the output is CLI commands for the FIREWALL and FIREWALL NAT modes (section 10): 82 IP rules with priorities 1 to 3. The device processes rules by ascending priority: rules it has with a lower priority come first. Commands take effect as they are entered; nothing is deleted and nothing is saved
+  [needs-review] SCALANCE_ZONE_NAMES: zones that are not interfaces of the device (vlan N, ipsecALL, ipsec N, sinemarcall, ppp 0, usb 0) are written as they are, and the device refuses those rules: map them with --zone-map ZONE=vlanN: Host, Domain, Private, Public
+  [needs-review] SCALANCE_IPV6: ipv6rule and ICMP services of IPv6 are written in the form of the IPv4 commands; no Siemens manual FWShift could read shows them: check them on the device
+  [info] WINFW_DEFAULT_ASSUMED: settings that no store of the input holds were taken as Windows's defaults (firewall on, inbound blocked, outbound allowed): Private defaultinboundaction, Public defaultinboundaction, Public defaultoutboundaction
+  [info] WINFW_HOST_POLICY: a host firewall: the zone Host is the host itself, the zones Domain, Private and Public the networks of the interfaces in each profile. Windows has no rule order: block rules decide before allow rules, then the default of the profile; the converted policy says that in first-match order (block rules, allow rules, the defaults that allow). Traffic between the networks is not the host's to decide and is denied
+  [info] WINFW_STORES: stores read: Group Policy 8 rules, local 22 rules
+  [info] WINFW_PROFILES: Domain: inbound blocked (Group Policy), outbound allowed (Group Policy), local rules not merged (Group Policy); Private: inbound blocked (default), outbound blocked (Group Policy); Public: inbound blocked (default), outbound allowed (default)
+  [info] WINFW_LOCAL_NOT_MERGED: Group Policy (or MDM) does not merge local rules in the profile Domain: the local rules are left out there (16 rules named it)
+  [info] WINFW_SETTING_NOT_CONVERTED: profile settings that decide traffic no rule names are not converted: Public: unicast responses to multicast and broadcast traffic are blocked
+  [info] WINFW_ADDRESS_KEYWORDS: rules name address keywords, whose addresses only Windows knows at run time: DNS, LocalSubnet, LocalSubnet4, LocalSubnet6. They are dynamic groups; only a Windows target writes them again
+  [info] WINFW_NOT_READ: not read: 1 connection security (IPsec) rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\ConSecRules; 1 Windows Service Hardening rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Static\System
+  [info] SCALANCE_DEFAULT_RULES: after the converted rules, rules that drop what no rule matches, as the source does, for every pair of the 4 zones written (priority 3); traffic inside one zone does not pass the IP firewall
+
+Security rules
+  Management over IPsec, overriding block rules  ->  skipped
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: remote computers; IPsec (Authenticate): only connections IPsec protects match; authenticated bypass: only IPsec-authenticated connections match, and they override block rules. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: remote computers.
+      [needs-review] UNSUPPORTED_MATCH: not converted: IPsec (Authenticate): only connections IPsec protects match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: authenticated bypass: only IPsec-authenticated connections match, and they override block rules.
+  DNS out on private networks  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'DNS': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'DNS' holds members only its platform knows.
+  SMB from the local subnet  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'LocalSubnet' holds members only its platform knows.
+  Echo request (ICMPv6-In)  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet6': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'LocalSubnet6' holds members only its platform knows.
+  SNMP from the local subnet  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet4': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'LocalSubnet4' holds members only its platform knows.
+  Example application server  ->  skipped
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: program C:\Program Files\Example\server.exe. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: program C:\Program Files\Example\server.exe.
+  Print spooler (RPC)  ->  skipped
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the local port keyword RPC; service Spooler. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the local port keyword RPC.
+      [needs-review] UNSUPPORTED_MATCH: not converted: service Spooler.
+  OpenSSH server  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  mDNS on wireless  ->  skipped
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: interface types wireless. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: interface types wireless.
+  Game server through edge traversal  ->  approximated  (emitted as 2 IP rules, priority 2)
+      [approximated] WINFW_EDGE_TRAVERSAL: the rule also accepts traffic that came through edge traversal (Teredo); the model has no such path: the converted rule does not let it in
+  Printer port  ->  skipped
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the field 'newfield2_40', which FWShift does not know. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the field 'newfield2_40', which FWShift does not know.
+  A rule Windows cannot parse  ->  skipped
+      [needs-review] WINFW_RULE_INVALID: Windows does not enforce a rule it cannot parse (local ports without protocol TCP or UDP): it is kept disabled
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  SSDP discovery  ->  skipped
+      [info] WINFW_PLATFORM: the rule applies on Windows NT 6.2 and later; it is taken as applying on this host
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'LocalSubnet' holds members only its platform knows.
+  DNS server (local copy)  ->  skipped
+      [info] WINFW_OVERRIDDEN: the Group Policy store has a rule of the same id ('Shared-Id'), which replaces this one: it is kept disabled
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written

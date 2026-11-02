@@ -1,0 +1,101 @@
+FWShift conversion report
+  source: aws (vpc-0a1b2c3d4e5f60789)
+  target: hisecos
+
+Summary
+  Security rules:     32   exact 0, approximated 0, needs review 27 (27 emitted disabled), skipped 5
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Address groups:     13   exact 13, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0db0000000000000a of subnet subnet-0300000000000003a denies some inbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections out of the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0db0000000000000a of subnet subnet-0300000000000003a denies some outbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections into the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_HAIRPIN: connections from inside the VPC to its own public addresses are not converted as AWS decides them: they leave through the internet gateway, the source's outbound rules see the public address and the destination's inbound rules see the source's public address (or that of its NAT gateway). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] AWS_REMOTE_GROUP: rules name groups that are not in the export (another VPC, another account, or left out): sg-0bbbbbbbbbbbbbbb0. Their members are not known; those rules are not converted
+  [needs-review] HISECOS_NO_ZONES: the source names no zones: there is no interface to assign the rules to, and they are written disabled. Give the rules zones, or map them with --zone-map and --interface-map
+  [needs-review] HISECOS_LOAD: the output is a CLI script of HiSecOS (section 10): commands of the Global Config mode that add rules 1001 to 1194 of the packet filter (they must be free) with their interface assignments, and NAT rules, and that delete nothing. The keywords are FWShift's reading of Belden's MIBs and command list, not confirmed on a device: check the script with 'script validate' first. Nothing applies until you commit: read 'show packet-filter l3 pending', then 'packet-filter l3 commit' (and 'nat dnat commit', 'nat masq commit', 'nat 1to1nat commit'). Rules of the device with lower priorities on the same interfaces come first, and its default policy is not changed. To take the rules away again: 'packet-filter l3 delif' for each assignment, then 'packet-filter l3 delrule N' for N from 1001 to 1194
+  [info] AWS_EGRESS_PAIRS: inside the VPC a connection needs an outbound rule of the source's groups and an inbound rule of the destination's. Where the outbound rules do not allow everything, 1 rule allows what both allow, and a rule after them blocks the rest of what those members send inside the VPC
+  [info] AWS_PUBLIC_ADDRESSES: the public and Elastic IP addresses of the network interfaces are static NAT of their private addresses: the internet gateway translates what comes from outside, and the groups see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] AWS_UNFILTERED: security groups never filter traffic to the Amazon DNS server, DHCP, the instance metadata service, the Time Sync Service and Windows license activation; neither does the converted policy say anything about it
+  [info] AWS_GROUP_UNUSED: no network interface of the export carries these groups, so their inbound rules allow nothing and were left out: legacy-sg
+  [info] HISECOS_IPV4_ONLY: HiSecOS filters IPv4: the IPv6 addresses and ICMPv6 of these rules are not written: app-sg-outbound-rest, db-sg-outbound-rest, web-sg-in-1, web-sg-in-2, web-sg-in-3, web-sg-in-4, web-sg-in-5, web-sg-in-6, app-sg-in-1, app-sg-in-2, app-sg-in-3, db-sg-in-1 ...
+
+Security rules
+  db-acl-in-db  ->  needs-review, emitted disabled  (emitted as rule 1001)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-acl-in-db-2  ->  needs-review, emitted disabled  (emitted as rules 1002-1017)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-acl-in-db-3  ->  needs-review, emitted disabled  (emitted as rule 1018 (a placeholder, disabled))
+      [needs-review] HISECOS_NEGATED_SERVICE: a negated service: a rule of HiSecOS cannot negate its protocol or ports. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-acl-in-db-4  ->  needs-review, emitted disabled  (emitted as rule 1019 (a placeholder, disabled))
+      [needs-review] HISECOS_NEGATED_SERVICE: a negated service: a rule of HiSecOS cannot negate its protocol or ports. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-acl-in-db-5  ->  needs-review, emitted disabled  (emitted as rule 1020 (a placeholder, disabled))
+      [needs-review] HISECOS_NEGATED_SERVICE: a negated service: a rule of HiSecOS cannot negate its protocol or ports. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-acl-out-db  ->  needs-review, emitted disabled  (emitted as rules 1021-1036)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-acl-out-db-2  ->  needs-review, emitted disabled  (emitted as rule 1037 (a placeholder, disabled))
+      [needs-review] HISECOS_NEGATED_SERVICE: a negated service: a rule of HiSecOS cannot negate its protocol or ports. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  app-sg-to-db-sg  ->  needs-review, emitted disabled  (emitted as rule 1038)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  app-sg-outbound-rest  ->  needs-review, emitted disabled  (emitted as rules 1039-1041)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-sg-outbound-rest  ->  needs-review, emitted disabled  (emitted as rules 1042-1044)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  default-in-1  ->  needs-review, emitted disabled  (emitted as rules 1045-1050)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  web-sg-in-1  ->  needs-review, emitted disabled  (emitted as rules 1051-1052)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  web-sg-in-2  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  web-sg-in-3  ->  needs-review, emitted disabled  (emitted as rules 1053-1054)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  web-sg-in-4  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  web-sg-in-5  ->  needs-review, emitted disabled  (emitted as rules 1055-1056)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  web-sg-in-6  ->  needs-review, emitted disabled  (emitted as rules 1057-1062)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  app-sg-in-1  ->  needs-review, emitted disabled  (emitted as rules 1063-1064)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  app-sg-in-2  ->  needs-review, emitted disabled  (emitted as rules 1065-1066)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  app-sg-in-3  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  db-sg-in-1  ->  needs-review, emitted disabled  (emitted as rules 1067-1068)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  db-sg-in-2  ->  needs-review, emitted disabled  (emitted as rule 1069 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'sg-0bbbbbbbbbbbbbbb0': dynamic address group, members are not known statically.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  db-sg-in-3  ->  needs-review, emitted disabled  (emitted as rule 1070)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  bastion-sg-in-1  ->  needs-review, emitted disabled  (emitted as rules 1071-1074)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  monitoring-sg-in-1  ->  needs-review, emitted disabled  (emitted as rules 1075-1078)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  default-out-1  ->  needs-review, emitted disabled  (emitted as rules 1079-1110)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  web-sg-out-2  ->  needs-review, emitted disabled  (emitted as rules 1111-1126)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  web-sg-out-3  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  app-sg-out-2  ->  needs-review, emitted disabled  (emitted as rules 1127-1130)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  bastion-sg-out-2  ->  needs-review, emitted disabled  (emitted as rules 1131-1146)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  monitoring-sg-out-1  ->  needs-review, emitted disabled  (emitted as rules 1147-1194)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  monitoring-sg-out-2  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+
+NAT rules
+  public-203.0.113.10  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: 1:1 NAT of HiSecOS needs one network on each side and the zone of each side
+  public-203.0.113.11  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: 1:1 NAT of HiSecOS needs one network on each side and the zone of each side
+  public-203.0.113.50  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: 1:1 NAT of HiSecOS needs one network on each side and the zone of each side

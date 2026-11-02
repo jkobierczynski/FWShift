@@ -1,0 +1,56 @@
+FWShift conversion report
+  source: hisecos (IPv4)
+  target: azure
+
+Summary
+  Security rules:     14   exact 8, approximated 0, needs review 4 (2 emitted disabled), skipped 2
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HISECOS_NOT_CONVERTED: settings that change what passes and are not converted: deep packet inspection (enforcer profiles)
+  [needs-review] HISECOS_DIRECTION_ORDER: the policy mixes assignments for ingress only with assignments for egress only; the MIB does not say how they are ordered against each other, and they are read as one order by priority: rules assigned for ingress only and rules assigned for egress only
+  [needs-review] AZURE_LOAD: the output is an ARM template (section 10): look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode, never complete), then associate each group with the subnets of its zone (its networks are in the template's metadata). Deploying it replaces all rules of groups of the same name
+  [info] HISECOS_SOURCE: 13 rules of the packet filter, 12 of them assigned and enabled, in the order of their priorities; zones are the routing interfaces (port1_1, port1_2, port1_3, vlan20); IPv4 only. The keywords of the commands are FWShift's reading of the MIB and the command list of the CLI reference, not confirmed by its Format lines
+  [info] HISECOS_DEFAULT: what no rule matches meets the default policy, drop (packet-filter l3 defaultpolicy)
+  [info] HISECOS_NAT_ORDER: destination NAT and 1:1 NAT are read as done before the packet filter, whose rules name the translated address (HiSecOS is built on netfilter; not confirmed): the rules were rewritten for the address as it arrives. Masquerading is done after it. The NAT rules are read in the order 1:1 NAT, double NAT, destination NAT, masquerading, each by priority (an assumption)
+  [info] HISECOS_MANAGEMENT: the device's own management access (network management access) is not converted; entries: entry 1
+  [info] HISECOS_EDITS: commands that change or delete rules, carried out in the order of the script: delrule 140
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: port1_1=192.0.2.0/24; port1_2=10.10.0.0/24; port1_3=10.30.0.0/24,10.30.1.0/24; vlan20=10.20.0.0/24. --no-source-networks takes none of them
+  [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
+
+Security rules
+  rule-20  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content.
+  rule-40  ->  skipped
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  rule-40-2  ->  skipped
+      [info] HISECOS_SPLIT: rule 40 is assigned at more than one place in the order (interfaces, directions or priorities); this is its placement number 2
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  rule-100  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: parameter flags=SYN is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-60  ->  needs-review  (emitted as security rules of port1_1, port1_2, port1_3, vlan20)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+  rule-110  ->  needs-review  (emitted as security rules of port1_1)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+  rule-80  ->  exact
+      [info] HISECOS_NOT_ASSIGNED: rule 80 is assigned to no interface, so it applies to no traffic: read as disabled, at the end
+
+NAT rules
+  1to1nat-1  ->  skipped
+      [info] HISECOS_1TO1: 1:1 NAT read as a static translation in both directions: the new target addresses leave as the target addresses, and connections to the target addresses reach the new ones (not confirmed)
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  doublenat-1  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  doublenat-1-reverse  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  dnat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  masq-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see

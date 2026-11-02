@@ -1,0 +1,65 @@
+FWShift conversion report
+  source: scalance
+  target: asa
+
+Summary
+  Security rules:     17   exact 1, approximated 9, needs review 6 (6 emitted disabled), skipped 1
+  NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] SCALANCE_RULESET: rule sets (user or digital-input firewall): rules assigned to one apply only while it is active and are not converted; check which rules belong to a set: ruleset name maintenance
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: vlan1, vlan2, vlan3, ipsecALL. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside a zone unless a rule denies it. An ASA does not send traffic back out of the interface it came in on unless 'same-security-traffic permit intra-interface' is set, and then only what the access lists permit
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 1 destination NAT rule is written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] SCALANCE_SOURCE: 4 interfaces as zones (vlan1, vlan2, vlan3, ipsecALL); 16 IP rules, in ascending priority (prior), equal priorities in the order they were created; the IPv4 rules, then the IPv6 rules. Rules of the firewall itself (device) and the predefined rules are not converted
+  [info] SCALANCE_DEFAULTS: what no rule matches between interfaces is dropped; traffic inside one VLAN does not pass the IP firewall
+  [info] SCALANCE_NAT_ORDER: destination NAT (NAPT, NETMAP of the destination) is done before the firewall, whose rules name the translated address: the rules were rewritten for the address as it arrives. Source NAT, NETMAP of the source and masquerading are done after it. Read in the order NAPT, NETMAP destination, NETMAP source, source NAT, masquerading, one rule of each direction per connection (assumed)
+  [info] SCALANCE_PRERULE: predefined rules (access to services of the firewall itself) are not converted; those the configuration does not list are at their factory setting: ssh ipv4 int vlan 1 enabled, https ipv4 int vlan 2 disabled
+  [info] SCALANCE_NETMAP_DSTINT: the destination interface of a NETMAP rule of the destination is not a condition of the converted rule: netmap destination 1: vlan3
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: vlan1=192.168.10.0/24,10.20.0.0/16; vlan2=198.51.100.0/24; vlan3=192.168.30.0/24. --no-source-networks takes none of them
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+
+Security rules
+  ipv4rule 4  ->  approximated  (emitted as vlan1_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan2. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  ipv4rule 2  ->  approximated  (emitted as vlan2_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  ipv4rule 1  ->  approximated  (emitted as vlan2_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  ipv4rule 3  ->  approximated  (emitted as vlan2_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  ipv4rule 5  ->  needs-review, emitted disabled  (emitted as vlan1_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan2, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind ipsecALL with --zone-network.
+  ipv4rule 6  ->  approximated  (emitted as vlan2_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan3. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  ipv4rule 7  ->  approximated  (emitted as vlan2_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan3. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  ipv4rule 8  ->  approximated  (emitted as vlan3_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [info] RESET_ACTION: action reset-client becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+  ipv4rule 9  ->  approximated  (emitted as vlan1_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan3. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  ipv4rule 11  ->  needs-review, emitted disabled  (emitted as vlan2_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNSUPPORTED_MATCH: not converted: source DYNAMIC: the address of the user who activates the rule set, or of the digital input.
+  ipv4rule 12  ->  needs-review, emitted disabled  (emitted as vlan2_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNSUPPORTED_MATCH: not converted: service ENIP is not in the configuration.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ENIP': unsupported or undefined service.
+  ipv4rule 14  ->  needs-review, emitted disabled  (emitted as vlan2_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNSUPPORTED_MATCH: not converted: assigned to the rule set maintenance: it applies only while the set is activated (by a user or a digital input).
+  ipv4rule 15  ->  needs-review, emitted disabled  (emitted as vlan3_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan2, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind ipsecALL with --zone-network.
+  ipv6rule 1  ->  approximated  (emitted as vlan2_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  ipv6rule 2  ->  needs-review, emitted disabled  (emitted as vlan1_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan2, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind ipsecALL with --zone-network.
+  ipv4rule 10  ->  skipped
+      [info] SCALANCE_DEVICE_RULE: a rule for traffic to or from the firewall itself (device): its own access, not converted
+
+Services
+  ENIP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'ipv4rule 12' but not defined in the input; emitted as a placeholder

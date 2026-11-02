@@ -1,0 +1,118 @@
+FWShift zone matrix
+  source: hisecos (IPv4)
+  security rules: 14 (2 disabled, 1 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 port1_1           port1_2           port1_3           vlan20            (other zones)
+  port1_1        tcp/80 +2~        tcp/80 +2~        icmp type 8 +3~   tcp/80 +2~        tcp/80 +2~
+  port1_2        any~              any~              any~              any~              any~
+  port1_3        icmp type 8 +1    icmp type 8 +1    icmp type 8 +1    icmp type 8 +1    icmp type 8 +1
+  vlan20         any~              any~              any~              any~              any~
+  (other zones)  -                 -                 icmp type 8       -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+port1_1 -> port1_1 (inside the zone)
+  allowed: tcp/80, tcp/443, tcp/8000-8010 ~
+  rule 'rule-60': 0.0.0.0/0 -> 10.30.0.10: tcp/80, tcp/443, tcp/8000-8010 ~
+port1_1 -> port1_2
+  allowed: tcp/80, tcp/443, tcp/8000-8010 ~
+  rule 'rule-60': 0.0.0.0/0 -> 10.30.0.10: tcp/80, tcp/443, tcp/8000-8010 ~
+port1_1 -> port1_3
+  allowed: icmp type 8, tcp/80, tcp/443, tcp/8000-8010 ~
+  rule 'rule-40-2': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'rule-60': 0.0.0.0/0 -> 10.30.0.10: tcp/80, tcp/443, tcp/8000-8010 ~
+port1_1 -> vlan20
+  allowed: tcp/80, tcp/443, tcp/8000-8010 ~
+  rule 'rule-60': 0.0.0.0/0 -> 10.30.0.10: tcp/80, tcp/443, tcp/8000-8010 ~
+port1_1 -> (other zones)
+  allowed: tcp/80, tcp/443, tcp/8000-8010 ~
+  rule 'rule-60': 0.0.0.0/0 -> 10.30.0.10: tcp/80, tcp/443, tcp/8000-8010 ~
+port1_2 -> port1_1
+  allowed: any ~
+  rule 'rule-100': 10.10.0.0/24 -> 0.0.0.0/0: any (only with parameter flags=SYN is not converted, which is not in the model) ~
+  rule 'rule-50': 10.10.0.0/24 -> 198.51.100.53: udp/53 from port 1024-65535
+  rule 'rule-130': 10.10.0.0/24 -> historian: tcp/1433
+port1_2 -> port1_2 (inside the zone)
+  allowed: any ~
+  rule 'rule-100': 10.10.0.0/24 -> 0.0.0.0/0: any (only with parameter flags=SYN is not converted, which is not in the model) ~
+  rule 'rule-130': 10.10.0.0/24 -> historian: tcp/1433
+port1_2 -> port1_3
+  allowed: any ~
+  rule 'rule-40-2': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'rule-100': 10.10.0.0/24 -> 0.0.0.0/0: any (only with parameter flags=SYN is not converted, which is not in the model) ~
+  rule 'rule-130': 10.10.0.0/24 -> historian: tcp/1433
+port1_2 -> vlan20
+  allowed: any ~
+  rule 'rule-100': 10.10.0.0/24 -> 0.0.0.0/0: any (only with parameter flags=SYN is not converted, which is not in the model) ~
+  rule 'rule-130': 10.10.0.0/24 -> historian: tcp/1433
+port1_2 -> (other zones)
+  allowed: any ~
+  rule 'rule-100': 10.10.0.0/24 -> 0.0.0.0/0: any (only with parameter flags=SYN is not converted, which is not in the model) ~
+  rule 'rule-130': 10.10.0.0/24 -> historian: tcp/1433
+port1_3 -> port1_1
+  allowed: icmp type 8, tcp/443
+  rule 'rule-40': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'rule-150': 10.30.0.64/28 -> 0.0.0.0/0: tcp/443
+port1_3 -> port1_2
+  allowed: icmp type 8, tcp/443
+  rule 'rule-40': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'rule-150': 10.30.0.64/28 -> 0.0.0.0/0: tcp/443
+port1_3 -> port1_3 (inside the zone)
+  allowed: icmp type 8, tcp/443
+  rule 'rule-40': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'rule-40-2': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'rule-150': 10.30.0.64/28 -> 0.0.0.0/0: tcp/443
+port1_3 -> vlan20
+  allowed: icmp type 8, tcp/443
+  rule 'rule-40': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'rule-150': 10.30.0.64/28 -> 0.0.0.0/0: tcp/443
+port1_3 -> (other zones)
+  allowed: icmp type 8, tcp/443
+  rule 'rule-40': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'rule-150': 10.30.0.64/28 -> 0.0.0.0/0: tcp/443
+vlan20 -> port1_1
+  allowed: any ~
+  industrial protocols: modbus (rule 'rule-10')
+  rule 'rule-10': 10.20.0.0/24 -> 10.10.0.0/24: tcp/502
+  rule 'rule-20': 10.20.0.0/24 -> plc-line1: any (only with traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content, which is not in the model) ~
+vlan20 -> port1_2
+  allowed: any ~
+  industrial protocols: modbus (rule 'rule-10')
+  rule 'rule-10': 10.20.0.0/24 -> 10.10.0.0/24: tcp/502
+  rule 'rule-20': 10.20.0.0/24 -> plc-line1: any (only with traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content, which is not in the model) ~
+vlan20 -> port1_3
+  allowed: any ~
+  industrial protocols: modbus (rule 'rule-10')
+  rule 'rule-10': 10.20.0.0/24 -> 10.10.0.0/24: tcp/502
+  rule 'rule-20': 10.20.0.0/24 -> plc-line1: any (only with traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content, which is not in the model) ~
+  rule 'rule-40-2': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+vlan20 -> vlan20 (inside the zone)
+  allowed: any ~
+  industrial protocols: modbus (rule 'rule-10')
+  rule 'rule-10': 10.20.0.0/24 -> 10.10.0.0/24: tcp/502
+  rule 'rule-20': 10.20.0.0/24 -> plc-line1: any (only with traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content, which is not in the model) ~
+vlan20 -> (other zones)
+  allowed: any ~
+  industrial protocols: modbus (rule 'rule-10')
+  rule 'rule-10': 10.20.0.0/24 -> 10.10.0.0/24: tcp/502
+  rule 'rule-20': 10.20.0.0/24 -> plc-line1: any (only with traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content, which is not in the model) ~
+(other zones) -> port1_3
+  allowed: icmp type 8
+  rule 'rule-40-2': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+
+From reading the configuration
+  HISECOS_SOURCE: 13 rules of the packet filter, 12 of them assigned and enabled, in the order of their priorities; zones are the routing interfaces (port1_1, port1_2, port1_3, vlan20); IPv4 only. The keywords of the commands are FWShift's reading of the MIB and the command list of the CLI reference, not confirmed by its Format lines
+  HISECOS_DEFAULT: what no rule matches meets the default policy, drop (packet-filter l3 defaultpolicy)
+  HISECOS_NAT_ORDER: destination NAT and 1:1 NAT are read as done before the packet filter, whose rules name the translated address (HiSecOS is built on netfilter; not confirmed): the rules were rewritten for the address as it arrives. Masquerading is done after it. The NAT rules are read in the order 1:1 NAT, double NAT, destination NAT, masquerading, each by priority (an assumption)
+  HISECOS_MANAGEMENT: the device's own management access (network management access) is not converted; entries: entry 1
+  HISECOS_NOT_CONVERTED: settings that change what passes and are not converted: deep packet inspection (enforcer profiles)
+  HISECOS_EDITS: commands that change or delete rules, carried out in the order of the script: delrule 140
+  HISECOS_DIRECTION_ORDER: the policy mixes assignments for ingress only with assignments for egress only; the MIB does not say how they are ordered against each other, and they are read as one order by priority: rules assigned for ingress only and rules assigned for egress only
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  1 rule(s) never match and are left out; 'fwshift audit' names them.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

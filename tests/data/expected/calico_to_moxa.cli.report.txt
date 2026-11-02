@@ -1,0 +1,55 @@
+FWShift conversion report
+  source: calico
+  target: moxa
+
+Summary
+  Security rules:     67   exact 53, approximated 0, needs review 14 (7 emitted disabled), skipped 0
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     17   exact 17, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CALICO_HOST_ENDPOINTS: global policy platform.dns applies to host endpoints as well (node-a-eth0, node-b-eth0); what it does for them is not converted
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] CALICO_HOST_ENDPOINTS: the export holds 2 host endpoints: their addresses are matched by selectors, but the policies that apply to them are not converted
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [info] CALICO_HOST_ONLY: policy security.raw-untracked has doNotTrack or preDNAT: it applies to host endpoints only, which are not converted
+  [info] CALICO_LOG_RULE: security.ping: a ingress rule with action Log only logs and goes on; it is left out
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+  [info] CALICO_NODE_TRAFFIC: traffic between a pod and its node is decided by Felix's configuration and the policies of host endpoints; it is not converted
+  [info] MOXA_DEFAULT_RULES: after the converted rules, 1 policies that drop what no rule matches between the interfaces written, as the source does: the router lets it through (assumed)
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  platform.dns/egress-2  ->  needs-review  (emitted as firewall 7-8)
+      [needs-review] MOXA_IPV4_ONLY: the rule also blocks IPv6, which the router's policies do not filter: only its IPv4 part is written
+  shop/web-calico/egress-2  ->  needs-review, emitted disabled  (emitted as firewall 11)
+      [needs-review] NOT_WRITTEN: the rule matches no IPv4 address: the router's policies are IPv4.
+  shop/web-calico/egress-3  ->  needs-review  (emitted as firewall 12-13)
+      [needs-review] MOXA_IPV4_ONLY: the rule also blocks IPv6, which the router's policies do not filter: only its IPv4 part is written
+  platform.dns/egress-2-4  ->  needs-review  (emitted as firewall 28)
+      [needs-review] MOXA_IPV4_ONLY: the rule also blocks IPv6, which the router's policies do not filter: only its IPv4 part is written
+  security.ping/ingress-1  ->  needs-review, emitted disabled  (emitted as firewall 39)
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  security.ping/ingress-2  ->  needs-review, emitted disabled  (emitted as firewall 40)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match.
+  security.block-threats/ingress-2  ->  needs-review  (emitted as firewall 45-48)
+      [needs-review] MOXA_IPV4_ONLY: the rule also blocks IPv6, which the router's policies do not filter: only its IPv4 part is written
+  shop/web-calico/ingress-4  ->  needs-review, emitted disabled  (emitted as firewall 59)
+      [needs-review] SERVICE_NEGATE: every service but some: a policy names one protocol and its ports.
+  shop/web-calico/ingress-5  ->  needs-review, emitted disabled  (emitted as firewall 60)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an HTTP match (application layer policy).
+  default tier end/ingress  ->  needs-review  (emitted as firewall 69-70)
+      [needs-review] MOXA_IPV4_ONLY: the rule also blocks IPv6, which the router's policies do not filter: only its IPv4 part is written
+  security.block-threats/ingress-2-4  ->  needs-review  (emitted as firewall 87-88)
+      [needs-review] MOXA_IPV4_ONLY: the rule also blocks IPv6, which the router's policies do not filter: only its IPv4 part is written
+  payments/api-ingress/ingress-1-2  ->  needs-review, emitted disabled  (emitted as firewall 99)
+      [needs-review] SERVICE_NOT_WRITTEN: SCTP: a policy names all, TCP, UDP or ICMP.
+  payments/api-ingress/ingress-3  ->  needs-review, emitted disabled  (emitted as firewall 100)
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).
+  default tier end/ingress-4  ->  needs-review  (emitted as firewall 103)
+      [needs-review] MOXA_IPV4_ONLY: the rule also blocks IPv6, which the router's policies do not filter: only its IPv4 part is written

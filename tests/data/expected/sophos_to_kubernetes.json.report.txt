@@ -1,0 +1,103 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: kubernetes
+
+Summary
+  Security rules:     17   exact 1, approximated 1, needs review 14 (14 emitted disabled), skipped 1
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] K8S_LOAD: the output is a List of NetworkPolicies for kubectl apply -n NAMESPACE -f FILE (kubectl apply --dry-run=server checks it first). It names no namespace: apply it in the namespace of the pods it is for, and in each such namespace. Policies of the same name are replaced; nothing else is changed. A policy selects the pods labelled fwshift/group=<its group>, and no pod has that label yet: nothing changes until pods are labelled
+  [needs-review] K8S_LABEL_PODS: 1 group: label each pod with fwshift/group=<group> of the policy whose fwshift/addresses annotation holds the pod's address (kubectl label pod POD ...). A pod's address changes when it is created again: label the pods through their Deployment or StatefulSet template, where every address the template's pods get must be in that group. A pod with addresses of both IP versions needs a group that holds both
+  [needs-review] K8S_IPBLOCK_PODS: the peers are written as ipBlock. Whether an ipBlock matches the addresses of pods depends on the network plugin (the Kubernetes documentation says ipBlock is meant for addresses outside the cluster); where it does not, rules between pods allow nothing
+  [info] K8S_PLATFORM_ALLOWS: a NetworkPolicy always allows traffic between a pod and the node it runs on, and a pod to itself; and it is only guaranteed to decide TCP, UDP and SCTP (for ICMP and other protocols the network plugin decides)
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a NetworkPolicy does not (some network plugins can log on their own)
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a NetworkPolicy names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a NetworkPolicy names no zone: give the networks behind WAN with --zone-network.
+  LAN web again  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a NetworkPolicy names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a NetworkPolicy names no zone: give the networks behind WAN with --zone-network.
+  Admins to DMZ  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a NetworkPolicy names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a NetworkPolicy names no zone: give the networks behind DMZ with --zone-network.
+  LAN to DMZ web not mail  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a NetworkPolicy names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a NetworkPolicy names no zone: give the networks behind DMZ with --zone-network.
+  LAN SSH out  ->  needs-review, emitted disabled
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a NetworkPolicy names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OT, and a NetworkPolicy names no zone: give the networks behind OT with --zone-network.
+  LAN SSH out-2  ->  needs-review, emitted disabled
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a NetworkPolicy names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, OT, and a NetworkPolicy names no zone: give the networks behind DMZ, OT with --zone-network.
+  Internet to web  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-public' with post-NAT 'web-1' because of NAT rule 'Publish web'; check that this rule is meant to cover the translated traffic
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a NetworkPolicy names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a NetworkPolicy names no zone: give the networks behind DMZ with --zone-network.
+  Internet to mail  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail-public' with post-NAT 'mail-1' because of NAT rule 'Publish mail'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'Publish mail' also translates the port to 25: the service of this rule (smtp-alt) named the pre-NAT port only, and now names 25, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a NetworkPolicy names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a NetworkPolicy names no zone: give the networks behind DMZ with --zone-network.
+  OT to SCADA  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OT, and a NetworkPolicy names no zone: give the networks behind OT with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAN, and a NetworkPolicy names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] SOURCE_PORTS: source ports: a NetworkPolicy matches destination ports only.
+  DMZ updates  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+      [needs-review] FQDN_NOT_SUPPORTED: host name object mirror.example.net, updates.example.com: a NetworkPolicy names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a NetworkPolicy names no zone: give the networks behind DMZ with --zone-network.
+  Finance to app  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Finance is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a NetworkPolicy names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a NetworkPolicy names no zone: give the networks behind DMZ with --zone-network.
+  DNS in office hours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OT, and a NetworkPolicy names no zone: give the networks behind OT with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAN, and a NetworkPolicy names no zone: give the networks behind LAN with --zone-network.
+  Reject the rest from LAN  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a NetworkPolicy names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAN6 to Internet  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a NetworkPolicy names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a NetworkPolicy names no zone: give the networks behind WAN with --zone-network.
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  Publish web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  Publish mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  Mail server out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  No NAT to partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  NAT of LAN to Internet web  ->  skipped
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  Default SNAT IPv4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+
+Addresses
+  any-example-org  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+  Blocked countries  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted

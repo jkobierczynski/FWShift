@@ -1,0 +1,65 @@
+FWShift conversion report
+  source: mguard
+  target: azure
+
+Summary
+  Security rules:     19   exact 14, approximated 1, needs review 3 (3 emitted disabled), skipped 1
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_USER_FIREWALL: the user firewall is on, with 1 templates (service technicians): rules that apply to users who log in; not converted. With it on, the mGuard lets through more than the converted policy
+  [needs-review] MGUARD_VPN_FIREWALL: 1 VPN connections have firewall rules of their own (FW_INCOMING, FW_OUTGOING of the connection): not converted, nor the VPN traffic they decide
+  [needs-review] AZURE_LOAD: the output is an ARM template (section 10): look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode, never complete), then associate each group with the subnets of its zone (its networks are in the template's metadata). Deploying it replaces all rules of groups of the same name
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] MGUARD_SOURCE: mGuard profile 8.6.1.default, router mode; zones internal, external, dmz; tables read: FW_INCOMING, FW_OUTGOING, FW_INCOMING_WAN_DMZ, FW_INCOMING_DMZ_LAN, FW_OUTGOING_LANDMZ. Each table is first match; what no rule matches is dropped; port forwarding skips the packet filter
+  [info] MGUARD_INTERNAL_ROUTED: the internal side has more than one network (LOCAL_ALIASES): the outgoing rules also decide connections from one of them to another, so they are read for internal -> internal as well
+  [info] MGUARD_IPV4_ONLY: the packet filter of the mGuard is IPv4: 0.0.0.0/0 is read as every IPv4 address, and the rules match no IPv6
+  [info] MGUARD_DEFAULT_LOG: connection attempts no rule covers are logged (LOG_DEFAULT_INCOMING); the model has no place for that
+  [info] MGUARD_MANAGEMENT_ACCESS: access to the mGuard itself is not converted (it protects the device, not forwarded traffic): HTTPS_REMOTE_ACCESS_RULES (1 rows); HTTPS_REMOTE_ENABLE yes; FW_ICMP ping
+  [info] MGUARD_HOSTNAME: host names in IP groups, resolved by the DNS settings of the mGuard; read as names resolved for IPv4: scada: historian.example.com
+  [info] MGUARD_REJECT: Reject: the mGuard sends the packets back and tells the sender; read as reset-both: FW_INCOMING row 4
+  [info] MGUARD_PORTS_IGNORED: ports in rules for a protocol other than tcp and udp, which the mGuard ignores: FW_INCOMING row 7
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. --no-source-networks takes none of them
+  [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
+
+Security rules
+  portforward-1  ->  exact  (emitted as security rules of internal)
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+  portforward-2  ->  exact  (emitted as security rules of dmz)
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+  incoming-1  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object historian.example.com: a security rule names addresses.
+  incoming-4  ->  exact  (emitted as security rules of internal, external)
+      [info] RESET_ACTION: action reset-both becomes Deny: a security group has no reject
+  incoming-5.maintenance-1  ->  needs-review, emitted disabled
+      [needs-review] MGUARD_RULESET_SWITCHED: a rule of rule set maintenance, which cmd1 switches on and off: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule set maintenance is switched on and off (cmd1); its rules apply only while it is active.
+  incoming-6.vendor-1  ->  exact  (emitted as security rules of internal, external)
+      [info] MGUARD_RULESET: rule 1 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+  incoming-6.vendor-2  ->  exact  (emitted as security rules of internal, external)
+      [info] MGUARD_RULESET: rule 2 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+  incoming-7  ->  skipped
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  incoming-9  ->  needs-review, emitted disabled
+      [needs-review] MGUARD_UNREAD: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] UNSUPPORTED_MATCH: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group.
+  lan-dmz-1  ->  approximated  (emitted as security rules of internal, dmz)
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+
+NAT rules
+  portforward-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  portforward-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  1to1-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  masquerade-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  masquerade-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see

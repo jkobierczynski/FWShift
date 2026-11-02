@@ -1,0 +1,95 @@
+FWShift conversion report
+  source: checkpoint (Network)
+  target: hisecos
+
+Summary
+  Security rules:     22   exact 6, approximated 1, needs review 14 (9 emitted disabled), skipped 1
+  NAT rules:           9   exact 1, approximated 0, needs review 1, skipped 7
+  Addresses:          16   exact 13, approximated 1, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')
+  [needs-review] HISECOS_LOAD: the output is a CLI script of HiSecOS (section 10): commands of the Global Config mode that add rules 1001 to 1074 of the packet filter (they must be free) with their interface assignments, and NAT rules, and that delete nothing. The keywords are FWShift's reading of Belden's MIBs and command list, not confirmed on a device: check the script with 'script validate' first. Nothing applies until you commit: read 'show packet-filter l3 pending', then 'packet-filter l3 commit' (and 'nat dnat commit', 'nat masq commit', 'nat 1to1nat commit'). Rules of the device with lower priorities on the same interfaces come first, and its default policy is not changed. To take the rules away again: 'packet-filter l3 delif' for each assignment, then 'packet-filter l3 delrule N' for N from 1001 to 1074
+  [needs-review] INTERFACES_REQUIRED: zones are written as the routing interfaces of the device (1/1, vlan/10): these names are not such interfaces, and the device refuses the assignments that name them. Map the zones with --zone-map, or their interfaces with --interface-map: InternalZone, ExternalZone
+  [info] HISECOS_IPV4_ONLY: HiSecOS filters IPv4: the IPv6 addresses and ICMPv6 of these rules are not written: DNS, Guests stay out, IPv6 out
+  [info] HISECOS_NAT_WRITTEN: destination NAT and 1:1 NAT are done before the packet filter (assumed, as on netfilter): the rules were written for the translated address
+
+Security rules
+  rule-2  ->  needs-review  (emitted as rules 1009-1020)
+      [needs-review] DEVICE_TARGET: the rule is installed only on gw-edge; decide whether it belongs on the target firewall
+  Social  ->  needs-review, emitted disabled  (emitted as rule 1054 (a placeholder, disabled))
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-6' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Facebook': object of type 'application-site'.
+  Admins  ->  needs-review, emitted disabled  (emitted as rule 1055 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netadmins': access role whose networks and users are not in the export (add the output of 'show access-roles details-level full').
+  PLC access (plc-operators)  ->  needs-review, emitted disabled  (emitted as rule 1060)
+      [needs-review] ACCESS_ROLE: access role plc-operators: the rule matches the networks of the role for its users ad_group_PLC-Operators, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [needs-review] USER_MATCH: source user match ad_group_PLC-Operators is not converted.
+  PLC access (vendor-support)  ->  needs-review, emitted disabled  (emitted as rule 1061)
+      [needs-review] ACCESS_ROLE: access role vendor-support: the rule matches the networks of the role for its users ad_group_Vendor-Support, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [needs-review] USER_MATCH: source user match ad_group_Vendor-Support is not converted.
+  DMZ users  ->  needs-review, emitted disabled  (emitted as rule 1062)
+      [needs-review] ACCESS_ROLE: access role all-identified: the rule matches the networks of the role for all identified users, written 'known-user' as PAN-OS calls them
+      [needs-review] USER_MATCH: source user match known-user is not converted.
+  Updates  ->  needs-review, emitted disabled  (emitted as rule 1063 (a placeholder, disabled))
+      [needs-review] SCHEDULE: schedule 'Work-Hours' is not converted; the rule would apply at all times.
+      [needs-review] HISECOS_FQDN: the destination holds host names (.updates.example.com); a rule of HiSecOS takes addresses only.
+  Old rule  ->  needs-review, emitted disabled  (emitted as rule 1064 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'lan-without-guests': object of type 'group-with-exclusion'.
+  Partners  ->  needs-review, emitted disabled  (emitted as rule 1065)
+      [needs-review] UNSUPPORTED_MATCH: not converted: VPN community match Partner-VPN.
+  IPv6 out  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  Public web  ->  approximated  (emitted as rule 1066)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-1_valid_address' with post-NAT 'web-1' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+  DMZ access / Web in  ->  needs-review  (emitted as rule 1067)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-1', the address NAT rule 'nat-2' translates 'web-1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web-1_valid_address' now matches this rule; on the source it did not
+  DMZ access / Mail in  ->  needs-review  (emitted as rule 1068)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail-1', the address NAT rule 'nat-6' translates 'mail-public' to. The target looks rules up after that translation, so traffic sent to 'mail-public' now matches this rule; on the source it did not
+  DMZ access / Ping from LAN  ->  needs-review  (emitted as rule 1069)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-1', the address NAT rule 'nat-2' translates 'web-1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web-1_valid_address' now matches this rule; on the source it did not
+  DMZ access (cleanup of DMZ-Layer)  ->  needs-review  (emitted as rule 1070)
+      [info] INLINE_CLEANUP: added for the implicit cleanup of inline layer 'DMZ-Layer', which is drop
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-1', the address NAT rule 'nat-2' translates 'web-1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web-1_valid_address' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail-1', the address NAT rule 'nat-6' translates 'mail-public' to. The target looks rules up after that translation, so traffic sent to 'mail-public' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+  Tunnels  ->  needs-review, emitted disabled  (emitted as rule 1071 (a placeholder, disabled))
+      [approximated] GATEWAY_OBJECT: matches gateway object gw-edge, which stood for every address of the gateway; only its main address is known, so the converted rule no longer applies to its other addresses
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any.
+  No ident  ->  exact  (emitted as rule 1072)
+      [info] RESET_ACTION: action reset-client becomes reject, which answers the sender with an ICMP message, not a TCP reset
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: HiSecOS writes destination NAT to one address, masquerading behind the interface and 1:1 NAT of networks; this rule is none of them
+  nat-3  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: HiSecOS writes destination NAT to one address, masquerading behind the interface and 1:1 NAT of networks; this rule is none of them
+  nat-4  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: masquerading needs the interface traffic leaves by: the rule names no destination zone
+  nat-5  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: HiSecOS writes destination NAT to one address, masquerading behind the interface and 1:1 NAT of networks; this rule is none of them
+  nat-6  ->  needs-review  (emitted as nat dnat add 202)
+      [needs-review] NAT_ORDER: NAT rule 'nat-1' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: NAT rule 'nat-4' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+  nat-7  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: HiSecOS writes destination NAT to one address, masquerading behind the interface and 1:1 NAT of networks; this rule is none of them
+  nat-8  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: masquerading needs the interface traffic leaves by: the rule names no destination zone
+  nat-9  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: HiSecOS writes destination NAT to one address, masquerading behind the interface and 1:1 NAT of networks; this rule is none of them
+
+Addresses
+  web-1  ->  exact
+      [info] AUTOMATIC_NAT: the object has automatic static NAT to 203.0.113.10: as on Check Point, rules and groups that name it also match that address, written as 'web-1_valid_address'
+  netadmins  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: access role whose networks and users are not in the export (add the output of 'show access-roles details-level full') cannot be converted
+  lan-without-guests  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'group-with-exclusion' cannot be converted
+  gw-edge  ->  approximated
+      [approximated] GATEWAY_OBJECT: a gateway object stands for every address of the gateway; only its main address 198.51.100.1 is in the export
+
+Services
+  Facebook  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: object of type 'application-site': not converted

@@ -1,0 +1,46 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: mguard
+
+Summary
+  Security rules:     10   exact 3, approximated 0, needs review 0, skipped 7
+  NAT rules:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): External=external, Trusted=internal, DMZ=dmz
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  Block Bad  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Guests: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Web Out  ->  skipped
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+      [needs-review] MGUARD_ZONE_UNKNOWN: Guests: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Web In  ->  exact  (emitted as 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ
+  Mail In  ->  exact  (emitted as 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ
+  DMZ Updates  ->  skipped
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+  Guests Out  ->  skipped
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  Staff Only  ->  skipped
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+  Ping  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Guests: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Lab Tunnel  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Lab: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+
+NAT rules
+  Web-Public (Web In)  ->  exact  (emitted as port forwarding)
+      [info] MGUARD_FORWARD_ALLOWED: port forwarding skips the packet filter; the rules of the model allow all of what it forwards
+  Mail-Public (Mail In)  ->  exact  (emitted as port forwarding)
+      [info] MGUARD_FORWARD_ALLOWED: port forwarding skips the packet filter; the rules of the model allow all of what it forwards

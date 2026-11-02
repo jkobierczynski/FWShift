@@ -1,0 +1,58 @@
+FWShift conversion report
+  source: scalance
+  target: fdm
+
+Summary
+  Security rules:     17   exact 13, approximated 0, needs review 0, skipped 4
+  NAT rules:           5   exact 0, approximated 4, needs review 0, skipped 1
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] SCALANCE_RULESET: rule sets (user or digital-input firewall): rules assigned to one apply only while it is active and are not converted; check which rules belong to a set: ruleset name maintenance
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): vlan1, vlan2, vlan3, ipsecALL. Zones are not written: an import would take the interfaces out of a zone that exists
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside a zone unless a rule denies it; a Cisco Secure Firewall asks its access rules about traffic between the interfaces of a zone as about any other. Check zones with several interfaces
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 1 destination NAT rule is written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] SCALANCE_SOURCE: 4 interfaces as zones (vlan1, vlan2, vlan3, ipsecALL); 16 IP rules, in ascending priority (prior), equal priorities in the order they were created; the IPv4 rules, then the IPv6 rules. Rules of the firewall itself (device) and the predefined rules are not converted
+  [info] SCALANCE_DEFAULTS: what no rule matches between interfaces is dropped; traffic inside one VLAN does not pass the IP firewall
+  [info] SCALANCE_NAT_ORDER: destination NAT (NAPT, NETMAP of the destination) is done before the firewall, whose rules name the translated address: the rules were rewritten for the address as it arrives. Source NAT, NETMAP of the source and masquerading are done after it. Read in the order NAPT, NETMAP destination, NETMAP source, source NAT, masquerading, one rule of each direction per connection (assumed)
+  [info] SCALANCE_PRERULE: predefined rules (access to services of the firewall itself) are not converted; those the configuration does not list are at their factory setting: ssh ipv4 int vlan 1 enabled, https ipv4 int vlan 2 disabled
+  [info] SCALANCE_NETMAP_DSTINT: the destination interface of a NETMAP rule of the destination is not a condition of the converted rule: netmap destination 1: vlan3
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  ipv4rule 8  ->  exact  (emitted as ipv4rule_8)
+      [info] RESET_ACTION: action reset-client becomes Block, which drops without an answer: a Device Manager has no rule that resets
+  ipv4rule 11  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: source DYNAMIC: the address of the user who activates the rule set, or of the digital input. The rule is left out: a Device Manager has no rules that are switched off.
+  ipv4rule 12  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: service ENIP is not in the configuration. The rule is left out: a Device Manager has no rules that are switched off.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ENIP': unsupported or undefined service. The rule is left out: a Device Manager has no rules that are switched off.
+  ipv4rule 14  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: assigned to the rule set maintenance: it applies only while the set is activated (by a user or a digital input). The rule is left out: a Device Manager has no rules that are switched off.
+  ipv4rule 10  ->  skipped
+      [info] SCALANCE_DEVICE_RULE: a rule for traffic to or from the firewall itself (device): its own access, not converted
+
+NAT rules
+  napt 1  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone vlan2 only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  napt 2  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone vlan2 only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  netmap destination 1  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone vlan2 only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  src-nat 1  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone vlan1 only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  masquerading 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is for the address of an interface of zone 'vlan2', and the interfaces of that zone on the target are not known; name them with --interface-map
+
+Services
+  SYSLOG  ->  exact  (emitted as SYSLOG_2)
+      [info] RENAMED: renamed to 'SYSLOG_2' to fit the target's naming rules
+  HTTPS  ->  exact  (emitted as HTTPS_2)
+      [info] RENAMED: renamed to 'HTTPS_2' to fit the target's naming rules
+  PING  ->  exact
+      [info] ICMP_CODE: code 0 of an ICMP type for which a Device Manager has no codes is written as the type alone: 0 is the only code that type has
+  PING6  ->  exact
+      [info] ICMP_CODE: code 0 of an ICMP type for which a Device Manager has no codes is written as the type alone: 0 is the only code that type has
+  ENIP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'ipv4rule 12' but not defined in the input; emitted as a placeholder

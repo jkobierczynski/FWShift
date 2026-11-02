@@ -1,0 +1,121 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "metadata": {
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "defconf: accept in ipsec policy (not written, see the report); banned scanners (not written, see the report); ssh from the admins (not written, see the report); web for everyone (not written, see the report); web for everyone-2 (not written, see the report); ping \"echo\" only (not written, see the report); ping \"echo\" only-2 (not written, see the report); old partner access (disabled in the source); old partner access-2 (disabled in the source); rest of the DMZ (not written, see the report); rest of the DMZ-2 (not written, see the report); rest of the DMZ-3 (not written, see the report); LAN to the package mirrors (not written, see the report); guest DNS, either port (not written, see the report); guest DNS, either port-2 (not written, see the report); guests to the internet (not written, see the report); office hours for staff (not written, see the report); defconf: drop all from WAN not DSTNATed (allows publish web) (not written, see the report); defconf: drop all from WAN not DSTNATed (allows publish mail) (not written, see the report)"
+    }
+  },
+  "items": [
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-lan6-ipv6",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "2001:db8:10::/64",
+          "fwshift/rules": "the partners reach the web servers of the LAN by HTTPS and nothing else"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-lan6-ipv6"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "2001:db8:99::/48"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 443
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-partners-ipv6-ipv6",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "2001:db8:99::/48",
+          "fwshift/rules": "the partners reach the web servers of the LAN by HTTPS and nothing else"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-partners-ipv6-ipv6"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "2001:db8:10::/64"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 443
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-no-rules",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "0.0.0.0/0 ::-2001:db8:f:ffff:ffff:ffff:ffff:ffff 2001:db8:10:1::-2001:db8:98:ffff:ffff:ffff:ffff:ffff 2001:db8:9a::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+          "fwshift/rules": ""
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-no-rules"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ]
+      }
+    }
+  ]
+}

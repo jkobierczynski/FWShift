@@ -1,0 +1,97 @@
+FWShift conversion report
+  source: aws-network-firewall (pol-inspection)
+  target: moxa
+
+Summary
+  Security rules:     41   exact 17, approximated 5, needs review 19 (15 emitted disabled), skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           21   exact 21, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWSNFW_ASYMMETRIC: one direction of some connections is passed by the stateless rules and the other forwarded to the stateful engine, which then sees half a flow and may drop it (sl-edge-8, the stateless default action aws:forward_to_sfe). The converted policy leaves those connections to the stateful rules
+  [needs-review] AWSNFW_STATELESS_NOT_WORKED_OUT: some stateless rules cannot be read (TCP flags, a rule group not in the input, a value that cannot be read): they are not converted, and what the rules after them and the replies meet was worked out as if they matched nothing
+  [needs-review] AWSNFW_GROUP_MISSING: the policy names rule groups that are not in the input: ThreatSignaturesMalwareStrictOrder. Their rules are not converted; add the answers of describe-rule-group
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [info] AWSNFW_FRAGMENTS: UDP fragments that no stateless rule matches are handled by aws:drop, other packets by the default for full packets; the model has no fragments, and the converted policy follows the default for full packets. Fragments of other protocols are dropped
+  [info] AWSNFW_STATELESS_FORWARD: these stateless rules forward what they match to the stateful engine, so the stateless rules below them do not see it: sl-edge-10
+  [info] AWSNFW_ALERT_RULES: 1 alert rule decides nothing (an alert only logs) and was left out
+  [info] AWSNFW_CUSTOM_ACTIONS: custom actions publish metrics to CloudWatch; they decide nothing and are not converted
+  [info] AWSNFW_HOME_NET: HOME_NET is 10.20.0.0/16, 2001:db8:20::/56 (the CIDR blocks of VPC vpc-0a1b2c3d4e5f60789); EXTERNAL_NET is everything else, unless a rule group sets it
+  [info] AWSNFW_NO_ZONES: the firewall sits in a route path and names no zones or interfaces: the converted policy has none. A target with zones needs the networks behind them (--zone-network)
+  [info] MOXA_DEFAULT_RULES: after the converted rules, 1 policies that drop what no rule matches between the interfaces written, as the source does: the router lets it through (assumed)
+  [info] MOXA_LOG_NOT_WRITTEN: rules of the source log; the CLI manual FWShift read shows no logging of a policy: set it in the web console for the policies of 11 rules: sl-edge-1-replies, sl-edge-1, sf-baseline-102, sf-baseline-102-rev, sf-baseline-103, sf-app-1004, sf-app-1011, sf-app-1013 ...
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  sl-edge-1-replies  ->  exact  (emitted as firewall 1)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-1, which drops them, so the connections are blocked whatever else would allow them
+  sl-edge-20-replies  ->  needs-review, emitted disabled  (emitted as firewall 2)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [needs-review] SERVICE_NEGATE: every service but some: a policy names one protocol and its ports. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-20-replies-2  ->  needs-review, emitted disabled  (emitted as firewall 3)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-12  ->  needs-review, emitted disabled  (emitted as firewall 7)
+      [needs-review] UNSUPPORTED_MATCH: not converted: TCP flags: the rule matches some packets of a connection and not others. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-20  ->  needs-review, emitted disabled  (emitted as firewall 8)
+      [needs-review] NOT_WRITTEN: the rule matches no IPv4 address: the router's policies are IPv4. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ThreatSignaturesMalwareStrictOrder-1  ->  needs-review, emitted disabled  (emitted as firewall 9)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule group ThreatSignaturesMalwareStrictOrder is not in the input; add the answer of describe-rule-group for arn:aws:network-firewall:eu-west-1:aws-managed:stateful-rulegroup/ThreatSignaturesMalwareStrictOrder (an AWS managed rule group, whose rules AWS may not show). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-103  ->  approximated  (emitted as firewall 14)
+      [approximated] MOXA_RESET_AS_DROP: action reset-client written as drop, which answers nobody
+  sf-baseline-105  ->  needs-review, emitted disabled  (emitted as firewall 15)
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  sf-baseline-106  ->  needs-review, emitted disabled  (emitted as firewall 16)
+      [needs-review] NOT_WRITTEN: the rule matches no IPv4 address: the router's policies are IPv4.
+  sf-app-1003  ->  approximated  (emitted as firewall 22-23)
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+  sf-app-1005  ->  needs-review, emitted disabled  (emitted as firewall 28)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+  sf-app-1005-rev  ->  needs-review, emitted disabled  (emitted as firewall 29)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+  sf-app-1007  ->  needs-review, emitted disabled  (emitted as firewall 30)
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP.
+  sf-app-1008  ->  needs-review  (emitted as firewall 31)
+      [needs-review] MOXA_IPV4_ONLY: the rule also blocks IPv6, which the router's policies do not filter: only its IPv4 part is written
+  sf-app-1011  ->  exact  (emitted as firewall 32)
+      [info] AWSNFW_REJECT_NOT_TCP: reject sends a TCP reset, and is for TCP only; the rule, which matches other protocols too, is read as drop
+  sf-app-1013  ->  needs-review  (emitted as firewall 35-36)
+      [needs-review] MOXA_IPV4_ONLY: the rule also blocks IPv6, which the router's policies do not filter: only its IPv4 part is written
+  stateful-default-not-tcp  ->  needs-review, emitted disabled  (emitted as firewall 37)
+      [needs-review] SERVICE_NEGATE: every service but some: a policy names one protocol and its ports. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-100-reply  ->  exact  (emitted as firewall 38)
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-100 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+  sf-baseline-103-reply  ->  approximated  (emitted as firewall 39)
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-103 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [approximated] MOXA_RESET_AS_DROP: action reset-server written as drop, which answers nobody
+  sf-app-1003-reply  ->  approximated  (emitted as firewall 40-41)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1003 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+  sf-app-1009-reply  ->  exact  (emitted as firewall 42)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1009 matches packets in the direction of its header, so also the first reply of a connection opened the other way; this rule is what it decides then
+  sf-app-1002  ->  approximated  (emitted as firewall 44-45)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+  sf-app-1006  ->  needs-review, emitted disabled  (emitted as firewall 46)
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword http.uri. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword content:"/admin". This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-block-1  ->  needs-review, emitted disabled  (emitted as firewall 47)
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-egress-1  ->  needs-review, emitted disabled  (emitted as firewall 48)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address.
+  dl-egress-2  ->  needs-review  (emitted as firewall 49-50)
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] MOXA_IPV4_ONLY: the rule also blocks IPv6, which the router's policies do not filter: only its IPv4 part is written
+  dl-egress-3  ->  needs-review, emitted disabled  (emitted as firewall 51)
+      [approximated] APP_TO_PORTS: applications web-browsing reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: http.host: the rule matches by domain name, which is not an address.
+  dl-egress-4  ->  needs-review  (emitted as firewall 52-53)
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] MOXA_IPV4_ONLY: the rule also blocks IPv6, which the router's policies do not filter: only its IPv4 part is written
+  sf-app-1010  ->  exact  (emitted as firewall 54)
+      [info] AWSNFW_NEVER_MATCHES: with aws:drop_established a flow that no rule passed is dropped before this rule can match; the rule is disabled in the converted policy: pass tcp any any -> $HOME_NET any (msg:"established to clients"; flow:established,to_client; sid:1010;)

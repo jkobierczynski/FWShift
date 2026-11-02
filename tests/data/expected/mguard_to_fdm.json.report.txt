@@ -1,0 +1,68 @@
+FWShift conversion report
+  source: mguard
+  target: fdm
+
+Summary
+  Security rules:     19   exact 17, approximated 0, needs review 0, skipped 2
+  NAT rules:           5   exact 0, approximated 3, needs review 0, skipped 2
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_USER_FIREWALL: the user firewall is on, with 1 templates (service technicians): rules that apply to users who log in; not converted. With it on, the mGuard lets through more than the converted policy
+  [needs-review] MGUARD_VPN_FIREWALL: 1 VPN connections have firewall rules of their own (FW_INCOMING, FW_OUTGOING of the connection): not converted, nor the VPN traffic they decide
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): external, internal, dmz. Zones are not written: an import would take the interfaces out of a zone that exists
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 1 destination NAT rule is written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] MGUARD_SOURCE: mGuard profile 8.6.1.default, router mode; zones internal, external, dmz; tables read: FW_INCOMING, FW_OUTGOING, FW_INCOMING_WAN_DMZ, FW_INCOMING_DMZ_LAN, FW_OUTGOING_LANDMZ. Each table is first match; what no rule matches is dropped; port forwarding skips the packet filter
+  [info] MGUARD_INTERNAL_ROUTED: the internal side has more than one network (LOCAL_ALIASES): the outgoing rules also decide connections from one of them to another, so they are read for internal -> internal as well
+  [info] MGUARD_IPV4_ONLY: the packet filter of the mGuard is IPv4: 0.0.0.0/0 is read as every IPv4 address, and the rules match no IPv6
+  [info] MGUARD_DEFAULT_LOG: connection attempts no rule covers are logged (LOG_DEFAULT_INCOMING); the model has no place for that
+  [info] MGUARD_MANAGEMENT_ACCESS: access to the mGuard itself is not converted (it protects the device, not forwarded traffic): HTTPS_REMOTE_ACCESS_RULES (1 rows); HTTPS_REMOTE_ENABLE yes; FW_ICMP ping
+  [info] MGUARD_HOSTNAME: host names in IP groups, resolved by the DNS settings of the mGuard; read as names resolved for IPv4: scada: historian.example.com
+  [info] MGUARD_REJECT: Reject: the mGuard sends the packets back and tells the sender; read as reset-both: FW_INCOMING row 4
+  [info] MGUARD_PORTS_IGNORED: ports in rules for a protocol other than tcp and udp, which the mGuard ignores: FW_INCOMING row 7
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  portforward-1  ->  exact
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+  portforward-2  ->  exact
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+  incoming-4  ->  exact
+      [info] RESET_ACTION: action reset-both becomes Block, which drops without an answer: a Device Manager has no rule that resets
+  incoming-5.maintenance-1  ->  skipped
+      [needs-review] MGUARD_RULESET_SWITCHED: a rule of rule set maintenance, which cmd1 switches on and off: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule set maintenance is switched on and off (cmd1); its rules apply only while it is active. The rule is left out: a Device Manager has no rules that are switched off.
+  incoming-6.vendor-1  ->  exact
+      [info] MGUARD_RULESET: rule 1 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+  incoming-6.vendor-2  ->  exact
+      [info] MGUARD_RULESET: rule 2 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+  incoming-9  ->  skipped
+      [needs-review] MGUARD_UNREAD: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group
+      [needs-review] UNSUPPORTED_MATCH: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group. The rule is left out: a Device Manager has no rules that are switched off.
+
+NAT rules
+  portforward-1  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone external only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  portforward-2  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone external only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  1to1-1  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone internal only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  masquerade-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is for the address of an interface of zone 'external', and the interfaces of that zone on the target are not known; name them with --interface-map
+  masquerade-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is for the address of an interface of zone 'internal', and the interfaces of that zone on the target are not known; name them with --interface-map
+
+Address groups
+  scada  ->  exact
+      [info] GROUP_SPLIT: a network group of a Cisco Secure Firewall holds no FQDN objects: group 'scada' is written without them, and the rules that use it name 'historian.example.com' themselves
+
+Services
+  tcp-web  ->  exact  (emitted as tcp-web, tcp-80, tcp-443)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-web' of 'tcp-80', 'tcp-443'
+  tcp-s7_iso  ->  exact  (emitted as tcp-s7_iso, tcp-102, tcp-20000-20010)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-s7_iso' of 'tcp-102', 'tcp-20000-20010'

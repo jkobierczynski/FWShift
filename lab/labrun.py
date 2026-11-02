@@ -396,7 +396,9 @@ def ssh_prefix(key: Path, user: str, host: str, known: Path, port: int = 22, opt
     three tries (IOS XE) can refuse the login before the run's key is tried (the second 8000V run: "Permission denied
     (publickey...)" for the whole boot). batch=False: a password may be asked as well (SonicWall NSv: the instance id),
     and SSH_ASKPASS gives it (ssh takes the first value of an option, so BatchMode is left out, not overridden)."""
-    extra = [word for option in options for word in ("-o", option)]
+    # (a port given as an option, Port=4118 for WatchGuard's CLI: ssh takes the first value it is given, and -p comes first)
+    port = next((int(option[5:]) for option in options if option.startswith("Port=") and option[5:].isdigit()), port)
+    extra = [word for option in options for word in ("-o", option) if not option.startswith("Port=")]
     mode = ["-o", "BatchMode=yes"] if batch else ["-o", "NumberOfPasswordPrompts=1", "-o", "PreferredAuthentications=publickey,keyboard-interactive,password"]
     return ["ssh", "-i", str(key), "-p", str(port), *mode, "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new", "-o",
             f"UserKnownHostsFile={known}", "-o", "ConnectTimeout=10", "-o", "ServerAliveInterval=15", *extra, f"{user}@{host}"]  # fmt: skip

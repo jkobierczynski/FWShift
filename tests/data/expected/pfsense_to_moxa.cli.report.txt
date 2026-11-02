@@ -1,0 +1,109 @@
+FWShift conversion report
+  source: pfsense
+  target: moxa
+
+Summary
+  Security rules:     25   exact 3, approximated 2, needs review 20 (19 emitted disabled), skipped 0
+  NAT rules:           8   exact 0, approximated 0, needs review 0, skipped 8
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] RULE_NOT_LOADED: pfSense does not load 1 rule of the configuration, which it cannot resolve; they are not converted: 'Spare network, not in use' (its interface 'opt3' is not there or not enabled)
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: pfSense drops what arrives there from addresses nobody has been given, by a list it downloads. That list is not in the configuration, and nothing is converted for it
+  [needs-review] MOXA_INTRAZONE_NOT_BLOCKED: the source blocks traffic inside these zones that no rule matches; traffic inside one interface does not pass the router's policies: lan
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [needs-review] MOXA_ZONES: zones that are not interfaces of the router (lan, wan1, wan2); their rules are written disabled: give --zone-map ZONE=lan|wan1|wan2 for WAN, DMZ, GUEST
+  [info] FLOATING_LAST_MATCH: 1 floating rule is not 'quick': such a rule decides only where no rule of an interface matched, and of several the last one. In the converted policy it stands behind the rules of the interfaces, the last one first: 'Telnet unless a rule says otherwise'
+  [info] PFSENSE_AUTOMATIC_RULES: pfSense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof), packets from or to 169.254.0.0/16, and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without; and it has rules for itself (anti-lockout, DHCP, IPsec). Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] MOXA_LOG_NOT_WRITTEN: rules of the source log; the CLI manual FWShift read shows no logging of a policy: set it in the web console for the policies of 2 rules: Administrators to the servers, Telnet unless a rule says otherwise
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  Nothing leaves towards the sinkhole  ->  needs-review, emitted disabled  (emitted as firewall 1)
+      [needs-review] MOXA_ZONE: zones WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  SSH for the partner - pass  ->  needs-review, emitted disabled  (emitted as firewall 2)
+      [approximated] AUTOMATIC_RULE: port forward 'SSH for the partner' passes what it forwards without a rule ('Pass' as its filter rule association): pfSense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '192.168.20.25' because of NAT rule 'SSH for the partner'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'SSH for the partner' also translates the port to 22; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+      [needs-review] MOXA_ZONE: zones WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Block private networks from WAN  ->  needs-review, emitted disabled  (emitted as firewall 3)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks and loopback addresses' set: pfSense drops what arrives there from those networks before any rule is looked at. This rule stands for that
+      [needs-review] MOXA_ZONE: zones WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Ping from the inside  ->  needs-review, emitted disabled  (emitted as firewall 4)
+      [needs-review] MOXA_ZONE: zones DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  DNS from the firewall  ->  needs-review, emitted disabled  (emitted as firewall 5)
+      [needs-review] MOXA_ZONE: zones GUEST: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  NAT Web server HTTPS  ->  needs-review, emitted disabled  (emitted as firewall 6)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to '192.168.20.10' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [needs-review] MOXA_ZONE: zones WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  NAT Application ports  ->  needs-review, emitted disabled  (emitted as firewall 7)
+      [needs-review] MOXA_ZONE: zones WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Mail in  ->  needs-review, emitted disabled  (emitted as firewall 8)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+      [needs-review] MOXA_ZONE: zones WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Web server over IPv6  ->  needs-review, emitted disabled  (emitted as firewall 9)
+      [needs-review] MOXA_ZONE: zones WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Ping and errors to the firewall  ->  needs-review, emitted disabled  (emitted as firewall 10)
+      [needs-review] MOXA_ZONE: zones WAN: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  Users to the web servers  ->  approximated  (emitted as firewall 14-19)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'WebServers' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+  Users to the web server by its outside address  ->  needs-review  (emitted as firewall 20)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '198.51.100.10', the external address of NAT rule 'Web server HTTPS', but not '192.168.20.10' behind it. The source looks rules up after the translation and did not apply this rule to that traffic; the converted rule does
+  No other private network from the LAN  ->  approximated  (emitted as firewall 21-24)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+      [approximated] MOXA_RESET_AS_DROP: action reset-client written as drop, which answers nobody
+  Default allow LAN IPv6 to any rule  ->  needs-review, emitted disabled  (emitted as firewall 26)
+      [needs-review] NOT_WRITTEN: the rule matches no IPv4 address: the router's policies are IPv4.
+  Servers fetch their updates  ->  needs-review, emitted disabled  (emitted as firewall 27)
+      [needs-review] MOXA_ZONE: zones DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] ZONE_DYNAMIC: 'Updates' holds members only its platform knows.
+  Mail out, not to the inside  ->  needs-review, emitted disabled  (emitted as firewall 28)
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10).
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11).
+      [needs-review] MOXA_ZONE: zones DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Syslog to the collector  ->  needs-review, emitted disabled  (emitted as firewall 29)
+      [needs-review] SCHEDULE: schedule 'OfficeHours' is not converted; the rule would apply at all times.
+      [needs-review] MOXA_ZONE: zones DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Nothing from the list  ->  needs-review, emitted disabled  (emitted as firewall 30)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocklist': a URL table: its addresses are in a file on the firewall, not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Tunnel of the old application  ->  needs-review, emitted disabled  (emitted as firewall 31)
+      [needs-review] MOXA_ZONE: zones DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 50: a policy names all, TCP, UDP or ICMP.
+  Guests reach nothing private  ->  needs-review, emitted disabled  (emitted as firewall 32)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+      [needs-review] MOXA_ZONE: zones GUEST: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests browse  ->  needs-review, emitted disabled  (emitted as firewall 33)
+      [info] POLICY_ROUTING: the rule also sends what it passes to gateway 'WANGW' (policy routing), which is not converted
+      [needs-review] MOXA_ZONE: zones GUEST: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  Phones of the guests  ->  needs-review, emitted disabled  (emitted as firewall 34)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches a mark set by another rule (tagged) 'VOICE'.
+      [needs-review] MOXA_ZONE: zones GUEST: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+
+NAT rules
+  Web server HTTPS  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  Application ports  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  SSH for the partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  Mail server - inbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  Mail server - outbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  DMZ leaves with the web address  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  No NAT towards the partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  Automatic outbound NAT on WAN  ->  skipped
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: pfSense translates what leaves by an interface with a gateway and comes from the networks of its other interfaces and of its static routes. This rule stands for that
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface

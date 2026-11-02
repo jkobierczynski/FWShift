@@ -1,0 +1,50 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: mguard
+
+Summary
+  Security rules:      8   exact 0, approximated 0, needs review 0, skipped 8
+  NAT rules:           4   exact 0, approximated 1, needs review 0, skipped 3
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  Block_IoT_to_office  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: inside_zone: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Inside_Outside_web  ->  skipped
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+      [needs-review] MGUARD_ZONE_UNKNOWN: inside_zone, outside_zone: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  IoT_telemetry  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: inside_zone, outside_zone: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  NAS_from_Internet  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'outside-interface' next to 'nas' because of NAT rule 'NAS_published'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAS_published' also translates the port to 5001; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] MGUARD_ZONE_UNKNOWN: outside_zone, inside_zone: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Head_office_v6  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: outside_zone: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  DNS_answers  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: outside_zone, inside_zone: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Staff_streaming  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: inside_zone, outside_zone: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Guests_by_time  ->  skipped
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] MGUARD_ZONE_UNKNOWN: inside_zone, outside_zone: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+
+NAT rules
+  NAS_published  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 192.0.2.2
+      [needs-review] NAT_NOT_CONVERTED: not converted: port forwarding is for traffic that arrives on the external side
+  nas_static  ->  approximated  (emitted as 1:1 NAT)
+      [approximated] MGUARD_NAT_ZONES: 1:1 NAT maps between the internal and the external side; the zones of the rule are inside_zone -> outside_zone
+  InsideOutsideNatRule  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IP masquerading names one interface (or all external ones)
+  IoT_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is disabled on the source

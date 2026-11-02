@@ -1,0 +1,511 @@
+FWShift conversion report
+  source: ios
+  target: moxa
+
+Summary
+  Security rules:    204   exact 0, approximated 0, needs review 204 (204 emitted disabled), skipped 0
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [needs-review] MOXA_ZONES: zones that are not interfaces of the router (lan, wan1, wan2); their rules are written disabled: give --zone-map ZONE=lan|wan1|wan2 for OUTSIDE, INSIDE, DMZ, LAB, MGMT
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  WAN-IN-10 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 1)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-20 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 2)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-40 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 3)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-50 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 4)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-60 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 5)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-70 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 6)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  WAN-IN-80 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 7)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  WAN-IN-90 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 8)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  WAN-IN-100 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 9)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-110 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 10)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP.
+  WAN-IN-120 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 11)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 12)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-140 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 13)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN implicit deny (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 14)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-10 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 15)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN6-IN-20 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 16)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN6-IN-30 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 17)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match.
+  WAN6-IN-40 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 18)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match.
+  WAN6-IN-50 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 19)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN implicit deny (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 20)
+      [needs-review] MOXA_ZONE: zones OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-10 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 21)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-20 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 22)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 23)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 24)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 25)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 26)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as firewall 27)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 28)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as firewall 29)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 30)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as firewall 31)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 32)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 33)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as firewall 34)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 35)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as firewall 36)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 37)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 38)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as firewall 39)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NEGATE: every service but some: a policy names one protocol and its ports. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-3  ->  needs-review, emitted disabled  (emitted as firewall 40)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN implicit deny (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 41)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 42)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 43)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 44)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 45)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-50 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 46)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN implicit deny (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 47)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-10 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 48)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-20 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 49)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-40 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 50)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-50 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 51)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-60 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 52)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 53)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as firewall 54)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 55)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as firewall 56)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 57)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as firewall 58)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-100 + DMZ-OUT-30 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 59)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-100 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 60)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 61)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as firewall 62)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-120 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 63)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-120 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as firewall 64)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 65)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-140 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 66)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 67)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as firewall 68)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-140 + DMZ-OUT-30 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 69)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 70)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 71)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as firewall 72)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 73)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as firewall 74)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NEGATE: every service but some: a policy names one protocol and its ports. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-3  ->  needs-review, emitted disabled  (emitted as firewall 75)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN implicit deny (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 76)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-10 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 77)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN6-IN-20 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 78)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN6-IN-30 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 79)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 80)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 81)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN implicit deny (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 82)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-10 (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 83)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-20 (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 84)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 85)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 86)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 87)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 88)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 89)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 90)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 91)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 92)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 93)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 94)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 95)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN implicit deny (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 96)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 97)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 98)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 99)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 100)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-50 (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 101)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN implicit deny (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 102)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-10 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 103)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-20 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 104)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 105)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 106)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 107)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 108)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 109)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 110)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 111)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 112)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 113)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 114)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 115)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN implicit deny (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 116)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 117)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 118)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 119)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 120)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] NOT_WRITTEN: no service the router's IPv4 policies can match. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-50 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 121)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN implicit deny (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 122)
+      [needs-review] MOXA_ZONE: zones OUTSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 123)
+      [needs-review] MOXA_ZONE: zones INSIDE, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)-2  ->  needs-review, emitted disabled  (emitted as firewall 124)
+      [needs-review] MOXA_ZONE: zones INSIDE, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-DNS (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 125)
+      [needs-review] MOXA_ZONE: zones INSIDE, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-MAIL-SUB (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 126)
+      [needs-review] MOXA_ZONE: zones INSIDE, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 127)
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+      [needs-review] MOXA_ZONE: zones INSIDE, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-PING (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 128)
+      [info] MOXA_IPV6_SERVICE: ICMPv6 is IPv6, which the router's policies do not filter: not written
+      [needs-review] MOXA_ZONE: zones INSIDE, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT class-default (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 129)
+      [needs-review] MOXA_ZONE: zones INSIDE, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  INSIDE (in): no access list (INSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 130)
+      [needs-review] MOXA_ZONE: zones INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  INSIDE (in): no access list + DMZ-OUT-10 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 131)
+      [needs-review] MOXA_ZONE: zones INSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  INSIDE (in): no access list + DMZ-OUT-20 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 132)
+      [needs-review] MOXA_ZONE: zones INSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  INSIDE (in): no access list + DMZ-OUT-30 + ZP-IN-DMZ CM-ADMIN (INSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 133)
+      [needs-review] MOXA_ZONE: zones INSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 134)
+      [needs-review] MOXA_ZONE: zones INSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 135)
+      [needs-review] MOXA_ZONE: zones INSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  INSIDE (in): no access list + DMZ-OUT-50 (INSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 136)
+      [needs-review] MOXA_ZONE: zones INSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 137)
+      [needs-review] MOXA_ZONE: zones INSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as firewall 138)
+      [needs-review] MOXA_ZONE: zones INSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 139)
+      [needs-review] MOXA_ZONE: zones INSIDE, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to LAB (INSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 140)
+      [needs-review] MOXA_ZONE: zones INSIDE, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to MGMT (INSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 141)
+      [needs-review] MOXA_ZONE: zones INSIDE, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-DNS (DMZ to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 142)
+      [needs-review] MOXA_ZONE: zones DMZ, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 143)
+      [needs-review] MOXA_ZONE: zones DMZ, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)-2  ->  needs-review, emitted disabled  (emitted as firewall 144)
+      [needs-review] MOXA_ZONE: zones DMZ, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT class-default (DMZ to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 145)
+      [needs-review] MOXA_ZONE: zones DMZ, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to INSIDE (DMZ to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 146)
+      [needs-review] MOXA_ZONE: zones DMZ, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ (in): no access list + DMZ-OUT-10 (DMZ to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 147)
+      [needs-review] MOXA_ZONE: zones DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  DMZ (in): no access list + DMZ-OUT-20 (DMZ to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 148)
+      [needs-review] MOXA_ZONE: zones DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  DMZ (in): no access list + DMZ-OUT-30 (DMZ to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 149)
+      [needs-review] MOXA_ZONE: zones DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  DMZ (in): no access list + DMZ-OUT-40 (DMZ to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 150)
+      [needs-review] MOXA_ZONE: zones DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  DMZ (in): no access list + DMZ-OUT-50 (DMZ to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 151)
+      [needs-review] MOXA_ZONE: zones DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ (in): no access list + no outbound access list (DMZ to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 152)
+      [needs-review] MOXA_ZONE: zones DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to LAB (DMZ to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 153)
+      [needs-review] MOXA_ZONE: zones DMZ, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to MGMT (DMZ to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 154)
+      [needs-review] MOXA_ZONE: zones DMZ, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-10 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 155)
+      [needs-review] MOXA_ZONE: zones LAB, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  110-20 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 156)
+      [needs-review] MOXA_ZONE: zones LAB, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  110-30 + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 157)
+      [needs-review] MOXA_ZONE: zones LAB, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 158)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones LAB, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 159)
+      [needs-review] MOXA_ZONE: zones LAB, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110 implicit deny (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 160)
+      [needs-review] MOXA_ZONE: zones LAB, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 161)
+      [needs-review] MOXA_ZONE: zones LAB, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 162)
+      [needs-review] MOXA_ZONE: zones LAB, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)-2  ->  needs-review, emitted disabled  (emitted as firewall 163)
+      [needs-review] MOXA_ZONE: zones LAB, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT class-default (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 164)
+      [needs-review] MOXA_ZONE: zones LAB, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-10 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 165)
+      [needs-review] MOXA_ZONE: zones LAB, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-20 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 166)
+      [needs-review] MOXA_ZONE: zones LAB, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-30 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 167)
+      [needs-review] MOXA_ZONE: zones LAB, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 168)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones LAB, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 169)
+      [needs-review] MOXA_ZONE: zones LAB, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110 implicit deny (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 170)
+      [needs-review] MOXA_ZONE: zones LAB, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 171)
+      [needs-review] MOXA_ZONE: zones LAB, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-10 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 172)
+      [needs-review] MOXA_ZONE: zones LAB, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-10 + DMZ-OUT-50 (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 173)
+      [needs-review] MOXA_ZONE: zones LAB, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-20 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 174)
+      [needs-review] MOXA_ZONE: zones LAB, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-20 + DMZ-OUT-50 (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 175)
+      [needs-review] MOXA_ZONE: zones LAB, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-30 + DMZ-OUT-50 (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 176)
+      [needs-review] MOXA_ZONE: zones LAB, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 177)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones LAB, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 178)
+      [needs-review] MOXA_ZONE: zones LAB, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110 implicit deny (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 179)
+      [needs-review] MOXA_ZONE: zones LAB, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to DMZ (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 180)
+      [needs-review] MOXA_ZONE: zones LAB, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-10 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 181)
+      [needs-review] MOXA_ZONE: zones LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  110-20 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 182)
+      [needs-review] MOXA_ZONE: zones LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  110-30 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 183)
+      [needs-review] MOXA_ZONE: zones LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 184)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 185)
+      [needs-review] MOXA_ZONE: zones LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110 implicit deny (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 186)
+      [needs-review] MOXA_ZONE: zones LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAB (in): no access list (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 187)
+      [needs-review] MOXA_ZONE: zones LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  110-10 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 188)
+      [needs-review] MOXA_ZONE: zones LAB, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-20 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 189)
+      [needs-review] MOXA_ZONE: zones LAB, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-30 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 190)
+      [needs-review] MOXA_ZONE: zones LAB, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 191)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones LAB, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 192)
+      [needs-review] MOXA_ZONE: zones LAB, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110 implicit deny (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 193)
+      [needs-review] MOXA_ZONE: zones LAB, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 194)
+      [needs-review] MOXA_ZONE: zones LAB, MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to OUTSIDE (MGMT to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 195)
+      [needs-review] MOXA_ZONE: zones MGMT, OUTSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to INSIDE (MGMT to INSIDE)  ->  needs-review, emitted disabled  (emitted as firewall 196)
+      [needs-review] MOXA_ZONE: zones MGMT, INSIDE: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  MGMT (in): no access list + DMZ-OUT-10 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 197)
+      [needs-review] MOXA_ZONE: zones MGMT, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  MGMT (in): no access list + DMZ-OUT-20 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 198)
+      [needs-review] MOXA_ZONE: zones MGMT, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  MGMT (in): no access list + DMZ-OUT-30 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 199)
+      [needs-review] MOXA_ZONE: zones MGMT, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  MGMT (in): no access list + DMZ-OUT-40 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 200)
+      [needs-review] MOXA_ZONE: zones MGMT, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  MGMT (in): no access list + DMZ-OUT-50 (MGMT to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 201)
+      [needs-review] MOXA_ZONE: zones MGMT, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  needs-review, emitted disabled  (emitted as firewall 202)
+      [needs-review] MOXA_ZONE: zones MGMT, DMZ: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to LAB (MGMT to LAB)  ->  needs-review, emitted disabled  (emitted as firewall 203)
+      [needs-review] MOXA_ZONE: zones MGMT, LAB: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  MGMT (in): no access list (MGMT to MGMT)  ->  needs-review, emitted disabled  (emitted as firewall 204)
+      [needs-review] MOXA_ZONE: zones MGMT: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+
+NAT rules
+  nat-176  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  nat-177  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface
+  nat-178  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the router writes a port forward of one TCP or UDP port of a WAN interface's address to a host on LAN, a 1-to-1 NAT of one LAN host to one outside address on a WAN, and N-to-1 NAT of one range of LAN addresses to the address of a WAN interface

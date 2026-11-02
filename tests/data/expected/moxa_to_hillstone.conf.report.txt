@@ -1,0 +1,45 @@
+FWShift conversion report
+  source: moxa
+  target: hillstone
+
+Summary
+  Security rules:     10   exact 6, approximated 1, needs review 3 (2 emitted disabled), skipped 0
+  NAT rules:           4   exact 0, approximated 2, needs review 1, skipped 1
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MOXA_DEFAULT_ACCEPT: what no policy matches is read as passing: the configuration names no default action, and FWShift found none for the classic firmware in Moxa's documentation (not confirmed on a device). If the router drops it, add a policy at the end of the converted policy that drops everything
+  [needs-review] MOXA_NAT_ORDER: port forwarding and 1-to-1 NAT are read as done before the Layer 3 policy, whose policies name the inside address (as iptables does it on Linux; Moxa's documentation does not say, not confirmed): the policies were rewritten for the address as it arrives. N-to-1 NAT is done after it
+  [needs-review] MOXA_DPI: the Modbus filter (DPI) checks Modbus TCP traffic beyond addresses and ports; not converted: modbus-filter 1
+  [needs-review] MOXA_L2_POLICY: the Layer 2 policy filters bridged traffic before the Layer 3 policy; not converted: l2-filter 1 enable
+  [needs-review] HILLSTONE_DEFAULT_PERMIT: the source allows what no rule matches: the output sets default-action permit, which is the firewall's default for all traffic, also of rules that are not part of this policy
+  [needs-review] HILLSTONE_LOAD: the output is commands for the configuration mode of StoneOS (section 10): new zones, address entries, services, rules of policy-global and NAT rules of trust-vr; they take effect as they are entered, and nothing is saved. The rules have the ids 10000 to 10009 (they must be free: show policy) and go after the rules the firewall has; move ID top puts one first
+  [info] MOXA_SOURCE: EDR-810-VPN-2GSFP: 10 policies of the Layer 3 policy, first match by index; zones are the interfaces lan, wan1 and wan2. IPv4 only
+  [info] MOXA_TRUSTED_ACCESS: trusted access, which limits who reaches the router itself; not converted: lan 192.168.127.0 255.255.255.0 enable
+  [info] MOXA_DOS: DoS defence settings; not converted: syn-flood 300, null-scan
+  [info] HILLSTONE_ZONES: put the interfaces in their zones (this changes traffic at once): interface lan / zone "FWS_lan"; interface wan1 / zone "FWS_wan1"; interface wan2 / zone "FWS_wan2"
+
+Security rules
+  firewall 3  ->  needs-review  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'wan1-address' next to '192.168.127.50' because of NAT rule 'ip nat 1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'ip nat 1' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  firewall 7  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [needs-review] UNSUPPORTED_MATCH: not converted: source MAC address 00:90:e8:00:00:01, which the model cannot match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: mode MAC: the policy filters by source MAC address, which the model cannot match.
+  firewall 8  ->  needs-review, emitted disabled  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.60' next to '192.168.127.60-192.168.127.69' because of NAT rule 'ip nat 2'; check that this rule is meant to cover the translated traffic
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'session-limit 50' is not converted.
+  firewall 10  ->  approximated  (emitted as 1 rule of policy-global)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.60' next to '192.168.127.60' because of NAT rule 'ip nat 2'; check that this rule is meant to cover the translated traffic
+
+NAT rules
+  ip nat 1  ->  approximated  (emitted as dnatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from wan1; the rule written applies to traffic from every zone
+  ip nat 2  ->  needs-review  (emitted as snatrule and dnatrule)
+      [needs-review] NAT_ORDER: on the source, the traffic this rule forwards to 192.168.127.60 keeps its source address. The target translates sources apart from destinations, after the destination: there NAT rule 'ip nat 3' translates the source of that traffic as well
+  ip nat 3  ->  approximated  (emitted as snatrule)
+      [approximated] HILLSTONE_NAT_ZONE: the rule is for traffic from lan; the rule written applies to traffic from every zone
+  ip nat 4  ->  skipped
+      [info] MOXA_NAT_AUTO: outside wan auto: the address of whichever WAN interface the traffic leaves by
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is disabled on the source

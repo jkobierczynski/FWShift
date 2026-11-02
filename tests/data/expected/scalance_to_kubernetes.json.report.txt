@@ -1,0 +1,81 @@
+FWShift conversion report
+  source: scalance
+  target: kubernetes
+
+Summary
+  Security rules:     17   exact 4, approximated 2, needs review 8 (5 emitted disabled), skipped 3
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] SCALANCE_RULESET: rule sets (user or digital-input firewall): rules assigned to one apply only while it is active and are not converted; check which rules belong to a set: ruleset name maintenance
+  [needs-review] INTRAZONE_ALLOW: these zones allow traffic inside them without a rule; without their networks (--zone-network) that is not written: ipsecALL
+  [needs-review] K8S_LOAD: the output is a List of NetworkPolicies for kubectl apply -n NAMESPACE -f FILE (kubectl apply --dry-run=server checks it first). It names no namespace: apply it in the namespace of the pods it is for, and in each such namespace. Policies of the same name are replaced; nothing else is changed. A policy selects the pods labelled fwshift/group=<its group>, and no pod has that label yet: nothing changes until pods are labelled
+  [needs-review] K8S_LABEL_PODS: 11 groups: label each pod with fwshift/group=<group> of the policy whose fwshift/addresses annotation holds the pod's address (kubectl label pod POD ...). A pod's address changes when it is created again: label the pods through their Deployment or StatefulSet template, where every address the template's pods get must be in that group. A pod with addresses of both IP versions needs a group that holds both
+  [needs-review] K8S_IPBLOCK_PODS: the peers are written as ipBlock. Whether an ipBlock matches the addresses of pods depends on the network plugin (the Kubernetes documentation says ipBlock is meant for addresses outside the cluster); where it does not, rules between pods allow nothing
+  [info] SCALANCE_SOURCE: 4 interfaces as zones (vlan1, vlan2, vlan3, ipsecALL); 16 IP rules, in ascending priority (prior), equal priorities in the order they were created; the IPv4 rules, then the IPv6 rules. Rules of the firewall itself (device) and the predefined rules are not converted
+  [info] SCALANCE_DEFAULTS: what no rule matches between interfaces is dropped; traffic inside one VLAN does not pass the IP firewall
+  [info] SCALANCE_NAT_ORDER: destination NAT (NAPT, NETMAP of the destination) is done before the firewall, whose rules name the translated address: the rules were rewritten for the address as it arrives. Source NAT, NETMAP of the source and masquerading are done after it. Read in the order NAPT, NETMAP destination, NETMAP source, source NAT, masquerading, one rule of each direction per connection (assumed)
+  [info] SCALANCE_PRERULE: predefined rules (access to services of the firewall itself) are not converted; those the configuration does not list are at their factory setting: ssh ipv4 int vlan 1 enabled, https ipv4 int vlan 2 disabled
+  [info] SCALANCE_NETMAP_DSTINT: the destination interface of a NETMAP rule of the destination is not a condition of the converted rule: netmap destination 1: vlan3
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: vlan1=192.168.10.0/24,10.20.0.0/16; vlan2=198.51.100.0/24; vlan3=192.168.30.0/24. --no-source-networks takes none of them
+  [info] K8S_PLATFORM_ALLOWS: a NetworkPolicy always allows traffic between a pod and the node it runs on, and a pod to itself; and it is only guaranteed to decide TCP, UDP and SCTP (for ICMP and other protocols the network plugin decides)
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a NetworkPolicy does not (some network plugins can log on their own)
+
+Security rules
+  ipv4rule 2  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan2; a NetworkPolicy names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone vlan1; a NetworkPolicy names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv4rule 5  ->  needs-review
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+      [needs-review] K8S_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a NetworkPolicy (ICMP or another protocol on its own, every protocol but some, a range of source ports) and is not written; the converted rule allows less
+  ipv4rule 6  ->  exact  (emitted as NetworkPolicies fwshift-vlan3-2, fwshift-vlan2, fwshift-vlan2-2, fwshift-vlan2-3, fwshift-vlan2-4)
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+  ipv4rule 7  ->  needs-review, emitted disabled
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+      [needs-review] SOURCE_PORTS: source ports: a NetworkPolicy matches destination ports only.
+  ipv4rule 8  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan3; a NetworkPolicy names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone vlan1; a NetworkPolicy names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv4rule 9  ->  needs-review
+      [needs-review] K8S_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a NetworkPolicy (ICMP or another protocol on its own, every protocol but some, a range of source ports) and is not written; the converted rule allows less
+  ipv4rule 11  ->  needs-review, emitted disabled
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: source DYNAMIC: the address of the user who activates the rule set, or of the digital input.
+  ipv4rule 12  ->  needs-review, emitted disabled
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: service ENIP is not in the configuration.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ENIP': unsupported or undefined service.
+  ipv4rule 13  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone ipsecALL, and a NetworkPolicy names no zone: give the networks behind ipsecALL with --zone-network.
+  ipv4rule 14  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: assigned to the rule set maintenance: it applies only while the set is activated (by a user or a digital input).
+  ipv4rule 15  ->  needs-review
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+      [needs-review] K8S_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a NetworkPolicy (ICMP or another protocol on its own, every protocol but some, a range of source ports) and is not written; the converted rule allows less
+  ipv6rule 1  ->  skipped
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan1 is written as the addresses of the networks given for it with --zone-network
+      [info] MATCHES_NOTHING: after the negation and the networks of its zones, the rule matches no connection
+  ipv6rule 2  ->  skipped
+      [info] ZONE_BY_NETWORKS: the source in zone vlan1 is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+      [info] MATCHES_NOTHING: after the negation and the networks of its zones, the rule matches no connection
+  ipv4rule 10  ->  skipped
+      [info] SCALANCE_DEVICE_RULE: a rule for traffic to or from the firewall itself (device): its own access, not converted
+
+NAT rules
+  napt 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  napt 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  netmap destination 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  src-nat 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  masquerading 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+
+Services
+  ENIP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'ipv4rule 12' but not defined in the input; emitted as a placeholder

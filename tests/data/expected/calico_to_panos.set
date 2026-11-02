@@ -1,0 +1,830 @@
+set address shop_web-1 ip-netmask 10.244.1.10/32
+set address shop_web-1 description "pod web-1 in namespace shop"
+set address shop_web-1-ipv6 ip-netmask 2001:db8:244:1::10/128
+set address shop_web-1-ipv6 description "pod web-1 in namespace shop"
+set address shop_web-2 ip-netmask 10.244.2.10/32
+set address shop_web-2 description "pod web-2 in namespace shop"
+set address shop_web-2-ipv6 ip-netmask 2001:db8:244:2::10/128
+set address shop_web-2-ipv6 description "pod web-2 in namespace shop"
+set address shop_cart-1 ip-netmask 10.244.1.20/32
+set address shop_cart-1 description "pod cart-1 in namespace shop"
+set address shop_db-1 ip-netmask 10.244.2.30/32
+set address shop_db-1 description "pod db-1 in namespace shop"
+set address payments_api-1 ip-netmask 10.244.1.40/32
+set address payments_api-1 description "pod api-1 in namespace payments"
+set address payments_api-1-ipv6 ip-netmask 2001:db8:244:1::40/128
+set address payments_api-1-ipv6 description "pod api-1 in namespace payments"
+set address payments_worker-1 ip-netmask 10.244.2.41/32
+set address payments_worker-1 description "pod worker-1 in namespace payments"
+set address monitoring_prometheus-0 ip-netmask 10.244.3.5/32
+set address monitoring_prometheus-0 description "pod prometheus-0 in namespace monitoring"
+set address dev_debug ip-netmask 10.244.3.9/32
+set address dev_debug description "pod debug in namespace dev"
+set address kube-system_coredns-5d7f ip-netmask 10.244.0.2/32
+set address kube-system_coredns-5d7f description "pod coredns-5d7f in namespace kube-system"
+set address-group ns-dev static dev_debug
+set address-group ns-dev description "the pods of namespace dev: dev/debug"
+set address-group ns-kube-system static kube-system_coredns-5d7f
+set address-group ns-kube-system description "the pods of namespace kube-system: kube-system/coredns-5d7f"
+set address-group ns-monitoring static monitoring_prometheus-0
+set address-group ns-monitoring description "the pods of namespace monitoring: monitoring/prometheus-0"
+set address-group ns-payments static [ payments_api-1 payments_worker-1 payments_api-1-ipv6 ]
+set address-group ns-payments description "the pods of namespace payments: payments/api-1, payments/worker-1"
+set address-group ns-shop static [ shop_web-1 shop_cart-1 shop_web-2 shop_db-1 shop_web-1-ipv6 shop_web-2-ipv6 ]
+set address-group ns-shop description "the pods of namespace shop: shop/web-1, shop/web-2, shop/cart-1, shop/db-1"
+set address-group all-pods static [ kube-system_coredns-5d7f shop_web-1 shop_cart-1 payments_api-1 shop_web-2 shop_db-1 payments_worker-1 monitoring_prometheus-0 dev_debug shop_web-1-ipv6 payments_api-1-ipv6 shop_web-2-ipv6 ]
+set address-group all-pods description "every pod of the export (9)"
+set address n-198.51.100.0_24 ip-netmask 198.51.100.0/24
+set address n-203.0.113.64_26 ip-netmask 203.0.113.64/26
+set address-group "feed __ _threats_" static [ n-198.51.100.0_24 n-203.0.113.64_26 ]
+set address-group "feed __ _threats_" description "what selector feed == 'threats' picks for policy security.block-threats"
+set address n-192.0.2.0_25 ip-netmask 192.0.2.0/25
+set address-group "shop_role __ _partner_" static n-192.0.2.0_25
+set address-group "shop_role __ _partner_" description "what selector role == 'partner' picks for policy shop/web-calico"
+set address-group shop_app_web static [ shop_web-1 shop_web-2 shop_web-1-ipv6 shop_web-2-ipv6 ]
+set address-group shop_app_web description "the pods of shop/app=web: shop/web-1, shop/web-2"
+set address r-10.0.0.11-10.0.0.12 ip-range 10.0.0.11-10.0.0.12
+set address-group "role __ _node_" static r-10.0.0.11-10.0.0.12
+set address-group "role __ _node_" description "what selector role == 'node' picks for policy platform.nodes"
+set address-group shop_app_cart static shop_cart-1
+set address-group shop_app_cart description "the pods of shop/app=cart: shop/cart-1"
+set address-group payments_app_worker static payments_worker-1
+set address-group payments_app_worker description "the pods of payments/app=worker: payments/worker-1"
+set address n-203.0.113.0_26 ip-netmask 203.0.113.0/26
+set address n-2001_db8_aaaa___48 ip-netmask 2001:db8:aaaa::/48
+set address-group "feed __ _partners_" static [ n-203.0.113.0_26 n-2001_db8_aaaa___48 ]
+set address-group "feed __ _partners_" description "what selector feed == 'partners' picks for policy payments/api-calico"
+set address-group "namespaces env NotIn _prod_" static [ kube-system_coredns-5d7f monitoring_prometheus-0 dev_debug ]
+set address-group "namespaces env NotIn _prod_" description "the pods of namespaces env NotIn (prod): monitoring/prometheus-0, dev/debug, kube-system/coredns-5d7f"
+set address-group shop_app_db static shop_db-1
+set address-group shop_app_db description "the pods of shop/app=db: shop/db-1"
+set address-group "pods payments_api-1" static [ payments_api-1 payments_api-1-ipv6 ]
+set address-group "pods payments_api-1" description "the pods the ingress policies security.block-threats, payments/api-ingress, payments/api-calico apply to: payments/api-1"
+set address-group "payments_api-ingress_ingress-1 sources" static [ shop_web-1 shop_cart-1 shop_web-2 shop_db-1 payments_worker-1 shop_web-1-ipv6 shop_web-2-ipv6 ]
+set service udp-53 protocol udp port 53
+set service tcp-50051 protocol tcp port 50051
+set service tcp-5432 protocol tcp port 5432
+set service tcp-443 protocol tcp port 443
+set service tcp-23_tcp-135-139 protocol tcp port 23,135-139
+set service tcp-8080 protocol tcp port 8080
+set service tcp-8081 protocol tcp port 8081
+set service tcp-8000-8049_tcp-8051-8100 protocol tcp port 8000-8049,8051-8100
+set service "not tcp-all" protocol tcp port 1-65535
+set service tcp-9100 protocol tcp port 9100
+set service tcp-10250 protocol tcp port 10250
+set service tcp-8443_tcp-9000-9010 protocol tcp port 8443,9000-9010
+set service sctp-3868 protocol sctp port 3868
+set service tcp-8443 protocol tcp port 8443
+set service tcp-9090 protocol tcp port 9090
+set rulebase security rules security.block-threats_egress-1 from any
+set rulebase security rules security.block-threats_egress-1 to any
+set rulebase security rules security.block-threats_egress-1 source [ shop_web-1 shop_web-2 ]
+set rulebase security rules security.block-threats_egress-1 destination "feed __ _threats_"
+set rulebase security rules security.block-threats_egress-1 source-user any
+set rulebase security rules security.block-threats_egress-1 category any
+set rulebase security rules security.block-threats_egress-1 application any
+set rulebase security rules security.block-threats_egress-1 service any
+set rulebase security rules security.block-threats_egress-1 action drop
+set rulebase security rules security.block-threats_egress-1 log-end no
+set rulebase security rules security.block-threats_egress-1 description "security.block-threats egress rule (Deny): selector feed == 'threats' (from shop/app=web)"
+set rulebase security rules platform.dns_egress-1 from any
+set rulebase security rules platform.dns_egress-1 to any
+set rulebase security rules platform.dns_egress-1 source [ shop_web-1 shop_web-2 ]
+set rulebase security rules platform.dns_egress-1 destination ns-kube-system
+set rulebase security rules platform.dns_egress-1 source-user any
+set rulebase security rules platform.dns_egress-1 category any
+set rulebase security rules platform.dns_egress-1 application any
+set rulebase security rules platform.dns_egress-1 service udp-53
+set rulebase security rules platform.dns_egress-1 action allow
+set rulebase security rules platform.dns_egress-1 log-end no
+set rulebase security rules platform.dns_egress-1 description "platform.dns egress rule (Allow): selector k8s-app == 'kube-dns' (from shop/app=web), to what no ingress policy isolates"
+set rulebase security rules platform.dns_egress-2 from any
+set rulebase security rules platform.dns_egress-2 to any
+set rulebase security rules platform.dns_egress-2 source shop_app_web
+set rulebase security rules platform.dns_egress-2 destination any
+set rulebase security rules platform.dns_egress-2 source-user any
+set rulebase security rules platform.dns_egress-2 category any
+set rulebase security rules platform.dns_egress-2 application any
+set rulebase security rules platform.dns_egress-2 service udp-53
+set rulebase security rules platform.dns_egress-2 action drop
+set rulebase security rules platform.dns_egress-2 log-end no
+set rulebase security rules platform.dns_egress-2 description "platform.dns egress rule (Deny) (from shop/app=web)"
+set rulebase security rules "shop_web-calico_egress-1 _ shop_web-to-cart_ingress-1" from any
+set rulebase security rules "shop_web-calico_egress-1 _ shop_web-to-cart_ingress-1" to any
+set rulebase security rules "shop_web-calico_egress-1 _ shop_web-to-cart_ingress-1" source [ shop_web-1 shop_web-2 ]
+set rulebase security rules "shop_web-calico_egress-1 _ shop_web-to-cart_ingress-1" destination shop_app_cart
+set rulebase security rules "shop_web-calico_egress-1 _ shop_web-to-cart_ingress-1" source-user any
+set rulebase security rules "shop_web-calico_egress-1 _ shop_web-to-cart_ingress-1" category any
+set rulebase security rules "shop_web-calico_egress-1 _ shop_web-to-cart_ingress-1" application any
+set rulebase security rules "shop_web-calico_egress-1 _ shop_web-to-cart_ingress-1" service tcp-50051
+set rulebase security rules "shop_web-calico_egress-1 _ shop_web-to-cart_ingress-1" action allow
+set rulebase security rules "shop_web-calico_egress-1 _ shop_web-to-cart_ingress-1" log-end no
+set rulebase security rules "shop_web-calico_egress-1 _ shop_web-to-cart_ingress-1" description "shop/web-calico egress rule (Allow): selector app == 'cart' (from shop/app=web); shop/web-to-cart ingress rule: shop/app=web"
+set rulebase security rules shop_web-calico_egress-2 from any
+set rulebase security rules shop_web-calico_egress-2 to any
+set rulebase security rules shop_web-calico_egress-2 source [ shop_web-1-ipv6 shop_web-2-ipv6 ]
+set rulebase security rules shop_web-calico_egress-2 destination 2001:db8:ffff::/48
+set rulebase security rules shop_web-calico_egress-2 source-user any
+set rulebase security rules shop_web-calico_egress-2 category any
+set rulebase security rules shop_web-calico_egress-2 application any
+set rulebase security rules shop_web-calico_egress-2 service any
+set rulebase security rules shop_web-calico_egress-2 action allow
+set rulebase security rules shop_web-calico_egress-2 log-end no
+set rulebase security rules shop_web-calico_egress-2 description "shop/web-calico egress rule (Allow): nets 2001:db8:ffff::/48 (from shop/app=web), to what no ingress policy isolates"
+set rulebase security rules shop_web-calico_egress-3 from any
+set rulebase security rules shop_web-calico_egress-3 to any
+set rulebase security rules shop_web-calico_egress-3 source shop_app_web
+set rulebase security rules shop_web-calico_egress-3 destination any
+set rulebase security rules shop_web-calico_egress-3 source-user any
+set rulebase security rules shop_web-calico_egress-3 category any
+set rulebase security rules shop_web-calico_egress-3 application any
+set rulebase security rules shop_web-calico_egress-3 service any
+set rulebase security rules shop_web-calico_egress-3 action drop
+set rulebase security rules shop_web-calico_egress-3 log-end no
+set rulebase security rules shop_web-calico_egress-3 description "shop/web-calico egress rule (Deny) (from shop/app=web)"
+set rulebase security rules security.block-threats_egress-1-2 from any
+set rulebase security rules security.block-threats_egress-1-2 to any
+set rulebase security rules security.block-threats_egress-1-2 source shop_app_cart
+set rulebase security rules security.block-threats_egress-1-2 destination "feed __ _threats_"
+set rulebase security rules security.block-threats_egress-1-2 source-user any
+set rulebase security rules security.block-threats_egress-1-2 category any
+set rulebase security rules security.block-threats_egress-1-2 application any
+set rulebase security rules security.block-threats_egress-1-2 service any
+set rulebase security rules security.block-threats_egress-1-2 action drop
+set rulebase security rules security.block-threats_egress-1-2 log-end no
+set rulebase security rules security.block-threats_egress-1-2 description "security.block-threats egress rule (Deny): selector feed == 'threats' (from shop/app=cart)"
+set rulebase security rules platform.dns_egress-1-2 from any
+set rulebase security rules platform.dns_egress-1-2 to any
+set rulebase security rules platform.dns_egress-1-2 source shop_app_cart
+set rulebase security rules platform.dns_egress-1-2 destination ns-kube-system
+set rulebase security rules platform.dns_egress-1-2 source-user any
+set rulebase security rules platform.dns_egress-1-2 category any
+set rulebase security rules platform.dns_egress-1-2 application any
+set rulebase security rules platform.dns_egress-1-2 service udp-53
+set rulebase security rules platform.dns_egress-1-2 action allow
+set rulebase security rules platform.dns_egress-1-2 log-end no
+set rulebase security rules platform.dns_egress-1-2 description "platform.dns egress rule (Allow): selector k8s-app == 'kube-dns' (from shop/app=cart), to what no ingress policy isolates"
+set rulebase security rules platform.dns_egress-2-2 from any
+set rulebase security rules platform.dns_egress-2-2 to any
+set rulebase security rules platform.dns_egress-2-2 source shop_app_cart
+set rulebase security rules platform.dns_egress-2-2 destination 0.0.0.0/0
+set rulebase security rules platform.dns_egress-2-2 source-user any
+set rulebase security rules platform.dns_egress-2-2 category any
+set rulebase security rules platform.dns_egress-2-2 application any
+set rulebase security rules platform.dns_egress-2-2 service udp-53
+set rulebase security rules platform.dns_egress-2-2 action drop
+set rulebase security rules platform.dns_egress-2-2 log-end no
+set rulebase security rules platform.dns_egress-2-2 description "platform.dns egress rule (Deny) (from shop/app=cart)"
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" from any
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" to any
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" source shop_app_cart
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" destination shop_app_db
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" source-user any
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" category any
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" application any
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" service tcp-5432
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" action allow
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" log-end no
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" description "shop/cart-egress egress rule: shop/app=db (from shop/app=cart); shop/cart-to-db ingress rule: shop/app=cart"
+set rulebase security rules "default tier end_egress" from any
+set rulebase security rules "default tier end_egress" to any
+set rulebase security rules "default tier end_egress" source shop_app_cart
+set rulebase security rules "default tier end_egress" destination 0.0.0.0/0
+set rulebase security rules "default tier end_egress" source-user any
+set rulebase security rules "default tier end_egress" category any
+set rulebase security rules "default tier end_egress" application any
+set rulebase security rules "default tier end_egress" service any
+set rulebase security rules "default tier end_egress" action drop
+set rulebase security rules "default tier end_egress" log-end no
+set rulebase security rules "default tier end_egress" description "the end of tier default: what the policies there do not decide is denied (from shop/app=cart)"
+set rulebase security rules security.block-threats_egress-1-3 from any
+set rulebase security rules security.block-threats_egress-1-3 to any
+set rulebase security rules security.block-threats_egress-1-3 source shop_app_db
+set rulebase security rules security.block-threats_egress-1-3 destination "feed __ _threats_"
+set rulebase security rules security.block-threats_egress-1-3 source-user any
+set rulebase security rules security.block-threats_egress-1-3 category any
+set rulebase security rules security.block-threats_egress-1-3 application any
+set rulebase security rules security.block-threats_egress-1-3 service any
+set rulebase security rules security.block-threats_egress-1-3 action drop
+set rulebase security rules security.block-threats_egress-1-3 log-end no
+set rulebase security rules security.block-threats_egress-1-3 description "security.block-threats egress rule (Deny): selector feed == 'threats' (from shop/app=db)"
+set rulebase security rules platform.dns_egress-1-3 from any
+set rulebase security rules platform.dns_egress-1-3 to any
+set rulebase security rules platform.dns_egress-1-3 source shop_app_db
+set rulebase security rules platform.dns_egress-1-3 destination ns-kube-system
+set rulebase security rules platform.dns_egress-1-3 source-user any
+set rulebase security rules platform.dns_egress-1-3 category any
+set rulebase security rules platform.dns_egress-1-3 application any
+set rulebase security rules platform.dns_egress-1-3 service udp-53
+set rulebase security rules platform.dns_egress-1-3 action allow
+set rulebase security rules platform.dns_egress-1-3 log-end no
+set rulebase security rules platform.dns_egress-1-3 description "platform.dns egress rule (Allow): selector k8s-app == 'kube-dns' (from shop/app=db), to what no ingress policy isolates"
+set rulebase security rules platform.dns_egress-2-3 from any
+set rulebase security rules platform.dns_egress-2-3 to any
+set rulebase security rules platform.dns_egress-2-3 source shop_app_db
+set rulebase security rules platform.dns_egress-2-3 destination 0.0.0.0/0
+set rulebase security rules platform.dns_egress-2-3 source-user any
+set rulebase security rules platform.dns_egress-2-3 category any
+set rulebase security rules platform.dns_egress-2-3 application any
+set rulebase security rules platform.dns_egress-2-3 service udp-53
+set rulebase security rules platform.dns_egress-2-3 action drop
+set rulebase security rules platform.dns_egress-2-3 log-end no
+set rulebase security rules platform.dns_egress-2-3 description "platform.dns egress rule (Deny) (from shop/app=db)"
+set rulebase security rules "default tier end_egress-2" from any
+set rulebase security rules "default tier end_egress-2" to any
+set rulebase security rules "default tier end_egress-2" source shop_app_db
+set rulebase security rules "default tier end_egress-2" destination 0.0.0.0/0
+set rulebase security rules "default tier end_egress-2" source-user any
+set rulebase security rules "default tier end_egress-2" category any
+set rulebase security rules "default tier end_egress-2" application any
+set rulebase security rules "default tier end_egress-2" service any
+set rulebase security rules "default tier end_egress-2" action drop
+set rulebase security rules "default tier end_egress-2" log-end no
+set rulebase security rules "default tier end_egress-2" description "the end of tier default: what the policies there do not decide is denied (from shop/app=db)"
+set rulebase security rules security.block-threats_egress-1-4 from any
+set rulebase security rules security.block-threats_egress-1-4 to any
+set rulebase security rules security.block-threats_egress-1-4 source payments_api-1
+set rulebase security rules security.block-threats_egress-1-4 destination "feed __ _threats_"
+set rulebase security rules security.block-threats_egress-1-4 source-user any
+set rulebase security rules security.block-threats_egress-1-4 category any
+set rulebase security rules security.block-threats_egress-1-4 application any
+set rulebase security rules security.block-threats_egress-1-4 service any
+set rulebase security rules security.block-threats_egress-1-4 action drop
+set rulebase security rules security.block-threats_egress-1-4 log-end no
+set rulebase security rules security.block-threats_egress-1-4 description "security.block-threats egress rule (Deny): selector feed == 'threats' (from pods payments/api-1)"
+set rulebase security rules platform.dns_egress-1-4 from any
+set rulebase security rules platform.dns_egress-1-4 to any
+set rulebase security rules platform.dns_egress-1-4 source payments_api-1
+set rulebase security rules platform.dns_egress-1-4 destination ns-kube-system
+set rulebase security rules platform.dns_egress-1-4 source-user any
+set rulebase security rules platform.dns_egress-1-4 category any
+set rulebase security rules platform.dns_egress-1-4 application any
+set rulebase security rules platform.dns_egress-1-4 service udp-53
+set rulebase security rules platform.dns_egress-1-4 action allow
+set rulebase security rules platform.dns_egress-1-4 log-end no
+set rulebase security rules platform.dns_egress-1-4 description "platform.dns egress rule (Allow): selector k8s-app == 'kube-dns' (from pods payments/api-1), to what no ingress policy isolates"
+set rulebase security rules platform.dns_egress-2-4 from any
+set rulebase security rules platform.dns_egress-2-4 to any
+set rulebase security rules platform.dns_egress-2-4 source "pods payments_api-1"
+set rulebase security rules platform.dns_egress-2-4 destination any
+set rulebase security rules platform.dns_egress-2-4 source-user any
+set rulebase security rules platform.dns_egress-2-4 category any
+set rulebase security rules platform.dns_egress-2-4 application any
+set rulebase security rules platform.dns_egress-2-4 service udp-53
+set rulebase security rules platform.dns_egress-2-4 action drop
+set rulebase security rules platform.dns_egress-2-4 log-end no
+set rulebase security rules platform.dns_egress-2-4 description "platform.dns egress rule (Deny) (from pods payments/api-1)"
+set rulebase security rules security.block-threats_egress-1-5 from any
+set rulebase security rules security.block-threats_egress-1-5 to any
+set rulebase security rules security.block-threats_egress-1-5 source payments_app_worker
+set rulebase security rules security.block-threats_egress-1-5 destination "feed __ _threats_"
+set rulebase security rules security.block-threats_egress-1-5 source-user any
+set rulebase security rules security.block-threats_egress-1-5 category any
+set rulebase security rules security.block-threats_egress-1-5 application any
+set rulebase security rules security.block-threats_egress-1-5 service any
+set rulebase security rules security.block-threats_egress-1-5 action drop
+set rulebase security rules security.block-threats_egress-1-5 log-end no
+set rulebase security rules security.block-threats_egress-1-5 description "security.block-threats egress rule (Deny): selector feed == 'threats' (from payments/app=worker)"
+set rulebase security rules platform.dns_egress-1-5 from any
+set rulebase security rules platform.dns_egress-1-5 to any
+set rulebase security rules platform.dns_egress-1-5 source payments_app_worker
+set rulebase security rules platform.dns_egress-1-5 destination ns-kube-system
+set rulebase security rules platform.dns_egress-1-5 source-user any
+set rulebase security rules platform.dns_egress-1-5 category any
+set rulebase security rules platform.dns_egress-1-5 application any
+set rulebase security rules platform.dns_egress-1-5 service udp-53
+set rulebase security rules platform.dns_egress-1-5 action allow
+set rulebase security rules platform.dns_egress-1-5 log-end no
+set rulebase security rules platform.dns_egress-1-5 description "platform.dns egress rule (Allow): selector k8s-app == 'kube-dns' (from payments/app=worker), to what no ingress policy isolates"
+set rulebase security rules platform.dns_egress-2-5 from any
+set rulebase security rules platform.dns_egress-2-5 to any
+set rulebase security rules platform.dns_egress-2-5 source payments_app_worker
+set rulebase security rules platform.dns_egress-2-5 destination 0.0.0.0/0
+set rulebase security rules platform.dns_egress-2-5 source-user any
+set rulebase security rules platform.dns_egress-2-5 category any
+set rulebase security rules platform.dns_egress-2-5 application any
+set rulebase security rules platform.dns_egress-2-5 service udp-53
+set rulebase security rules platform.dns_egress-2-5 action drop
+set rulebase security rules platform.dns_egress-2-5 log-end no
+set rulebase security rules platform.dns_egress-2-5 description "platform.dns egress rule (Deny) (from payments/app=worker)"
+set rulebase security rules payments_worker-egress_egress-1 from any
+set rulebase security rules payments_worker-egress_egress-1 to any
+set rulebase security rules payments_worker-egress_egress-1 source payments_app_worker
+set rulebase security rules payments_worker-egress_egress-1 destination 192.0.2.0/24
+set rulebase security rules payments_worker-egress_egress-1 source-user any
+set rulebase security rules payments_worker-egress_egress-1 category any
+set rulebase security rules payments_worker-egress_egress-1 application any
+set rulebase security rules payments_worker-egress_egress-1 service tcp-443
+set rulebase security rules payments_worker-egress_egress-1 action allow
+set rulebase security rules payments_worker-egress_egress-1 log-end no
+set rulebase security rules payments_worker-egress_egress-1 description "payments/worker-egress egress rule: ipBlock 192.0.2.0/24 (from payments/app=worker), to what no ingress policy isolates"
+set rulebase security rules "default tier end_egress-3" from any
+set rulebase security rules "default tier end_egress-3" to any
+set rulebase security rules "default tier end_egress-3" source payments_app_worker
+set rulebase security rules "default tier end_egress-3" destination 0.0.0.0/0
+set rulebase security rules "default tier end_egress-3" source-user any
+set rulebase security rules "default tier end_egress-3" category any
+set rulebase security rules "default tier end_egress-3" application any
+set rulebase security rules "default tier end_egress-3" service any
+set rulebase security rules "default tier end_egress-3" action drop
+set rulebase security rules "default tier end_egress-3" log-end no
+set rulebase security rules "default tier end_egress-3" description "the end of tier default: what the policies there do not decide is denied (from payments/app=worker)"
+set rulebase security rules platform.dns_egress-1-6 from any
+set rulebase security rules platform.dns_egress-1-6 to any
+set rulebase security rules platform.dns_egress-1-6 source ns-monitoring
+set rulebase security rules platform.dns_egress-1-6 destination ns-kube-system
+set rulebase security rules platform.dns_egress-1-6 source-user any
+set rulebase security rules platform.dns_egress-1-6 category any
+set rulebase security rules platform.dns_egress-1-6 application any
+set rulebase security rules platform.dns_egress-1-6 service udp-53
+set rulebase security rules platform.dns_egress-1-6 action allow
+set rulebase security rules platform.dns_egress-1-6 log-end no
+set rulebase security rules platform.dns_egress-1-6 description "platform.dns egress rule (Allow): selector k8s-app == 'kube-dns' (from ns-monitoring), to what no ingress policy isolates"
+set rulebase security rules platform.dns_egress-2-6 from any
+set rulebase security rules platform.dns_egress-2-6 to any
+set rulebase security rules platform.dns_egress-2-6 source ns-monitoring
+set rulebase security rules platform.dns_egress-2-6 destination 0.0.0.0/0
+set rulebase security rules platform.dns_egress-2-6 source-user any
+set rulebase security rules platform.dns_egress-2-6 category any
+set rulebase security rules platform.dns_egress-2-6 application any
+set rulebase security rules platform.dns_egress-2-6 service udp-53
+set rulebase security rules platform.dns_egress-2-6 action drop
+set rulebase security rules platform.dns_egress-2-6 log-end no
+set rulebase security rules platform.dns_egress-2-6 description "platform.dns egress rule (Deny) (from ns-monitoring)"
+set rulebase security rules platform.dns_egress-1-7 from any
+set rulebase security rules platform.dns_egress-1-7 to any
+set rulebase security rules platform.dns_egress-1-7 source ns-dev
+set rulebase security rules platform.dns_egress-1-7 destination ns-kube-system
+set rulebase security rules platform.dns_egress-1-7 source-user any
+set rulebase security rules platform.dns_egress-1-7 category any
+set rulebase security rules platform.dns_egress-1-7 application any
+set rulebase security rules platform.dns_egress-1-7 service udp-53
+set rulebase security rules platform.dns_egress-1-7 action allow
+set rulebase security rules platform.dns_egress-1-7 log-end no
+set rulebase security rules platform.dns_egress-1-7 description "platform.dns egress rule (Allow): selector k8s-app == 'kube-dns' (from ns-dev), to what no ingress policy isolates"
+set rulebase security rules platform.dns_egress-2-7 from any
+set rulebase security rules platform.dns_egress-2-7 to any
+set rulebase security rules platform.dns_egress-2-7 source ns-dev
+set rulebase security rules platform.dns_egress-2-7 destination 0.0.0.0/0
+set rulebase security rules platform.dns_egress-2-7 source-user any
+set rulebase security rules platform.dns_egress-2-7 category any
+set rulebase security rules platform.dns_egress-2-7 application any
+set rulebase security rules platform.dns_egress-2-7 service udp-53
+set rulebase security rules platform.dns_egress-2-7 action drop
+set rulebase security rules platform.dns_egress-2-7 log-end no
+set rulebase security rules platform.dns_egress-2-7 description "platform.dns egress rule (Deny) (from ns-dev)"
+set rulebase security rules security.ping_ingress-1 from any
+set rulebase security rules security.ping_ingress-1 to any
+set rulebase security rules security.ping_ingress-1 source 10.0.0.0/8
+set rulebase security rules security.ping_ingress-1 destination [ shop_web-1 shop_web-2 ]
+set rulebase security rules security.ping_ingress-1 source-user any
+set rulebase security rules security.ping_ingress-1 category any
+set rulebase security rules security.ping_ingress-1 application ping
+set rulebase security rules security.ping_ingress-1 service application-default
+set rulebase security rules security.ping_ingress-1 action allow
+set rulebase security rules security.ping_ingress-1 log-end no
+set rulebase security rules security.ping_ingress-1 description "security.ping ingress rule (Allow): nets 10.0.0.0/8 (to shop/app=web)"
+set rulebase security rules security.ping_ingress-2 from any
+set rulebase security rules security.ping_ingress-2 to any
+set rulebase security rules security.ping_ingress-2 source ::/0
+set rulebase security rules security.ping_ingress-2 destination [ shop_web-1-ipv6 shop_web-2-ipv6 ]
+set rulebase security rules security.ping_ingress-2 source-user any
+set rulebase security rules security.ping_ingress-2 category any
+set rulebase security rules security.ping_ingress-2 application ping6
+set rulebase security rules security.ping_ingress-2 service application-default
+set rulebase security rules security.ping_ingress-2 action allow
+set rulebase security rules security.ping_ingress-2 log-end no
+set rulebase security rules security.ping_ingress-2 description "security.ping ingress rule (Allow) (to shop/app=web)"
+set rulebase security rules security.block-threats_ingress-1 from any
+set rulebase security rules security.block-threats_ingress-1 to any
+set rulebase security rules security.block-threats_ingress-1 source "feed __ _threats_"
+set rulebase security rules security.block-threats_ingress-1 destination [ shop_web-1 shop_web-2 ]
+set rulebase security rules security.block-threats_ingress-1 source-user any
+set rulebase security rules security.block-threats_ingress-1 category any
+set rulebase security rules security.block-threats_ingress-1 application any
+set rulebase security rules security.block-threats_ingress-1 service any
+set rulebase security rules security.block-threats_ingress-1 action drop
+set rulebase security rules security.block-threats_ingress-1 log-end no
+set rulebase security rules security.block-threats_ingress-1 description "security.block-threats ingress rule (Deny): selector feed == 'threats' (to shop/app=web)"
+set rulebase security rules security.block-threats_ingress-2 from any
+set rulebase security rules security.block-threats_ingress-2 to any
+set rulebase security rules security.block-threats_ingress-2 source any
+set rulebase security rules security.block-threats_ingress-2 destination shop_app_web
+set rulebase security rules security.block-threats_ingress-2 source-user any
+set rulebase security rules security.block-threats_ingress-2 category any
+set rulebase security rules security.block-threats_ingress-2 application any
+set rulebase security rules security.block-threats_ingress-2 service tcp-23_tcp-135-139
+set rulebase security rules security.block-threats_ingress-2 action drop
+set rulebase security rules security.block-threats_ingress-2 log-end no
+set rulebase security rules security.block-threats_ingress-2 description "security.block-threats ingress rule (Deny) (to shop/app=web)"
+set rulebase security rules shop_web-calico_ingress-1 from any
+set rulebase security rules shop_web-calico_ingress-1 to any
+set rulebase security rules shop_web-calico_ingress-1 source "shop_role __ _partner_"
+set rulebase security rules shop_web-calico_ingress-1 destination shop_web-1
+set rulebase security rules shop_web-calico_ingress-1 source-user any
+set rulebase security rules shop_web-calico_ingress-1 category any
+set rulebase security rules shop_web-calico_ingress-1 application any
+set rulebase security rules shop_web-calico_ingress-1 service tcp-8080
+set rulebase security rules shop_web-calico_ingress-1 action allow
+set rulebase security rules shop_web-calico_ingress-1 log-end no
+set rulebase security rules shop_web-calico_ingress-1 description "shop/web-calico ingress rule (Allow): selector role == 'partner' (to shop/app=web)"
+set rulebase security rules shop_web-calico_ingress-1-2 from any
+set rulebase security rules shop_web-calico_ingress-1-2 to any
+set rulebase security rules shop_web-calico_ingress-1-2 source "shop_role __ _partner_"
+set rulebase security rules shop_web-calico_ingress-1-2 destination shop_web-2
+set rulebase security rules shop_web-calico_ingress-1-2 source-user any
+set rulebase security rules shop_web-calico_ingress-1-2 category any
+set rulebase security rules shop_web-calico_ingress-1-2 application any
+set rulebase security rules shop_web-calico_ingress-1-2 service tcp-8081
+set rulebase security rules shop_web-calico_ingress-1-2 action allow
+set rulebase security rules shop_web-calico_ingress-1-2 log-end no
+set rulebase security rules shop_web-calico_ingress-1-2 description "shop/web-calico ingress rule (Allow): selector role == 'partner' (to shop/app=web)"
+set rulebase security rules shop_web-calico_ingress-2 from any
+set rulebase security rules shop_web-calico_ingress-2 to any
+set rulebase security rules shop_web-calico_ingress-2 source [ 10.0.0.0-10.243.255.255 10.245.0.0-10.255.255.255 ]
+set rulebase security rules shop_web-calico_ingress-2 destination [ shop_web-1 shop_web-2 ]
+set rulebase security rules shop_web-calico_ingress-2 source-user any
+set rulebase security rules shop_web-calico_ingress-2 category any
+set rulebase security rules shop_web-calico_ingress-2 application any
+set rulebase security rules shop_web-calico_ingress-2 service any
+set rulebase security rules shop_web-calico_ingress-2 action drop
+set rulebase security rules shop_web-calico_ingress-2 log-end no
+set rulebase security rules shop_web-calico_ingress-2 description "shop/web-calico ingress rule (Deny): nets 10.0.0.0/8 not nets 10.244.0.0/16 (to shop/app=web)"
+set rulebase security rules shop_web-calico_ingress-3 from any
+set rulebase security rules shop_web-calico_ingress-3 to any
+set rulebase security rules shop_web-calico_ingress-3 source 10.0.0.0/8
+set rulebase security rules shop_web-calico_ingress-3 destination [ shop_web-1 shop_web-2 ]
+set rulebase security rules shop_web-calico_ingress-3 source-user any
+set rulebase security rules shop_web-calico_ingress-3 category any
+set rulebase security rules shop_web-calico_ingress-3 application any
+set rulebase security rules shop_web-calico_ingress-3 service tcp-8000-8049_tcp-8051-8100
+set rulebase security rules shop_web-calico_ingress-3 action allow
+set rulebase security rules shop_web-calico_ingress-3 log-end no
+set rulebase security rules shop_web-calico_ingress-3 description "shop/web-calico ingress rule (Allow): nets 10.0.0.0/8 (to shop/app=web)"
+set rulebase security rules shop_web-calico_ingress-4 from any
+set rulebase security rules shop_web-calico_ingress-4 to any
+set rulebase security rules shop_web-calico_ingress-4 source ns-monitoring
+set rulebase security rules shop_web-calico_ingress-4 destination [ shop_web-1 shop_web-2 ]
+set rulebase security rules shop_web-calico_ingress-4 source-user any
+set rulebase security rules shop_web-calico_ingress-4 category any
+set rulebase security rules shop_web-calico_ingress-4 application any
+set rulebase security rules shop_web-calico_ingress-4 service "not tcp-all"
+set rulebase security rules shop_web-calico_ingress-4 action allow
+set rulebase security rules shop_web-calico_ingress-4 log-end no
+set rulebase security rules shop_web-calico_ingress-4 disabled yes
+set rulebase security rules shop_web-calico_ingress-4 description "FWSHIFT: disabled by the converter, see the report. shop/web-calico ingress rule (Allow): namespaces team == 'ops' (to shop/app=web)"
+set rulebase security rules shop_web-calico_ingress-5 from any
+set rulebase security rules shop_web-calico_ingress-5 to any
+set rulebase security rules shop_web-calico_ingress-5 source shop_app_web
+set rulebase security rules shop_web-calico_ingress-5 destination shop_app_web
+set rulebase security rules shop_web-calico_ingress-5 source-user any
+set rulebase security rules shop_web-calico_ingress-5 category any
+set rulebase security rules shop_web-calico_ingress-5 application any
+set rulebase security rules shop_web-calico_ingress-5 service tcp-8080
+set rulebase security rules shop_web-calico_ingress-5 action allow
+set rulebase security rules shop_web-calico_ingress-5 log-end no
+set rulebase security rules shop_web-calico_ingress-5 disabled yes
+set rulebase security rules shop_web-calico_ingress-5 description "FWSHIFT: disabled by the converter, see the report. shop/web-calico ingress rule (Allow): service accounts (to shop/app=web)"
+set rulebase security rules shop_allow-web_ingress-1 from any
+set rulebase security rules shop_allow-web_ingress-1 to any
+set rulebase security rules shop_allow-web_ingress-1 source [ 0.0.0.0-9.255.255.255 11.0.0.0-192.167.255.255 192.169.0.0-255.255.255.255 2001:db8:ffff::/48 ]
+set rulebase security rules shop_allow-web_ingress-1 destination [ shop_web-1 shop_web-1-ipv6 ]
+set rulebase security rules shop_allow-web_ingress-1 source-user any
+set rulebase security rules shop_allow-web_ingress-1 category any
+set rulebase security rules shop_allow-web_ingress-1 application any
+set rulebase security rules shop_allow-web_ingress-1 service tcp-8080
+set rulebase security rules shop_allow-web_ingress-1 action allow
+set rulebase security rules shop_allow-web_ingress-1 log-end no
+set rulebase security rules shop_allow-web_ingress-1 description "shop/allow-web ingress rule: ipBlock 0.0.0.0/0 except 2; ipBlock 2001:db8:ffff::/48 (to shop/app=web)"
+set rulebase security rules shop_allow-web_ingress-1-2 from any
+set rulebase security rules shop_allow-web_ingress-1-2 to any
+set rulebase security rules shop_allow-web_ingress-1-2 source [ 0.0.0.0-9.255.255.255 11.0.0.0-192.167.255.255 192.169.0.0-255.255.255.255 2001:db8:ffff::/48 ]
+set rulebase security rules shop_allow-web_ingress-1-2 destination [ shop_web-2 shop_web-2-ipv6 ]
+set rulebase security rules shop_allow-web_ingress-1-2 source-user any
+set rulebase security rules shop_allow-web_ingress-1-2 category any
+set rulebase security rules shop_allow-web_ingress-1-2 application any
+set rulebase security rules shop_allow-web_ingress-1-2 service tcp-8081
+set rulebase security rules shop_allow-web_ingress-1-2 action allow
+set rulebase security rules shop_allow-web_ingress-1-2 log-end no
+set rulebase security rules shop_allow-web_ingress-1-2 description "shop/allow-web ingress rule: ipBlock 0.0.0.0/0 except 2; ipBlock 2001:db8:ffff::/48 (to shop/app=web)"
+set rulebase security rules shop_allow-web_ingress-2 from any
+set rulebase security rules shop_allow-web_ingress-2 to any
+set rulebase security rules shop_allow-web_ingress-2 source ns-monitoring
+set rulebase security rules shop_allow-web_ingress-2 destination [ shop_web-1 shop_web-2 ]
+set rulebase security rules shop_allow-web_ingress-2 source-user any
+set rulebase security rules shop_allow-web_ingress-2 category any
+set rulebase security rules shop_allow-web_ingress-2 application any
+set rulebase security rules shop_allow-web_ingress-2 service tcp-9100
+set rulebase security rules shop_allow-web_ingress-2 action allow
+set rulebase security rules shop_allow-web_ingress-2 log-end no
+set rulebase security rules shop_allow-web_ingress-2 description "shop/allow-web ingress rule: namespaces team=ops (to shop/app=web)"
+set rulebase security rules "default tier end_ingress" from any
+set rulebase security rules "default tier end_ingress" to any
+set rulebase security rules "default tier end_ingress" source any
+set rulebase security rules "default tier end_ingress" destination shop_app_web
+set rulebase security rules "default tier end_ingress" source-user any
+set rulebase security rules "default tier end_ingress" category any
+set rulebase security rules "default tier end_ingress" application any
+set rulebase security rules "default tier end_ingress" service any
+set rulebase security rules "default tier end_ingress" action drop
+set rulebase security rules "default tier end_ingress" log-end no
+set rulebase security rules "default tier end_ingress" description "the end of tier default: what the policies there do not decide is denied (to shop/app=web)"
+set rulebase security rules security.block-threats_ingress-1-2 from any
+set rulebase security rules security.block-threats_ingress-1-2 to any
+set rulebase security rules security.block-threats_ingress-1-2 source "feed __ _threats_"
+set rulebase security rules security.block-threats_ingress-1-2 destination shop_app_cart
+set rulebase security rules security.block-threats_ingress-1-2 source-user any
+set rulebase security rules security.block-threats_ingress-1-2 category any
+set rulebase security rules security.block-threats_ingress-1-2 application any
+set rulebase security rules security.block-threats_ingress-1-2 service any
+set rulebase security rules security.block-threats_ingress-1-2 action drop
+set rulebase security rules security.block-threats_ingress-1-2 log-end no
+set rulebase security rules security.block-threats_ingress-1-2 description "security.block-threats ingress rule (Deny): selector feed == 'threats' (to shop/app=cart)"
+set rulebase security rules security.block-threats_ingress-2-2 from any
+set rulebase security rules security.block-threats_ingress-2-2 to any
+set rulebase security rules security.block-threats_ingress-2-2 source 0.0.0.0/0
+set rulebase security rules security.block-threats_ingress-2-2 destination shop_app_cart
+set rulebase security rules security.block-threats_ingress-2-2 source-user any
+set rulebase security rules security.block-threats_ingress-2-2 category any
+set rulebase security rules security.block-threats_ingress-2-2 application any
+set rulebase security rules security.block-threats_ingress-2-2 service tcp-23_tcp-135-139
+set rulebase security rules security.block-threats_ingress-2-2 action drop
+set rulebase security rules security.block-threats_ingress-2-2 log-end no
+set rulebase security rules security.block-threats_ingress-2-2 description "security.block-threats ingress rule (Deny) (to shop/app=cart)"
+set rulebase security rules shop_web-to-cart_ingress-1 from any
+set rulebase security rules shop_web-to-cart_ingress-1 to any
+set rulebase security rules shop_web-to-cart_ingress-1 source [ shop_web-1 shop_web-2 ]
+set rulebase security rules shop_web-to-cart_ingress-1 destination shop_app_cart
+set rulebase security rules shop_web-to-cart_ingress-1 source-user any
+set rulebase security rules shop_web-to-cart_ingress-1 category any
+set rulebase security rules shop_web-to-cart_ingress-1 application any
+set rulebase security rules shop_web-to-cart_ingress-1 service tcp-50051
+set rulebase security rules shop_web-to-cart_ingress-1 action allow
+set rulebase security rules shop_web-to-cart_ingress-1 log-end no
+set rulebase security rules shop_web-to-cart_ingress-1 description "shop/web-to-cart ingress rule: shop/app=web (to shop/app=cart)"
+set rulebase security rules "default tier end_ingress-2" from any
+set rulebase security rules "default tier end_ingress-2" to any
+set rulebase security rules "default tier end_ingress-2" source 0.0.0.0/0
+set rulebase security rules "default tier end_ingress-2" destination shop_app_cart
+set rulebase security rules "default tier end_ingress-2" source-user any
+set rulebase security rules "default tier end_ingress-2" category any
+set rulebase security rules "default tier end_ingress-2" application any
+set rulebase security rules "default tier end_ingress-2" service any
+set rulebase security rules "default tier end_ingress-2" action drop
+set rulebase security rules "default tier end_ingress-2" log-end no
+set rulebase security rules "default tier end_ingress-2" description "the end of tier default: what the policies there do not decide is denied (to shop/app=cart)"
+set rulebase security rules security.block-threats_ingress-1-3 from any
+set rulebase security rules security.block-threats_ingress-1-3 to any
+set rulebase security rules security.block-threats_ingress-1-3 source "feed __ _threats_"
+set rulebase security rules security.block-threats_ingress-1-3 destination shop_app_db
+set rulebase security rules security.block-threats_ingress-1-3 source-user any
+set rulebase security rules security.block-threats_ingress-1-3 category any
+set rulebase security rules security.block-threats_ingress-1-3 application any
+set rulebase security rules security.block-threats_ingress-1-3 service any
+set rulebase security rules security.block-threats_ingress-1-3 action drop
+set rulebase security rules security.block-threats_ingress-1-3 log-end no
+set rulebase security rules security.block-threats_ingress-1-3 description "security.block-threats ingress rule (Deny): selector feed == 'threats' (to shop/app=db)"
+set rulebase security rules security.block-threats_ingress-2-3 from any
+set rulebase security rules security.block-threats_ingress-2-3 to any
+set rulebase security rules security.block-threats_ingress-2-3 source 0.0.0.0/0
+set rulebase security rules security.block-threats_ingress-2-3 destination shop_app_db
+set rulebase security rules security.block-threats_ingress-2-3 source-user any
+set rulebase security rules security.block-threats_ingress-2-3 category any
+set rulebase security rules security.block-threats_ingress-2-3 application any
+set rulebase security rules security.block-threats_ingress-2-3 service tcp-23_tcp-135-139
+set rulebase security rules security.block-threats_ingress-2-3 action drop
+set rulebase security rules security.block-threats_ingress-2-3 log-end no
+set rulebase security rules security.block-threats_ingress-2-3 description "security.block-threats ingress rule (Deny) (to shop/app=db)"
+set rulebase security rules platform.nodes_ingress-1 from any
+set rulebase security rules platform.nodes_ingress-1 to any
+set rulebase security rules platform.nodes_ingress-1 source "role __ _node_"
+set rulebase security rules platform.nodes_ingress-1 destination shop_app_db
+set rulebase security rules platform.nodes_ingress-1 source-user any
+set rulebase security rules platform.nodes_ingress-1 category any
+set rulebase security rules platform.nodes_ingress-1 application any
+set rulebase security rules platform.nodes_ingress-1 service tcp-10250
+set rulebase security rules platform.nodes_ingress-1 action allow
+set rulebase security rules platform.nodes_ingress-1 log-end no
+set rulebase security rules platform.nodes_ingress-1 description "platform.nodes ingress rule (Allow): selector role == 'node' (to shop/app=db)"
+set rulebase security rules shop_cart-to-db_ingress-1 from any
+set rulebase security rules shop_cart-to-db_ingress-1 to any
+set rulebase security rules shop_cart-to-db_ingress-1 source shop_app_cart
+set rulebase security rules shop_cart-to-db_ingress-1 destination shop_app_db
+set rulebase security rules shop_cart-to-db_ingress-1 source-user any
+set rulebase security rules shop_cart-to-db_ingress-1 category any
+set rulebase security rules shop_cart-to-db_ingress-1 application any
+set rulebase security rules shop_cart-to-db_ingress-1 service tcp-5432
+set rulebase security rules shop_cart-to-db_ingress-1 action allow
+set rulebase security rules shop_cart-to-db_ingress-1 log-end no
+set rulebase security rules shop_cart-to-db_ingress-1 description "shop/cart-to-db ingress rule: shop/app=cart (to shop/app=db)"
+set rulebase security rules "default tier end_ingress-3" from any
+set rulebase security rules "default tier end_ingress-3" to any
+set rulebase security rules "default tier end_ingress-3" source 0.0.0.0/0
+set rulebase security rules "default tier end_ingress-3" destination shop_app_db
+set rulebase security rules "default tier end_ingress-3" source-user any
+set rulebase security rules "default tier end_ingress-3" category any
+set rulebase security rules "default tier end_ingress-3" application any
+set rulebase security rules "default tier end_ingress-3" service any
+set rulebase security rules "default tier end_ingress-3" action drop
+set rulebase security rules "default tier end_ingress-3" log-end no
+set rulebase security rules "default tier end_ingress-3" description "the end of tier default: what the policies there do not decide is denied (to shop/app=db)"
+set rulebase security rules security.block-threats_ingress-1-4 from any
+set rulebase security rules security.block-threats_ingress-1-4 to any
+set rulebase security rules security.block-threats_ingress-1-4 source "feed __ _threats_"
+set rulebase security rules security.block-threats_ingress-1-4 destination payments_api-1
+set rulebase security rules security.block-threats_ingress-1-4 source-user any
+set rulebase security rules security.block-threats_ingress-1-4 category any
+set rulebase security rules security.block-threats_ingress-1-4 application any
+set rulebase security rules security.block-threats_ingress-1-4 service any
+set rulebase security rules security.block-threats_ingress-1-4 action drop
+set rulebase security rules security.block-threats_ingress-1-4 log-end no
+set rulebase security rules security.block-threats_ingress-1-4 description "security.block-threats ingress rule (Deny): selector feed == 'threats' (to pods payments/api-1)"
+set rulebase security rules security.block-threats_ingress-2-4 from any
+set rulebase security rules security.block-threats_ingress-2-4 to any
+set rulebase security rules security.block-threats_ingress-2-4 source any
+set rulebase security rules security.block-threats_ingress-2-4 destination "pods payments_api-1"
+set rulebase security rules security.block-threats_ingress-2-4 source-user any
+set rulebase security rules security.block-threats_ingress-2-4 category any
+set rulebase security rules security.block-threats_ingress-2-4 application any
+set rulebase security rules security.block-threats_ingress-2-4 service tcp-23_tcp-135-139
+set rulebase security rules security.block-threats_ingress-2-4 action drop
+set rulebase security rules security.block-threats_ingress-2-4 log-end no
+set rulebase security rules security.block-threats_ingress-2-4 description "security.block-threats ingress rule (Deny) (to pods payments/api-1)"
+set rulebase security rules payments_api-ingress_ingress-1 from any
+set rulebase security rules payments_api-ingress_ingress-1 to any
+set rulebase security rules payments_api-ingress_ingress-1 source "payments_api-ingress_ingress-1 sources"
+set rulebase security rules payments_api-ingress_ingress-1 destination "pods payments_api-1"
+set rulebase security rules payments_api-ingress_ingress-1 source-user any
+set rulebase security rules payments_api-ingress_ingress-1 category any
+set rulebase security rules payments_api-ingress_ingress-1 application any
+set rulebase security rules payments_api-ingress_ingress-1 service tcp-8443_tcp-9000-9010
+set rulebase security rules payments_api-ingress_ingress-1 action allow
+set rulebase security rules payments_api-ingress_ingress-1 log-end no
+set rulebase security rules payments_api-ingress_ingress-1 description "payments/api-ingress ingress rule: namespaces team=shop; payments/app=worker (to pods payments/api-1)"
+set rulebase security rules payments_api-ingress_ingress-1-2 from any
+set rulebase security rules payments_api-ingress_ingress-1-2 to any
+set rulebase security rules payments_api-ingress_ingress-1-2 source "payments_api-ingress_ingress-1 sources"
+set rulebase security rules payments_api-ingress_ingress-1-2 destination "pods payments_api-1"
+set rulebase security rules payments_api-ingress_ingress-1-2 source-user any
+set rulebase security rules payments_api-ingress_ingress-1-2 category any
+set rulebase security rules payments_api-ingress_ingress-1-2 application any
+set rulebase security rules payments_api-ingress_ingress-1-2 service sctp-3868
+set rulebase security rules payments_api-ingress_ingress-1-2 action allow
+set rulebase security rules payments_api-ingress_ingress-1-2 log-end no
+set rulebase security rules payments_api-ingress_ingress-1-2 description "payments/api-ingress ingress rule: namespaces team=shop; payments/app=worker (to pods payments/api-1)"
+set rulebase security rules payments_api-ingress_ingress-3 from any
+set rulebase security rules payments_api-ingress_ingress-3 to any
+set rulebase security rules payments_api-ingress_ingress-3 source payments_app_worker
+set rulebase security rules payments_api-ingress_ingress-3 destination payments_api-1
+set rulebase security rules payments_api-ingress_ingress-3 source-user any
+set rulebase security rules payments_api-ingress_ingress-3 category any
+set rulebase security rules payments_api-ingress_ingress-3 application any
+set rulebase security rules payments_api-ingress_ingress-3 service any
+set rulebase security rules payments_api-ingress_ingress-3 action allow
+set rulebase security rules payments_api-ingress_ingress-3 log-end no
+set rulebase security rules payments_api-ingress_ingress-3 disabled yes
+set rulebase security rules payments_api-ingress_ingress-3 description "FWSHIFT: disabled by the converter, see the report. payments/api-ingress ingress rule: payments/app=worker (to pods payments/api-1)"
+set rulebase security rules payments_api-calico_ingress-1 from any
+set rulebase security rules payments_api-calico_ingress-1 to any
+set rulebase security rules payments_api-calico_ingress-1 source "feed __ _partners_"
+set rulebase security rules payments_api-calico_ingress-1 destination "pods payments_api-1"
+set rulebase security rules payments_api-calico_ingress-1 source-user any
+set rulebase security rules payments_api-calico_ingress-1 category any
+set rulebase security rules payments_api-calico_ingress-1 application any
+set rulebase security rules payments_api-calico_ingress-1 service tcp-8443
+set rulebase security rules payments_api-calico_ingress-1 action allow
+set rulebase security rules payments_api-calico_ingress-1 log-end no
+set rulebase security rules payments_api-calico_ingress-1 description "payments/api-calico ingress rule (Allow): namespaces global() selector feed == 'partners' (to pods payments/api-1)"
+set rulebase security rules payments_api-calico_ingress-2 from any
+set rulebase security rules payments_api-calico_ingress-2 to any
+set rulebase security rules payments_api-calico_ingress-2 source any
+set rulebase security rules payments_api-calico_ingress-2 destination "pods payments_api-1"
+set rulebase security rules payments_api-calico_ingress-2 source-user any
+set rulebase security rules payments_api-calico_ingress-2 category any
+set rulebase security rules payments_api-calico_ingress-2 application any
+set rulebase security rules payments_api-calico_ingress-2 service tcp-8443
+set rulebase security rules payments_api-calico_ingress-2 action allow
+set rulebase security rules payments_api-calico_ingress-2 log-end no
+set rulebase security rules payments_api-calico_ingress-2 description "payments/api-calico ingress rule (Allow): not selector app == 'debug' (to pods payments/api-1)"
+set rulebase security rules "default tier end_ingress-4" from any
+set rulebase security rules "default tier end_ingress-4" to any
+set rulebase security rules "default tier end_ingress-4" source any
+set rulebase security rules "default tier end_ingress-4" destination "pods payments_api-1"
+set rulebase security rules "default tier end_ingress-4" source-user any
+set rulebase security rules "default tier end_ingress-4" category any
+set rulebase security rules "default tier end_ingress-4" application any
+set rulebase security rules "default tier end_ingress-4" service any
+set rulebase security rules "default tier end_ingress-4" action drop
+set rulebase security rules "default tier end_ingress-4" log-end no
+set rulebase security rules "default tier end_ingress-4" description "the end of tier default: what the policies there do not decide is denied (to pods payments/api-1)"
+set rulebase security rules security.block-threats_ingress-1-5 from any
+set rulebase security rules security.block-threats_ingress-1-5 to any
+set rulebase security rules security.block-threats_ingress-1-5 source "feed __ _threats_"
+set rulebase security rules security.block-threats_ingress-1-5 destination payments_app_worker
+set rulebase security rules security.block-threats_ingress-1-5 source-user any
+set rulebase security rules security.block-threats_ingress-1-5 category any
+set rulebase security rules security.block-threats_ingress-1-5 application any
+set rulebase security rules security.block-threats_ingress-1-5 service any
+set rulebase security rules security.block-threats_ingress-1-5 action drop
+set rulebase security rules security.block-threats_ingress-1-5 log-end no
+set rulebase security rules security.block-threats_ingress-1-5 description "security.block-threats ingress rule (Deny): selector feed == 'threats' (to payments/app=worker)"
+set rulebase security rules security.block-threats_ingress-2-5 from any
+set rulebase security rules security.block-threats_ingress-2-5 to any
+set rulebase security rules security.block-threats_ingress-2-5 source 0.0.0.0/0
+set rulebase security rules security.block-threats_ingress-2-5 destination payments_app_worker
+set rulebase security rules security.block-threats_ingress-2-5 source-user any
+set rulebase security rules security.block-threats_ingress-2-5 category any
+set rulebase security rules security.block-threats_ingress-2-5 application any
+set rulebase security rules security.block-threats_ingress-2-5 service tcp-23_tcp-135-139
+set rulebase security rules security.block-threats_ingress-2-5 action drop
+set rulebase security rules security.block-threats_ingress-2-5 log-end no
+set rulebase security rules security.block-threats_ingress-2-5 description "security.block-threats ingress rule (Deny) (to payments/app=worker)"
+set rulebase security rules "default tier end_ingress-5" from any
+set rulebase security rules "default tier end_ingress-5" to any
+set rulebase security rules "default tier end_ingress-5" source 0.0.0.0/0
+set rulebase security rules "default tier end_ingress-5" destination payments_app_worker
+set rulebase security rules "default tier end_ingress-5" source-user any
+set rulebase security rules "default tier end_ingress-5" category any
+set rulebase security rules "default tier end_ingress-5" application any
+set rulebase security rules "default tier end_ingress-5" service any
+set rulebase security rules "default tier end_ingress-5" action drop
+set rulebase security rules "default tier end_ingress-5" log-end no
+set rulebase security rules "default tier end_ingress-5" description "the end of tier default: what the policies there do not decide is denied (to payments/app=worker)"
+set rulebase security rules monitoring_scrape-only_ingress-1 from any
+set rulebase security rules monitoring_scrape-only_ingress-1 to any
+set rulebase security rules monitoring_scrape-only_ingress-1 source ns-monitoring
+set rulebase security rules monitoring_scrape-only_ingress-1 destination ns-monitoring
+set rulebase security rules monitoring_scrape-only_ingress-1 source-user any
+set rulebase security rules monitoring_scrape-only_ingress-1 category any
+set rulebase security rules monitoring_scrape-only_ingress-1 application any
+set rulebase security rules monitoring_scrape-only_ingress-1 service tcp-9090
+set rulebase security rules monitoring_scrape-only_ingress-1 action allow
+set rulebase security rules monitoring_scrape-only_ingress-1 log-end no
+set rulebase security rules monitoring_scrape-only_ingress-1 description "monitoring/scrape-only ingress rule: namespaces team=ops (to ns-monitoring)"
+set rulebase security rules isolated_ingress from any
+set rulebase security rules isolated_ingress to any
+set rulebase security rules isolated_ingress source 0.0.0.0/0
+set rulebase security rules isolated_ingress destination ns-monitoring
+set rulebase security rules isolated_ingress source-user any
+set rulebase security rules isolated_ingress category any
+set rulebase security rules isolated_ingress application any
+set rulebase security rules isolated_ingress service any
+set rulebase security rules isolated_ingress action drop
+set rulebase security rules isolated_ingress log-end no
+set rulebase security rules isolated_ingress description "the pods are isolated for ingress: what no policy allows is denied (to ns-monitoring)"
+set rulebase security rules dev_not-from-prod_ingress-1 from any
+set rulebase security rules dev_not-from-prod_ingress-1 to any
+set rulebase security rules dev_not-from-prod_ingress-1 source "namespaces env NotIn _prod_"
+set rulebase security rules dev_not-from-prod_ingress-1 destination ns-dev
+set rulebase security rules dev_not-from-prod_ingress-1 source-user any
+set rulebase security rules dev_not-from-prod_ingress-1 category any
+set rulebase security rules dev_not-from-prod_ingress-1 application any
+set rulebase security rules dev_not-from-prod_ingress-1 service any
+set rulebase security rules dev_not-from-prod_ingress-1 action allow
+set rulebase security rules dev_not-from-prod_ingress-1 log-end no
+set rulebase security rules dev_not-from-prod_ingress-1 description "dev/not-from-prod ingress rule: namespaces env NotIn (prod) (to ns-dev)"
+set rulebase security rules isolated_ingress-2 from any
+set rulebase security rules isolated_ingress-2 to any
+set rulebase security rules isolated_ingress-2 source 0.0.0.0/0
+set rulebase security rules isolated_ingress-2 destination ns-dev
+set rulebase security rules isolated_ingress-2 source-user any
+set rulebase security rules isolated_ingress-2 category any
+set rulebase security rules isolated_ingress-2 application any
+set rulebase security rules isolated_ingress-2 service any
+set rulebase security rules isolated_ingress-2 action drop
+set rulebase security rules isolated_ingress-2 log-end no
+set rulebase security rules isolated_ingress-2 description "the pods are isolated for ingress: what no policy allows is denied (to ns-dev)"
+set rulebase security rules "not isolated_ from pods" from any
+set rulebase security rules "not isolated_ from pods" to any
+set rulebase security rules "not isolated_ from pods" source all-pods
+set rulebase security rules "not isolated_ from pods" destination any
+set rulebase security rules "not isolated_ from pods" source-user any
+set rulebase security rules "not isolated_ from pods" category any
+set rulebase security rules "not isolated_ from pods" application any
+set rulebase security rules "not isolated_ from pods" service any
+set rulebase security rules "not isolated_ from pods" action allow
+set rulebase security rules "not isolated_ from pods" log-end no
+set rulebase security rules "not isolated_ from pods" description "what no policy decides is allowed to and from pods"
+set rulebase security rules "not isolated_ to pods" from any
+set rulebase security rules "not isolated_ to pods" to any
+set rulebase security rules "not isolated_ to pods" source any
+set rulebase security rules "not isolated_ to pods" destination all-pods
+set rulebase security rules "not isolated_ to pods" source-user any
+set rulebase security rules "not isolated_ to pods" category any
+set rulebase security rules "not isolated_ to pods" application any
+set rulebase security rules "not isolated_ to pods" service any
+set rulebase security rules "not isolated_ to pods" action allow
+set rulebase security rules "not isolated_ to pods" log-end no
+set rulebase security rules "not isolated_ to pods" description "what no policy decides is allowed to and from pods"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

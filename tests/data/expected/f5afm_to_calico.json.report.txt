@@ -1,0 +1,105 @@
+FWShift conversion report
+  source: f5-afm
+  target: calico
+
+Summary
+  Security rules:     42   exact 9, approximated 15, needs review 18 (18 emitted disabled), skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] CALICO_LOAD: the output is one GlobalNetworkPolicy (fwshift) for calicoctl apply -f FILE, or kubectl apply -f FILE where the Calico API server is installed. It applies to the endpoints labelled fwshift/policy=fwshift and to nothing else: label the pods it is for (kubectl label pod POD fwshift/policy=fwshift). It stands in the default tier with order 100, before the Kubernetes network policies (order 1000), and ends with the source's default, so that it decides everything for those endpoints; a policy of the same name is replaced
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; the Calico rules written do not (a rule with action Log before a rule would log what it matches)
+
+Security rules
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a Calico rule names no zone: give the networks behind internal with --zone-network.
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a Calico rule names no zone: give the networks behind internal with --zone-network.
+  global/admins_continue>rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a Calico rule names no zone: give the networks behind internal with --zone-network.
+  global/admins_continue>rd0/dmz_no_inside  ->  approximated  (emitted as rules 2-3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web6/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a Calico rule names no zone: give the networks behind external with --zone-network.
+  global/admins_continue>vs_web6/(default)  ->  approximated  (emitted as rule 4)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a Calico rule names no zone: give the networks behind external with --zone-network.
+  global/admins_continue>vs_web/(default)  ->  approximated  (emitted as rule 5)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_web_http/(refused)  ->  approximated  (emitted as rule 6)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  global/admins_continue>vs_old_app/(refused)  ->  exact  (emitted as rule 8)
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  global/admins_continue>vs_inbound_dmz/(default)  ->  approximated  (emitted as rule 9)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/admins_continue>vs_outbound/(default)  ->  approximated  (emitted as rule 10)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/reject_telnet  ->  exact  (emitted as rule 11)
+      [info] ACTION_DROP: action reset-client: Calico's Deny drops, without an answer
+  global/ping_in@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, internal, and a Calico rule names no zone: give the networks behind dmz, internal with --zone-network.
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a Calico rule names no zone: give the networks behind internal with --zone-network.
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a Calico rule names networks (domain names are a feature of Calico Enterprise and Cloud).
+  global/partners_in@vs_web  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a Calico rule names networks (domain names are a feature of Calico Enterprise and Cloud).
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a Calico rule names networks (domain names are a feature of Calico Enterprise and Cloud). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a Calico rule names networks (domain names are a feature of Calico Enterprise and Cloud).
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] FQDN_NOT_SUPPORTED: host name object partner.example.com: a Calico rule names networks (domain names are a feature of Calico Enterprise and Cloud).
+  global/inspect_irule>rd0/dmz_no_inside  ->  approximated  (emitted as rules 12-13)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/inspect_irule>vs_old_app/(refused)  ->  exact  (emitted as rule 14)
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  global/inspect_irule>vs_inbound_dmz/(default)  ->  approximated  (emitted as rule 15)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  global/inspect_irule>vs_outbound/(default)  ->  approximated  (emitted as rule 16)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a Calico rule names no zone: give the networks behind internal with --zone-network.
+  rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a Calico rule names no zone: give the networks behind internal with --zone-network.
+  rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internal, and a Calico rule names no zone: give the networks behind internal with --zone-network.
+  rd0/dmz_no_inside  ->  approximated  (emitted as rules 17-18)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web6/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a Calico rule names no zone: give the networks behind external with --zone-network.
+  vs_web6/web6_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a Calico rule names no zone: give the networks behind external with --zone-network.
+  vs_web6/(default)  ->  approximated  (emitted as rule 19)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web/web_in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone external, and a Calico rule names no zone: give the networks behind external with --zone-network.
+  vs_web/(default)  ->  approximated  (emitted as rule 20)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_web_http/(refused)  ->  approximated  (emitted as rule 21)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone external; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  vs_old_app/(refused)  ->  exact  (emitted as rule 24)
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  vs_inbound_dmz/(default)  ->  approximated  (emitted as rule 25)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, external; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  vs_outbound/(default)  ->  approximated  (emitted as rule 26)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz, internal; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones

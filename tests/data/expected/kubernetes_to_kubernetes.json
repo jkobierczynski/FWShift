@@ -1,0 +1,1044 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "metadata": {
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "payments/api-ingress/ingress-3 (not written, see the report)"
+    }
+  },
+  "items": [
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-ns-kube-system",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "10.244.0.2",
+          "fwshift/rules": "dev/not-from-prod/ingress-1, node 10.0.0.11 to its pods, not isolated: from pods, not isolated: to pods, pods from node 10.0.0.11, shop/cart-egress/egress-2, shop/web-egress/egress-2"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-ns-kube-system"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "0.0.0.0/0",
+                  "except": [
+                    "10.244.1.10/32",
+                    "10.244.1.20/32",
+                    "10.244.2.10/32",
+                    "10.244.2.30/32",
+                    "10.244.2.41/32"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.10/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.10/32"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 53
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.10/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.20/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.10/32"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "UDP",
+                "port": 53
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "0.0.0.0/0"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-shop-web-1",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "10.244.1.10",
+          "fwshift/rules": "node 10.0.0.11 to its pods, pods from node 10.0.0.11, shop/allow-web/ingress-1, shop/allow-web/ingress-2, shop/web-egress/egress-1 + shop/web-to-cart/ingress-1, shop/web-egress/egress-2"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-shop-web-1"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.0.0.11/32"
+                }
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "0.0.0.0/0",
+                  "except": [
+                    "10.0.0.0/8",
+                    "192.168.0.0/16"
+                  ]
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 8080
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.5/32"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 9100
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "10.0.0.11/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.0.2/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.10/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.20/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.40/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.10/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.30/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.41/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.5/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.9/32"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-shop-app-cart",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "10.244.1.20",
+          "fwshift/rules": "node 10.0.0.11 to its pods, pods from node 10.0.0.11, shop/cart-egress/egress-1 + shop/cart-to-db/ingress-1, shop/cart-egress/egress-2, shop/web-egress/egress-1 + shop/web-to-cart/ingress-1"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-shop-app-cart"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.0.0.11/32"
+                }
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.10/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.10/32"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 50051
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "10.0.0.11/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.0.2/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.10/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.20/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.40/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.10/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.30/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.41/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.5/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.9/32"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-pods-payments-api-1",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "10.244.1.40",
+          "fwshift/rules": "node 10.0.0.11 to its pods, not isolated: from pods, not isolated: to pods, pods from node 10.0.0.11"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-pods-payments-api-1"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.0.0.11/32"
+                }
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "0.0.0.0/0"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-shop-web-2",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "10.244.2.10",
+          "fwshift/rules": "node 10.0.0.12 to its pods, pods from node 10.0.0.12, shop/allow-web/ingress-1-2, shop/allow-web/ingress-2, shop/web-egress/egress-1 + shop/web-to-cart/ingress-1, shop/web-egress/egress-2"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-shop-web-2"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.0.0.12/32"
+                }
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "0.0.0.0/0",
+                  "except": [
+                    "10.0.0.0/8",
+                    "192.168.0.0/16"
+                  ]
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 8081
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.5/32"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 9100
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "10.0.0.12/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.0.2/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.10/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.20/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.40/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.10/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.30/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.41/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.5/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.9/32"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-shop-app-db",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "10.244.2.30",
+          "fwshift/rules": "node 10.0.0.12 to its pods, pods from node 10.0.0.12, shop/cart-egress/egress-1 + shop/cart-to-db/ingress-1"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-shop-app-db"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.0.0.12/32"
+                }
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.20/32"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 5432
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "10.0.0.12/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.0.2/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.10/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.20/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.40/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.10/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.30/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.41/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.5/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.9/32"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-payments-app-worker",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "10.244.2.41",
+          "fwshift/rules": "node 10.0.0.12 to its pods, payments/worker-egress/egress-1, pods from node 10.0.0.12"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-payments-app-worker"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.0.0.12/32"
+                }
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "10.0.0.12/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.0.2/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.10/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.20/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.1.40/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.10/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.30/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.2.41/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.5/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.9/32"
+                }
+              }
+            ]
+          },
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "192.0.2.0/24"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 443
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-ns-monitoring",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "10.244.3.5",
+          "fwshift/rules": "dev/not-from-prod/ingress-1, monitoring/scrape-only/ingress-1, node 10.0.0.12 to its pods, not isolated: from pods, not isolated: to pods, pods from node 10.0.0.12, shop/allow-web/ingress-2"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-ns-monitoring"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.0.0.12/32"
+                }
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.5/32"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 9090
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "0.0.0.0/0"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-ns-dev",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "10.244.3.9",
+          "fwshift/rules": "dev/not-from-prod/ingress-1, node 10.0.0.11 to its pods, not isolated: from pods, not isolated: to pods, pods from node 10.0.0.11"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-ns-dev"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "10.0.0.11/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.0.2/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.5/32"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "10.244.3.9/32"
+                }
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "0.0.0.0/0"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-shop-web-1-ipv6-ipv6",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "2001:db8:244:1::10",
+          "fwshift/rules": "shop/allow-web/ingress-1, shop/web-egress/egress-3"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-shop-web-1-ipv6-ipv6"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "2001:db8:ffff::/48"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 8080
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "2001:db8:244:1::10/128"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "2001:db8:244:1::40/128"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "2001:db8:244:2::10/128"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "2001:db8:ffff::/48"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 443
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-ns-payments-ipv6",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "2001:db8:244:1::40",
+          "fwshift/rules": "not isolated: from pods"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-ns-payments-ipv6"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "::/0"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "fwshift-pods-on-node-10.0.0.12-ipv6",
+        "labels": {
+          "app.kubernetes.io/managed-by": "fwshift"
+        },
+        "annotations": {
+          "fwshift/addresses": "2001:db8:244:2::10",
+          "fwshift/rules": "shop/allow-web/ingress-1-2, shop/web-egress/egress-3"
+        }
+      },
+      "spec": {
+        "podSelector": {
+          "matchLabels": {
+            "fwshift/group": "fwshift-pods-on-node-10.0.0.12-ipv6"
+          }
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "2001:db8:ffff::/48"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 8081
+              }
+            ]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "2001:db8:244:1::10/128"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "2001:db8:244:1::40/128"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "2001:db8:244:2::10/128"
+                }
+              },
+              {
+                "ipBlock": {
+                  "cidr": "2001:db8:ffff::/48"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 443
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

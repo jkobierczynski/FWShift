@@ -1,0 +1,73 @@
+FWShift conversion report
+  source: hisecos (IPv4)
+  target: scalance
+
+Summary
+  Security rules:     14   exact 5, approximated 1, needs review 4, skipped 4
+  NAT rules:           5   exact 2, approximated 0, needs review 0, skipped 3
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HISECOS_NOT_CONVERTED: settings that change what passes and are not converted: deep packet inspection (enforcer profiles)
+  [needs-review] HISECOS_DIRECTION_ORDER: the policy mixes assignments for ingress only with assignments for egress only; the MIB does not say how they are ordered against each other, and they are read as one order by priority: rules assigned for ingress only and rules assigned for egress only
+  [needs-review] SCALANCE_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the device passes everything: port1_1, port1_2, port1_3, vlan20
+  [needs-review] SCALANCE_LOAD: the output is CLI commands for the FIREWALL and FIREWALL NAT modes (section 10): 61 IP rules with priorities 1 to 8. The device processes rules by ascending priority: rules it has with a lower priority come first. Commands take effect as they are entered; nothing is deleted and nothing is saved
+  [needs-review] SCALANCE_ZONE_NAMES: zones that are not interfaces of the device (vlan N, ipsecALL, ipsec N, sinemarcall, ppp 0, usb 0) are written as they are, and the device refuses those rules: map them with --zone-map ZONE=vlanN: port1_2, port1_1, port1_3
+  [info] HISECOS_SOURCE: 13 rules of the packet filter, 12 of them assigned and enabled, in the order of their priorities; zones are the routing interfaces (port1_1, port1_2, port1_3, vlan20); IPv4 only. The keywords of the commands are FWShift's reading of the MIB and the command list of the CLI reference, not confirmed by its Format lines
+  [info] HISECOS_DEFAULT: what no rule matches meets the default policy, drop (packet-filter l3 defaultpolicy)
+  [info] HISECOS_NAT_ORDER: destination NAT and 1:1 NAT are read as done before the packet filter, whose rules name the translated address (HiSecOS is built on netfilter; not confirmed): the rules were rewritten for the address as it arrives. Masquerading is done after it. The NAT rules are read in the order 1:1 NAT, double NAT, destination NAT, masquerading, each by priority (an assumption)
+  [info] HISECOS_MANAGEMENT: the device's own management access (network management access) is not converted; entries: entry 1
+  [info] HISECOS_EDITS: commands that change or delete rules, carried out in the order of the script: delrule 140
+  [info] SCALANCE_DEFAULT_RULES: after the converted rules, rules that drop what no rule matches, as the source does, for every pair of the 4 zones written (priority 8); traffic inside one zone does not pass the IP firewall
+  [info] SCALANCE_ANY_ZONE: a rule names one interface each way: a rule from or to any zone is written for every zone the policy names (port1_1, port1_2, port1_3, vlan20); traffic of other interfaces of the device meets its own rules
+  [info] LOGGING_CONVERTED: rules of the source log; their rules log at the level info
+  [info] SCALANCE_NAT_WRITTEN: destination NAT is done before the firewall: the rules were written for the translated address
+
+Security rules
+  rule-30  ->  needs-review  (emitted as 6 IP rules, priority 1)
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  rule-10  ->  approximated  (emitted as 6 IP rules, priority 2)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '172.16.10.30' next to '10.10.0.0/24' because of NAT rule 'doublenat-1-reverse'; check that this rule is meant to cover the translated traffic
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  rule-20  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content.
+  rule-40  ->  exact  (emitted as 3 IP rules, priority 2)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  rule-40-2  ->  exact  (emitted as 3 IP rules, priority 2)
+      [info] HISECOS_SPLIT: rule 40 is assigned at more than one place in the order (interfaces, directions or priorities); this is its placement number 2
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  rule-100  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: parameter flags=SYN is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-130  ->  exact  (emitted as 3 IP rules, priority 4)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  rule-60  ->  needs-review  (emitted as 18 IP rules, priority 4)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '192.0.2.10' next to '10.30.0.10' because of NAT rule 'dnat-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'dnat-1' also translates the port to 80; the service of this rule still names the post-NAT port and must be adjusted
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  rule-110  ->  needs-review  (emitted as 3 IP rules, priority 5)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  rule-150  ->  exact  (emitted as 3 IP rules, priority 6)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  rule-70  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  rule-90  ->  needs-review  (emitted as 3 IP rules, priority 7)
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  rule-80  ->  skipped
+      [info] HISECOS_NOT_ASSIGNED: rule 80 is assigned to no interface, so it applies to no traffic: read as disabled, at the end
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '172.16.20.40' next to '10.20.0.0/24' because of NAT rule 'doublenat-1'; check that this rule is meant to cover the translated traffic
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+
+NAT rules
+  1to1nat-1  ->  exact  (emitted as 2 netmap rules)
+      [info] HISECOS_1TO1: 1:1 NAT read as a static translation in both directions: the new target addresses leave as the target addresses, and connections to the target addresses reach the new ones (not confirmed)
+  doublenat-1  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  doublenat-1-reverse  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  dnat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption

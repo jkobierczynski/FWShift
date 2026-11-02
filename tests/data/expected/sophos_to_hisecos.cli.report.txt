@@ -1,0 +1,79 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: hisecos
+
+Summary
+  Security rules:     17   exact 3, approximated 7, needs review 5 (5 emitted disabled), skipped 2
+  NAT rules:           6   exact 0, approximated 2, needs review 1, skipped 3
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HISECOS_LOAD: the output is a CLI script of HiSecOS (section 10): commands of the Global Config mode that add rules 1001 to 1085 of the packet filter (they must be free) with their interface assignments, and NAT rules, and that delete nothing. The keywords are FWShift's reading of Belden's MIBs and command list, not confirmed on a device: check the script with 'script validate' first. Nothing applies until you commit: read 'show packet-filter l3 pending', then 'packet-filter l3 commit' (and 'nat dnat commit', 'nat masq commit', 'nat 1to1nat commit'). Rules of the device with lower priorities on the same interfaces come first, and its default policy is not changed. To take the rules away again: 'packet-filter l3 delif' for each assignment, then 'packet-filter l3 delrule N' for N from 1001 to 1085
+  [needs-review] INTERFACES_REQUIRED: zones are written as the routing interfaces of the device (1/1, vlan/10): these names are not such interfaces, and the device refuses the assignments that name them. Map the zones with --zone-map, or their interfaces with --interface-map: Port2, Port1, Port3, Port4, Port5, VPN
+  [info] HISECOS_IPV4_ONLY: HiSecOS filters IPv4: the IPv6 addresses and ICMPv6 of these rules are not written: LAN6 to Internet
+  [info] HISECOS_NAT_WRITTEN: destination NAT and 1:1 NAT are done before the packet filter (assumed, as on netfilter): the rules were written for the translated address
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled  (emitted as rule 1001 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  approximated  (emitted as rules 1002-1003)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+  Admins to DMZ  ->  approximated  (emitted as rules 1005-1020)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN to DMZ web not mail  ->  approximated  (emitted as rules 1021-1052)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out  ->  approximated  (emitted as rule 1053)
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out-2  ->  approximated  (emitted as rules 1054-1070)
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Internet to web  ->  approximated  (emitted as rule 1071)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-public' with post-NAT 'web-1' because of NAT rule 'Publish web'; check that this rule is meant to cover the translated traffic
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+  Internet to mail  ->  approximated  (emitted as rule 1072)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail-public' with post-NAT 'mail-1' because of NAT rule 'Publish mail'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'Publish mail' also translates the port to 25: the service of this rule (smtp-alt) named the pre-NAT port only, and now names 25, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+  DMZ updates  ->  needs-review, emitted disabled  (emitted as rule 1075 (a placeholder, disabled))
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+      [needs-review] HISECOS_FQDN: the destination holds host names (mirror.example.net, updates.example.com); a rule of HiSecOS takes addresses only.
+  Finance to app  ->  needs-review, emitted disabled  (emitted as rule 1076)
+      [needs-review] USER_MATCH: source user match Finance is not converted.
+  DNS in office hours  ->  needs-review, emitted disabled  (emitted as rules 1077-1082)
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+  Old test rule  ->  needs-review, emitted disabled  (emitted as rule 1083 (a placeholder, disabled))
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any.
+  Reject the rest from LAN  ->  exact  (emitted as rule 1084)
+      [info] RESET_ACTION: action reset-client becomes reject, which answers the sender with an ICMP message, not a TCP reset
+  LAN6 to Internet  ->  skipped
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  Publish web  ->  approximated  (emitted as nat dnat add 201)
+      [approximated] HISECOS_NAT_EGRESS: destination NAT of HiSecOS is assigned to the interface traffic arrives on; the zones it leaves by are not a condition
+  Publish mail  ->  approximated  (emitted as nat dnat add 202)
+      [approximated] HISECOS_NAT_EGRESS: destination NAT of HiSecOS is assigned to the interface traffic arrives on; the zones it leaves by are not a condition
+  Mail server out  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: HiSecOS writes destination NAT to one address, masquerading behind the interface and 1:1 NAT of networks; this rule is none of them
+  No NAT to partner  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: HiSecOS writes destination NAT to one address, masquerading behind the interface and 1:1 NAT of networks; this rule is none of them
+  NAT of LAN to Internet web  ->  skipped
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+      [needs-review] HISECOS_NAT_FORM: service 'NAT of LAN to Internet web services' is not one TCP or UDP entry, which a NAT rule of HiSecOS needs
+  Default SNAT IPv4  ->  needs-review  (emitted as nat masq add 101)
+      [needs-review] NAT_ORDER: NAT rule 'Mail server out' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: NAT rule 'No NAT to partner' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: NAT rule 'NAT of LAN to Internet web' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+
+Addresses
+  any-example-org  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+  Blocked countries  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted

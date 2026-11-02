@@ -1,0 +1,143 @@
+FWShift conversion report
+  source: kubernetes
+  target: pfsense
+
+Summary
+  Security rules:     33   exact 0, approximated 0, needs review 1 (1 emitted disabled), skipped 32
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     15   exact 15, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] PFSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of a pfSense configuration. Under Diagnostics > Backup & Restore, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every rule, every alias, every NAT rule that is there now is gone, with the separators, the rules pfSense linked to port forwards and the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. Keep a backup, and look at the rules before anything depends on them: pfSense does not check what it restores, and a rule it cannot resolve is not loaded. Written for pfSense 2.7 and later
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+
+Security rules
+  node 10.0.0.11 to its pods  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  pods from node 10.0.0.11  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  node 10.0.0.12 to its pods  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  pods from node 10.0.0.12  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop/web-egress/egress-1 + shop/web-to-cart/ingress-1  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop/web-egress/egress-2  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop/web-egress/egress-3  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  isolated/egress  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop/cart-egress/egress-1 + shop/cart-to-db/ingress-1  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop/cart-egress/egress-2  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  isolated/egress-2  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  isolated/egress-3  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  payments/worker-egress/egress-1  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  isolated/egress-4  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop/allow-web/ingress-1  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop/allow-web/ingress-1-2  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop/allow-web/ingress-2  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  isolated/ingress  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop/web-to-cart/ingress-1  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  isolated/ingress-2  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop/cart-to-db/ingress-1  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  isolated/ingress-3  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  payments/api-ingress/ingress-1  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  payments/api-ingress/ingress-1-2  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  payments/api-ingress/ingress-3  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).
+  isolated/ingress-4  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  isolated/ingress-5  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  monitoring/scrape-only/ingress-1  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  isolated/ingress-6  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  dev/not-from-prod/ingress-1  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  isolated/ingress-7  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  not isolated: from pods  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  not isolated: to pods  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+
+Addresses
+  shop/web-1  ->  exact  (emitted as shop_web_1)
+      [info] RENAMED: renamed to 'shop_web_1' to fit the target's naming rules
+  shop/web-1-ipv6  ->  exact  (emitted as shop_web_1_ipv6)
+      [info] RENAMED: renamed to 'shop_web_1_ipv6' to fit the target's naming rules
+  shop/web-2  ->  exact  (emitted as shop_web_2)
+      [info] RENAMED: renamed to 'shop_web_2' to fit the target's naming rules
+  shop/web-2-ipv6  ->  exact  (emitted as shop_web_2_ipv6)
+      [info] RENAMED: renamed to 'shop_web_2_ipv6' to fit the target's naming rules
+  shop/cart-1  ->  exact  (emitted as shop_cart_1)
+      [info] RENAMED: renamed to 'shop_cart_1' to fit the target's naming rules
+  shop/db-1  ->  exact  (emitted as shop_db_1)
+      [info] RENAMED: renamed to 'shop_db_1' to fit the target's naming rules
+  payments/api-1  ->  exact  (emitted as payments_api_1)
+      [info] RENAMED: renamed to 'payments_api_1' to fit the target's naming rules
+  payments/api-1-ipv6  ->  exact  (emitted as payments_api_1_ipv6)
+      [info] RENAMED: renamed to 'payments_api_1_ipv6' to fit the target's naming rules
+  payments/worker-1  ->  exact  (emitted as payments_worker_1)
+      [info] RENAMED: renamed to 'payments_worker_1' to fit the target's naming rules
+  monitoring/prometheus-0  ->  exact  (emitted as monitoring_prometheus_0)
+      [info] RENAMED: renamed to 'monitoring_prometheus_0' to fit the target's naming rules
+  dev/debug  ->  exact  (emitted as dev_debug)
+      [info] RENAMED: renamed to 'dev_debug' to fit the target's naming rules
+  kube-system/coredns-5d7f  ->  exact  (emitted as kube_system_coredns_5d7f)
+      [info] RENAMED: renamed to 'kube_system_coredns_5d7f' to fit the target's naming rules
+
+Address groups
+  ns-dev  ->  exact  (emitted as ns_dev)
+      [info] RENAMED: renamed to 'ns_dev' to fit the target's naming rules
+  ns-kube-system  ->  exact  (emitted as ns_kube_system)
+      [info] RENAMED: renamed to 'ns_kube_system' to fit the target's naming rules
+  ns-monitoring  ->  exact  (emitted as ns_monitoring)
+      [info] RENAMED: renamed to 'ns_monitoring' to fit the target's naming rules
+  ns-payments  ->  exact  (emitted as ns_payments)
+      [info] RENAMED: renamed to 'ns_payments' to fit the target's naming rules
+  ns-shop  ->  exact  (emitted as ns_shop)
+      [info] RENAMED: renamed to 'ns_shop' to fit the target's naming rules
+  all-pods  ->  exact  (emitted as all_pods)
+      [info] RENAMED: renamed to 'all_pods' to fit the target's naming rules
+  shop/app=web  ->  exact  (emitted as shop_app_web)
+      [info] RENAMED: renamed to 'shop_app_web' to fit the target's naming rules
+  shop/app=cart  ->  exact  (emitted as shop_app_cart)
+      [info] RENAMED: renamed to 'shop_app_cart' to fit the target's naming rules
+  payments/app=worker  ->  exact  (emitted as payments_app_worker)
+      [info] RENAMED: renamed to 'payments_app_worker' to fit the target's naming rules
+  namespaces env NotIn (prod)  ->  exact  (emitted as namespaces_env_NotIn__prod_)
+      [info] RENAMED: renamed to 'namespaces_env_NotIn__prod_' to fit the target's naming rules
+  shop/app=db  ->  exact  (emitted as shop_app_db)
+      [info] RENAMED: renamed to 'shop_app_db' to fit the target's naming rules
+  pods payments/api-1  ->  exact  (emitted as pods_payments_api_1)
+      [info] RENAMED: renamed to 'pods_payments_api_1' to fit the target's naming rules
+  pods on node 10.0.0.11  ->  exact  (emitted as pods_on_node_10_0_0_11)
+      [info] RENAMED: renamed to 'pods_on_node_10_0_0_11' to fit the target's naming rules
+  pods on node 10.0.0.12  ->  exact  (emitted as pods_on_node_10_0_0_12)
+      [info] RENAMED: renamed to 'pods_on_node_10_0_0_12' to fit the target's naming rules
+  payments/api-ingress/ingress-1 sources  ->  exact  (emitted as payments_api_ingress_ingress_1_)
+      [info] RENAMED: renamed to 'payments_api_ingress_ingress_1_' to fit the target's naming rules

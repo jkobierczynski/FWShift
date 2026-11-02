@@ -1,0 +1,91 @@
+FWShift conversion report
+  source: terraform-google (vpc-shop)
+  target: mguard
+
+Summary
+  Security rules:     28   exact 20, approximated 1, needs review 2, skipped 5
+  NAT rules:           2   exact 0, approximated 0, needs review 2, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] TERRAFORM_MEMBERS: the instances a rule applies to, and that its source tags and service accounts stand for, are those of this state: instances made elsewhere (another state, by hand, a managed instance group) are not known to the converted policy
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: google_compute_security_policy. The converted policy does not hold what they do
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Google Cloud command line for the same resources: 11 google_compute_firewall, 5 google_compute_instance, 1 google_compute_network, 1 google_compute_network_firewall_policy, 1 google_compute_network_firewall_policy_association, 6 google_compute_network_firewall_policy_rule, 1 google_compute_region_network_firewall_policy, 1 google_compute_region_network_firewall_policy_association, 1 google_compute_region_network_firewall_policy_rule. Resources outside this state (made by hand, or by another state) are not in it
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  db-to-vpc+allow-https-web  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  db-to-vpc+implied deny ingress  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  db-no-internet (between instances)  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  pol-shop:deny-smtp-out (between instances)  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  implied allow egress+allow-app-from-web  ->  exact  (emitted as 2 rows of FW_OUTGOING, 2 rows of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as 2 rows of FW_OUTGOING, 2 rows of FW_INCOMING
+  implied allow egress+allow-db-from-app  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  implied allow egress+allow-https-web  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  implied allow egress+allow-https-web-v6  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  implied allow egress+implied deny ingress  ->  needs-review  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [needs-review] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4; IPv6 traffic is not blocked by it
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  allow-app-from-web  ->  exact  (emitted as 2 rows of FW_OUTGOING, 2 rows of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as 2 rows of FW_OUTGOING, 2 rows of FW_INCOMING
+  allow-db-from-app  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  deny-ssh-blocked  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  allow-https-web  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  allow-https-web-v6  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  old-dns  ->  skipped
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  allow-ssh-admins  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  allow-mgmt-v6  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  pol-shop:deny-tor (in)  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  pol-shop:allow-monitoring (in)  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  pol-shop:geo-and-fqdn (in)  ->  skipped
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  pol-ew1:allow-lb-health (in)  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  implied deny ingress (in)  ->  needs-review  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [needs-review] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4; IPv6 traffic is not blocked by it
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  deny-egress-doc  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  db-to-vpc  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  db-no-internet  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  pol-shop:allow-dns-out (out)  ->  exact  (emitted as 2 rows of FW_OUTGOING, 2 rows of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as 2 rows of FW_OUTGOING, 2 rows of FW_INCOMING
+  pol-shop:deny-smtp-out (out)  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  implied allow egress (out)  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [approximated] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+
+NAT rules
+  external-192.0.2.10  ->  needs-review  (emitted as 1:1 NAT)
+      [needs-review] NAT_ORDER: on the source, the traffic this rule forwards to 10.50.1.10 keeps its source address. The target translates sources apart from destinations, after the destination: there NAT rule 'external-192.0.2.5' translates the source of that traffic as well
+  external-192.0.2.5  ->  needs-review  (emitted as 1:1 NAT)
+      [needs-review] NAT_ORDER: on the source, NAT rule 'external-192.0.2.10' above this one matches part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well

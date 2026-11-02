@@ -1,0 +1,136 @@
+configure terminal
+address-object ipv4 "shop/web-1" host 10.244.1.10 zone LAN
+address-object ipv6 "shop/web-1-ipv6" host 2001:db8:244:1::10 zone LAN
+address-object ipv4 "shop/web-2" host 10.244.2.10 zone LAN
+address-object ipv6 "shop/web-2-ipv6" host 2001:db8:244:2::10 zone LAN
+address-object ipv4 "shop/cart-1" host 10.244.1.20 zone LAN
+address-object ipv4 "shop/db-1" host 10.244.2.30 zone LAN
+address-object ipv4 "payments/api-1" host 10.244.1.40 zone LAN
+address-object ipv6 "payments/api-1-ipv6" host 2001:db8:244:1::40 zone LAN
+address-object ipv4 "payments/worker-1" host 10.244.2.41 zone LAN
+address-object ipv4 "monitoring/prometheus-0" host 10.244.3.5 zone LAN
+address-object ipv4 "dev/debug" host 10.244.3.9 zone LAN
+address-object ipv4 "kube-system/coredns-5d7f" host 10.244.0.2 zone LAN
+address-group ipv4 "ns-dev"
+    address-object ipv4 "dev/debug"
+    exit
+address-group ipv4 "ns-kube-system"
+    address-object ipv4 "kube-system/coredns-5d7f"
+    exit
+address-group ipv4 "ns-monitoring"
+    address-object ipv4 "monitoring/prometheus-0"
+    exit
+address-group ipv4 "ns-payments"
+    address-object ipv4 "payments/api-1"
+    address-object ipv4 "payments/worker-1"
+    exit
+address-group ipv6 "ns-payments v6"
+    address-object ipv6 "payments/api-1-ipv6"
+    exit
+address-group ipv4 "ns-shop"
+    address-object ipv4 "shop/web-1"
+    address-object ipv4 "shop/cart-1"
+    address-object ipv4 "shop/web-2"
+    address-object ipv4 "shop/db-1"
+    exit
+address-group ipv6 "ns-shop v6"
+    address-object ipv6 "shop/web-1-ipv6"
+    address-object ipv6 "shop/web-2-ipv6"
+    exit
+address-group ipv4 "all-pods"
+    address-object ipv4 "kube-system/coredns-5d7f"
+    address-object ipv4 "shop/web-1"
+    address-object ipv4 "shop/cart-1"
+    address-object ipv4 "payments/api-1"
+    address-object ipv4 "shop/web-2"
+    address-object ipv4 "shop/db-1"
+    address-object ipv4 "payments/worker-1"
+    address-object ipv4 "monitoring/prometheus-0"
+    address-object ipv4 "dev/debug"
+    exit
+address-group ipv6 "all-pods v6"
+    address-object ipv6 "shop/web-1-ipv6"
+    address-object ipv6 "payments/api-1-ipv6"
+    address-object ipv6 "shop/web-2-ipv6"
+    exit
+address-group ipv4 "shop/app=web"
+    address-object ipv4 "shop/web-1"
+    address-object ipv4 "shop/web-2"
+    exit
+address-group ipv6 "shop/app=web v6"
+    address-object ipv6 "shop/web-1-ipv6"
+    address-object ipv6 "shop/web-2-ipv6"
+    exit
+address-group ipv4 "shop/app=cart"
+    address-object ipv4 "shop/cart-1"
+    exit
+address-group ipv4 "payments/app=worker"
+    address-object ipv4 "payments/worker-1"
+    exit
+address-group ipv4 "namespaces env NotIn (prod)"
+    address-object ipv4 "kube-system/coredns-5d7f"
+    address-object ipv4 "monitoring/prometheus-0"
+    address-object ipv4 "dev/debug"
+    exit
+address-group ipv4 "shop/app=db"
+    address-object ipv4 "shop/db-1"
+    exit
+address-group ipv4 "pods payments/api-1"
+    address-object ipv4 "payments/api-1"
+    exit
+address-group ipv6 "pods payments/api-1 v6"
+    address-object ipv6 "payments/api-1-ipv6"
+    exit
+address-group ipv4 "pods on node 10.0.0.11"
+    address-object ipv4 "kube-system/coredns-5d7f"
+    address-object ipv4 "shop/web-1"
+    address-object ipv4 "shop/cart-1"
+    address-object ipv4 "payments/api-1"
+    address-object ipv4 "dev/debug"
+    exit
+address-group ipv6 "pods on node 10.0.0.11 v6"
+    address-object ipv6 "shop/web-1-ipv6"
+    address-object ipv6 "payments/api-1-ipv6"
+    exit
+address-group ipv4 "pods on node 10.0.0.12"
+    address-object ipv4 "shop/web-2"
+    address-object ipv4 "shop/db-1"
+    address-object ipv4 "payments/worker-1"
+    address-object ipv4 "monitoring/prometheus-0"
+    exit
+address-group ipv6 "pods on node 10.0.0.12 v6"
+    address-object ipv6 "shop/web-2-ipv6"
+    exit
+address-group ipv4 "payments/api-ingress/ingress-1 s"
+    address-object ipv4 "shop/web-1"
+    address-object ipv4 "shop/cart-1"
+    address-object ipv4 "shop/web-2"
+    address-object ipv4 "shop/db-1"
+    address-object ipv4 "payments/worker-1"
+    exit
+address-group ipv6 "payments/api-ingress/ingress- v6"
+    address-object ipv6 "shop/web-1-ipv6"
+    address-object ipv6 "shop/web-2-ipv6"
+    exit
+service-object "tcp-50051" TCP 50051 50051
+service-object "tcp-53+udp-53 tcp 53" TCP 53 53
+service-object "tcp-53+udp-53 udp 53" UDP 53 53
+service-group "tcp-53+udp-53"
+    service-object "tcp-53+udp-53 tcp 53"
+    service-object "tcp-53+udp-53 udp 53"
+    exit
+service-object "tcp-443" TCP 443 443
+service-object "tcp-5432" TCP 5432 5432
+service-object "udp-53" UDP 53 53
+service-object "tcp-8080" TCP 8080 8080
+service-object "tcp-8081" TCP 8081 8081
+service-object "tcp-9100" TCP 9100 9100
+service-object "tcp-8443+tcp-9000-9010 tcp 8443" TCP 8443 8443
+service-object "tcp-8443+tcp-9000-9010 tcp 9000-" TCP 9000 9010
+service-group "tcp-8443+tcp-9000-9010"
+    service-object "tcp-8443+tcp-9000-9010 tcp 8443"
+    service-object "tcp-8443+tcp-9000-9010 tcp 9000-"
+    exit
+service-object "tcp-9090" TCP 9090 9090
+commit
+exit

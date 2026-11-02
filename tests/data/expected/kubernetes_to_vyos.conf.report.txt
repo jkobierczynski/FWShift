@@ -1,0 +1,24 @@
+FWShift conversion report
+  source: kubernetes
+  target: vyos
+
+Summary
+  Security rules:     33   exact 31, approximated 0, needs review 2 (2 emitted disabled), skipped 0
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     15   exact 15, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] VYOS_LOAD: load the commands in configuration mode: 'configure', paste them, 'compare', then 'commit-confirm 10' (unless 'confirm' follows within 10 minutes, VyOS goes back to the configuration before; older releases reboot to do so) and 'save'. A commit applies all of them or none. The policy has no zones: it is written as chain FWS-FORWARD for each IP version, jumped to from rule 10000 of the forward filter. Check that the forward filter has no rule 10000 (show firewall ipv4 forward filter), or give another number with --policy-id-start; its rules with lower numbers come first, and those after rule 10000 are no longer reached by what the chain decides, as it ends with the default of the policy. NAT rules are numbered from 10000: rules of the router with lower numbers come first. To take a conversion away: delete the groups, chains, zones and NAT rules the commands name (all under FWS-, and the NAT rules from 10000 on). Assumed: names of up to 63 characters
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+  [info] VYOS_TEXT: names and descriptions with characters VyOS does not take in them (or longer than it takes) were changed: FWS-pods on node 10.0.0.11, FWS-pods on node 10.0.0.12, FWS-shop/web-egress/egress-1 + shop/web-to-cart/ingress-1-src, FWS-shop/web-egress/egress-3-src, FWS-shop/allow-web/ingress-1-src, FWS-payments/api-ingress/ingress-1 sources, FWS-namespaces env NotIn (prod)
+
+Security rules
+  payments/api-ingress/ingress-1-2  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_SERVICE: SCTP ports: a rule of VyOS matches ports of TCP and UDP only.
+  payments/api-ingress/ingress-3  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).

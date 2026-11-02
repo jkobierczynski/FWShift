@@ -1,0 +1,80 @@
+FWShift conversion report
+  source: kubernetes
+  target: fdm
+
+Summary
+  Security rules:     33   exact 31, approximated 0, needs review 0, skipped 2
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     15   exact 15, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 10, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  payments/api-ingress/ingress-1-2  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'sctp-3868': SCTP ports, which a port object cannot name (it has ports for TCP and UDP only). The rule is left out: a Device Manager has no rules that are switched off.
+  payments/api-ingress/ingress-3  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP). The rule is left out: a Device Manager has no rules that are switched off.
+
+Addresses
+  shop/web-1  ->  exact  (emitted as shop_web-1)
+      [info] RENAMED: renamed to 'shop_web-1' to fit the target's naming rules
+  shop/web-1-ipv6  ->  exact  (emitted as shop_web-1-ipv6)
+      [info] RENAMED: renamed to 'shop_web-1-ipv6' to fit the target's naming rules
+  shop/web-2  ->  exact  (emitted as shop_web-2)
+      [info] RENAMED: renamed to 'shop_web-2' to fit the target's naming rules
+  shop/web-2-ipv6  ->  exact  (emitted as shop_web-2-ipv6)
+      [info] RENAMED: renamed to 'shop_web-2-ipv6' to fit the target's naming rules
+  shop/cart-1  ->  exact  (emitted as shop_cart-1)
+      [info] RENAMED: renamed to 'shop_cart-1' to fit the target's naming rules
+  shop/db-1  ->  exact  (emitted as shop_db-1)
+      [info] RENAMED: renamed to 'shop_db-1' to fit the target's naming rules
+  payments/api-1  ->  exact  (emitted as payments_api-1)
+      [info] RENAMED: renamed to 'payments_api-1' to fit the target's naming rules
+  payments/api-1-ipv6  ->  exact  (emitted as payments_api-1-ipv6)
+      [info] RENAMED: renamed to 'payments_api-1-ipv6' to fit the target's naming rules
+  payments/worker-1  ->  exact  (emitted as payments_worker-1)
+      [info] RENAMED: renamed to 'payments_worker-1' to fit the target's naming rules
+  monitoring/prometheus-0  ->  exact  (emitted as monitoring_prometheus-0)
+      [info] RENAMED: renamed to 'monitoring_prometheus-0' to fit the target's naming rules
+  dev/debug  ->  exact  (emitted as dev_debug)
+      [info] RENAMED: renamed to 'dev_debug' to fit the target's naming rules
+  kube-system/coredns-5d7f  ->  exact  (emitted as kube-system_coredns-5d7f)
+      [info] RENAMED: renamed to 'kube-system_coredns-5d7f' to fit the target's naming rules
+
+Address groups
+  shop/app=web  ->  exact  (emitted as shop_app_web)
+      [info] RENAMED: renamed to 'shop_app_web' to fit the target's naming rules
+  shop/app=cart  ->  exact  (emitted as shop_app_cart)
+      [info] RENAMED: renamed to 'shop_app_cart' to fit the target's naming rules
+  payments/app=worker  ->  exact  (emitted as payments_app_worker)
+      [info] RENAMED: renamed to 'payments_app_worker' to fit the target's naming rules
+  namespaces env NotIn (prod)  ->  exact  (emitted as namespaces_env_NotIn__prod_)
+      [info] RENAMED: renamed to 'namespaces_env_NotIn__prod_' to fit the target's naming rules
+  shop/app=db  ->  exact  (emitted as shop_app_db)
+      [info] RENAMED: renamed to 'shop_app_db' to fit the target's naming rules
+  pods payments/api-1  ->  exact  (emitted as pods_payments_api-1)
+      [info] RENAMED: renamed to 'pods_payments_api-1' to fit the target's naming rules
+  pods on node 10.0.0.11  ->  exact  (emitted as pods_on_node_10.0.0.11)
+      [info] RENAMED: renamed to 'pods_on_node_10.0.0.11' to fit the target's naming rules
+  pods on node 10.0.0.12  ->  exact  (emitted as pods_on_node_10.0.0.12)
+      [info] RENAMED: renamed to 'pods_on_node_10.0.0.12' to fit the target's naming rules
+  payments/api-ingress/ingress-1 sources  ->  exact  (emitted as payments_api-ingress_ingress-1_sources)
+      [info] RENAMED: renamed to 'payments_api-ingress_ingress-1_sources' to fit the target's naming rules
+
+Services
+  tcp-53+udp-53  ->  exact  (emitted as tcp-53_udp-53, tcp-53, udp-53)
+      [info] RENAMED: renamed to 'tcp-53_udp-53' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-53_udp-53' of 'tcp-53', 'udp-53'
+  tcp-8443+tcp-9000-9010  ->  exact  (emitted as tcp-8443_tcp-9000-9010, tcp-8443, tcp-9000-9010)
+      [info] RENAMED: renamed to 'tcp-8443_tcp-9000-9010' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-8443_tcp-9000-9010' of 'tcp-8443', 'tcp-9000-9010'
+  sctp-3868  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: SCTP ports, which a port object cannot name (it has ports for TCP and UDP only): not written, and the rules that use it are not converted

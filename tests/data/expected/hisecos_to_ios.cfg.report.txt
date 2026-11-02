@@ -1,0 +1,57 @@
+FWShift conversion report
+  source: hisecos (IPv4)
+  target: ios
+
+Summary
+  Security rules:     14   exact 7, approximated 1, needs review 4 (2 emitted disabled), skipped 2
+  NAT rules:           5   exact 2, approximated 0, needs review 0, skipped 3
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HISECOS_NOT_CONVERTED: settings that change what passes and are not converted: deep packet inspection (enforcer profiles)
+  [needs-review] HISECOS_DIRECTION_ORDER: the policy mixes assignments for ingress only with assignments for egress only; the MIB does not say how they are ordered against each other, and they are read as one order by priority: rules assigned for ingress only and rules assigned for egress only
+  [needs-review] IOS_LOAD: the output is configuration commands for the zone-based firewall (section 10): paste them in configuration mode; nothing changes until interfaces are put in the zones (zone-member security, commented at the end). Names start with FWS-: IOS adds to an access list or class map that exists
+  [needs-review] IOS_ZONE_MEMBERS: an interface in a zone passes only what the zone pairs let through, and nothing to an interface in no zone; traffic to and from the router itself (the self zone) is not written. Put every interface that forwards traffic in a zone
+  [needs-review] IOS_ZBFW_NAT: the class maps were written for the inside address of a static translation (the destination after translation), as the zone-based firewall is read to see it. Cisco does not document this; check one translated connection on the router
+  [info] HISECOS_SOURCE: 13 rules of the packet filter, 12 of them assigned and enabled, in the order of their priorities; zones are the routing interfaces (port1_1, port1_2, port1_3, vlan20); IPv4 only. The keywords of the commands are FWShift's reading of the MIB and the command list of the CLI reference, not confirmed by its Format lines
+  [info] HISECOS_DEFAULT: what no rule matches meets the default policy, drop (packet-filter l3 defaultpolicy)
+  [info] HISECOS_NAT_ORDER: destination NAT and 1:1 NAT are read as done before the packet filter, whose rules name the translated address (HiSecOS is built on netfilter; not confirmed): the rules were rewritten for the address as it arrives. Masquerading is done after it. The NAT rules are read in the order 1:1 NAT, double NAT, destination NAT, masquerading, each by priority (an assumption)
+  [info] HISECOS_MANAGEMENT: the device's own management access (network management access) is not converted; entries: entry 1
+  [info] HISECOS_EDITS: commands that change or delete rules, carried out in the order of the script: delrule 140
+  [info] IOS_INTRAZONE: zone pairs from a zone to itself decide traffic inside a zone (IOS 15.0(1)M and IOS XE); IOS passes it otherwise
+  [info] LOGGING_CONVERTED: rules of the source log; their drop and pass actions log
+
+Security rules
+  rule-10  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '172.16.10.30' next to '10.10.0.0/24' because of NAT rule 'doublenat-1-reverse'; check that this rule is meant to cover the translated traffic
+  rule-20  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content.
+  rule-40-2  ->  exact
+      [info] HISECOS_SPLIT: rule 40 is assigned at more than one place in the order (interfaces, directions or priorities); this is its placement number 2
+  rule-100  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: parameter flags=SYN is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-50  ->  exact
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  rule-60  ->  needs-review
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+  rule-110  ->  needs-review
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+  rule-70  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a zone-based firewall has no disabled class: not written
+  rule-80  ->  skipped
+      [info] HISECOS_NOT_ASSIGNED: rule 80 is assigned to no interface, so it applies to no traffic: read as disabled, at the end
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '172.16.20.40' next to '10.20.0.0/24' because of NAT rule 'doublenat-1'; check that this rule is meant to cover the translated traffic
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a zone-based firewall has no disabled class: not written
+
+NAT rules
+  1to1nat-1  ->  exact  (emitted as ip nat inside source)
+      [info] HISECOS_1TO1: 1:1 NAT read as a static translation in both directions: the new target addresses leave as the target addresses, and connections to the target addresses reach the new ones (not confirmed)
+  doublenat-1  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations
+  doublenat-1-reverse  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations
+  masq-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations

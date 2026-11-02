@@ -1,0 +1,267 @@
+FWShift conversion report
+  source: azure
+  target: moxa
+
+Summary
+  Security rules:    116   exact 0, approximated 0, needs review 116 (116 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [needs-review] MOXA_ZONES: zones that are not interfaces of the router (lan, wan1, wan2); their rules are written disabled: give --zone-map ZONE=lan|wan1|wan2 for outside, nsg-web, nsg-app, nsg-db
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.30.1.0/24,2001:db8:30:1::/64 --zone-network nsg-app=10.30.2.0/24 --zone-network nsg-db=10.30.3.20
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 80 rules say what both allow, in the order of the two
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-db, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled  (emitted as firewall 1)
+      [needs-review] MOXA_ZONE: zones outside, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled  (emitted as firewall 2)
+      [needs-review] MOXA_ZONE: zones outside, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled  (emitted as firewall 3)
+      [needs-review] MOXA_ZONE: zones outside, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:Deny-Partner  ->  needs-review, emitted disabled  (emitted as firewall 4)
+      [needs-review] MOXA_ZONE: zones outside, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled  (emitted as firewall 5)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MOXA_ZONE: zones outside, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 6)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MOXA_ZONE: zones outside, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled  (emitted as firewall 7)
+      [needs-review] MOXA_ZONE: zones outside, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 8)
+      [needs-review] MOXA_ZONE: zones outside, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out  ->  needs-review, emitted disabled  (emitted as firewall 9)
+      [needs-review] MOXA_ZONE: zones nsg-web, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:Allow-Storage  ->  needs-review, emitted disabled  (emitted as firewall 10)
+      [needs-review] MOXA_ZONE: zones nsg-web, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:Deny-Internet  ->  needs-review, emitted disabled  (emitted as firewall 11)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones nsg-web, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as firewall 12)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MOXA_ZONE: zones nsg-web, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as firewall 13)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] MOXA_ZONE: zones nsg-web, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:DenyAllOutBound  ->  needs-review, emitted disabled  (emitted as firewall 14)
+      [needs-review] MOXA_ZONE: zones nsg-web, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-From-Web  ->  needs-review, emitted disabled  (emitted as firewall 15)
+      [needs-review] MOXA_ZONE: zones outside, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:Allow-Esp-Partner  ->  needs-review, emitted disabled  (emitted as firewall 16)
+      [needs-review] MOXA_ZONE: zones outside, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 50: a policy names all, TCP, UDP or ICMP.
+  nsg-app:Allow-Probe  ->  needs-review, emitted disabled  (emitted as firewall 17)
+      [needs-review] MOXA_ZONE: zones outside, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as firewall 18)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones outside, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 19)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MOXA_ZONE: zones outside, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled  (emitted as firewall 20)
+      [needs-review] MOXA_ZONE: zones outside, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 21)
+      [needs-review] MOXA_ZONE: zones outside, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db  ->  needs-review, emitted disabled  (emitted as firewall 22)
+      [needs-review] MOXA_ZONE: zones nsg-app, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:Allow-Sql  ->  needs-review, emitted disabled  (emitted as firewall 23)
+      [needs-review] MOXA_ZONE: zones nsg-app, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:Allow-Dns  ->  needs-review, emitted disabled  (emitted as firewall 24)
+      [needs-review] MOXA_ZONE: zones nsg-app, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:Deny-Out  ->  needs-review, emitted disabled  (emitted as firewall 25)
+      [needs-review] MOXA_ZONE: zones nsg-app, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as firewall 26)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MOXA_ZONE: zones nsg-app, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as firewall 27)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] MOXA_ZONE: zones nsg-app, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:DenyAllOutBound  ->  needs-review, emitted disabled  (emitted as firewall 28)
+      [needs-review] MOXA_ZONE: zones nsg-app, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled  (emitted as firewall 29)
+      [needs-review] MOXA_ZONE: zones outside, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:Allow-Old-Gre  ->  needs-review, emitted disabled  (emitted as firewall 30)
+      [needs-review] MOXA_ZONE: zones outside, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 51: a policy names all, TCP, UDP or ICMP.
+  nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 31)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MOXA_ZONE: zones outside, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled  (emitted as firewall 32)
+      [needs-review] MOXA_ZONE: zones outside, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 33)
+      [needs-review] MOXA_ZONE: zones outside, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as firewall 34)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MOXA_ZONE: zones nsg-db, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as firewall 35)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] MOXA_ZONE: zones nsg-db, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:DenyAllOutBound  ->  needs-review, emitted disabled  (emitted as firewall 36)
+      [needs-review] MOXA_ZONE: zones nsg-db, outside: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out+nsg-web:Deny-Partner  ->  needs-review, emitted disabled  (emitted as firewall 37)
+      [needs-review] MOXA_ZONE: zones nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 38)
+      [needs-review] MOXA_ZONE: zones nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:Allow-App-Out+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 39)
+      [needs-review] MOXA_ZONE: zones nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled  (emitted as firewall 40)
+      [needs-review] MOXA_ZONE: zones nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled  (emitted as firewall 41)
+      [needs-review] MOXA_ZONE: zones nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled  (emitted as firewall 42)
+      [needs-review] MOXA_ZONE: zones nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:AllowVnetOutBound+nsg-web:Deny-Partner  ->  needs-review, emitted disabled  (emitted as firewall 43)
+      [needs-review] MOXA_ZONE: zones nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled  (emitted as firewall 44)
+      [needs-review] MOXA_ZONE: zones nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 45)
+      [needs-review] MOXA_ZONE: zones nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 46)
+      [needs-review] MOXA_ZONE: zones nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:DenyAllOutBound to nsg-web  ->  needs-review, emitted disabled  (emitted as firewall 47)
+      [needs-review] MOXA_ZONE: zones nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled  (emitted as firewall 48)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:Allow-App-Out+nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as firewall 49)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 50)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:Allow-App-Out+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 51)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled  (emitted as firewall 52)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:AllowVnetOutBound+nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as firewall 53)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 54)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 55)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:DenyAllOutBound to nsg-app  ->  needs-review, emitted disabled  (emitted as firewall 56)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 57)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:Allow-App-Out+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 58)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled  (emitted as firewall 59)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 60)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 61)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:DenyAllOutBound to nsg-db  ->  needs-review, emitted disabled  (emitted as firewall 62)
+      [needs-review] MOXA_ZONE: zones nsg-web, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db+nsg-web:Deny-Partner  ->  needs-review, emitted disabled  (emitted as firewall 63)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 64)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:Allow-Db+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 65)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Dns+nsg-web:Deny-Partner  ->  needs-review, emitted disabled  (emitted as firewall 66)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Dns+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 67)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:Allow-Dns+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 68)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Deny-Out to nsg-web  ->  needs-review, emitted disabled  (emitted as firewall 69)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled  (emitted as firewall 70)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled  (emitted as firewall 71)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled  (emitted as firewall 72)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:AllowVnetOutBound+nsg-web:Deny-Partner  ->  needs-review, emitted disabled  (emitted as firewall 73)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled  (emitted as firewall 74)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 75)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 76)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:DenyAllOutBound to nsg-web  ->  needs-review, emitted disabled  (emitted as firewall 77)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db+nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as firewall 78)
+      [needs-review] MOXA_ZONE: zones nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 79)
+      [needs-review] MOXA_ZONE: zones nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:Allow-Db+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 80)
+      [needs-review] MOXA_ZONE: zones nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Dns+nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as firewall 81)
+      [needs-review] MOXA_ZONE: zones nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Dns+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 82)
+      [needs-review] MOXA_ZONE: zones nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:Allow-Dns+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 83)
+      [needs-review] MOXA_ZONE: zones nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Deny-Out to nsg-app  ->  needs-review, emitted disabled  (emitted as firewall 84)
+      [needs-review] MOXA_ZONE: zones nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled  (emitted as firewall 85)
+      [needs-review] MOXA_ZONE: zones nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:AllowVnetOutBound+nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as firewall 86)
+      [needs-review] MOXA_ZONE: zones nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 87)
+      [needs-review] MOXA_ZONE: zones nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 88)
+      [needs-review] MOXA_ZONE: zones nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:DenyAllOutBound to nsg-app  ->  needs-review, emitted disabled  (emitted as firewall 89)
+      [needs-review] MOXA_ZONE: zones nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled  (emitted as firewall 90)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:Allow-Db+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 91)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:Allow-Db+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 92)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Dns+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 93)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:Allow-Dns+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 94)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Deny-Out to nsg-db  ->  needs-review, emitted disabled  (emitted as firewall 95)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled  (emitted as firewall 96)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 97)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 98)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:DenyAllOutBound to nsg-db  ->  needs-review, emitted disabled  (emitted as firewall 99)
+      [needs-review] MOXA_ZONE: zones nsg-app, nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled  (emitted as firewall 100)
+      [needs-review] MOXA_ZONE: zones nsg-db, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled  (emitted as firewall 101)
+      [needs-review] MOXA_ZONE: zones nsg-db, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled  (emitted as firewall 102)
+      [needs-review] MOXA_ZONE: zones nsg-db, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:AllowVnetOutBound+nsg-web:Deny-Partner  ->  needs-review, emitted disabled  (emitted as firewall 103)
+      [needs-review] MOXA_ZONE: zones nsg-db, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled  (emitted as firewall 104)
+      [needs-review] MOXA_ZONE: zones nsg-db, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 105)
+      [needs-review] MOXA_ZONE: zones nsg-db, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 106)
+      [needs-review] MOXA_ZONE: zones nsg-db, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:DenyAllOutBound to nsg-web  ->  needs-review, emitted disabled  (emitted as firewall 107)
+      [needs-review] MOXA_ZONE: zones nsg-db, nsg-web: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled  (emitted as firewall 108)
+      [needs-review] MOXA_ZONE: zones nsg-db, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:AllowVnetOutBound+nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as firewall 109)
+      [needs-review] MOXA_ZONE: zones nsg-db, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 110)
+      [needs-review] MOXA_ZONE: zones nsg-db, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 111)
+      [needs-review] MOXA_ZONE: zones nsg-db, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:DenyAllOutBound to nsg-app  ->  needs-review, emitted disabled  (emitted as firewall 112)
+      [needs-review] MOXA_ZONE: zones nsg-db, nsg-app: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled  (emitted as firewall 113)
+      [needs-review] MOXA_ZONE: zones nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as firewall 114)
+      [needs-review] MOXA_ZONE: zones nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as firewall 115)
+      [needs-review] MOXA_ZONE: zones nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:DenyAllOutBound to nsg-db  ->  needs-review, emitted disabled  (emitted as firewall 116)
+      [needs-review] MOXA_ZONE: zones nsg-db: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.

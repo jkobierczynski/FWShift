@@ -1,0 +1,97 @@
+FWShift conversion report
+  source: opnsense
+  target: scalance
+
+Summary
+  Security rules:     25   exact 11, approximated 1, needs review 6, skipped 7
+  NAT rules:           7   exact 4, approximated 0, needs review 0, skipped 3
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:     14   exact 14, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NPT_NOT_CONVERTED: 1 IPv6 prefix translation (NPt) of the configuration is not converted
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: OPNsense drops what arrives there from addresses nobody has been given, by a list it downloads, which is not in the configuration
+  [needs-review] SCALANCE_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the device passes everything: WAN, LAN, DMZ, GUEST, VPNSITE, OpenVPN
+  [needs-review] SCALANCE_LOAD: the output is CLI commands for the FIREWALL and FIREWALL NAT modes (section 10): 351 IP rules with priorities 1 to 14. The device processes rules by ascending priority: rules it has with a lower priority come first. Commands take effect as they are entered; nothing is deleted and nothing is saved
+  [needs-review] SCALANCE_ZONE_NAMES: zones that are not interfaces of the device (vlan N, ipsecALL, ipsec N, sinemarcall, ppp 0, usb 0) are written as they are, and the device refuses those rules: map them with --zone-map ZONE=vlanN: WAN, DMZ, LAN, GUEST, VPNSITE, OpenVPN
+  [needs-review] SCALANCE_IPV6: ipv6rule and ICMP services of IPv6 are written in the form of the IPv4 commands; no Siemens manual FWShift could read shows them: check them on the device
+  [info] FLOATING_LAST_MATCH: 2 rules are not 'quick' (floating rules, and rules of an interface with 'quick' off): such a rule decides only where no quick rule matched, and of several the last one. In the converted policy they stand behind the quick rules, the last one first: 'LAN to test net (not quick)', 'Time for everyone (floating, not quick)'
+  [info] OPNSENSE_VERSION: the configuration was written by OPNsense 26.7 (firewall model 1.0.6), and read as that series reads it
+  [info] OPNSENSE_RULE_EMPTY: rules that match nothing on OPNsense (a protocol of the other IP version, a disabled alias) were left out: 'ICMP for IPv6 only (matches nothing)' (ICMP in a rule for IPv6 only)
+  [info] OPNSENSE_DISABLED_ALIAS: disabled aliases are empty tables on OPNsense: rules that name one match nothing (and 'not' one everything): Old_partner
+  [info] OPNSENSE_REGISTERED_RULE: 1 port forward registers a rule of its own ('Register rule'), which OPNsense puts after every other rule; so does the converted policy
+  [info] OPNSENSE_AUTOMATIC_RULES: OPNsense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof) and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without (RFC 4890), DHCP, and the web interface on its first interface (anti-lockout); and it lets out whatever the firewall itself sends. Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] SCALANCE_DEFAULT_RULES: after the converted rules, rules that drop what no rule matches, as the source does, for every pair of the 6 zones written (priority 14); traffic inside one zone does not pass the IP firewall
+  [info] SCALANCE_ANY_ZONE: a rule names one interface each way: a rule from or to any zone is written for every zone the policy names (WAN, LAN, DMZ, GUEST, VPNSITE, OpenVPN); traffic of other interfaces of the device meets its own rules
+  [info] SCALANCE_RULE_COUNT: 351 IP rules: the S615 CLI manual of 2015 numbers rules 1 to 100; check how many the firmware takes
+  [info] LOGGING_CONVERTED: rules of the source log; their rules log at the level info
+  [info] SCALANCE_NAT_WRITTEN: destination NAT is done before the firewall: the rules were written for the translated address
+
+Security rules
+  Never to the blocklist (floating)  ->  needs-review  (emitted as 30 IP rules, priority 1)
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  Never to the blocklist (floating) 2  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Geo_block': an alias of type 'geoip' (the countries of a GeoIP database), whose addresses are not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'Geo_block' holds members only its platform knows. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests never to the blocklist  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the source of traffic that leaves, which is the source after outbound NAT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Voice from the partner - pass  ->  approximated  (emitted as 20 IP rules, priority 3)
+      [approximated] AUTOMATIC_RULE: port forward 'Voice from the partner' passes what it forwards without a rule ('Pass' as its filter rule association): OPNsense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '172.16.20.20' because of NAT rule 'Voice from the partner'; check that this rule is meant to cover the translated traffic
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  Block private networks from WAN  ->  needs-review  (emitted as 35 IP rules, priority 4)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks' set: OPNsense drops what arrives there from those networks (the list of 26.7) before any rule of the configuration. This rule stands for that
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  VPN users to the web servers  ->  exact  (emitted as 10 IP rules, priority 5)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  No outside resolver (group)  ->  needs-review  (emitted as 20 IP rules, priority 6)
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+      [info] SCALANCE_REJECT: action reset-client: written as rej, which answers the sender (with what, the manuals do not say)
+  Inside may ping (old kind)  ->  exact  (emitted as 20 IP rules, priority 7)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  Default allow LAN to any rule  ->  exact  (emitted as 15 IP rules, priority 7)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  Web publishing  ->  exact  (emitted as 30 IP rules, priority 8)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  DMZ anywhere but LAN (disabled)  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  DMZ ICMPv6  ->  exact  (emitted as 30 IP rules, priority 9)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  Servers fetch updates  ->  skipped
+      [needs-review] ZONE_DYNAMIC: 'Updates' holds members only its platform knows.
+  Servers fetch updates 2  ->  exact  (emitted as 10 IP rules, priority 9)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  Servers fetch updates 3  ->  skipped
+      [needs-review] ZONE_DYNAMIC: 'Updates' holds members only its platform knows.
+  Servers fetch updates 4  ->  exact  (emitted as 10 IP rules, priority 9)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  Guests stay out  ->  needs-review  (emitted as 10 IP rules, priority 10)
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  Guests to the portal (no protocol, both IP versions)  ->  exact  (emitted as 5 IP rules, priority 11)
+      [info] RULE_HALF_NOT_LOADED: the rule is for IPv4 and IPv6, and there is no IPv6 rule for it on OPNsense (source: interface GUEST has no IPv6 network; the rule matches nothing of IPv6 there; destination: '192.0.2.80' is not an IPv6 address): it is converted for the other IP version only
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  DMZ anywhere but LAN (disabled) 2  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  Guests interactive (tos)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the type of service (tos) '0x10'.
+  VPN users to LAN web (old kind)  ->  exact  (emitted as 10 IP rules, priority 11)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  SSH to bastion (rule the port forward registers)  ->  needs-review  (emitted as 10 IP rules, priority 11)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '172.16.20.10' because of NAT rule 'SSH to bastion'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'SSH to bastion' also translates the port to 22; the service of this rule still names the post-NAT port and must be adjusted
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  LAN to test net (not quick)  ->  needs-review  (emitted as 5 IP rules, priority 12)
+      [needs-review] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+  Time for everyone (floating, not quick)  ->  exact  (emitted as 20 IP rules, priority 13)
+      [info] SCALANCE_INTRAZONE: traffic inside one zone does not pass the IP firewall of the device: there the rule filters nothing
+
+NAT rules
+  SSH to bastion  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  Voice from the partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  Mail relay 1:1 - inbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  Automatic outbound NAT on WAN  ->  exact  (emitted as 20 src-nat rules)
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: OPNsense translates what leaves by an interface with an IPv4 gateway and comes from the networks of its other interfaces, or from the firewall itself. This rule stands for that

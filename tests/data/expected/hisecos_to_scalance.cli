@@ -1,0 +1,80 @@
+configure terminal
+firewall
+service name FWS_tcp-502 proto tcp src all dst port 502
+icmp name FWS_icmp-type8 type 8 code 0 ver ipv4
+service name FWS_tcp proto tcp src all dst all
+service name FWS_udp-53-from-1024-65535 proto udp src range 1024 - 65535 dst port 53
+service name FWS_tcp-1433 proto tcp src all dst port 1433
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_tcp_443 proto tcp src all dst port 443
+service name FWS_tcp_8000-8010 proto tcp src all dst range 8000 - 8010
+ipv4rule from port1_2 to port1_1 srcip 0.0.0.0-10.9.255.255 dstip 0.0.0.0/0 action drop log no prior 1
+ipv4rule from port1_2 to port1_1 srcip 10.10.1.0-255.255.255.255 dstip 0.0.0.0/0 action drop log no prior 1
+ipv4rule from port1_2 to port1_3 srcip 0.0.0.0-10.9.255.255 dstip 0.0.0.0/0 action drop log no prior 1
+ipv4rule from port1_2 to port1_3 srcip 10.10.1.0-255.255.255.255 dstip 0.0.0.0/0 action drop log no prior 1
+ipv4rule from port1_2 to vlan 20 srcip 0.0.0.0-10.9.255.255 dstip 0.0.0.0/0 action drop log no prior 1
+ipv4rule from port1_2 to vlan 20 srcip 10.10.1.0-255.255.255.255 dstip 0.0.0.0/0 action drop log no prior 1
+ipv4rule from vlan 20 to port1_1 srcip 10.20.0.0/24 dstip 10.10.0.0/24 action acc service FWS_tcp-502 log no prior 2
+ipv4rule from vlan 20 to port1_1 srcip 10.20.0.0/24 dstip 172.16.10.30 action acc service FWS_tcp-502 log no prior 2
+ipv4rule from vlan 20 to port1_2 srcip 10.20.0.0/24 dstip 10.10.0.0/24 action acc service FWS_tcp-502 log no prior 2
+ipv4rule from vlan 20 to port1_2 srcip 10.20.0.0/24 dstip 172.16.10.30 action acc service FWS_tcp-502 log no prior 2
+ipv4rule from vlan 20 to port1_3 srcip 10.20.0.0/24 dstip 10.10.0.0/24 action acc service FWS_tcp-502 log no prior 2
+ipv4rule from vlan 20 to port1_3 srcip 10.20.0.0/24 dstip 172.16.10.30 action acc service FWS_tcp-502 log no prior 2
+ipv4rule from port1_3 to port1_1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp-type8 log no prior 2
+ipv4rule from port1_3 to port1_2 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp-type8 log no prior 2
+ipv4rule from port1_3 to vlan 20 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp-type8 log no prior 2
+ipv4rule from port1_1 to port1_3 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp-type8 log no prior 2
+ipv4rule from port1_2 to port1_3 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp-type8 log no prior 2
+ipv4rule from vlan 20 to port1_3 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp-type8 log no prior 2
+ipv4rule from port1_2 to port1_1 srcip 10.10.0.0/24 dstip 198.51.100.53 action acc service FWS_udp-53-from-1024-65535 log info prior 3
+ipv4rule from port1_2 to port1_1 srcip 10.10.0.0/24 dstip 10.20.0.50 action acc service FWS_tcp-1433 log no prior 4
+ipv4rule from port1_2 to port1_3 srcip 10.10.0.0/24 dstip 10.20.0.50 action acc service FWS_tcp-1433 log no prior 4
+ipv4rule from port1_2 to vlan 20 srcip 10.10.0.0/24 dstip 10.20.0.50 action acc service FWS_tcp-1433 log no prior 4
+ipv4rule from port1_1 to port1_2 srcip 0.0.0.0/0 dstip 10.30.0.10 action acc service FWS_tcp_80 log no prior 4
+ipv4rule from port1_1 to port1_2 srcip 0.0.0.0/0 dstip 10.30.0.10 action acc service FWS_tcp_443 log no prior 4
+ipv4rule from port1_1 to port1_2 srcip 0.0.0.0/0 dstip 10.30.0.10 action acc service FWS_tcp_8000-8010 log no prior 4
+ipv4rule from port1_1 to port1_2 srcip 0.0.0.0/0 dstip 192.0.2.10 action acc service FWS_tcp_80 log no prior 4
+ipv4rule from port1_1 to port1_2 srcip 0.0.0.0/0 dstip 192.0.2.10 action acc service FWS_tcp_443 log no prior 4
+ipv4rule from port1_1 to port1_2 srcip 0.0.0.0/0 dstip 192.0.2.10 action acc service FWS_tcp_8000-8010 log no prior 4
+ipv4rule from port1_1 to port1_3 srcip 0.0.0.0/0 dstip 10.30.0.10 action acc service FWS_tcp_80 log no prior 4
+ipv4rule from port1_1 to port1_3 srcip 0.0.0.0/0 dstip 10.30.0.10 action acc service FWS_tcp_443 log no prior 4
+ipv4rule from port1_1 to port1_3 srcip 0.0.0.0/0 dstip 10.30.0.10 action acc service FWS_tcp_8000-8010 log no prior 4
+ipv4rule from port1_1 to port1_3 srcip 0.0.0.0/0 dstip 192.0.2.10 action acc service FWS_tcp_80 log no prior 4
+ipv4rule from port1_1 to port1_3 srcip 0.0.0.0/0 dstip 192.0.2.10 action acc service FWS_tcp_443 log no prior 4
+ipv4rule from port1_1 to port1_3 srcip 0.0.0.0/0 dstip 192.0.2.10 action acc service FWS_tcp_8000-8010 log no prior 4
+ipv4rule from port1_1 to vlan 20 srcip 0.0.0.0/0 dstip 10.30.0.10 action acc service FWS_tcp_80 log no prior 4
+ipv4rule from port1_1 to vlan 20 srcip 0.0.0.0/0 dstip 10.30.0.10 action acc service FWS_tcp_443 log no prior 4
+ipv4rule from port1_1 to vlan 20 srcip 0.0.0.0/0 dstip 10.30.0.10 action acc service FWS_tcp_8000-8010 log no prior 4
+ipv4rule from port1_1 to vlan 20 srcip 0.0.0.0/0 dstip 192.0.2.10 action acc service FWS_tcp_80 log no prior 4
+ipv4rule from port1_1 to vlan 20 srcip 0.0.0.0/0 dstip 192.0.2.10 action acc service FWS_tcp_443 log no prior 4
+ipv4rule from port1_1 to vlan 20 srcip 0.0.0.0/0 dstip 192.0.2.10 action acc service FWS_tcp_8000-8010 log no prior 4
+ipv4rule from port1_1 to port1_2 srcip 198.51.100.0/24 dstip 0.0.0.0/0 action drop log no prior 5
+ipv4rule from port1_1 to port1_3 srcip 198.51.100.0/24 dstip 0.0.0.0/0 action drop log no prior 5
+ipv4rule from port1_1 to vlan 20 srcip 198.51.100.0/24 dstip 0.0.0.0/0 action drop log no prior 5
+ipv4rule from port1_3 to port1_1 srcip 10.30.0.64/28 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log no prior 6
+ipv4rule from port1_3 to port1_2 srcip 10.30.0.64/28 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log no prior 6
+ipv4rule from port1_3 to vlan 20 srcip 10.30.0.64/28 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log no prior 6
+ipv4rule from port1_1 to port1_2 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from port1_1 to port1_3 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from port1_1 to vlan 20 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv4rule from port1_1 to port1_2 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from port1_1 to port1_3 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from port1_1 to vlan 20 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from port1_2 to port1_1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from port1_2 to port1_3 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from port1_2 to vlan 20 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from port1_3 to port1_1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from port1_3 to port1_2 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from port1_3 to vlan 20 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from vlan 20 to port1_1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from vlan 20 to port1_2 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from vlan 20 to port1_3 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+exit
+firewallnat
+netmap source srcint port1_3 dstint port1_1 type ipv4 srcip 10.30.0.64/28 dstip 0.0.0.0/0 transip 192.0.2.64/28
+netmap destination srcint port1_1 dstint port1_3 type ipv4 srcip 0.0.0.0/0 dstip 192.0.2.64/28 transip 10.30.0.64/28
+src-nat srcint port1_2 dstint port1_1 type ipv4 srcip 10.10.0.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint port1_3 dstint port1_1 type ipv4 srcip 10.10.0.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint vlan 20 dstint port1_1 type ipv4 srcip 10.10.0.0/24 dstip 0.0.0.0/0 transip auto
+exit
+end

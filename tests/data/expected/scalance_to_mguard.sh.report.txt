@@ -1,0 +1,78 @@
+FWShift conversion report
+  source: scalance
+  target: mguard
+
+Summary
+  Security rules:     17   exact 0, approximated 0, needs review 0, skipped 17
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] SCALANCE_RULESET: rule sets (user or digital-input firewall): rules assigned to one apply only while it is active and are not converted; check which rules belong to a set: ruleset name maintenance
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] SCALANCE_SOURCE: 4 interfaces as zones (vlan1, vlan2, vlan3, ipsecALL); 16 IP rules, in ascending priority (prior), equal priorities in the order they were created; the IPv4 rules, then the IPv6 rules. Rules of the firewall itself (device) and the predefined rules are not converted
+  [info] SCALANCE_DEFAULTS: what no rule matches between interfaces is dropped; traffic inside one VLAN does not pass the IP firewall
+  [info] SCALANCE_NAT_ORDER: destination NAT (NAPT, NETMAP of the destination) is done before the firewall, whose rules name the translated address: the rules were rewritten for the address as it arrives. Source NAT, NETMAP of the source and masquerading are done after it. Read in the order NAPT, NETMAP destination, NETMAP source, source NAT, masquerading, one rule of each direction per connection (assumed)
+  [info] SCALANCE_PRERULE: predefined rules (access to services of the firewall itself) are not converted; those the configuration does not list are at their factory setting: ssh ipv4 int vlan 1 enabled, https ipv4 int vlan 2 disabled
+  [info] SCALANCE_NETMAP_DSTINT: the destination interface of a NETMAP rule of the destination is not a condition of the converted rule: netmap destination 1: vlan3
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  ipv4rule 4  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan1, vlan2: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv4rule 2  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan2, vlan1: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  ipv4rule 1  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan2, vlan1: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv4rule 3  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan2, vlan1: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv4rule 5  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan1, vlan2: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv4rule 6  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.2' next to '192.168.30.10' because of NAT rule 'napt 1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'napt 1' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan2, vlan3: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv4rule 7  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.64/30' next to '192.168.30.64/30' because of NAT rule 'netmap destination 1'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan2, vlan3: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv4rule 8  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan3, vlan1: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  ipv4rule 9  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan1, vlan3: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv4rule 11  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: source DYNAMIC: the address of the user who activates the rule set, or of the digital input.
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan2, vlan1: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv4rule 12  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: service ENIP is not in the configuration.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ENIP': unsupported or undefined service.
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan2, vlan1: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv4rule 13  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: ipsecALL, vlan1: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv4rule 14  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: assigned to the rule set maintenance: it applies only while the set is activated (by a user or a digital input).
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan2, vlan1: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv4rule 15  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan3, vlan2: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv6rule 1  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan2, vlan1: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv6rule 2  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan1, vlan2: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ipv4rule 10  ->  skipped
+      [info] SCALANCE_DEVICE_RULE: a rule for traffic to or from the firewall itself (device): its own access, not converted
+
+NAT rules
+  napt 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: port forwarding is for traffic that arrives on the external side
+  napt 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: port forwarding is for traffic that arrives on the external side
+  netmap destination 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the translated address '192.168.30.64/30' is not one IPv4 address
+  src-nat 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the mGuard translates a source only to the address of an interface, or a network 1:1
+  masquerading 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IP masquerading names one interface (or all external ones)
+
+Services
+  ENIP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'ipv4rule 12' but not defined in the input; emitted as a placeholder

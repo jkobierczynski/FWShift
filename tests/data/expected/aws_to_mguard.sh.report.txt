@@ -1,0 +1,109 @@
+FWShift conversion report
+  source: aws (vpc-0a1b2c3d4e5f60789)
+  target: mguard
+
+Summary
+  Security rules:     32   exact 9, approximated 10, needs review 2, skipped 11
+  NAT rules:           3   exact 0, approximated 0, needs review 3, skipped 0
+  Address groups:     13   exact 13, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0db0000000000000a of subnet subnet-0300000000000003a denies some inbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections out of the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0db0000000000000a of subnet subnet-0300000000000003a denies some outbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections into the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_HAIRPIN: connections from inside the VPC to its own public addresses are not converted as AWS decides them: they leave through the internet gateway, the source's outbound rules see the public address and the destination's inbound rules see the source's public address (or that of its NAT gateway). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] AWS_REMOTE_GROUP: rules name groups that are not in the export (another VPC, another account, or left out): sg-0bbbbbbbbbbbbbbb0. Their members are not known; those rules are not converted
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [info] AWS_EGRESS_PAIRS: inside the VPC a connection needs an outbound rule of the source's groups and an inbound rule of the destination's. Where the outbound rules do not allow everything, 1 rule allows what both allow, and a rule after them blocks the rest of what those members send inside the VPC
+  [info] AWS_PUBLIC_ADDRESSES: the public and Elastic IP addresses of the network interfaces are static NAT of their private addresses: the internet gateway translates what comes from outside, and the groups see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] AWS_UNFILTERED: security groups never filter traffic to the Amazon DNS server, DHCP, the instance metadata service, the Time Sync Service and Windows license activation; neither does the converted policy say anything about it
+  [info] AWS_GROUP_UNUSED: no network interface of the export carries these groups, so their inbound rules allow nothing and were left out: legacy-sg
+
+Security rules
+  db-acl-in-db  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  db-acl-in-db-2  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  db-acl-in-db-3  ->  skipped
+      [needs-review] SERVICE_NEGATE: every service but some: a row of the mGuard names the protocol and ports it matches. This deny rule is NOT enforced; rules below it may match more traffic.
+  db-acl-in-db-4  ->  skipped
+      [needs-review] SERVICE_NEGATE: every service but some: a row of the mGuard names the protocol and ports it matches. This deny rule is NOT enforced; rules below it may match more traffic.
+  db-acl-in-db-5  ->  skipped
+      [needs-review] SERVICE_NEGATE: every service but some: a row of the mGuard names the protocol and ports it matches. This deny rule is NOT enforced; rules below it may match more traffic.
+  db-acl-out-db  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  db-acl-out-db-2  ->  skipped
+      [needs-review] SERVICE_NEGATE: every service but some: a row of the mGuard names the protocol and ports it matches. This deny rule is NOT enforced; rules below it may match more traffic.
+  app-sg-to-db-sg  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  app-sg-outbound-rest  ->  needs-review  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [needs-review] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4; IPv6 traffic is not blocked by it
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  db-sg-outbound-rest  ->  needs-review  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [needs-review] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4; IPv6 traffic is not blocked by it
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  default-in-1  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  web-sg-in-1  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [approximated] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  web-sg-in-2  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  web-sg-in-3  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [approximated] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  web-sg-in-4  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  web-sg-in-5  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [approximated] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  web-sg-in-6  ->  skipped
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  app-sg-in-1  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [approximated] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  app-sg-in-2  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [approximated] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  app-sg-in-3  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  db-sg-in-1  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [approximated] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  db-sg-in-2  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'sg-0bbbbbbbbbbbbbbb0': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'sg-0bbbbbbbbbbbbbbb0' holds members only its platform knows, or an address the profile does not hold.
+  db-sg-in-3  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  bastion-sg-in-1  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  monitoring-sg-in-1  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [approximated] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  default-out-1  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  web-sg-out-2  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [approximated] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  web-sg-out-3  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  app-sg-out-2  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [approximated] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  bastion-sg-out-2  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  monitoring-sg-out-1  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [approximated] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  monitoring-sg-out-2  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+
+NAT rules
+  public-203.0.113.10  ->  needs-review  (emitted as 1:1 NAT)
+      [needs-review] NAT_ORDER: on the source, the traffic this rule forwards to 10.20.1.10 keeps its source address. The target translates sources apart from destinations, after the destination: there NAT rules 'public-203.0.113.11', 'public-203.0.113.50' translate the source of that traffic as well
+  public-203.0.113.11  ->  needs-review  (emitted as 1:1 NAT)
+      [needs-review] NAT_ORDER: on the source, NAT rule 'public-203.0.113.10' above this one matches part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well
+      [needs-review] NAT_ORDER: on the source, the traffic this rule forwards to 10.20.1.11 keeps its source address. The target translates sources apart from destinations, after the destination: there NAT rule 'public-203.0.113.50' translates the source of that traffic as well
+  public-203.0.113.50  ->  needs-review  (emitted as 1:1 NAT)
+      [needs-review] NAT_ORDER: on the source, NAT rules 'public-203.0.113.10', 'public-203.0.113.11' above this one match part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well

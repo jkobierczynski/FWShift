@@ -1,0 +1,257 @@
+configure terminal
+firewall
+service name FWS_tcp_443 proto tcp src all dst port 443
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_tcp-22 proto tcp src all dst port 22
+service name FWS_tcp_any proto tcp src all dst all
+service name FWS_udp_any proto udp src all dst all
+proto name FWS_proto_1 num 1
+service name FWS_tcp-8443 proto tcp src all dst port 8443
+proto name FWS_esp num 50
+service name FWS_tcp-1433 proto tcp src all dst port 1433
+service name FWS_udp-53-from-1024-65535 proto udp src range 1024 - 65535 dst port 53
+proto name FWS_ah num 51
+ipv4rule from outside to nsg-web srcip 0.0.0.0/0 dstip 10.30.1.10/31 action acc service FWS_tcp_443 log no prior 1
+ipv4rule from outside to nsg-web srcip 0.0.0.0/0 dstip 10.30.1.10/31 action acc service FWS_tcp_80 log no prior 1
+ipv6rule from outside to nsg-web srcip ::/0 dstip 2001:db8:30:1::10/127 action acc service FWS_tcp_443 log no prior 1
+ipv6rule from outside to nsg-web srcip ::/0 dstip 2001:db8:30:1::10/127 action acc service FWS_tcp_80 log no prior 1
+ipv4rule from outside to nsg-web srcip 192.0.2.128/25 dstip 10.30.1.0/24 action acc service FWS_tcp-22 log no prior 1
+ipv4rule from outside to nsg-web srcip 198.51.100.0/24 dstip 10.30.1.0/24 action acc service FWS_tcp-22 log no prior 1
+ipv6rule from outside to nsg-web srcip 2001:db8:ff::/48 dstip ::/0 action acc service FWS_tcp_443 log no prior 1
+ipv4rule from outside to nsg-web srcip 203.0.113.0/24 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 2
+ipv4rule from outside to nsg-web srcip 203.0.113.0/24 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 2
+ipv4rule from outside to nsg-web srcip 203.0.113.0/24 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 2
+ipv4rule from outside to nsg-web srcip 168.63.129.16 dstip 0.0.0.0/0 action acc service FWS_tcp_any log no prior 3
+ipv4rule from outside to nsg-web srcip 168.63.129.16 dstip 0.0.0.0/0 action acc service FWS_udp_any log no prior 3
+ipv4rule from outside to nsg-web srcip 168.63.129.16 dstip 0.0.0.0/0 action acc service FWS_proto_1 log no prior 3
+ipv4rule from outside to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 4
+ipv4rule from outside to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 4
+ipv4rule from outside to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 4
+ipv6rule from outside to nsg-web srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 4
+ipv6rule from outside to nsg-web srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 4
+ipv4rule from nsg-web to outside srcip 0.0.0.0/0 dstip 10.30.2.0/24 action acc service FWS_tcp-8443 log no prior 5
+ipv4rule from nsg-web to outside srcip 0.0.0.0/0 dstip 203.0.113.64/26 action acc service FWS_tcp_443 log no prior 5
+ipv6rule from nsg-web to outside srcip ::/0 dstip 2001:db8:ee::/48 action acc service FWS_tcp_443 log no prior 5
+ipv4rule from nsg-web to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 6
+ipv4rule from nsg-web to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 6
+ipv4rule from nsg-web to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 6
+ipv6rule from nsg-web to outside srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 6
+ipv6rule from nsg-web to outside srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 6
+ipv4rule from outside to nsg-app srcip 10.30.1.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp-8443 log no prior 7
+ipv4rule from outside to nsg-app srcip 198.51.100.40 dstip 10.30.2.10 action acc service FWS_esp log no prior 7
+ipv4rule from outside to nsg-app srcip 168.63.129.16 dstip 0.0.0.0/0 action acc service FWS_tcp-8443 log no prior 7
+ipv4rule from outside to nsg-app srcip 168.63.129.16 dstip 0.0.0.0/0 action acc service FWS_tcp_any log no prior 7
+ipv4rule from outside to nsg-app srcip 168.63.129.16 dstip 0.0.0.0/0 action acc service FWS_udp_any log no prior 7
+ipv4rule from outside to nsg-app srcip 168.63.129.16 dstip 0.0.0.0/0 action acc service FWS_proto_1 log no prior 7
+ipv4rule from outside to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 8
+ipv4rule from outside to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 8
+ipv4rule from outside to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 8
+ipv6rule from outside to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 8
+ipv6rule from outside to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 8
+ipv4rule from nsg-app to outside srcip 0.0.0.0/0 dstip 10.30.3.20 action acc service FWS_tcp-1433 log no prior 9
+ipv4rule from nsg-app to outside srcip 0.0.0.0/0 dstip 203.0.113.128/27 action acc service FWS_tcp-1433 log no prior 9
+ipv4rule from nsg-app to outside srcip 0.0.0.0/0 dstip 10.30.0.4 action acc service FWS_udp-53-from-1024-65535 log no prior 9
+ipv4rule from nsg-app to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 10
+ipv4rule from nsg-app to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 10
+ipv4rule from nsg-app to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 10
+ipv6rule from nsg-app to outside srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 10
+ipv6rule from nsg-app to outside srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 10
+ipv4rule from nsg-app to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 10
+ipv4rule from nsg-app to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 10
+ipv4rule from nsg-app to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 10
+ipv6rule from nsg-app to outside srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 10
+ipv6rule from nsg-app to outside srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 10
+ipv4rule from outside to nsg-db srcip 10.30.2.0/24 dstip 10.30.3.20 action acc service FWS_tcp-1433 log no prior 11
+ipv4rule from outside to nsg-db srcip 10.30.9.0/24 dstip 0.0.0.0/0 action acc service FWS_ah log no prior 11
+ipv4rule from outside to nsg-db srcip 168.63.129.16 dstip 0.0.0.0/0 action acc service FWS_tcp_any log no prior 11
+ipv4rule from outside to nsg-db srcip 168.63.129.16 dstip 0.0.0.0/0 action acc service FWS_udp_any log no prior 11
+ipv4rule from outside to nsg-db srcip 168.63.129.16 dstip 0.0.0.0/0 action acc service FWS_proto_1 log no prior 11
+ipv4rule from outside to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 12
+ipv4rule from outside to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 12
+ipv4rule from outside to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 12
+ipv6rule from outside to nsg-db srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 12
+ipv6rule from outside to nsg-db srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 12
+ipv4rule from nsg-db to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 12
+ipv4rule from nsg-db to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 12
+ipv4rule from nsg-db to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 12
+ipv6rule from nsg-db to outside srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 12
+ipv6rule from nsg-db to outside srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 12
+ipv4rule from nsg-web to nsg-app srcip 10.30.1.0/24 dstip 10.30.2.0/24 action acc service FWS_tcp-8443 log no prior 13
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 10.30.2.0/24 action drop service FWS_tcp-8443 log no prior 14
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 10.30.2.0/24 action acc service FWS_tcp-8443 log no prior 15
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 10.30.2.0/24 action drop service FWS_tcp-8443 log no prior 16
+ipv4rule from nsg-web to nsg-app srcip 10.30.1.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp-8443 log no prior 17
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 18
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 18
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 18
+ipv6rule from nsg-web to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 18
+ipv6rule from nsg-web to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 18
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_any log no prior 19
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_udp_any log no prior 19
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_proto_1 log no prior 19
+ipv6rule from nsg-web to nsg-app srcip ::/0 dstip ::/0 action acc service FWS_tcp_any log no prior 19
+ipv6rule from nsg-web to nsg-app srcip ::/0 dstip ::/0 action acc service FWS_udp_any log no prior 19
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 20
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 20
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 20
+ipv6rule from nsg-web to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 20
+ipv6rule from nsg-web to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 20
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 20
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 20
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 20
+ipv6rule from nsg-web to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 20
+ipv6rule from nsg-web to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 20
+ipv4rule from nsg-web to nsg-db srcip 0.0.0.0/0 dstip 10.30.2.0/24 action acc service FWS_tcp-8443 log no prior 21
+ipv4rule from nsg-web to nsg-db srcip 0.0.0.0/0 dstip 10.30.2.0/24 action drop service FWS_tcp-8443 log no prior 22
+ipv4rule from nsg-web to nsg-db srcip 10.30.2.0/24 dstip 10.30.3.20 action acc service FWS_tcp-1433 log no prior 23
+ipv4rule from nsg-web to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_any log no prior 23
+ipv4rule from nsg-web to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_udp_any log no prior 23
+ipv4rule from nsg-web to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_proto_1 log no prior 23
+ipv6rule from nsg-web to nsg-db srcip ::/0 dstip ::/0 action acc service FWS_tcp_any log no prior 23
+ipv6rule from nsg-web to nsg-db srcip ::/0 dstip ::/0 action acc service FWS_udp_any log no prior 23
+ipv4rule from nsg-web to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 24
+ipv4rule from nsg-web to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 24
+ipv4rule from nsg-web to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 24
+ipv6rule from nsg-web to nsg-db srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 24
+ipv6rule from nsg-web to nsg-db srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 24
+ipv4rule from nsg-web to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 24
+ipv4rule from nsg-web to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 24
+ipv4rule from nsg-web to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 24
+ipv6rule from nsg-web to nsg-db srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 24
+ipv6rule from nsg-web to nsg-db srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 24
+ipv4rule from nsg-app to nsg-web srcip 203.0.113.0/24 dstip 10.30.3.20 action drop service FWS_tcp-1433 log no prior 24
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 10.30.3.20 action acc service FWS_tcp-1433 log no prior 25
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 10.30.3.20 action drop service FWS_tcp-1433 log no prior 26
+ipv4rule from nsg-app to nsg-web srcip 203.0.113.0/24 dstip 10.30.0.4 action drop service FWS_udp-53-from-1024-65535 log no prior 26
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 10.30.0.4 action acc service FWS_udp-53-from-1024-65535 log no prior 27
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 10.30.0.4 action drop service FWS_udp-53-from-1024-65535 log no prior 28
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 28
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 28
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 28
+ipv6rule from nsg-app to nsg-web srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 28
+ipv6rule from nsg-app to nsg-web srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 28
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 10.30.1.10/31 action acc service FWS_tcp_443 log no prior 29
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 10.30.1.10/31 action acc service FWS_tcp_80 log no prior 29
+ipv6rule from nsg-app to nsg-web srcip ::/0 dstip 2001:db8:30:1::10/127 action acc service FWS_tcp_443 log no prior 29
+ipv6rule from nsg-app to nsg-web srcip ::/0 dstip 2001:db8:30:1::10/127 action acc service FWS_tcp_80 log no prior 29
+ipv4rule from nsg-app to nsg-web srcip 192.0.2.128/25 dstip 10.30.1.0/24 action acc service FWS_tcp-22 log no prior 29
+ipv4rule from nsg-app to nsg-web srcip 198.51.100.0/24 dstip 10.30.1.0/24 action acc service FWS_tcp-22 log no prior 29
+ipv6rule from nsg-app to nsg-web srcip 2001:db8:ff::/48 dstip ::/0 action acc service FWS_tcp_443 log no prior 29
+ipv4rule from nsg-app to nsg-web srcip 203.0.113.0/24 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 30
+ipv4rule from nsg-app to nsg-web srcip 203.0.113.0/24 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 30
+ipv4rule from nsg-app to nsg-web srcip 203.0.113.0/24 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 30
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_proto_1 log no prior 31
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_any log no prior 31
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_udp_any log no prior 31
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_proto_1 log no prior 31
+ipv6rule from nsg-app to nsg-web srcip ::/0 dstip ::/0 action acc service FWS_tcp_any log no prior 31
+ipv6rule from nsg-app to nsg-web srcip ::/0 dstip ::/0 action acc service FWS_udp_any log no prior 31
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 32
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 32
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 32
+ipv6rule from nsg-app to nsg-web srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 32
+ipv6rule from nsg-app to nsg-web srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 32
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 32
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 32
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 32
+ipv6rule from nsg-app to nsg-web srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 32
+ipv6rule from nsg-app to nsg-web srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 32
+ipv4rule from nsg-app to nsg-db srcip 10.30.2.0/24 dstip 10.30.3.20 action acc service FWS_tcp-1433 log no prior 33
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 10.30.3.20 action acc service FWS_tcp-1433 log no prior 33
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 10.30.3.20 action drop service FWS_tcp-1433 log no prior 34
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 10.30.0.4 action acc service FWS_udp-53-from-1024-65535 log no prior 35
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 10.30.0.4 action drop service FWS_udp-53-from-1024-65535 log no prior 36
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 36
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 36
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 36
+ipv6rule from nsg-app to nsg-db srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 36
+ipv6rule from nsg-app to nsg-db srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 36
+ipv4rule from nsg-app to nsg-db srcip 10.30.2.0/24 dstip 10.30.3.20 action acc service FWS_tcp-1433 log no prior 37
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_any log no prior 37
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_udp_any log no prior 37
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_proto_1 log no prior 37
+ipv6rule from nsg-app to nsg-db srcip ::/0 dstip ::/0 action acc service FWS_tcp_any log no prior 37
+ipv6rule from nsg-app to nsg-db srcip ::/0 dstip ::/0 action acc service FWS_udp_any log no prior 37
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 38
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 38
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 38
+ipv6rule from nsg-app to nsg-db srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 38
+ipv6rule from nsg-app to nsg-db srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 38
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 38
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 38
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 38
+ipv6rule from nsg-app to nsg-db srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 38
+ipv6rule from nsg-app to nsg-db srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 38
+ipv4rule from nsg-db to nsg-web srcip 0.0.0.0/0 dstip 10.30.1.10/31 action acc service FWS_tcp_443 log no prior 39
+ipv4rule from nsg-db to nsg-web srcip 0.0.0.0/0 dstip 10.30.1.10/31 action acc service FWS_tcp_80 log no prior 39
+ipv6rule from nsg-db to nsg-web srcip ::/0 dstip 2001:db8:30:1::10/127 action acc service FWS_tcp_443 log no prior 39
+ipv6rule from nsg-db to nsg-web srcip ::/0 dstip 2001:db8:30:1::10/127 action acc service FWS_tcp_80 log no prior 39
+ipv4rule from nsg-db to nsg-web srcip 192.0.2.128/25 dstip 10.30.1.0/24 action acc service FWS_tcp-22 log no prior 39
+ipv4rule from nsg-db to nsg-web srcip 198.51.100.0/24 dstip 10.30.1.0/24 action acc service FWS_tcp-22 log no prior 39
+ipv6rule from nsg-db to nsg-web srcip 2001:db8:ff::/48 dstip ::/0 action acc service FWS_tcp_443 log no prior 39
+ipv4rule from nsg-db to nsg-web srcip 203.0.113.0/24 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 40
+ipv4rule from nsg-db to nsg-web srcip 203.0.113.0/24 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 40
+ipv4rule from nsg-db to nsg-web srcip 203.0.113.0/24 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 40
+ipv4rule from nsg-db to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_proto_1 log no prior 41
+ipv4rule from nsg-db to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_any log no prior 41
+ipv4rule from nsg-db to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_udp_any log no prior 41
+ipv4rule from nsg-db to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_proto_1 log no prior 41
+ipv6rule from nsg-db to nsg-web srcip ::/0 dstip ::/0 action acc service FWS_tcp_any log no prior 41
+ipv6rule from nsg-db to nsg-web srcip ::/0 dstip ::/0 action acc service FWS_udp_any log no prior 41
+ipv4rule from nsg-db to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 42
+ipv4rule from nsg-db to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 42
+ipv4rule from nsg-db to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 42
+ipv6rule from nsg-db to nsg-web srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 42
+ipv6rule from nsg-db to nsg-web srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 42
+ipv4rule from nsg-db to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 42
+ipv4rule from nsg-db to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 42
+ipv4rule from nsg-db to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 42
+ipv6rule from nsg-db to nsg-web srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 42
+ipv6rule from nsg-db to nsg-web srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 42
+ipv4rule from nsg-db to nsg-app srcip 10.30.1.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp-8443 log no prior 43
+ipv4rule from nsg-db to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 44
+ipv4rule from nsg-db to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 44
+ipv4rule from nsg-db to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 44
+ipv6rule from nsg-db to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 44
+ipv6rule from nsg-db to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 44
+ipv4rule from nsg-db to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_any log no prior 45
+ipv4rule from nsg-db to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_udp_any log no prior 45
+ipv4rule from nsg-db to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_proto_1 log no prior 45
+ipv6rule from nsg-db to nsg-app srcip ::/0 dstip ::/0 action acc service FWS_tcp_any log no prior 45
+ipv6rule from nsg-db to nsg-app srcip ::/0 dstip ::/0 action acc service FWS_udp_any log no prior 45
+ipv4rule from nsg-db to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 46
+ipv4rule from nsg-db to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 46
+ipv4rule from nsg-db to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 46
+ipv6rule from nsg-db to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 46
+ipv6rule from nsg-db to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 46
+ipv4rule from nsg-db to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_any log no prior 46
+ipv4rule from nsg-db to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_any log no prior 46
+ipv4rule from nsg-db to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto_1 log no prior 46
+ipv6rule from nsg-db to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_tcp_any log no prior 46
+ipv6rule from nsg-db to nsg-app srcip ::/0 dstip ::/0 action drop service FWS_udp_any log no prior 46
+ipv4rule from nsg-web to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 46
+ipv6rule from nsg-web to nsg-app srcip ::/0 dstip ::/0 action drop log no prior 46
+ipv4rule from nsg-web to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 46
+ipv6rule from nsg-web to nsg-db srcip ::/0 dstip ::/0 action drop log no prior 46
+ipv4rule from nsg-web to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 46
+ipv6rule from nsg-web to outside srcip ::/0 dstip ::/0 action drop log no prior 46
+ipv4rule from nsg-app to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 46
+ipv6rule from nsg-app to nsg-web srcip ::/0 dstip ::/0 action drop log no prior 46
+ipv4rule from nsg-app to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 46
+ipv6rule from nsg-app to nsg-db srcip ::/0 dstip ::/0 action drop log no prior 46
+ipv4rule from nsg-app to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 46
+ipv6rule from nsg-app to outside srcip ::/0 dstip ::/0 action drop log no prior 46
+ipv4rule from nsg-db to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 46
+ipv6rule from nsg-db to nsg-web srcip ::/0 dstip ::/0 action drop log no prior 46
+ipv4rule from nsg-db to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 46
+ipv6rule from nsg-db to nsg-app srcip ::/0 dstip ::/0 action drop log no prior 46
+ipv4rule from nsg-db to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 46
+ipv6rule from nsg-db to outside srcip ::/0 dstip ::/0 action drop log no prior 46
+ipv4rule from outside to nsg-web srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 46
+ipv6rule from outside to nsg-web srcip ::/0 dstip ::/0 action drop log no prior 46
+ipv4rule from outside to nsg-app srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 46
+ipv6rule from outside to nsg-app srcip ::/0 dstip ::/0 action drop log no prior 46
+ipv4rule from outside to nsg-db srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 46
+ipv6rule from outside to nsg-db srcip ::/0 dstip ::/0 action drop log no prior 46
+exit
+end

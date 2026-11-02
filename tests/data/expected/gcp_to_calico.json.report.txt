@@ -1,0 +1,48 @@
+FWShift conversion report
+  source: gcp (vpc-shop)
+  target: calico
+
+Summary
+  Security rules:     28   exact 28, approximated 0, needs review 0, skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] CALICO_LOAD: the output is one GlobalNetworkPolicy (fwshift) for calicoctl apply -f FILE, or kubectl apply -f FILE where the Calico API server is installed. It applies to the endpoints labelled fwshift/policy=fwshift and to nothing else: label the pods it is for (kubectl label pod POD fwshift/policy=fwshift). It stands in the default tier with order 100, before the Kubernetes network policies (order 1000), and ends with the source's default, so that it decides everything for those endpoints; a policy of the same name is replaced
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; the Calico rules written do not (a rule with action Log before a rule would log what it matches)
+
+Security rules
+  db-to-vpc+implied deny ingress  ->  exact  (emitted as rule 2)
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  db-no-internet (between instances)  ->  exact  (emitted as rule 3)
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  pol-shop:deny-smtp-out (between instances)  ->  exact  (emitted as rule 4)
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  implied allow egress+implied deny ingress  ->  exact  (emitted as rules 10-11)
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  deny-ssh-blocked  ->  exact  (emitted as rule 15)
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  pol-shop:deny-tor (in)  ->  exact  (emitted as rule 21)
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  implied deny ingress (in)  ->  exact  (emitted as rules 24-25)
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  deny-egress-doc  ->  exact  (emitted as rule 26)
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  db-no-internet  ->  exact  (emitted as rule 28)
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  pol-shop:deny-smtp-out (out)  ->  exact  (emitted as rule 31)
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+
+NAT rules
+  external-192.0.2.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Calico does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what Calico sees
+  external-192.0.2.5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Calico does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what Calico sees

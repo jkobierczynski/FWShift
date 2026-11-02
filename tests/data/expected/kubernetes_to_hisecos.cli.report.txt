@@ -1,0 +1,89 @@
+FWShift conversion report
+  source: kubernetes
+  target: hisecos
+
+Summary
+  Security rules:     33   exact 0, approximated 0, needs review 32 (32 emitted disabled), skipped 1
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     15   exact 15, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] HISECOS_NO_ZONES: the source names no zones: there is no interface to assign the rules to, and they are written disabled. Give the rules zones, or map them with --zone-map and --interface-map
+  [needs-review] HISECOS_LOAD: the output is a CLI script of HiSecOS (section 10): commands of the Global Config mode that add rules 1001 to 1118 of the packet filter (they must be free) with their interface assignments, and NAT rules, and that delete nothing. The keywords are FWShift's reading of Belden's MIBs and command list, not confirmed on a device: check the script with 'script validate' first. Nothing applies until you commit: read 'show packet-filter l3 pending', then 'packet-filter l3 commit' (and 'nat dnat commit', 'nat masq commit', 'nat 1to1nat commit'). Rules of the device with lower priorities on the same interfaces come first, and its default policy is not changed. To take the rules away again: 'packet-filter l3 delif' for each assignment, then 'packet-filter l3 delrule N' for N from 1001 to 1118
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+  [info] HISECOS_IPV4_ONLY: HiSecOS filters IPv4: the IPv6 addresses and ICMPv6 of these rules are not written: node 10.0.0.11 to its pods, pods from node 10.0.0.11, node 10.0.0.12 to its pods, pods from node 10.0.0.12, shop/web-egress/egress-3, isolated/egress, shop/allow-web/ingress-1, shop/allow-web/ingress-1-2, isolated/ingress, payments/api-ingress/ingress-1, payments/api-ingress/ingress-1-2, isolated/ingress-4 ...
+
+Security rules
+  node 10.0.0.11 to its pods  ->  needs-review, emitted disabled  (emitted as rules 1001-1005)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  pods from node 10.0.0.11  ->  needs-review, emitted disabled  (emitted as rules 1006-1010)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  node 10.0.0.12 to its pods  ->  needs-review, emitted disabled  (emitted as rules 1011-1014)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  pods from node 10.0.0.12  ->  needs-review, emitted disabled  (emitted as rules 1015-1018)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  shop/web-egress/egress-1 + shop/web-to-cart/ingress-1  ->  needs-review, emitted disabled  (emitted as rules 1019-1020)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  shop/web-egress/egress-2  ->  needs-review, emitted disabled  (emitted as rules 1021-1024)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  shop/web-egress/egress-3  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  isolated/egress  ->  needs-review, emitted disabled  (emitted as rules 1025-1026)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop/cart-egress/egress-1 + shop/cart-to-db/ingress-1  ->  needs-review, emitted disabled  (emitted as rule 1027)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  shop/cart-egress/egress-2  ->  needs-review, emitted disabled  (emitted as rule 1028)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  isolated/egress-2  ->  needs-review, emitted disabled  (emitted as rule 1029)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  isolated/egress-3  ->  needs-review, emitted disabled  (emitted as rule 1030)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  payments/worker-egress/egress-1  ->  needs-review, emitted disabled  (emitted as rule 1031)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  isolated/egress-4  ->  needs-review, emitted disabled  (emitted as rule 1032)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop/allow-web/ingress-1  ->  needs-review, emitted disabled  (emitted as rules 1033-1054)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  shop/allow-web/ingress-1-2  ->  needs-review, emitted disabled  (emitted as rules 1055-1076)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  shop/allow-web/ingress-2  ->  needs-review, emitted disabled  (emitted as rules 1077-1078)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  isolated/ingress  ->  needs-review, emitted disabled  (emitted as rules 1079-1080)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop/web-to-cart/ingress-1  ->  needs-review, emitted disabled  (emitted as rules 1081-1082)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  isolated/ingress-2  ->  needs-review, emitted disabled  (emitted as rule 1083)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop/cart-to-db/ingress-1  ->  needs-review, emitted disabled  (emitted as rule 1084)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  isolated/ingress-3  ->  needs-review, emitted disabled  (emitted as rule 1085)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  payments/api-ingress/ingress-1  ->  needs-review, emitted disabled  (emitted as rules 1086-1090)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  payments/api-ingress/ingress-1-2  ->  needs-review, emitted disabled  (emitted as rule 1091 (a placeholder, disabled))
+      [needs-review] HISECOS_PROTOCOL: SCTP: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  payments/api-ingress/ingress-3  ->  needs-review, emitted disabled  (emitted as rule 1092)
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  isolated/ingress-4  ->  needs-review, emitted disabled  (emitted as rule 1093)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  isolated/ingress-5  ->  needs-review, emitted disabled  (emitted as rule 1094)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  monitoring/scrape-only/ingress-1  ->  needs-review, emitted disabled  (emitted as rule 1095)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  isolated/ingress-6  ->  needs-review, emitted disabled  (emitted as rule 1096)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dev/not-from-prod/ingress-1  ->  needs-review, emitted disabled  (emitted as rules 1097-1099)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  isolated/ingress-7  ->  needs-review, emitted disabled  (emitted as rule 1100)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  not isolated: from pods  ->  needs-review, emitted disabled  (emitted as rules 1101-1109)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  not isolated: to pods  ->  needs-review, emitted disabled  (emitted as rules 1110-1118)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.

@@ -1,0 +1,882 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "shop-db-in-shop-db-2 (not written, see the report); shop-db-in-shop-db-3 (not written, see the report); shop-db-in-shop-db-4 (not written, see the report); shop-bastion-in-4 (not written, see the report)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.1.0/24"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.3.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-db-in-shop-db"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "destination": {
+          "ports": [
+            5432
+          ],
+          "nets": [
+            "10.30.3.30/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-app-to-shop-db"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-app-outbound-rest"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.30.3.30/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-db-outbound-rest"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8080
+          ],
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-to-shop-app"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-outbound-rest"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "source": {
+          "nets": [
+            "2001:db8:30:1::10/128"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "2001:db8:30::/56"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-outbound-rest"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "2001:db8:30:1::10/128"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-in-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            80
+          ],
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-in-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.9.5/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-in-4"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "icmp": {
+          "type": 3,
+          "code": 4
+        },
+        "source": {
+          "nets": [
+            "10.0.0.0/8"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-in-5"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8080
+          ],
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-app-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.9.5/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-app-in-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-app-in-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "198.51.100.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.30.9.5/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-bastion-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "source": {
+          "nets": [
+            "198.51.100.0/24"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.9.5/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-bastion-in-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.2.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            5432
+          ],
+          "nets": [
+            "10.30.3.30/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-db-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.9.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            5432
+          ],
+          "nets": [
+            "10.30.3.30/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-db-in-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "198.51.100.0/25",
+            "203.0.113.64/26"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-out-2"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.1.0/24"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.3.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-db-in-shop-db"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "destination": {
+          "ports": [
+            5432
+          ],
+          "nets": [
+            "10.30.3.30/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-app-to-shop-db"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-app-outbound-rest"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.30.3.30/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-db-outbound-rest"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8080
+          ],
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-to-shop-app"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-outbound-rest"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "source": {
+          "nets": [
+            "2001:db8:30:1::10/128"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "2001:db8:30::/56"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-outbound-rest"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "2001:db8:30:1::10/128"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-in-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            80
+          ],
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-in-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.9.5/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-in-4"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "icmp": {
+          "type": 3,
+          "code": 4
+        },
+        "source": {
+          "nets": [
+            "10.0.0.0/8"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-in-5"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8080
+          ],
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-app-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.9.5/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-app-in-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.2.20/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-app-in-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "198.51.100.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.30.9.5/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-bastion-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "source": {
+          "nets": [
+            "198.51.100.0/24"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.30.9.5/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-bastion-in-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.2.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            5432
+          ],
+          "nets": [
+            "10.30.3.30/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-db-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.9.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            5432
+          ],
+          "nets": [
+            "10.30.3.30/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-db-in-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.30.1.10/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "198.51.100.0/25",
+            "203.0.113.64/26"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "shop-web-out-2"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

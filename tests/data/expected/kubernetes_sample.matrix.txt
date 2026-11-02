@@ -1,0 +1,44 @@
+FWShift zone matrix
+  source: kubernetes
+  security rules: 33 (0 disabled, 5 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 (other zones)
+  (other zones)  any~
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+(other zones) -> (other zones)
+  allowed: any ~
+  rule 'node 10.0.0.11 to its pods': 10.0.0.11 -> pods on node 10.0.0.11: any
+  rule 'pods from node 10.0.0.11': pods on node 10.0.0.11 -> 10.0.0.11: any
+  rule 'node 10.0.0.12 to its pods': 10.0.0.12 -> pods on node 10.0.0.12: any
+  rule 'pods from node 10.0.0.12': pods on node 10.0.0.12 -> 10.0.0.12: any
+  rule 'shop/web-egress/egress-1 + shop/web-to-cart/ingress-1': shop/web-1, shop/web-2 -> shop/app=cart: tcp/50051
+  rule 'shop/web-egress/egress-2': shop/web-1, shop/web-2 -> ns-kube-system: tcp/53, udp/53
+  rule 'shop/web-egress/egress-3': shop/web-1-ipv6, shop/web-2-ipv6 -> 2001:db8:ffff::/48: tcp/443
+  rule 'shop/cart-egress/egress-1 + shop/cart-to-db/ingress-1': shop/app=cart -> shop/app=db: tcp/5432
+  rule 'shop/cart-egress/egress-2': shop/app=cart -> ns-kube-system: udp/53
+  rule 'payments/worker-egress/egress-1': payments/app=worker -> 192.0.2.0/24: tcp/443
+  rule 'shop/allow-web/ingress-1': 0.0.0.0-9.255.255.255, 11.0.0.0-192.167.255.255, 192.169.0.0-255.255.255.255, 2001:db8:ffff::/48 -> shop/web-1, shop/web-1-ipv6: tcp/8080
+  rule 'shop/allow-web/ingress-1-2': 0.0.0.0-9.255.255.255, 11.0.0.0-192.167.255.255, 192.169.0.0-255.255.255.255, 2001:db8:ffff::/48 -> shop/web-2, shop/web-2-ipv6: tcp/8081
+  rule 'shop/allow-web/ingress-2': ns-monitoring -> shop/web-1, shop/web-2: tcp/9100
+  rule 'payments/api-ingress/ingress-3': payments/app=worker -> payments/api-1: any (only with protocol 'ICMP' (TCP, UDP or SCTP), which is not in the model) ~
+  rule 'monitoring/scrape-only/ingress-1': ns-monitoring -> ns-monitoring: tcp/9090
+  rule 'dev/not-from-prod/ingress-1': namespaces env NotIn (prod) -> ns-dev: any
+  rule 'not isolated: from pods': all-pods -> any: any
+  rule 'not isolated: to pods': any -> all-pods: any
+
+From reading the configuration
+  K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+
+Notes
+  The policy names no zones, so the matrix has one cell. Give zones as networks with --network-zone NAME=NETWORK[,NETWORK...] to see who reaches whom.
+  5 rule(s) never match and are left out; 'fwshift audit' names them.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

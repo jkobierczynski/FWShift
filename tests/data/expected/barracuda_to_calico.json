@@ -1,0 +1,520 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "ADMIN-SSH (port2) (not written, see the report); ADMIN-SSH (port1) (not written, see the report); WEB-IN (not written, see the report); DNS-OUT (disabled in the source); UPDATES (not written, see the report); TO-LAB (not written, see the report); ODD (not written, see the report)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "198.51.100.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "BLOCK-BAD"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "source": {
+          "nets": [
+            "2001:db8:bad::/48"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "BLOCK-BAD-V6"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN-2-INTERNET"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.0.16/28",
+            "10.20.0.32/27",
+            "10.20.0.64/26",
+            "10.20.0.128/25"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443
+          ],
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "SERVER-SYNC"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.0.16/28",
+            "10.20.0.32/27",
+            "10.20.0.64/26",
+            "10.20.0.128/25"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8080
+          ],
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "SERVER-SYNC"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443
+          ],
+          "nets": [
+            "10.20.0.16/28",
+            "10.20.0.32/27",
+            "10.20.0.64/26",
+            "10.20.0.128/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "SERVER-SYNC (back)"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8080
+          ],
+          "nets": [
+            "10.20.0.16/28",
+            "10.20.0.32/27",
+            "10.20.0.64/26",
+            "10.20.0.128/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "SERVER-SYNC (back)"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "PING-ALL"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            80,
+            443
+          ],
+          "nets": [
+            "2001:db8:20::/64"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "V6-WEB"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.0.16/28",
+            "10.20.0.32/27",
+            "10.20.0.64/26",
+            "10.20.0.128/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DENY-LAN-DMZ"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": 47,
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.0.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "GRE-LAB"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "BLOCKALL"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "198.51.100.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "BLOCK-BAD"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "source": {
+          "nets": [
+            "2001:db8:bad::/48"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "BLOCK-BAD-V6"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN-2-INTERNET"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.0.16/28",
+            "10.20.0.32/27",
+            "10.20.0.64/26",
+            "10.20.0.128/25"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443
+          ],
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "SERVER-SYNC"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.0.16/28",
+            "10.20.0.32/27",
+            "10.20.0.64/26",
+            "10.20.0.128/25"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8080
+          ],
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "SERVER-SYNC"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80,
+            443
+          ],
+          "nets": [
+            "10.20.0.16/28",
+            "10.20.0.32/27",
+            "10.20.0.64/26",
+            "10.20.0.128/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "SERVER-SYNC (back)"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8080
+          ],
+          "nets": [
+            "10.20.0.16/28",
+            "10.20.0.32/27",
+            "10.20.0.64/26",
+            "10.20.0.128/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "SERVER-SYNC (back)"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "PING-ALL"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            80,
+            443
+          ],
+          "nets": [
+            "2001:db8:20::/64"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "V6-WEB"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.0.16/28",
+            "10.20.0.32/27",
+            "10.20.0.64/26",
+            "10.20.0.128/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DENY-LAN-DMZ"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": 47,
+        "source": {
+          "nets": [
+            "10.10.0.0/16"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.0.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "GRE-LAB"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "BLOCKALL"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

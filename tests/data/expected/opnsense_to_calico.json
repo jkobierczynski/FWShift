@@ -1,0 +1,310 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "Never to the blocklist (floating) 2 (not written, see the report); Guests never to the blocklist (not written, see the report); Voice from the partner - pass (not written, see the report); VPN users to the web servers (not written, see the report); Inside may ping (old kind) (not written, see the report); Default allow LAN to any rule (not written, see the report); Web publishing (not written, see the report); DMZ anywhere but LAN (disabled) (disabled in the source); DMZ ICMPv6 (not written, see the report); Servers fetch updates (not written, see the report); Servers fetch updates 2 (not written, see the report); Servers fetch updates 3 (not written, see the report); Servers fetch updates 4 (not written, see the report); Guests to the portal (no protocol, both IP versions) (not written, see the report); DMZ anywhere but LAN (disabled) 2 (disabled in the source); Guests interactive (tos) (not written, see the report); VPN users to LAN web (old kind) (not written, see the report); SSH to bastion (rule the port forward registers) (not written, see the report); Time for everyone (floating, not quick) (not written, see the report)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "198.51.100.0/30",
+            "198.51.100.4/31",
+            "198.51.100.6/32",
+            "198.51.100.8/29",
+            "198.51.100.16/28",
+            "198.51.100.32/27",
+            "198.51.100.64/26",
+            "198.51.100.128/25",
+            "203.0.113.128/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Never to the blocklist (floating)"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            25
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DMZ may not send mail out (received-on)"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.0.0.0/8",
+            "100.64.0.0/10",
+            "169.254.0.0/16",
+            "172.16.0.0/12",
+            "192.168.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block private networks from WAN"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "source": {
+          "nets": [
+            "fd00::/8",
+            "fe80::/10"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block private networks from WAN"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "192.0.2.53/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "No outside resolver (group)"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "192.0.2.53/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "No outside resolver (group)"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "172.16.20.0/24",
+            "192.168.10.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Guests stay out"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "198.51.100.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN to test net (not quick)"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "198.51.100.0/30",
+            "198.51.100.4/31",
+            "198.51.100.6/32",
+            "198.51.100.8/29",
+            "198.51.100.16/28",
+            "198.51.100.32/27",
+            "198.51.100.64/26",
+            "198.51.100.128/25",
+            "203.0.113.128/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Never to the blocklist (floating)"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            25
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "DMZ may not send mail out (received-on)"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.0.0.0/8",
+            "100.64.0.0/10",
+            "169.254.0.0/16",
+            "172.16.0.0/12",
+            "192.168.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block private networks from WAN"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "source": {
+          "nets": [
+            "fd00::/8",
+            "fe80::/10"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block private networks from WAN"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "192.0.2.53/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "No outside resolver (group)"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "destination": {
+          "ports": [
+            53
+          ],
+          "nets": [
+            "192.0.2.53/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "No outside resolver (group)"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "172.16.20.0/24",
+            "192.168.10.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Guests stay out"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "198.51.100.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN to test net (not quick)"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

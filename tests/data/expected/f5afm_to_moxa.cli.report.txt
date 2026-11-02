@@ -1,0 +1,101 @@
+FWShift conversion report
+  source: f5-afm
+  target: moxa
+
+Summary
+  Security rules:     42   exact 8, approximated 0, needs review 34 (33 emitted disabled), skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] F5AFM_NAT_NOT_READ: NAT of the BIG-IP is not read: virtual servers that send traffic to a pool or translate the source (vs_web). The rules name addresses as they arrive, before NAT, which is what the model holds
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [needs-review] MOXA_ZONES: zones that are not interfaces of the router (lan, wan1, wan2); their rules are written disabled: give --zone-map ZONE=lan|wan1|wan2 for internal, dmz, external
+  [info] F5AFM_MODE: sys db tm.fw.defaultaction is drop: Firewall mode: traffic for a virtual server that no rule decides is dropped
+  [info] F5AFM_STAGED: the global context stages the policy /Common/next_policy: a staged policy only counts and logs, and is not converted
+  [info] F5AFM_SELF_IP: self IP self_external has a firewall policy: it filters traffic to the BIG-IP itself, which is not converted
+  [info] F5AFM_ICMP_IGNORED: ICMP rules in the virtual server context, which the BIG-IP ignores, are not converted: vs_web/ping_vs, vs_web6/ping_vs
+  [info] F5AFM_VIRTUAL_REFUSES: virtual servers that are disabled or of type reject take their traffic and let none of it through: vs_web_http, vs_old_app
+  [info] F5AFM_MANAGEMENT_RULES: the rules of the management port (security firewall management-ip-rules) filter traffic to the BIG-IP itself and are not converted
+  [info] F5AFM_CONTEXTS: read as one first-match list: global context 8 rules; route domain contexts 3; virtual server contexts 5 rules for 3 virtual servers; 42 rules of the model, for 7 virtual servers in the order the BIG-IP picks them
+  [info] MOXA_LOG_NOT_WRITTEN: rules of the source log; the CLI manual FWShift read shows no logging of a policy: set it in the web console for the policies of 1 rules: global/block_bad
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled  (emitted as firewall 3)
+      [needs-review] MOXA_ZONE: zones internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  global/admins_continue>rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as firewall 4)
+      [needs-review] MOXA_ZONE: zones internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  global/admins_continue>rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as firewall 5)
+      [needs-review] MOXA_ZONE: zones internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  global/admins_continue>rd0/dmz_no_inside  ->  needs-review, emitted disabled  (emitted as firewall 6)
+      [needs-review] MOXA_ZONE: zones dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/admins_continue>vs_web6/web_in  ->  needs-review, emitted disabled  (emitted as firewall 7)
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  global/admins_continue>vs_web6/(default)  ->  needs-review, emitted disabled  (emitted as firewall 8)
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/admins_continue>vs_web/web_in  ->  needs-review, emitted disabled  (emitted as firewall 9)
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  global/admins_continue>vs_web/(default)  ->  needs-review, emitted disabled  (emitted as firewall 10)
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/admins_continue>vs_web_http/(refused)  ->  needs-review, emitted disabled  (emitted as firewall 11)
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/admins_continue>vs_inbound_dmz/(default)  ->  needs-review, emitted disabled  (emitted as firewall 16)
+      [needs-review] MOXA_ZONE: zones dmz, external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/admins_continue>vs_outbound/(default)  ->  needs-review, emitted disabled  (emitted as firewall 17)
+      [needs-review] MOXA_ZONE: zones dmz, internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/reject_telnet  ->  needs-review  (emitted as firewall 18)
+      [approximated] MOXA_RESET_AS_DROP: action reset-client written as drop, which answers nobody
+      [needs-review] MOXA_IPV4_ONLY: the rule also blocks IPv6, which the router's policies do not filter: only its IPv4 part is written
+  global/ping_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as firewall 19)
+      [needs-review] MOXA_ZONE: zones dmz, internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type or code: a policy matches every ICMP message or none.
+  global/office_ssh@vs_outbound  ->  needs-review, emitted disabled  (emitted as firewall 21)
+      [needs-review] SCHEDULE: schedule 'office_hours' is not converted; the rule would apply at all times.
+      [needs-review] MOXA_ZONE: zones internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  global/partners_in@vs_web6  ->  needs-review, emitted disabled  (emitted as firewall 22)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  global/partners_in@vs_web  ->  needs-review, emitted disabled  (emitted as firewall 23)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  global/partners_in@vs_web_http  ->  needs-review, emitted disabled  (emitted as firewall 24)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/partners_in@vs_inbound_dmz  ->  needs-review, emitted disabled  (emitted as firewall 25)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] MOXA_ZONE: zones dmz, external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  global/partners_in@vs_outbound  ->  needs-review, emitted disabled  (emitted as firewall 26)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'partners': contains 'geo:NL' (the geolocation NL (a country or region), which FWShift cannot write as addresses).
+      [needs-review] MOXA_ZONE: zones dmz, internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  global/inspect_irule>rd0/dmz_no_inside  ->  needs-review, emitted disabled  (emitted as firewall 27)
+      [needs-review] MOXA_ZONE: zones dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/inspect_irule>vs_inbound_dmz/(default)  ->  needs-review, emitted disabled  (emitted as firewall 29)
+      [needs-review] MOXA_ZONE: zones dmz, external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  global/inspect_irule>vs_outbound/(default)  ->  needs-review, emitted disabled  (emitted as firewall 30)
+      [needs-review] MOXA_ZONE: zones dmz, internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rd0/outbound/allow_dns_out@vs_dns  ->  needs-review, emitted disabled  (emitted as firewall 31)
+      [needs-review] MOXA_ZONE: zones internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  rd0/outbound/allow_dns_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as firewall 32)
+      [needs-review] MOXA_ZONE: zones internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  rd0/outbound/allow_web_out@vs_outbound  ->  needs-review, emitted disabled  (emitted as firewall 33)
+      [needs-review] MOXA_ZONE: zones internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  rd0/dmz_no_inside  ->  needs-review, emitted disabled  (emitted as firewall 34)
+      [needs-review] MOXA_ZONE: zones dmz: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  vs_web6/web_in  ->  needs-review, emitted disabled  (emitted as firewall 35)
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  vs_web6/web6_in  ->  needs-review, emitted disabled  (emitted as firewall 36)
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  vs_web6/(default)  ->  needs-review, emitted disabled  (emitted as firewall 37)
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  vs_web/web_in  ->  needs-review, emitted disabled  (emitted as firewall 38)
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  vs_web/(default)  ->  needs-review, emitted disabled  (emitted as firewall 39)
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  vs_web_http/(refused)  ->  needs-review, emitted disabled  (emitted as firewall 40)
+      [needs-review] MOXA_ZONE: zones external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  vs_inbound_dmz/(default)  ->  needs-review, emitted disabled  (emitted as firewall 44)
+      [needs-review] MOXA_ZONE: zones dmz, external: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  vs_outbound/(default)  ->  needs-review, emitted disabled  (emitted as firewall 45)
+      [needs-review] MOXA_ZONE: zones dmz, internal: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.

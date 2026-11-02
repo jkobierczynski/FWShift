@@ -1,0 +1,77 @@
+FWShift conversion report
+  source: kubernetes
+  target: checkpoint
+
+Summary
+  Security rules:     33   exact 32, approximated 0, needs review 1 (1 emitted disabled), skipped 0
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     15   exact 15, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] CHECKPOINT_SCRIPT: the output is a shell script of mgmt_cli calls. It changes one session and publishes nothing: log in, run it, review the session in SmartConsole, then publish and install the policy yourself. It stops at the first call the server refuses; discard the session before running it again
+  [needs-review] IMPLIED_RULES: Check Point applies implied rules (Global Properties) next to the rulebase, and every ordered layer of the policy package must accept a connection. Neither is part of the conversion: check that they allow no more and no less than intended
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+  [info] LAYER_PLACEMENT: the rules are written to the top of access layer 'Network', in order, and end in a cleanup rule; rules the layer held before stay below it and are no longer reached. Choose another layer with --target-layer
+  [info] NAME_COLLISIONS: Check Point predefines several hundred objects (http, https, ssh, ...). If the script stops because a name exists already, convert again with --target-prefix to give every created object a prefix
+  [info] ANY_ONE_IP_VERSION: 'any address of one IP version' is written as a range object covering that version (All-IPv4, All-IPv6)
+
+Security rules
+  payments/api-ingress/ingress-3  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).
+
+Addresses
+  shop/web-1  ->  exact  (emitted as shop_web-1)
+      [info] RENAMED: renamed to 'shop_web-1' to fit the target's naming rules
+  shop/web-1-ipv6  ->  exact  (emitted as shop_web-1-ipv6)
+      [info] RENAMED: renamed to 'shop_web-1-ipv6' to fit the target's naming rules
+  shop/web-2  ->  exact  (emitted as shop_web-2)
+      [info] RENAMED: renamed to 'shop_web-2' to fit the target's naming rules
+  shop/web-2-ipv6  ->  exact  (emitted as shop_web-2-ipv6)
+      [info] RENAMED: renamed to 'shop_web-2-ipv6' to fit the target's naming rules
+  shop/cart-1  ->  exact  (emitted as shop_cart-1)
+      [info] RENAMED: renamed to 'shop_cart-1' to fit the target's naming rules
+  shop/db-1  ->  exact  (emitted as shop_db-1)
+      [info] RENAMED: renamed to 'shop_db-1' to fit the target's naming rules
+  payments/api-1  ->  exact  (emitted as payments_api-1)
+      [info] RENAMED: renamed to 'payments_api-1' to fit the target's naming rules
+  payments/api-1-ipv6  ->  exact  (emitted as payments_api-1-ipv6)
+      [info] RENAMED: renamed to 'payments_api-1-ipv6' to fit the target's naming rules
+  payments/worker-1  ->  exact  (emitted as payments_worker-1)
+      [info] RENAMED: renamed to 'payments_worker-1' to fit the target's naming rules
+  monitoring/prometheus-0  ->  exact  (emitted as monitoring_prometheus-0)
+      [info] RENAMED: renamed to 'monitoring_prometheus-0' to fit the target's naming rules
+  dev/debug  ->  exact  (emitted as dev_debug)
+      [info] RENAMED: renamed to 'dev_debug' to fit the target's naming rules
+  kube-system/coredns-5d7f  ->  exact  (emitted as kube-system_coredns-5d7f)
+      [info] RENAMED: renamed to 'kube-system_coredns-5d7f' to fit the target's naming rules
+
+Address groups
+  shop/app=web  ->  exact  (emitted as shop_app_web)
+      [info] RENAMED: renamed to 'shop_app_web' to fit the target's naming rules
+  shop/app=cart  ->  exact  (emitted as shop_app_cart)
+      [info] RENAMED: renamed to 'shop_app_cart' to fit the target's naming rules
+  payments/app=worker  ->  exact  (emitted as payments_app_worker)
+      [info] RENAMED: renamed to 'payments_app_worker' to fit the target's naming rules
+  namespaces env NotIn (prod)  ->  exact  (emitted as namespaces_env_NotIn__prod_)
+      [info] RENAMED: renamed to 'namespaces_env_NotIn__prod_' to fit the target's naming rules
+  shop/app=db  ->  exact  (emitted as shop_app_db)
+      [info] RENAMED: renamed to 'shop_app_db' to fit the target's naming rules
+  pods payments/api-1  ->  exact  (emitted as pods_payments_api-1)
+      [info] RENAMED: renamed to 'pods_payments_api-1' to fit the target's naming rules
+  pods on node 10.0.0.11  ->  exact  (emitted as pods_on_node_10.0.0.11)
+      [info] RENAMED: renamed to 'pods_on_node_10.0.0.11' to fit the target's naming rules
+  pods on node 10.0.0.12  ->  exact  (emitted as pods_on_node_10.0.0.12)
+      [info] RENAMED: renamed to 'pods_on_node_10.0.0.12' to fit the target's naming rules
+  payments/api-ingress/ingress-1 sources  ->  exact  (emitted as payments_api-ingress_ingress-1_sources)
+      [info] RENAMED: renamed to 'payments_api-ingress_ingress-1_sources' to fit the target's naming rules
+
+Services
+  tcp-53+udp-53  ->  exact  (emitted as tcp-53_udp-53)
+      [info] RENAMED: renamed to 'tcp-53_udp-53' to fit the target's naming rules
+  tcp-8443+tcp-9000-9010  ->  exact  (emitted as tcp-8443_tcp-9000-9010)
+      [info] RENAMED: renamed to 'tcp-8443_tcp-9000-9010' to fit the target's naming rules

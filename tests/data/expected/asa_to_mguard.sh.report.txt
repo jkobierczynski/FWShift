@@ -1,0 +1,72 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: mguard
+
+Summary
+  Security rules:     18   exact 5, approximated 0, needs review 1, skipped 12
+  NAT rules:           5   exact 0, approximated 2, needs review 0, skipped 3
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): outside=external, inside=internal
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them. Behind interfaces that are in no zone of the policy, so behind none of its zones (an allow for the zone of the default route does not reach them): mgmt=192.168.1.0/24
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  outside_access_in-1  ->  needs-review  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-public' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-2' also translates the port to 8080; the service of this rule still names the post-NAT port and must be adjusted
+  outside_access_in-3  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: guest: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  outside_access_in-4  ->  exact  (emitted as 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ
+  inside_access_in-1  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: guest: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  inside_access_in-2  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: guest: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  inside_access_in-4  ->  skipped
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+      [needs-review] MGUARD_ZONE_UNKNOWN: guest: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  inside_access_in-5  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: guest: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  inside_access_in-6  ->  exact  (emitted as 2 rows of FW_OUTGOING_LANDMZ)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as 2 rows of FW_OUTGOING_LANDMZ
+  inside_access_in-7  ->  skipped
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+      [needs-review] MGUARD_ZONE_UNKNOWN: guest: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  inside_access_in-8  ->  skipped
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  inside_access_in-9  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: guest: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  dmz_access_in-1  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: guest: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  dmz_access_in-2  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: guest: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  dmz_access_in-3  ->  exact  (emitted as 1 row of FW_INCOMING_DMZ_LAN, 1 row of FW_OUTGOING_DMZWAN)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING_DMZ_LAN, a row of FW_OUTGOING_DMZWAN
+  dmz_access_in-4  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: guest: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  implicit-guest  ->  skipped
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+      [needs-review] MGUARD_ZONE_UNKNOWN: guest: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule that translates nothing (an exemption): the mGuard has none
+  nat-2  ->  skipped
+      [needs-review] MGUARD_FORWARD_BLOCKED: port forwarding skips the packet filter, and the rules of the model do not allow all of what it would forward (rule outside_access_in-4 blocks part of it): not written, as it would let in more
+  nat-mail-srv  ->  approximated  (emitted as 1:1 NAT)
+      [approximated] MGUARD_NAT_ZONES: 1:1 NAT maps between the internal and the external side; the zones of the rule are dmz -> external
+  nat-inside-net  ->  approximated  (emitted as IP masquerading)
+      [approximated] MGUARD_NAT_ZONES: the rule is for traffic from internal; IP masquerading applies to traffic from every zone
+  nat-after-auto-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the mGuard translates a source only to the address of an interface, or a network 1:1

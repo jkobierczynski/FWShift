@@ -431,8 +431,9 @@ def test_the_sessions_of_tier_3(tmp_path: Path, name: str) -> None:
     vendor = tier3.VENDORS[name]
     done = lab_conversion(tmp_path, vendor.target, vendor.options)
     assert done["report"]["summary"]  # (converted)
-    if vendor.load is not None:  # (pfSense, OPNsense: no lines typed; their config.xml is merged, test_the_pf_family_*; Sophos: its API)
-        assert (vendor.as_command or vendor.api) and not vendor.session(done["out"])
+    if vendor.load is not None:  # (pfSense, OPNsense: no lines typed; their config.xml is merged, test_the_pf_family_*; Sophos: its API;
+        # WatchGuard: its configuration exported, merged and imported, test_watchguard_*)
+        assert (vendor.as_command or vendor.api or vendor.name == "watchguard") and not vendor.session(done["out"])
         return
     session = vendor.session(done["out"])
     assert session and all("\n" not in line for line in session)
@@ -574,7 +575,8 @@ def test_every_run_dry(tmp_path: Path, run: List[str], capsys: pytest.CaptureFix
         if "--image" in run:
             assert any(line.startswith("ip netns exec fwl-sw qemu-system-x86_64") for line in log)
     probes = [line for line in log if " send --plan " in line]
-    assert len(probes) == len(labplan.HOSTS)
+    # (Network Firewall, 0.42.3: after the probes, a few flows again from their two sources, without the rule for the replies)
+    assert len(probes) == len(labplan.HOSTS) + (2 if nfw else 0), probes
     assert labcli.main(["check", str(work / "plan.json"), str(work / "results.json")]) == 0
 
 
@@ -799,12 +801,16 @@ def test_ssh_to_the_asav_allows_ssh_rsa_and_only_there() -> None:
     prefix = labrun.ssh_prefix(Path("k"), "admin", "192.0.2.4", Path("kh"), options=tier3.VENDORS["asav"].ssh_options)
     assert "HostKeyAlgorithms=+ssh-rsa" in prefix and "PubkeyAcceptedAlgorithms=+ssh-rsa" in prefix
     assert prefix[-1] == "admin@192.0.2.4"
-    others = {name: v.ssh_options for name, v in tier3.VENDORS.items() if name not in ("asav", "c8000v")}
+    others = {name: v.ssh_options for name, v in tier3.VENDORS.items() if name not in ("asav", "c8000v", "watchguard")}
     assert all(value == () for value in others.values()), others
+    # (WatchGuard: its CLI on port 4118, given as an option that ssh_prefix takes as the port, 0.42.1)
+    assert tier3.VENDORS["watchguard"].ssh_options == ("Port=4118",)
+    watchguard = labrun.ssh_prefix(Path("k"), "admin", "192.0.2.4", Path("kh"), options=("Port=4118",))
+    assert watchguard[watchguard.index("-p") + 1] == "4118" and not any(word.startswith("Port=") for word in watchguard)
     assert tier3.VENDORS["c8000v"].ssh_options == ("PubkeyAcceptedAlgorithms=+ssh-rsa",)
     # 2048 bits for the ASAv (its 511-character key line) and the 8000V (the size AWS makes); 4096 elsewhere
     bits = {name: v.key_bits for name, v in tier3.VENDORS.items()}
-    assert {name for name, value in bits.items() if value != 4096} == {"asav", "c8000v", "sophos"} and bits["asav"] == bits["sophos"] == 2048
+    assert {name for name, value in bits.items() if value != 4096} == {"asav", "c8000v", "sophos", "watchguard"} and bits["asav"] == bits["sophos"] == bits["watchguard"] == 2048
 
 
 def test_no_algorithm_in_common_ends_the_wait_at_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -881,7 +887,7 @@ def test_a_session_that_answers_almost_nothing_fails(tmp_path: Path, monkeypatch
     with pytest.raises(labrun.LabError, match="answered almost nothing"):
         tier3.session(runner, tmp_path / "id_lab", "admin", "192.0.2.4", ["terminal pager 0"], "ERROR:", "load", prompt=r"[>#] ?$")
     paced = {name for name, v in tier3.VENDORS.items() if v.prompt}
-    assert paced == {"asav", "c8000v", "sonicwall"}, paced  # (the 8000V paced too, before its first run: an IOS CLI like the ASA's)
+    assert paced == {"asav", "c8000v", "sonicwall", "watchguard"}, paced  # (the 8000V paced too, before its first run: an IOS CLI like the ASA's; WatchGuard's CLI, 0.42.1)
 
 
 def test_the_asav_interface_names_are_read_from_the_firewall() -> None:
@@ -927,7 +933,7 @@ def test_no_ready_check_stops_at_a_pager() -> None:
     try hung until the boot time ran out. A ready check whose answer is long turns the pager off."""
     assert tier3.VENDORS["vsrx"].ready.endswith("| no-more")
     for name, vendor in tier3.VENDORS.items():
-        assert "|" in vendor.ready or name in ("fortigate", "panos", "checkpoint", "sonicwall") or vendor.as_command or vendor.api, (name, vendor.ready)  # (a shell: no pager; SonicOS's show version is short)
+        assert "|" in vendor.ready or name in ("fortigate", "panos", "checkpoint", "sonicwall", "watchguard") or vendor.as_command or vendor.api, (name, vendor.ready)  # (a shell: no pager; SonicOS's show version is short; WatchGuard: its prompt is enough)
 
 
 def test_the_vsrx_is_ready_once_its_data_interfaces_exist() -> None:
@@ -1659,3 +1665,128 @@ def test_a_handshake_the_host_did_not_answer_counts_as_blocked() -> None:
     assert "intercepted 2" in labplan.render(summary)
     older = labplan.check({"target": "x", "flows": flows}, [{**r, "answered_by": ""} for r in results])  # (no probe says who it is)
     assert all(row["observed"] == "passed" for row in older["rows"])
+
+
+# -- WatchGuard Firebox Cloud (0.42.1) -------------------------------------------------------------------------------
+
+_FIREBOX = """<?xml version="1.0" encoding="UTF-8"?>
+<profile>
+ <for-version>12.12</for-version>
+ <interface-list>
+  <interface><name>External</name><if-item-list><item><physical-if><if-dev-name>eth0</if-dev-name></physical-if></item></if-item-list></interface>
+  <interface><name>Trusted</name><if-item-list><item><physical-if><if-dev-name>eth1</if-dev-name></physical-if></item></if-item-list></interface>
+  <interface><name>Optional-2</name><if-item-list><item><physical-if><if-dev-name>eth2</if-dev-name></physical-if></item></if-item-list></interface>
+  <interface><name>Optional-3</name><if-item-list><item><physical-if><if-dev-name>eth3</if-dev-name></physical-if></item></if-item-list></interface>
+ </interface-list>
+ <service-list><service><name>Ping</name></service></service-list>
+ <alias-list><alias><name>Firebox</name></alias></alias-list>
+ <abs-policy-list>
+  <abs-policy><name>WatchGuard Web UI</name><to-alias-list><alias>Firebox</alias></to-alias-list><policy-list><policy>WatchGuard Web UI-00</policy></policy-list></abs-policy>
+  <abs-policy><name>Ping</name><to-alias-list><alias>Any</alias></to-alias-list><policy-list><policy>Ping-00</policy></policy-list></abs-policy>
+ </abs-policy-list>
+ <policy-list><policy><name>WatchGuard Web UI-00</name></policy><policy><name>Ping-00</name></policy></policy-list>
+ <system-parameters><misc-global-setting><auto-order-enabled>1</auto-order-enabled></misc-global-setting></system-parameters>
+</profile>
+"""
+
+
+def test_watchguard_merge(tmp_path: Path) -> None:
+    """The lab's merge of FWShift's policy part into a Firebox's configuration: interfaces found by their device, the
+    zones renamed to them, the Firebox's own policies out except those to the Firebox, manual order; and FWShift reads
+    the result with the lab's zones mapped back."""
+    import watchguard
+
+    names = watchguard.interfaces(_FIREBOX)
+    assert names == {"eth0": "External", "eth1": "Trusted", "eth2": "Optional-2", "eth3": "Optional-3"}
+    done = lab_conversion(tmp_path, "watchguard", [])
+    zones = {zone: names[device] for zone, device in watchguard.DEVICES.items()}
+    merged, notes = watchguard.merge(_FIREBOX, done["out"].read_text(), zones)
+    root = ET.fromstring(merged.encode())
+    policies = [p.findtext("name") for p in root.findall("abs-policy-list/abs-policy")]
+    assert policies[0] == "WatchGuard Web UI" and "Ping" not in policies and len(policies) > 3, policies
+    assert [p.findtext("name") for p in root.findall("policy-list/policy")][0] == "WatchGuard Web UI-00"
+    assert root.findtext("system-parameters/misc-global-setting/auto-order-enabled") == "0"
+    used = {e.text for e in root.iter("interface") if e.text and not list(e)}
+    assert {"Trusted", "Optional-2", "Optional-3"} <= used and not used & {"inside", "dmz", "outside"}, used
+    assert any("took out the Firebox's policy Ping" in n for n in notes)
+    sys.path.insert(0, str(labrun.REPO / "src"))
+    from fwshift import cli
+    from fwshift.report import Report
+
+    policy = cli.load(merged.encode(), "watchguard", Report())
+    assert {"Trusted", "Optional-2", "Optional-3"} <= set(policy.zones), policy.zones
+
+
+def test_watchguard_tftpd_round_trip(tmp_path: Path) -> None:
+    """The lab's TFTP server takes a file and gives it back (a client written here, RFC 1350, 512-byte blocks)."""
+    import socket
+    import struct
+    import subprocess
+    import time as _time
+
+    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    probe.bind(("127.0.0.1", 0))
+    port = probe.getsockname()[1]
+    probe.close()
+    server = subprocess.Popen([sys.executable, "-I", str(labrun.REPO / "lab" / "tftpd.py"), str(tmp_path / "files"), "127.0.0.1", str(port)],
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # fmt: skip
+    try:
+        _time.sleep(0.5)
+        data = bytes(range(256)) * 9  # (2304 bytes: four full blocks and a short one)
+        client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        client.settimeout(5)
+        client.sendto(struct.pack("!H", 2) + b"cfg.xml\0octet\0", ("127.0.0.1", port))
+        answer, peer = client.recvfrom(516)
+        assert struct.unpack("!HH", answer[:4]) == (4, 0)
+        for block in range(1, len(data) // 512 + 2):
+            client.sendto(struct.pack("!HH", 3, block) + data[(block - 1) * 512:block * 512], peer)
+            answer, _ = client.recvfrom(516)
+            assert struct.unpack("!HH", answer[:4]) == (4, block)
+        for _ in range(20):
+            if (tmp_path / "files" / "cfg.xml").exists():
+                break
+            _time.sleep(0.1)
+        assert (tmp_path / "files" / "cfg.xml").read_bytes() == data
+        client.sendto(struct.pack("!H", 1) + b"/cfg.xml\0octet\0", ("127.0.0.1", port))
+        got = b""
+        while True:
+            packet, peer = client.recvfrom(516)
+            op, block = struct.unpack("!HH", packet[:4])
+            assert op == 3
+            got += packet[4:]
+            client.sendto(struct.pack("!HH", 4, block), peer)
+            if len(packet) - 4 < 512:
+                break
+        assert got == data
+        client.sendto(struct.pack("!H", 1) + b"../etc/passwd\0octet\0", ("127.0.0.1", port))
+        packet, _ = client.recvfrom(516)
+        assert struct.unpack("!H", packet[:2])[0] == 5  # (only plain names in the one folder: an error)
+    finally:
+        server.terminate()
+        server.wait(timeout=10)
+
+
+def test_network_firewall_diagnosis_after_a_failed_run(tmp_path: Path) -> None:
+    """The second Network Firewall run (0.42.1) blocked every connection, with a rule for the replies: after a failed run
+    the lab keeps the routes, the firewall's counters, and a control with a rule group that passes everything."""
+    import awsnfw
+
+    runner = labrun.Runner(tmp_path, dry_run=True, echo=False)
+    done = lab_conversion(tmp_path, "aws-network-firewall", awsnfw.conversion("fwlabtest")[1])
+    data = labplan.build_plan("aws-network-firewall", done["report"], through_target_inside_zone=False, refused_means="blocked")
+    outputs = {"vpc_id": "vpc-x", "user": "ec2-user", "hosts": tier1.fake_hosts()}
+    awsnfw.diagnose(runner, "us-east-1", "fwlabtest", tmp_path / "id_lab", outputs, data, passed=False)
+    text = (tmp_path / "diagnose.txt").read_text()
+    assert "== control" in text and "with a rule group that passes everything" in text
+    assert all(flow in text for flow in awsnfw.CONTROL) and all(any(f["id"] == flow for f in data["flows"]) for flow in awsnfw.CONTROL)
+    group = json.loads((tmp_path / "control-rulegroup.json").read_text())
+    assert group["RulesSource"] == {"RulesString": awsnfw.CONTROL_RULES}
+    assert any("update-rule-group" in line and "--update-token" in line for line in runner.log)
+    assert "without the rule for the replies" in text and (tmp_path / "replies-test" / "plan.json").exists()
+    runner = labrun.Runner(tmp_path / "passed", dry_run=True, echo=False)
+    runner.work.mkdir()
+    awsnfw.diagnose(runner, "us-east-1", "fwlabtest", tmp_path / "id_lab", outputs, data, passed=True)
+    text = (runner.work / "diagnose.txt").read_text()
+    # (a run that passed: no control with everything passed; the test without the reply rule still runs, 0.42.3)
+    assert "== control" not in text and "without the rule for the replies" in text
+    assert sum("update-rule-group" in line for line in runner.log) == 1

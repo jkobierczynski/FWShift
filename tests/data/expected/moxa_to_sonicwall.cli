@@ -1,0 +1,118 @@
+configure terminal
+address-object ipv4 "wan1-address" host 203.0.113.2 zone lan
+address-object ipv4 "wan2-address" host 198.51.100.2 zone lan
+address-object ipv4 "r 192.168.127.10-192.168.127.20" range 192.168.127.10 192.168.127.20 zone lan
+address-object ipv4 "h 172.16.40.5" host 172.16.40.5 zone lan
+address-object ipv4 "n 198.51.100.0_24" network 198.51.100.0 255.255.255.0 zone lan
+address-object ipv4 "h 192.168.127.50" host 192.168.127.50 zone lan
+address-object ipv4 "h 192.168.127.30" host 192.168.127.30 zone lan
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone lan
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone lan
+address-object ipv4 "r 192.168.127.60-192.168.127.69" range 192.168.127.60 192.168.127.69 zone lan
+address-object ipv4 "h 198.51.100.60" host 198.51.100.60 zone lan
+address-object ipv4 "r 192.168.127.200-192.168.127.25" range 192.168.127.200 192.168.127.250 zone lan
+address-object ipv4 "h 192.168.127.60" host 192.168.127.60 zone lan
+address-object ipv4 "r 192.168.127.1-192.168.127.199" range 192.168.127.1 192.168.127.199 zone lan
+address-group ipv4 "dst firewall 3"
+    address-object ipv4 "h 192.168.127.50"
+    address-object ipv4 "wan1-address"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv4 "dst firewall 8"
+    address-object ipv4 "r 192.168.127.60-192.168.127.69"
+    address-object ipv4 "h 198.51.100.60"
+    exit
+address-group ipv4 "dst firewall 10"
+    address-object ipv4 "h 192.168.127.60"
+    address-object ipv4 "h 198.51.100.60"
+    exit
+service-object "tcp-502" TCP 502 502
+service-object "tcp-23" TCP 23 23
+service-object "tcp-443" TCP 443 443
+service-object "tcp-8080-8090" TCP 8080 8090
+service-object "tcp-22" TCP 22 22
+service-object "tcp-8443" TCP 8443 8443
+service-object "tcp 443" TCP 443 443
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "wan1-address" translated-destination name "h 192.168.127.50" service name "tcp-8443" translated-service name "tcp 443"
+    name "ip nat 1"
+    comment "ip nat static tcp inside lan 192"
+    priority manual 1
+    exit
+nat-policy ipv4 inbound any outbound any source name "h 192.168.127.60" translated-source name "h 198.51.100.60" destination any translated-destination original service any translated-service original
+    name "ip nat 2"
+    comment "ip nat static inside lan 192.168"
+    priority manual 2
+    exit
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 198.51.100.60" translated-destination name "h 192.168.127.60" service any translated-service original
+    name "ip nat 2 in"
+    comment "inbound of ip nat 2"
+    priority manual 3
+    exit
+access-rule ipv4 from lan to wan1 action allow source address name "r 192.168.127.10-192.168.127.20" service name "tcp-502" destination address name "h 172.16.40.5"
+    name "firewall 1"
+    priority manual 1
+    exit
+access-rule ipv4 from wan1 to lan action discard source address any service name "tcp-23" destination address any
+    name "firewall 2"
+    priority manual 2
+    exit
+access-rule ipv4 from wan1 to lan action allow source address name "n 198.51.100.0_24" service name "tcp-443" destination address group "dst firewall 3"
+    name "firewall 3"
+    priority manual 3
+    exit
+access-rule ipv4 from lan to wan2 action allow source address name "h 192.168.127.30" service any destination address any
+    name "firewall 4"
+    priority manual 4
+    no enable
+    exit
+access-rule ipv4 from lan to lan action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "firewall 5"
+    priority manual 5
+    no enable
+    exit
+access-rule ipv4 from lan to wan1 action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "firewall 5 2"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from lan to wan2 action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "firewall 5 3"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from wan2 to lan action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "firewall 6"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from lan to wan1 action allow source address group "FWSHIFT all IPv4" service any destination address any
+    name "firewall 7"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from wan2 to lan action allow source address any service name "tcp-8080-8090" destination address group "dst firewall 8"
+    name "firewall 8"
+    priority manual 10
+    no enable
+    exit
+access-rule ipv4 from lan to lan action discard source address name "r 192.168.127.200-192.168.127.25" service any destination address any
+    name "firewall 9"
+    priority manual 11
+    exit
+access-rule ipv4 from lan to wan1 action discard source address name "r 192.168.127.200-192.168.127.25" service any destination address any
+    name "firewall 9 2"
+    priority manual 12
+    exit
+access-rule ipv4 from lan to wan2 action discard source address name "r 192.168.127.200-192.168.127.25" service any destination address any
+    name "firewall 9 3"
+    priority manual 13
+    exit
+access-rule ipv4 from wan2 to lan action allow source address any service name "tcp-22" destination address group "dst firewall 10"
+    name "firewall 10"
+    priority manual 14
+    exit
+commit
+exit

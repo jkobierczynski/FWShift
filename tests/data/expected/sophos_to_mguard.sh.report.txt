@@ -1,0 +1,88 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: mguard
+
+Summary
+  Security rules:     17   exact 2, approximated 5, needs review 1, skipped 9
+  NAT rules:           6   exact 0, approximated 0, needs review 1, skipped 5
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): LAN=internal, WAN=external, DMZ=dmz
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  Block countries  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked countries': country group. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'Blocked countries' holds members only its platform knows, or an address the profile does not hold. This deny rule is NOT enforced; rules below it may match more traffic.
+  LAN to Internet web  ->  approximated  (emitted as 2 rows of FW_OUTGOING)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as 2 rows of FW_OUTGOING
+  Admins to DMZ  ->  needs-review  (emitted as 1 row of FW_OUTGOING_LANDMZ)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: the ICMP of the rule is left out, so it allows less
+  LAN to DMZ web not mail  ->  approximated  (emitted as 1 row of FW_OUTGOING_LANDMZ)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [info] NEGATION_EXPANDED: a row of the mGuard cannot negate: written as an IP group of the IPv4 addresses that are left
+  LAN SSH out  ->  skipped
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] MGUARD_ZONE_UNKNOWN: OT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  LAN SSH out-2  ->  skipped
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] MGUARD_ZONE_UNKNOWN: OT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Internet to web  ->  approximated  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+  Internet to mail  ->  approximated  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+  OT to SCADA  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: OT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  DMZ updates  ->  approximated  (emitted as 1 row of FW_OUTGOING_DMZWAN)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+      [approximated] MGUARD_HOSTNAME: host names are written into an IP group: the mGuard resolves them for IPv4 with its own DNS settings (an FL MGUARD 2000 takes none)
+  Finance to app  ->  skipped
+      [needs-review] USER_MATCH: source user match Finance is not converted.
+  DNS in office hours  ->  skipped
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+      [needs-review] MGUARD_ZONE_UNKNOWN: OT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Old test rule  ->  skipped
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  Reject the rest from LAN  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_OUTGOING_LANDMZ)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_OUTGOING_LANDMZ
+      [info] MGUARD_REJECT: action reset-client: written as Reject
+  LAN6 to Internet  ->  skipped
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  Publish web  ->  skipped
+      [needs-review] MGUARD_FORWARD_BLOCKED: port forwarding skips the packet filter, and the rules of the model do not allow all of what it would forward (rule Block countries may decide part of it and cannot be read exactly): not written, as it would let in more
+  Publish mail  ->  skipped
+      [needs-review] MGUARD_FORWARD_BLOCKED: port forwarding skips the packet filter, and the rules of the model do not allow all of what it would forward (rule Block countries may decide part of it and cannot be read exactly): not written, as it would let in more
+  Mail server out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the mGuard translates a source only to the address of an interface, or a network 1:1
+  No NAT to partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule that translates nothing (an exemption): the mGuard has none
+  NAT of LAN to Internet web  ->  skipped
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+      [needs-review] NAT_NOT_CONVERTED: not converted: IP masquerading has no destination or service
+  Default SNAT IPv4  ->  needs-review  (emitted as IP masquerading)
+      [needs-review] NAT_ORDER: NAT rule 'Publish web' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: NAT rule 'Publish mail' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: NAT rule 'Mail server out' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: NAT rule 'No NAT to partner' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: NAT rule 'NAT of LAN to Internet web' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+
+Addresses
+  any-example-org  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+  Blocked countries  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted

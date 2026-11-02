@@ -1,0 +1,63 @@
+FWShift conversion report
+  source: stormshield
+  target: moxa
+
+Summary
+  Security rules:     18   exact 2, approximated 0, needs review 14 (11 emitted disabled), skipped 2
+  Addresses:          22   exact 22, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  [needs-review] STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  [needs-review] STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  [needs-review] STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [needs-review] MOXA_ZONES: zones that are not interfaces of the router (lan, wan1, wan2); their rules are written disabled: give --zone-map ZONE=lan|wan1|wan2 for in, out, lab
+  [info] STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  [info] STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+  [info] MOXA_LOG_NOT_WRITTEN: rules of the source log; the CLI manual FWShift read shows no logging of a policy: set it in the web console for the policies of 5 rules: global 1, local 2, local 3, local 6, local 16
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  local 1  ->  needs-review, emitted disabled  (emitted as firewall 2)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] MOXA_ZONE: zones in: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  local 2  ->  needs-review  (emitted as firewall 3-14)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 4  ->  needs-review, emitted disabled  (emitted as firewall 16)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (inspection=ips); attach equivalent inspection on the target
+      [needs-review] MOXA_TOO_MANY: the rule would need 36 policies (more than 32).
+  local 5  ->  needs-review, emitted disabled  (emitted as firewall 17)
+      [needs-review] MOXA_ZONE: zones in: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  local 6  ->  needs-review  (emitted as firewall 18-20)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [approximated] MOXA_RESET_AS_DROP: action reset-client written as drop, which answers nobody
+  local 8  ->  needs-review, emitted disabled  (emitted as firewall 21)
+      [needs-review] MOXA_ZONE: zones out: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  local 9  ->  needs-review, emitted disabled  (emitted as firewall 22)
+      [needs-review] MOXA_ZONE: zones out: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  local 10  ->  needs-review, emitted disabled  (emitted as firewall 23)
+      [needs-review] STORMSHIELD_BRIDGE: names a bridge or a port of one: read as that interface only; whether the firewall matches the bridge for its ports, or the reverse, is not documented
+      [needs-review] MOXA_ZONE: zones lab: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  local 11  ->  needs-review, emitted disabled  (emitted as firewall 24)
+      [needs-review] USER_MATCH: source user match staff@corp.example is not converted.
+  local 12  ->  needs-review, emitted disabled  (emitted as firewall 25)
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 200: a policy names all, TCP, UDP or ICMP.
+  local 13  ->  needs-review, emitted disabled  (emitted as firewall 26)
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: a policy names IPv4 addresses only.
+  local 14  ->  needs-review, emitted disabled  (emitted as firewall 27)
+      [needs-review] NOT_WRITTEN: the rule matches no IPv4 address: the router's policies are IPv4.
+  local 15  ->  needs-review, emitted disabled  (emitted as firewall 28)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application protocol=http); attach equivalent inspection on the target
+      [needs-review] FQDN_NOT_SUPPORTED: host name object www.example.org: a policy names IPv4 addresses only.
+  local 16  ->  needs-review  (emitted as firewall 29)
+      [needs-review] MOXA_IPV4_ONLY: the rule also blocks IPv6, which the router's policies do not filter: only its IPv4 part is written
+  global 2  ->  skipped
+      [info] STORMSHIELD_DELEG: deleg of everything: the rest goes to the local policy
+  local 7  ->  skipped
+      [info] STORMSHIELD_NON_TERMINAL: action decrypt: the firewall goes on to the next rule; nothing is decided here

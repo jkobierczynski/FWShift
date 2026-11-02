@@ -1,0 +1,46 @@
+FWShift audit
+  source: calico
+  security rules: 67 (0 disabled), NAT rules: 0
+
+Summary
+  high 0, medium 10, low 27, info 1
+
+Findings in the policy as it was read
+  [medium] ANY_SERVICE: rule 'shop/web-calico/egress-2' allows any service between its addresses, from any zone to any zone
+  [medium] RISKY_SERVICE: rule 'shop/web-calico/ingress-4' allows tftp, netbios, rdp, snmp, from any zone to any zone (on the list of the cleartext and remote administration protocols)
+  [medium] ANY_SERVICE: rule 'payments/api-ingress/ingress-3' allows any service between its addresses, from any zone to any zone
+  [medium] ANY_SERVICE: rule 'dev/not-from-prod/ingress-1' allows any service between its addresses, from any zone to any zone
+  [medium] ANY_SERVICE: rule 'not isolated: from pods' allows any service to any destination, from any zone to any zone
+  [medium] ANY_SERVICE: rule 'not isolated: to pods' allows any service from any source, from any zone to any zone
+  [medium] SHADOWED_RULE: rule 'shop/web-calico/ingress-5' never matches: the rule allows traffic from any zone to any zone, but all it could match is taken by earlier rules: 'shop/web-calico/egress-3' blocks it
+  [medium] SHADOWED_RULE: rule 'payments/api-ingress/ingress-1' never matches: the rule allows traffic from any zone to any zone, but all it could match is taken by earlier rules: 'shop/web-calico/egress-3', 'default tier end/egress', 'default tier end/egress-2', 'default tier end/egress-3' block it
+  [medium] SHADOWED_RULE: rule 'payments/api-ingress/ingress-1-2' never matches: the rule allows traffic from any zone to any zone, but all it could match is taken by earlier rules: 'shop/web-calico/egress-3', 'default tier end/egress', 'default tier end/egress-2', 'default tier end/egress-3' block it
+  [medium] SHADOWED_RULE: rule 'payments/api-ingress/ingress-3' never matches: the rule allows traffic from any zone to any zone, but all it could match is taken by earlier rules: 'platform.dns/egress-2-5', 'default tier end/egress-3' block it
+  [low] WIDE_NETWORK: rule 'security.ping/ingress-1' allows traffic for '10.0.0.0/8', from any zone to any zone
+  [low] ANY_SOURCE: rule 'security.ping/ingress-2' allows any source, from any zone to any zone
+  [low] WIDE_NETWORK: rule 'shop/web-calico/ingress-3' allows traffic for '10.0.0.0/8', from any zone to any zone
+  [low] WIDE_PORTS: rule 'shop/web-calico/ingress-4' allows the ports sctp/0-65535, udp/0-65535, from any zone to any zone
+  [low] INDUSTRIAL_SERVICE: rule 'shop/web-calico/ingress-4' allows dnp3, ethernet-ip, bacnet, profinet, fins, from any zone to any zone (on the list of the industrial control protocols)
+  [low] WIDE_NETWORK: rule 'shop/allow-web/ingress-1' allows traffic for '0.0.0.0-9.255.255.255', '11.0.0.0-192.167.255.255', '192.169.0.0-255.255.255.255', from any zone to any zone
+  [low] WIDE_NETWORK: rule 'shop/allow-web/ingress-1-2' allows traffic for '0.0.0.0-9.255.255.255', '11.0.0.0-192.167.255.255', '192.169.0.0-255.255.255.255', from any zone to any zone
+  [low] ANY_SOURCE: rule 'payments/api-calico/ingress-2' allows any source, from any zone to any zone
+  [low] REDUNDANT_RULE: rule 'shop/web-to-cart/ingress-1' never matches: 'shop/web-calico/egress-1 + shop/web-to-cart/ingress-1' above it already allows everything it could match
+  [low] REDUNDANT_RULE: rule 'shop/cart-to-db/ingress-1' never matches: 'shop/cart-egress/egress-1 + shop/cart-to-db/ingress-1' above it already allows everything it could match
+  [low] REDUNDANT_RULE: rule 'security.block-threats/egress-1' adds nothing: 'shop/web-calico/egress-3' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'security.block-threats/egress-1-2' adds nothing: 'default tier end/egress' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'platform.dns/egress-2-2' adds nothing: 'default tier end/egress' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'security.block-threats/egress-1-3' adds nothing: 'default tier end/egress-2' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'platform.dns/egress-2-3' adds nothing: 'default tier end/egress-2' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'security.block-threats/egress-1-5' adds nothing: 'default tier end/egress-3' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'platform.dns/egress-2-5' adds nothing: 'default tier end/egress-3' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'security.block-threats/ingress-2' adds nothing: 'default tier end/ingress' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'shop/web-calico/ingress-1' adds nothing: 'shop/allow-web/ingress-1' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'shop/web-calico/ingress-1-2' adds nothing: 'shop/allow-web/ingress-1-2' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'security.block-threats/ingress-1-2' adds nothing: 'default tier end/ingress-2' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'security.block-threats/ingress-2-2' adds nothing: 'default tier end/ingress-2' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'security.block-threats/ingress-1-3' adds nothing: 'default tier end/ingress-3' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'security.block-threats/ingress-2-3' adds nothing: 'default tier end/ingress-3' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'payments/api-calico/ingress-1' adds nothing: 'payments/api-calico/ingress-2' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'security.block-threats/ingress-1-5' adds nothing: 'default tier end/ingress-5' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'security.block-threats/ingress-2-5' adds nothing: 'default tier end/ingress-5' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [info] UNUSED_OBJECT: 2 address groups no rule uses: 'ns-payments', 'ns-shop'

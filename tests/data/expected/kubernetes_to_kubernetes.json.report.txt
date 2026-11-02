@@ -1,0 +1,37 @@
+FWShift conversion report
+  source: kubernetes
+  target: kubernetes
+
+Summary
+  Security rules:     33   exact 28, approximated 0, needs review 1 (1 emitted disabled), skipped 4
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     15   exact 15, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] K8S_LOAD: the output is a List of NetworkPolicies for kubectl apply -n NAMESPACE -f FILE (kubectl apply --dry-run=server checks it first). It names no namespace: apply it in the namespace of the pods it is for, and in each such namespace. Policies of the same name are replaced; nothing else is changed. A policy selects the pods labelled fwshift/group=<its group>, and no pod has that label yet: nothing changes until pods are labelled
+  [needs-review] K8S_EVERY_POD: only the addresses of the pods (of the source) get groups, and an egress rule leaves a connection to them to the ingress rules of the destination's policy: every one of those pods must get its label, or connections to it are allowed that the source did not allow
+  [needs-review] K8S_LABEL_PODS: 12 groups: label each pod with fwshift/group=<group> of the policy whose fwshift/addresses annotation holds the pod's address (kubectl label pod POD ...). A pod's address changes when it is created again: label the pods through their Deployment or StatefulSet template, where every address the template's pods get must be in that group. A pod with addresses of both IP versions needs a group that holds both
+  [needs-review] K8S_IPBLOCK_PODS: the peers are written as ipBlock. Whether an ipBlock matches the addresses of pods depends on the network plugin (the Kubernetes documentation says ipBlock is meant for addresses outside the cluster); where it does not, rules between pods allow nothing
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+  [info] K8S_PLATFORM_ALLOWS: a NetworkPolicy always allows traffic between a pod and the node it runs on, and a pod to itself; and it is only guaranteed to decide TCP, UDP and SCTP (for ICMP and other protocols the network plugin decides)
+
+Security rules
+  shop/web-to-cart/ingress-1  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  shop/cart-to-db/ingress-1  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  payments/api-ingress/ingress-1  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  payments/api-ingress/ingress-1-2  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  payments/api-ingress/ingress-3  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).
+  not isolated: from pods  ->  exact  (emitted as NetworkPolicies fwshift-ns-kube-system, fwshift-pods-payments-api-1, fwshift-ns-monitoring, fwshift-ns-dev, fwshift-ns-payments-ipv6)
+      [info] DENY_SUBTRACTED: a NetworkPolicy cannot block: the rule is written without what the blocking rules above it match
+  not isolated: to pods  ->  exact  (emitted as NetworkPolicies fwshift-ns-kube-system, fwshift-pods-payments-api-1, fwshift-ns-monitoring, fwshift-ns-dev)
+      [info] DENY_SUBTRACTED: a NetworkPolicy cannot block: the rule is written without what the blocking rules above it match

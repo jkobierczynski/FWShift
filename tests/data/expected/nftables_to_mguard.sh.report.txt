@@ -1,0 +1,71 @@
+FWShift conversion report
+  source: nftables
+  target: mguard
+
+Summary
+  Security rules:     16   exact 0, approximated 0, needs review 1, skipped 15
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  Banned by fail2ban  ->  skipped
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced; rules below it may match more traffic.
+  Block bad hosts  ->  needs-review  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  Guests stay in  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: eth1, eth0: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  LAN web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: eth1, eth0: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  LAN DNS  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: eth1, eth0: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Rate limited mail  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.
+      [needs-review] MGUARD_ZONE_UNKNOWN: eth1, eth0: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Partner tunnel  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: eth1, eth0: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Admins  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: eth1, eth2: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Ping the DMZ  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: eth1, eth2: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  SCADA to PLCs  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: eth1, eth3: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  OT no internet  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: eth3, eth0: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Inbound web  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.0.10' because of NAT rule 'Web DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Web DNAT' also translates the port to 8443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] MGUARD_ZONE_UNKNOWN: eth0, eth2: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Inbound mail  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to '10.20.0.25' because of NAT rule 'Mail DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: eth0, eth2: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Inbound IPv6  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: eth0, eth2: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  DMZ updates  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: eth2, eth0: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ICMPv6 basics  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+
+NAT rules
+  Web DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: port forwarding is for traffic that arrives on the external side
+  Mail DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: port forwarding takes tcp or udp with a port, or gre
+  No NAT to partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule that translates nothing (an exemption): the mGuard has none
+  DMZ out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the mGuard translates a source only to the address of an interface, or a network 1:1
+  LAN out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IP masquerading names one interface (or all external ones)

@@ -1,0 +1,49 @@
+FWShift conversion report
+  source: barracuda (forwarding firewall)
+  target: hisecos
+
+Summary
+  Security rules:     17   exact 9, approximated 1, needs review 5 (5 emitted disabled), skipped 2
+  Addresses:           8   exact 8, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CONNECTION_NOT_READ: rules whose connection object translates the source address: 'LAN-2-INTERNET'. Source NAT is not read; the rules are, as they match
+  [needs-review] HISECOS_LOAD: the output is a CLI script of HiSecOS (section 10): commands of the Global Config mode that add rules 1001 to 1034 of the packet filter (they must be free) with their interface assignments, and NAT rules, and that delete nothing. The keywords are FWShift's reading of Belden's MIBs and command list, not confirmed on a device: check the script with 'script validate' first. Nothing applies until you commit: read 'show packet-filter l3 pending', then 'packet-filter l3 commit' (and 'nat dnat commit', 'nat masq commit', 'nat 1to1nat commit'). Rules of the device with lower priorities on the same interfaces come first, and its default policy is not changed. To take the rules away again: 'packet-filter l3 delif' for each assignment, then 'packet-filter l3 delrule N' for N from 1001 to 1034
+  [needs-review] INTERFACES_REQUIRED: zones are written as the routing interfaces of the device (1/1, vlan/10): these names are not such interfaces, and the device refuses the assignments that name them. Map the zones with --zone-map, or their interfaces with --interface-map: port1, port2
+  [info] BARRACUDA_FORMAT: read 15 forwarding rules, 10 network objects and 8 service objects from 19 answers of the REST API. Barracuda documents that API by examples only: the keys read are those its examples and published tools show, and a key of a rule, an object or an entry this parser does not know makes it unusable
+  [info] ICMP_LIMITS: service objects that limit the size or rate of ICMP echo requests: 'Ping'. The limits are not converted: the rules allow ICMP of any size and rate
+  [info] HISECOS_IPV4_ONLY: HiSecOS filters IPv4: the IPv6 addresses and ICMPv6 of these rules are not written: BLOCK-BAD-V6, V6-WEB
+
+Security rules
+  BLOCK-BAD-V6  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  ADMIN-SSH (port2)  ->  exact  (emitted as rules 1002-1005)
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+  ADMIN-SSH (port1)  ->  exact  (emitted as rules 1006-1009)
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+  WEB-IN  ->  needs-review, emitted disabled  (emitted as rule 1011)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Dst NAT: how the API spells its target list is not known, so the translation is not read.
+  SERVER-SYNC  ->  exact  (emitted as rules 1012-1015)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  SERVER-SYNC (back)  ->  exact  (emitted as rules 1016-1019)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  DNS-OUT  ->  exact  (emitted as rules 1020-1023)
+      [info] HISECOS_DISABLED: disabled in the source; written with disablerule
+  PING-ALL  ->  approximated  (emitted as rule 1024)
+      [approximated] ICMP_LIMITS: service 'Ping' limits the size or rate of ICMP echo requests; the limits are not converted
+  UPDATES  ->  needs-review, emitted disabled  (emitted as rule 1025 (a placeholder, disabled))
+      [needs-review] HISECOS_FQDN: the destination holds host names (updates.example.com (IPv4)); a rule of HiSecOS takes addresses only.
+  V6-WEB  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  DENY-LAN-DMZ  ->  exact  (emitted as rules 1026-1029)
+      [info] RESET_ACTION: action reset-client becomes reject, which answers the sender with an ICMP message, not a TCP reset
+  GRE-LAB  ->  needs-review, emitted disabled  (emitted as rule 1030 (a placeholder, disabled))
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application=urlFilter, ips=Default); attach equivalent inspection on the target
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any.
+  TO-LAB  ->  needs-review, emitted disabled  (emitted as rule 1031)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Cascade: the rules of the rule list it hands traffic to are not read, and they decide that traffic. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ODD  ->  needs-review, emitted disabled  (emitted as rule 1032)
+      [needs-review] SCHEDULE: schedule '{"type": "recurring", "name": "Work-Hours"}' is not converted; the rule would apply at all times.

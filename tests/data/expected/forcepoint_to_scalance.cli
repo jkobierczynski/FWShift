@@ -1,0 +1,85 @@
+configure terminal
+firewall
+service name FWS_SG_Control proto tcp src all dst range 3020 - 3021
+service name FWS_udp_53 proto udp src all dst port 53
+service name FWS_tcp_53 proto tcp src all dst port 53
+service name FWS_HTTPS proto tcp src all dst port 443
+service name FWS_tcp_8443 proto tcp src all dst port 8443
+service name FWS_tcp_8000-8010 proto tcp src all dst range 8000 - 8010
+service name FWS_SSH proto tcp src all dst port 22
+service name FWS_HTTP proto tcp src all dst port 80
+icmp name FWS_Echo_Request type 8 code 0 ver ipv4
+proto name FWS_GRE num 47
+service name FWS_syslog-from-514 proto udp src port 514 dst port 514
+service name FWS_udp_137-138 proto udp src all dst range 137 - 138
+service name FWS_tcp_139 proto tcp src all dst port 139
+service name FWS_Ident proto tcp src all dst port 113
+icmp name FWS_IPv6_Echo_Request type 128 code 0 ver ipv6
+ipv4rule from Internal to External srcip 0.0.0.0/0 dstip 192.168.10.53 action acc service FWS_udp_53 log no prior 1
+ipv4rule from Internal to External srcip 0.0.0.0/0 dstip 192.168.10.53 action acc service FWS_tcp_53 log no prior 1
+ipv4rule from External to Internal srcip 0.0.0.0/0 dstip 192.168.10.53 action acc service FWS_udp_53 log no prior 1
+ipv4rule from External to Internal srcip 0.0.0.0/0 dstip 192.168.10.53 action acc service FWS_tcp_53 log no prior 1
+ipv4rule from Internal to External srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_HTTPS log info prior 2
+ipv4rule from Internal to External srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_8443 log info prior 2
+ipv4rule from Internal to External srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_8000-8010 log info prior 2
+ipv4rule from External to Internal srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_HTTPS log info prior 2
+ipv4rule from External to Internal srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_8443 log info prior 2
+ipv4rule from External to Internal srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_8000-8010 log info prior 2
+ipv4rule from Internal to External srcip 10.1.5.10-10.1.5.20 dstip 192.168.10.0/24 action acc service FWS_SSH log info prior 2
+ipv4rule from External to Internal srcip 10.1.5.10-10.1.5.20 dstip 192.168.10.0/24 action acc service FWS_SSH log info prior 2
+ipv4rule from Internal to External srcip 10.1.0.1-10.1.255.254 dstip 192.168.10.0/24 action drop service FWS_SSH log info prior 3
+ipv4rule from External to Internal srcip 10.1.0.1-10.1.255.254 dstip 192.168.10.0/24 action drop service FWS_SSH log info prior 3
+ipv4rule from Internal to External srcip 10.1.5.10-10.1.5.20 dstip 203.0.113.10 action rej service FWS_tcp_8443 log info prior 4
+ipv4rule from External to Internal srcip 10.1.5.10-10.1.5.20 dstip 203.0.113.10 action rej service FWS_tcp_8443 log info prior 4
+ipv4rule from Internal to External srcip 10.1.0.1-10.1.255.254 dstip 0.0.0.0/0 action acc service FWS_tcp_8443 log info prior 5
+ipv4rule from Internal to External srcip 10.1.0.1-10.1.255.254 dstip 0.0.0.0/0 action acc service FWS_tcp_8000-8010 log info prior 5
+ipv4rule from Internal to External srcip 10.1.0.1-10.1.255.254 dstip 0.0.0.0-192.168.9.255 action acc service FWS_HTTPS log info prior 5
+ipv4rule from Internal to External srcip 10.1.0.1-10.1.255.254 dstip 192.168.11.0-255.255.255.255 action acc service FWS_HTTPS log info prior 5
+ipv4rule from External to Internal srcip 10.1.0.1-10.1.255.254 dstip 0.0.0.0-192.168.9.255 action acc service FWS_HTTPS log info prior 5
+ipv4rule from External to Internal srcip 10.1.0.1-10.1.255.254 dstip 192.168.11.0-255.255.255.255 action acc service FWS_HTTPS log info prior 5
+ipv4rule from Internal to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_HTTP log info prior 5
+ipv4rule from Internal to External srcip 192.168.10.10/31 dstip 0.0.0.0/0 action acc service FWS_HTTP log info prior 5
+ipv4rule from Internal to External srcip 10.1.0.0/16 dstip 0.0.0.0/0 action acc service FWS_Echo_Request log info prior 5
+ipv4rule from Internal to External srcip 172.16.30.0/24 dstip 0.0.0.0/0 action acc service FWS_Echo_Request log info prior 5
+ipv4rule from External to Internal srcip 10.1.0.0/16 dstip 0.0.0.0/0 action acc service FWS_Echo_Request log info prior 5
+ipv4rule from External to Internal srcip 172.16.30.0/24 dstip 0.0.0.0/0 action acc service FWS_Echo_Request log info prior 5
+ipv4rule from Internal to External srcip 172.16.30.0/24 dstip 0.0.0.0/0 action acc service FWS_HTTPS log info prior 5
+ipv4rule from External to Internal srcip 172.16.30.0/24 dstip 0.0.0.0/0 action acc service FWS_HTTPS log info prior 5
+ipv4rule from Internal to External srcip 10.1.0.1-10.1.255.254 dstip 198.51.100.1 action acc service FWS_GRE log info prior 5
+ipv4rule from External to Internal srcip 10.1.0.1-10.1.255.254 dstip 198.51.100.1 action acc service FWS_GRE log info prior 5
+ipv4rule from Internal to External srcip 10.1.0.0-10.1.5.9 dstip 192.168.10.25 action acc service FWS_syslog-from-514 log info prior 5
+ipv4rule from Internal to External srcip 10.1.0.0-10.1.5.9 dstip 192.168.10.25 action acc service FWS_Echo_Request log info prior 5
+ipv4rule from Internal to External srcip 10.1.5.21-10.1.255.255 dstip 192.168.10.25 action acc service FWS_syslog-from-514 log info prior 5
+ipv4rule from Internal to External srcip 10.1.5.21-10.1.255.255 dstip 192.168.10.25 action acc service FWS_Echo_Request log info prior 5
+ipv4rule from External to Internal srcip 10.1.0.0-10.1.5.9 dstip 192.168.10.25 action acc service FWS_syslog-from-514 log info prior 5
+ipv4rule from External to Internal srcip 10.1.0.0-10.1.5.9 dstip 192.168.10.25 action acc service FWS_Echo_Request log info prior 5
+ipv4rule from External to Internal srcip 10.1.5.21-10.1.255.255 dstip 192.168.10.25 action acc service FWS_syslog-from-514 log info prior 5
+ipv4rule from External to Internal srcip 10.1.5.21-10.1.255.255 dstip 192.168.10.25 action acc service FWS_Echo_Request log info prior 5
+ipv4rule from Internal to External srcip 172.16.30.0/24 dstip 10.1.0.1-10.1.255.254 action drop log info prior 6
+ipv4rule from External to Internal srcip 172.16.30.0/24 dstip 10.1.0.1-10.1.255.254 action drop log info prior 6
+ipv4rule from Internal to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_137-138 log no prior 7
+ipv4rule from Internal to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_139 log no prior 7
+ipv4rule from External to Internal srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_137-138 log no prior 7
+ipv4rule from External to Internal srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_139 log no prior 7
+ipv4rule from Internal to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action rej service FWS_Ident log info prior 8
+ipv4rule from External to Internal srcip 0.0.0.0/0 dstip 0.0.0.0/0 action rej service FWS_Ident log info prior 8
+ipv4rule from Internal to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 9
+ipv4rule from External to Internal srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 9
+ipv6rule from Internal to External srcip 2001:db8:20::/64 dstip 2001:db8:10::10 action acc service FWS_HTTPS log info prior 10
+ipv6rule from External to Internal srcip 2001:db8:20::/64 dstip 2001:db8:10::10 action acc service FWS_HTTPS log info prior 10
+ipv6rule from Internal to External srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_IPv6_Echo_Request log no prior 11
+ipv6rule from External to Internal srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_IPv6_Echo_Request log no prior 11
+ipv6rule from Internal to External srcip ::/0 dstip 2001:db8:10::25 action acc service FWS_HTTPS log info prior 12
+ipv6rule from External to Internal srcip ::/0 dstip 2001:db8:10::25 action acc service FWS_HTTPS log info prior 12
+ipv6rule from Internal to External srcip 2001:db8:30::/64 dstip 2001:db8:10::10 action rej log no prior 13
+ipv6rule from External to Internal srcip 2001:db8:30::/64 dstip 2001:db8:10::10 action rej log no prior 13
+ipv6rule from Internal to External srcip ::/0 dstip ::/0 action rej service FWS_Ident log info prior 14
+ipv6rule from External to Internal srcip ::/0 dstip ::/0 action rej service FWS_Ident log info prior 14
+ipv6rule from Internal to External srcip ::/0 dstip ::/0 action drop log info prior 15
+ipv6rule from External to Internal srcip ::/0 dstip ::/0 action drop log info prior 15
+ipv4rule from Internal to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 16
+ipv6rule from Internal to External srcip ::/0 dstip ::/0 action drop log no prior 16
+ipv4rule from External to Internal srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 16
+ipv6rule from External to Internal srcip ::/0 dstip ::/0 action drop log no prior 16
+exit
+end

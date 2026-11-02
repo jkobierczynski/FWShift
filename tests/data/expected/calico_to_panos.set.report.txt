@@ -1,0 +1,92 @@
+FWShift conversion report
+  source: calico
+  target: panos
+
+Summary
+  Security rules:     67   exact 62, approximated 2, needs review 3 (3 emitted disabled), skipped 0
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     17   exact 17, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CALICO_HOST_ENDPOINTS: global policy platform.dns applies to host endpoints as well (node-a-eth0, node-b-eth0); what it does for them is not converted
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] CALICO_HOST_ENDPOINTS: the export holds 2 host endpoints: their addresses are matched by selectors, but the policies that apply to them are not converted
+  [info] CALICO_HOST_ONLY: policy security.raw-untracked has doNotTrack or preDNAT: it applies to host endpoints only, which are not converted
+  [info] CALICO_LOG_RULE: security.ping: a ingress rule with action Log only logs and goes on; it is left out
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+  [info] CALICO_NODE_TRAFFIC: traffic between a pod and its node is decided by Felix's configuration and the policies of host endpoints; it is not converted
+  [info] INTRAZONE_DENY_ADDED: appended 'fwshift-intrazone-deny': PAN-OS allows traffic inside a zone by default, the source denies it
+
+Security rules
+  security.ping/ingress-1  ->  approximated  (emitted as security.ping_ingress-1)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+  security.ping/ingress-2  ->  approximated  (emitted as security.ping_ingress-2)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping6. Verify these names against the App-ID release in use
+  shop/web-calico/ingress-4  ->  needs-review, emitted disabled  (emitted as shop_web-calico_ingress-4)
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist on PAN-OS.
+  shop/web-calico/ingress-5  ->  needs-review, emitted disabled  (emitted as shop_web-calico_ingress-5)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an HTTP match (application layer policy).
+  payments/api-ingress/ingress-3  ->  needs-review, emitted disabled  (emitted as payments_api-ingress_ingress-3)
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).
+
+Addresses
+  shop/web-1  ->  exact  (emitted as shop_web-1)
+      [info] RENAMED: renamed to 'shop_web-1' to fit the target's naming rules
+  shop/web-1-ipv6  ->  exact  (emitted as shop_web-1-ipv6)
+      [info] RENAMED: renamed to 'shop_web-1-ipv6' to fit the target's naming rules
+  shop/web-2  ->  exact  (emitted as shop_web-2)
+      [info] RENAMED: renamed to 'shop_web-2' to fit the target's naming rules
+  shop/web-2-ipv6  ->  exact  (emitted as shop_web-2-ipv6)
+      [info] RENAMED: renamed to 'shop_web-2-ipv6' to fit the target's naming rules
+  shop/cart-1  ->  exact  (emitted as shop_cart-1)
+      [info] RENAMED: renamed to 'shop_cart-1' to fit the target's naming rules
+  shop/db-1  ->  exact  (emitted as shop_db-1)
+      [info] RENAMED: renamed to 'shop_db-1' to fit the target's naming rules
+  payments/api-1  ->  exact  (emitted as payments_api-1)
+      [info] RENAMED: renamed to 'payments_api-1' to fit the target's naming rules
+  payments/api-1-ipv6  ->  exact  (emitted as payments_api-1-ipv6)
+      [info] RENAMED: renamed to 'payments_api-1-ipv6' to fit the target's naming rules
+  payments/worker-1  ->  exact  (emitted as payments_worker-1)
+      [info] RENAMED: renamed to 'payments_worker-1' to fit the target's naming rules
+  monitoring/prometheus-0  ->  exact  (emitted as monitoring_prometheus-0)
+      [info] RENAMED: renamed to 'monitoring_prometheus-0' to fit the target's naming rules
+  dev/debug  ->  exact  (emitted as dev_debug)
+      [info] RENAMED: renamed to 'dev_debug' to fit the target's naming rules
+  kube-system/coredns-5d7f  ->  exact  (emitted as kube-system_coredns-5d7f)
+      [info] RENAMED: renamed to 'kube-system_coredns-5d7f' to fit the target's naming rules
+
+Address groups
+  feed == 'threats'  ->  exact  (emitted as feed __ _threats_)
+      [info] RENAMED: renamed to 'feed __ _threats_' to fit the target's naming rules
+  shop/role == 'partner'  ->  exact  (emitted as shop_role __ _partner_)
+      [info] RENAMED: renamed to 'shop_role __ _partner_' to fit the target's naming rules
+  shop/app=web  ->  exact  (emitted as shop_app_web)
+      [info] RENAMED: renamed to 'shop_app_web' to fit the target's naming rules
+  role == 'node'  ->  exact  (emitted as role __ _node_)
+      [info] RENAMED: renamed to 'role __ _node_' to fit the target's naming rules
+  shop/app=cart  ->  exact  (emitted as shop_app_cart)
+      [info] RENAMED: renamed to 'shop_app_cart' to fit the target's naming rules
+  payments/app=worker  ->  exact  (emitted as payments_app_worker)
+      [info] RENAMED: renamed to 'payments_app_worker' to fit the target's naming rules
+  feed == 'partners'  ->  exact  (emitted as feed __ _partners_)
+      [info] RENAMED: renamed to 'feed __ _partners_' to fit the target's naming rules
+  namespaces env NotIn (prod)  ->  exact  (emitted as namespaces env NotIn _prod_)
+      [info] RENAMED: renamed to 'namespaces env NotIn _prod_' to fit the target's naming rules
+  shop/app=db  ->  exact  (emitted as shop_app_db)
+      [info] RENAMED: renamed to 'shop_app_db' to fit the target's naming rules
+  pods payments/api-1  ->  exact  (emitted as pods payments_api-1)
+      [info] RENAMED: renamed to 'pods payments_api-1' to fit the target's naming rules
+  payments/api-ingress/ingress-1 sources  ->  exact  (emitted as payments_api-ingress_ingress-1 sources)
+      [info] RENAMED: renamed to 'payments_api-ingress_ingress-1 sources' to fit the target's naming rules
+
+Services
+  tcp-23+tcp-135-139  ->  exact  (emitted as tcp-23_tcp-135-139)
+      [info] RENAMED: renamed to 'tcp-23_tcp-135-139' to fit the target's naming rules
+  tcp-8000-8049+tcp-8051-8100  ->  exact  (emitted as tcp-8000-8049_tcp-8051-8100)
+      [info] RENAMED: renamed to 'tcp-8000-8049_tcp-8051-8100' to fit the target's naming rules
+  tcp-8443+tcp-9000-9010  ->  exact  (emitted as tcp-8443_tcp-9000-9010)
+      [info] RENAMED: renamed to 'tcp-8443_tcp-9000-9010' to fit the target's naming rules

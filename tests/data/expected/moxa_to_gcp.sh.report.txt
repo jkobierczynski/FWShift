@@ -1,0 +1,64 @@
+FWShift conversion report
+  source: moxa
+  target: gcp
+
+Summary
+  Security rules:     10   exact 0, approximated 2, needs review 8 (8 emitted disabled), skipped 0
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MOXA_DEFAULT_ACCEPT: what no policy matches is read as passing: the configuration names no default action, and FWShift found none for the classic firmware in Moxa's documentation (not confirmed on a device). If the router drops it, add a policy at the end of the converted policy that drops everything
+  [needs-review] MOXA_NAT_ORDER: port forwarding and 1-to-1 NAT are read as done before the Layer 3 policy, whose policies name the inside address (as iptables does it on Linux; Moxa's documentation does not say, not confirmed): the policies were rewritten for the address as it arrives. N-to-1 NAT is done after it
+  [needs-review] MOXA_DPI: the Modbus filter (DPI) checks Modbus TCP traffic beyond addresses and ports; not converted: modbus-filter 1
+  [needs-review] MOXA_L2_POLICY: the Layer 2 policy filters bridged traffic before the Layer 3 policy; not converted: l2-filter 1 enable
+  [needs-review] GCP_LOAD: the output is a shell script of gcloud commands (section 10): DRY_RUN=1 prints them, without it it creates a new global network firewall policy (fwshift) with its rules, and stops if a policy of that name exists. It is associated with no network: nothing changes until you associate it
+  [needs-review] GCP_ORDER: the policy decides every connection of the network it is associated with: it ends in the default of the source. With the network's enforcement order AFTER_CLASSIC_FIREWALL (the default) the VPC firewall rules of the network decide first; set it to BEFORE_CLASSIC_FIREWALL (gcloud compute networks update NETWORK --network-firewall-policy-enforcement-order=BEFORE_CLASSIC_FIREWALL), or remove the VPC firewall rules
+  [info] MOXA_SOURCE: EDR-810-VPN-2GSFP: 10 policies of the Layer 3 policy, first match by index; zones are the interfaces lan, wan1 and wan2. IPv4 only
+  [info] MOXA_TRUSTED_ACCESS: trusted access, which limits who reaches the router itself; not converted: lan 192.168.127.0 255.255.255.0 enable
+  [info] MOXA_DOS: DoS defence settings; not converted: syn-flood 300, null-scan
+
+Security rules
+  firewall 1  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of Google Cloud names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of Google Cloud names no zone: give the networks behind wan1 with --zone-network.
+  firewall 2  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone wan1; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone lan; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  firewall 3  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan1, and a rule of Google Cloud names no zone: give the networks behind wan1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone lan, and a rule of Google Cloud names no zone: give the networks behind lan with --zone-network.
+  firewall 4  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of Google Cloud names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan2, and a rule of Google Cloud names no zone: give the networks behind wan2 with --zone-network.
+  firewall 5  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of Google Cloud names no zone: give the networks behind lan with --zone-network.
+  firewall 6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan2, and a rule of Google Cloud names no zone: give the networks behind wan2 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone lan, and a rule of Google Cloud names no zone: give the networks behind lan with --zone-network.
+  firewall 7  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: source MAC address 00:90:e8:00:00:01, which the model cannot match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: mode MAC: the policy filters by source MAC address, which the model cannot match.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of Google Cloud names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of Google Cloud names no zone: give the networks behind wan1 with --zone-network.
+  firewall 8  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'session-limit 50' is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan2, and a rule of Google Cloud names no zone: give the networks behind wan2 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone lan, and a rule of Google Cloud names no zone: give the networks behind lan with --zone-network.
+  firewall 9  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone lan; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  firewall 10  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan2, and a rule of Google Cloud names no zone: give the networks behind wan2 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone lan, and a rule of Google Cloud names no zone: give the networks behind lan with --zone-network.
+
+NAT rules
+  ip nat 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  ip nat 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  ip nat 3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  ip nat 4  ->  skipped
+      [info] MOXA_NAT_AUTO: outside wan auto: the address of whichever WAN interface the traffic leaves by
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees

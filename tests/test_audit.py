@@ -831,7 +831,11 @@ SAMPLES = ["panos_sample.xml", "fortios_sample.conf", "checkpoint_sample.json", 
            "terraform_google_sample.json", "huawei_sample.cfg", "stormshield_sample.tgz",
            "meraki_sample.json", "azurefw_sample.json", "pf_sample.conf", "screenos_sample.conf", "pix_sample.cfg", "vyos_sample.conf", "edgeos_sample.conf", "awsnfw_sample.json", "f5afm_sample.conf",
            "oci_sample.json",
-           "winfw_sample.reg", "hillstone_sample.conf", "zyxel_sample.conf"]  # fmt: skip
+           "winfw_sample.reg", "hillstone_sample.conf", "zyxel_sample.conf",
+           "moxa_sample.ini",
+           "scalance_sample.cfg",
+           "hisecos_sample.cli", "mguard_sample.atv",
+           "kubernetes_sample.json", "calico_sample.json"]  # fmt: skip
 
 
 @pytest.mark.parametrize("sample", SAMPLES)

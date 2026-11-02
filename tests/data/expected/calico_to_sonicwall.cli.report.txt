@@ -1,0 +1,197 @@
+FWShift conversion report
+  source: calico
+  target: sonicwall
+
+Summary
+  Security rules:     67   exact 0, approximated 0, needs review 0, skipped 67
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     17   exact 17, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 15, approximated 0, needs review 2, skipped 0
+
+Notes for the whole policy
+  [needs-review] CALICO_HOST_ENDPOINTS: global policy platform.dns applies to host endpoints as well (node-a-eth0, node-b-eth0); what it does for them is not converted
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] CALICO_HOST_ENDPOINTS: the export holds 2 host endpoints: their addresses are matched by selectors, but the policies that apply to them are not converted
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: address-object ipv6
+  [info] CALICO_HOST_ONLY: policy security.raw-untracked has doNotTrack or preDNAT: it applies to host endpoints only, which are not converted
+  [info] CALICO_LOG_RULE: security.ping: a ingress rule with action Log only logs and goes on; it is left out
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+  [info] CALICO_NODE_TRAFFIC: traffic between a pod and its node is decided by Felix's configuration and the policies of host endpoints; it is not converted
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  security.block-threats/egress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/web-calico/egress-1 + shop/web-to-cart/ingress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/web-calico/egress-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/web-calico/egress-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/egress-1-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-1-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-2-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/cart-egress/egress-1 + shop/cart-to-db/ingress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  default tier end/egress  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/egress-1-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-1-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-2-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  default tier end/egress-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/egress-1-4  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-1-4  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-2-4  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/egress-1-5  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-1-5  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-2-5  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  payments/worker-egress/egress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  default tier end/egress-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-1-6  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-2-6  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-1-7  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.dns/egress-2-7  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.ping/ingress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.ping/ingress-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/ingress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/ingress-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/web-calico/ingress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/web-calico/ingress-1-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/web-calico/ingress-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/web-calico/ingress-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/web-calico/ingress-4  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/web-calico/ingress-5  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/allow-web/ingress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/allow-web/ingress-1-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/allow-web/ingress-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  default tier end/ingress  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/ingress-1-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/ingress-2-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/web-to-cart/ingress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  default tier end/ingress-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/ingress-1-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/ingress-2-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  platform.nodes/ingress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  shop/cart-to-db/ingress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  default tier end/ingress-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/ingress-1-4  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/ingress-2-4  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  payments/api-ingress/ingress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  payments/api-ingress/ingress-1-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  payments/api-ingress/ingress-3  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  payments/api-calico/ingress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  payments/api-calico/ingress-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  default tier end/ingress-4  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/ingress-1-5  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  security.block-threats/ingress-2-5  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  default tier end/ingress-5  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  monitoring/scrape-only/ingress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  isolated/ingress  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  dev/not-from-prod/ingress-1  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  isolated/ingress-2  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  not isolated: from pods  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  not isolated: to pods  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+
+Address groups
+  ns-payments  ->  exact  (emitted as ns-payments, ns-payments v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'ns-payments', 'ns-payments v6'
+  ns-shop  ->  exact  (emitted as ns-shop, ns-shop v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'ns-shop', 'ns-shop v6'
+  all-pods  ->  exact  (emitted as all-pods, all-pods v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'all-pods', 'all-pods v6'
+  feed == 'threats'  ->  exact  (emitted as feed == _threats_)
+      [info] RENAMED: renamed to 'feed == _threats_' to fit the target's naming rules
+  shop/role == 'partner'  ->  exact  (emitted as shop/role == _partner_)
+      [info] RENAMED: renamed to 'shop/role == _partner_' to fit the target's naming rules
+  shop/app=web  ->  exact  (emitted as shop/app=web, shop/app=web v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'shop/app=web', 'shop/app=web v6'
+  role == 'node'  ->  exact  (emitted as role == _node_)
+      [info] RENAMED: renamed to 'role == _node_' to fit the target's naming rules
+  feed == 'partners'  ->  exact  (emitted as feed == _partners_, feed == _partners_ v6)
+      [info] RENAMED: renamed to 'feed == _partners_' to fit the target's naming rules
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'feed == _partners_', 'feed == _partners_ v6'
+  pods payments/api-1  ->  exact  (emitted as pods payments/api-1, pods payments/api-1 v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'pods payments/api-1', 'pods payments/api-1 v6'
+  payments/api-ingress/ingress-1 sources  ->  exact  (emitted as payments/api-ingress/ingress-1 s, payments/api-ingress/ingress- v6)
+      [info] RENAMED: renamed to 'payments/api-ingress/ingress-1 s' to fit the target's naming rules
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'payments/api-ingress/ingress-1 s', 'payments/api-ingress/ingress- v6'
+
+Services
+  icmp-8  ->  exact
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that
+  icmp6-128  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  tcp-23+tcp-135-139  ->  exact  (emitted as tcp-23+tcp-135-139, tcp-23+tcp-135-139 tcp 23, tcp-23+tcp-135-139 tcp 135-139)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-23+tcp-135-139' of 'tcp-23+tcp-135-139 tcp 23', 'tcp-23+tcp-135-139 tcp 135-139'
+  tcp-8000-8049+tcp-8051-8100  ->  exact  (emitted as tcp-8000-8049+tcp-8051-8100, tcp-8000-8049+tcp-8051-8100 tcp, tcp-8000-8049+tcp-8051-8100 tc 2)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-8000-8049+tcp-8051-8100' of 'tcp-8000-8049+tcp-8051-8100 tcp', 'tcp-8000-8049+tcp-8051-8100 tc 2'
+  tcp-8443+tcp-9000-9010  ->  exact  (emitted as tcp-8443+tcp-9000-9010, tcp-8443+tcp-9000-9010 tcp 8443, tcp-8443+tcp-9000-9010 tcp 9000-)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-8443+tcp-9000-9010' of 'tcp-8443+tcp-9000-9010 tcp 8443', 'tcp-8443+tcp-9000-9010 tcp 9000-'
+  sctp-3868  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: SCTP, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled

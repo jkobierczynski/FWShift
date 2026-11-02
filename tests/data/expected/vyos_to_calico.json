@@ -1,0 +1,534 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "forward-30 (disabled in the source); zone-WAN.from-LAN.LAN-WAN-20 (not written, see the report); zone-WAN.from-LAN.default (not written, see the report); zone-WAN.from-GUEST.default (not written, see the report); zone-LAN.from-WAN.WAN-LAN-10 (not written, see the report); web servers (not written, see the report); zone-DMZ.from-WAN.WAN-DMZ-20 (https to web1) (not written, see the report); zone-DMZ.from-WAN.WAN-DMZ-20 (ssh on 2222 to the jump host) (not written, see the report); zone-DMZ.from-WAN.WAN-DMZ-30 (not written, see the report); office hours only (not written, see the report); zone-DMZ.from-WAN.WAN-DMZ-50 (not written, see the report); zone-DMZ.from-LAN.LAN-DMZ-10 (not written, see the report); zone-DMZ.from-LAN.LAN-DMZ-20 (not written, see the report); zone-DMZ.from-LAN.LAN-DMZ-30.ADMINS-20 (not written, see the report); zone-DMZ.from-VPN.VPN-DMZ-10 (not written, see the report); zone-DMZ.from-VPN.VPN-DMZ-20 (not written, see the report); ipv6-zone-WAN.from-LAN.default (not written, see the report); ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-10 (not written, see the report); ipv6-zone-DMZ.from-WAN.WAN-DMZ-6-20 (not written, see the report)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "198.51.100.0/24",
+            "203.0.113.128/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "drop the blocklist"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            25
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "no outbound mail"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "notNets": [
+            "192.168.10.0/24",
+            "192.168.20.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "spoofed inside sources"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            23
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "forward-40"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            "20:21",
+            23
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "no telnet or ftp out"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "192.168.10.0/24",
+            "192.168.20.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-WAN.from-GUEST.GUEST-WAN-10"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-WAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-LAN.intra"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-LAN.from-WAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-LAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-GUEST.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-DMZ.from-WAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-DMZ.from-LAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-DMZ.from-VPN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-DMZ.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-VPN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-WAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-LAN.intra"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-LAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-GUEST.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-DMZ.from-WAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-DMZ.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-VPN.default"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "198.51.100.0/24",
+            "203.0.113.128/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "drop the blocklist"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            25
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "no outbound mail"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "notNets": [
+            "192.168.10.0/24",
+            "192.168.20.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "spoofed inside sources"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            23
+          ],
+          "nets": [
+            "203.0.113.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "forward-40"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            "20:21",
+            23
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "no telnet or ftp out"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "192.168.10.0/24",
+            "192.168.20.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-WAN.from-GUEST.GUEST-WAN-10"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-WAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-LAN.intra"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-LAN.from-WAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-LAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-GUEST.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-DMZ.from-WAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-DMZ.from-LAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-DMZ.from-VPN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-DMZ.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "zone-VPN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-WAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-LAN.intra"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-LAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-GUEST.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-DMZ.from-WAN.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-DMZ.default"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ipv6-zone-VPN.default"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

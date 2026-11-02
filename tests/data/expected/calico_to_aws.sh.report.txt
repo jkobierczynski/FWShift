@@ -1,0 +1,65 @@
+FWShift conversion report
+  source: calico
+  target: aws
+
+Summary
+  Security rules:     67   exact 56, approximated 0, needs review 8 (3 emitted disabled), skipped 3
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     17   exact 17, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CALICO_HOST_ENDPOINTS: global policy platform.dns applies to host endpoints as well (node-a-eth0, node-b-eth0); what it does for them is not converted
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] CALICO_HOST_ENDPOINTS: the export holds 2 host endpoints: their addresses are matched by selectors, but the policies that apply to them are not converted
+  [needs-review] AWS_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 with VPC_ID sends each with --dry-run, VPC_ID alone creates the groups and their rules. It creates new groups only, and stops if a group of the same name exists. The groups have no members when it is done: nothing changes until they are attached
+  [needs-review] AWS_ATTACH: 21 groups: attach each to the network interfaces whose private addresses its '# attach' line lists, and take the other groups off those interfaces; an interface with addresses of both IP versions gets a group for each. A group applies to the whole interface: an interface with several addresses of one IP version in different groups gives each address the rules of all of them, so give such addresses the same group. Attaching (aws ec2 modify-network-interface-attribute --groups ...) replaces the groups of an interface: it is left to you
+  [needs-review] AWS_RULE_QUOTA: these groups have more rules than the default quota of 60 per direction and IP version; AWS refuses the call that goes over it unless the quota was raised (a group whose addresses are not in the VPC is never attached, and its call can be taken out of the script): fwshift-ns-kube-system (83 inbound IPv4), fwshift-ns-kube-system (68 outbound IPv4), fwshift-shop-web-1 (173 inbound IPv4), fwshift-pods-payments-api-1 (92 inbound IPv4), fwshift-pods-payments-api-1 (428 outbound IPv4), fwshift-shop-web-2 (173 inbound IPv4), fwshift-ns-monitoring (237 outbound IPv4), fwshift-ns-dev (252 outbound IPv4), fwshift-shop-web-1-ipv6-ipv6 (193 inbound IPv6), fwshift-ns-payments-ipv6 (192 inbound IPv6), fwshift-ns-payments-ipv6 (791 outbound IPv6), fwshift-shop-web-2-ipv6-ipv6 (193 inbound IPv6)
+  [info] CALICO_HOST_ONLY: policy security.raw-untracked has doNotTrack or preDNAT: it applies to host endpoints only, which are not converted
+  [info] CALICO_LOG_RULE: security.ping: a ingress rule with action Log only logs and goes on; it is left out
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+  [info] CALICO_NODE_TRAFFIC: traffic between a pod and its node is decided by Felix's configuration and the policies of host endpoints; it is not converted
+
+Security rules
+  shop/web-calico/egress-2  ->  needs-review  (emitted as security groups fwshift-shop-web-1-ipv6-ipv6, fwshift-shop-web-2-ipv6-ipv6, fwshift-addresses-ipv6-2)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+      [needs-review] AWS_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security group (every protocol but some, a range of source ports, ports of SCTP or many ICMP codes) and is not written; the converted rule allows less
+  security.ping/ingress-1  ->  exact  (emitted as security groups fwshift-addresses-2, fwshift-role-node, fwshift-addresses-3, fwshift-ns-kube-system, fwshift-shop-web-1, fwshift-pods-payments-api-1, fwshift-shop-web-2, fwshift-ns-monitoring, fwshift-ns-dev)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  security.ping/ingress-2  ->  exact  (emitted as security groups fwshift-addresses-ipv6, fwshift-shop-web-1-ipv6-ipv6, fwshift-ns-payments-ipv6, fwshift-shop-web-2-ipv6-ipv6, fwshift-addresses-ipv6-2)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  shop/web-calico/ingress-3  ->  exact  (emitted as security groups fwshift-addresses-3, fwshift-ns-kube-system, fwshift-shop-web-1, fwshift-pods-payments-api-1, fwshift-shop-web-2, fwshift-ns-monitoring, fwshift-ns-dev)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  shop/web-calico/ingress-4  ->  needs-review  (emitted as security groups fwshift-shop-web-1, fwshift-shop-web-2, fwshift-ns-monitoring)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+      [needs-review] AWS_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security group (every protocol but some, a range of source ports, ports of SCTP or many ICMP codes) and is not written; the converted rule allows less
+  shop/web-calico/ingress-5  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: an HTTP match (application layer policy).
+  shop/allow-web/ingress-1  ->  exact  (emitted as security groups fwshift-addresses, fwshift-shop-web-1, fwshift-addresses-4, fwshift-shop-web-1-ipv6-ipv6, fwshift-addresses-ipv6-2)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  shop/allow-web/ingress-1-2  ->  exact  (emitted as security groups fwshift-addresses, fwshift-shop-web-2, fwshift-addresses-4, fwshift-shop-web-2-ipv6-ipv6, fwshift-addresses-ipv6-2)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  shop/web-to-cart/ingress-1  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  shop/cart-to-db/ingress-1  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  payments/api-ingress/ingress-1  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  payments/api-ingress/ingress-1-2  ->  needs-review, emitted disabled
+      [needs-review] SERVICE_SCTP: SCTP ports: a security group ignores the ports of SCTP, and would allow every one.
+  payments/api-ingress/ingress-3  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).
+  payments/api-calico/ingress-2  ->  exact  (emitted as security groups fwshift-addresses, fwshift-addresses-2, fwshift-role-node, fwshift-addresses-3, fwshift-ns-kube-system, fwshift-pods-payments-api-1, fwshift-ns-monitoring, fwshift-ns-dev, fwshift-addresses-4, fwshift-addresses-5, fwshift-addresses-ipv6, fwshift-ns-payments-ipv6, fwshift-addresses-ipv6-2)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  dev/not-from-prod/ingress-1  ->  needs-review  (emitted as security groups fwshift-ns-kube-system, fwshift-ns-monitoring, fwshift-ns-dev)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+      [needs-review] AWS_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security group (every protocol but some, a range of source ports, ports of SCTP or many ICMP codes) and is not written; the converted rule allows less
+  not isolated: from pods  ->  needs-review  (emitted as security groups fwshift-addresses, fwshift-addresses-2, fwshift-role-node, fwshift-addresses-3, fwshift-ns-kube-system, fwshift-pods-payments-api-1, fwshift-ns-monitoring, fwshift-ns-dev, fwshift-addresses-4, fwshift-addresses-5, fwshift-feed-threats, fwshift-addresses-ipv6, fwshift-ns-payments-ipv6, fwshift-addresses-ipv6-2)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+      [needs-review] AWS_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security group (every protocol but some, a range of source ports, ports of SCTP or many ICMP codes) and is not written; the converted rule allows less
+  not isolated: to pods  ->  needs-review  (emitted as security groups fwshift-addresses, fwshift-addresses-2, fwshift-role-node, fwshift-addresses-3, fwshift-ns-kube-system, fwshift-pods-payments-api-1, fwshift-ns-monitoring, fwshift-ns-dev, fwshift-addresses-4, fwshift-addresses-5, fwshift-feed-threats)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+      [needs-review] AWS_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security group (every protocol but some, a range of source ports, ports of SCTP or many ICMP codes) and is not written; the converted rule allows less

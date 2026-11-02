@@ -111,7 +111,7 @@ def test_intrazone_scope_rules_are_not_confused_with_the_default() -> None:
     assert first < tail
 
 
-@pytest.mark.parametrize("target", ["huawei", "ios", "stormshield", "routeros", "forcepoint", "vyos", "zyxel"])
+@pytest.mark.parametrize("target", ["huawei", "ios", "stormshield", "routeros", "forcepoint", "vyos", "zyxel", "hisecos"])
 def test_zones_merged_by_the_zone_map_are_not_opened_to_each_other(target: str) -> None:
     """PAN-OS source (inside a zone allowed, between zones denied), --zone-map eth0=m eth1=m: the targets that decide
     what passes inside a zone themselves must not pass traffic inside m, which is traffic between eth0 and eth1."""
@@ -132,6 +132,10 @@ def test_zones_merged_by_the_zone_map_are_not_opened_to_each_other(target: str) 
         # (no intra-zone-filtering: VyOS accepts inside a zone; a chain for m ends with drop)
         assert "set firewall ipv4 name FWS-m-m default-action 'drop'" in lines
         assert "set firewall zone m intra-zone-filtering firewall name 'FWS-m-m'" in lines
+    if target == "hisecos":
+        # (no rule that accepts inside m; the last rule, for everything arriving on its interfaces, drops)
+        assert not any("description fwshift-inside-m" in line and "action accept" in line for line in lines)
+        assert any("action drop" in line and "description fwshift-default" in line for line in lines)
     if target == "zyxel":
         # (after the converted rules, the source's default inside m, which --zone-map names: deny)
         defaults = [part for part in text.split("\nexit\n") if 'description "FWShift default m to m"' in part]

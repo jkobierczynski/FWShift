@@ -1,0 +1,50 @@
+FWShift conversion report
+  source: barracuda (forwarding firewall)
+  target: moxa
+
+Summary
+  Security rules:     17   exact 6, approximated 2, needs review 9 (9 emitted disabled), skipped 0
+  Addresses:           8   exact 8, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CONNECTION_NOT_READ: rules whose connection object translates the source address: 'LAN-2-INTERNET'. Source NAT is not read; the rules are, as they match
+  [needs-review] MOXA_LOAD: the output is CLI commands for the console (section 10), not a file to import: an import replaces the configuration. Policies are numbered from 1; firewall N changes a policy that exists at N, so on a router with policies give --policy-id-start above the last index. NAT rules are appended after the router's own. Commands take effect as they are entered: turn on Setting Check for the firewall and NAT first
+  [needs-review] MOXA_ZONES: zones that are not interfaces of the router (lan, wan1, wan2); their rules are written disabled: give --zone-map ZONE=lan|wan1|wan2 for port2, port1
+  [info] BARRACUDA_FORMAT: read 15 forwarding rules, 10 network objects and 8 service objects from 19 answers of the REST API. Barracuda documents that API by examples only: the keys read are those its examples and published tools show, and a key of a rule, an object or an entry this parser does not know makes it unusable
+  [info] ICMP_LIMITS: service objects that limit the size or rate of ICMP echo requests: 'Ping'. The limits are not converted: the rules allow ICMP of any size and rate
+  [info] MOXA_LOG_NOT_WRITTEN: rules of the source log; the CLI manual FWShift read shows no logging of a policy: set it in the web console for the policies of 7 rules: BLOCK-BAD, LAN-2-INTERNET, SERVER-SYNC, SERVER-SYNC (back), PING-ALL, DENY-LAN-DMZ, BLOCKALL
+  [info] MOXA_IPV4: the router's policies and NAT are IPv4: rules for IPv6 only are not written
+
+Security rules
+  BLOCK-BAD-V6  ->  needs-review, emitted disabled  (emitted as firewall 2)
+      [needs-review] NOT_WRITTEN: the rule matches no IPv4 address: the router's policies are IPv4. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ADMIN-SSH (port2)  ->  needs-review, emitted disabled  (emitted as firewall 3)
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+      [needs-review] MOXA_ZONE: zones port2: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  ADMIN-SSH (port1)  ->  needs-review, emitted disabled  (emitted as firewall 4)
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+      [needs-review] MOXA_ZONE: zones port1: a policy names the interfaces lan, wan1, wan2 or all (give --zone-map ZONE=lan|wan1|wan2).
+  WEB-IN  ->  needs-review, emitted disabled  (emitted as firewall 7)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Dst NAT: how the API spells its target list is not known, so the translation is not read.
+  SERVER-SYNC  ->  exact  (emitted as firewall 8-10)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  SERVER-SYNC (back)  ->  exact  (emitted as firewall 11-13)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  PING-ALL  ->  approximated  (emitted as firewall 18)
+      [approximated] ICMP_LIMITS: service 'Ping' limits the size or rate of ICMP echo requests; the limits are not converted
+  UPDATES  ->  needs-review, emitted disabled  (emitted as firewall 19)
+      [needs-review] ZONE_DYNAMIC: 'Updates (IPv4)' holds members only its platform knows.
+  V6-WEB  ->  needs-review, emitted disabled  (emitted as firewall 20)
+      [needs-review] NOT_WRITTEN: the rule matches no IPv4 address: the router's policies are IPv4.
+  DENY-LAN-DMZ  ->  approximated  (emitted as firewall 21)
+      [approximated] MOXA_RESET_AS_DROP: action reset-client written as drop, which answers nobody
+  GRE-LAB  ->  needs-review, emitted disabled  (emitted as firewall 22)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application=urlFilter, ips=Default); attach equivalent inspection on the target
+      [needs-review] SERVICE_NOT_WRITTEN: IP protocol 47: a policy names all, TCP, UDP or ICMP.
+  TO-LAB  ->  needs-review, emitted disabled  (emitted as firewall 23)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Cascade: the rules of the rule list it hands traffic to are not read, and they decide that traffic. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ODD  ->  needs-review, emitted disabled  (emitted as firewall 24)
+      [needs-review] SCHEDULE: schedule '{"type": "recurring", "name": "Work-Hours"}' is not converted; the rule would apply at all times.

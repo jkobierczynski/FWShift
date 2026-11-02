@@ -1,0 +1,442 @@
+set address shop_web-1 ip-netmask 10.244.1.10/32
+set address shop_web-1 description "pod web-1 in namespace shop"
+set address shop_web-1-ipv6 ip-netmask 2001:db8:244:1::10/128
+set address shop_web-1-ipv6 description "pod web-1 in namespace shop"
+set address shop_web-2 ip-netmask 10.244.2.10/32
+set address shop_web-2 description "pod web-2 in namespace shop"
+set address shop_web-2-ipv6 ip-netmask 2001:db8:244:2::10/128
+set address shop_web-2-ipv6 description "pod web-2 in namespace shop"
+set address shop_cart-1 ip-netmask 10.244.1.20/32
+set address shop_cart-1 description "pod cart-1 in namespace shop"
+set address shop_db-1 ip-netmask 10.244.2.30/32
+set address shop_db-1 description "pod db-1 in namespace shop"
+set address payments_api-1 ip-netmask 10.244.1.40/32
+set address payments_api-1 description "pod api-1 in namespace payments"
+set address payments_api-1-ipv6 ip-netmask 2001:db8:244:1::40/128
+set address payments_api-1-ipv6 description "pod api-1 in namespace payments"
+set address payments_worker-1 ip-netmask 10.244.2.41/32
+set address payments_worker-1 description "pod worker-1 in namespace payments"
+set address monitoring_prometheus-0 ip-netmask 10.244.3.5/32
+set address monitoring_prometheus-0 description "pod prometheus-0 in namespace monitoring"
+set address dev_debug ip-netmask 10.244.3.9/32
+set address dev_debug description "pod debug in namespace dev"
+set address kube-system_coredns-5d7f ip-netmask 10.244.0.2/32
+set address kube-system_coredns-5d7f description "pod coredns-5d7f in namespace kube-system"
+set address-group ns-dev static dev_debug
+set address-group ns-dev description "the pods of namespace dev: dev/debug"
+set address-group ns-kube-system static kube-system_coredns-5d7f
+set address-group ns-kube-system description "the pods of namespace kube-system: kube-system/coredns-5d7f"
+set address-group ns-monitoring static monitoring_prometheus-0
+set address-group ns-monitoring description "the pods of namespace monitoring: monitoring/prometheus-0"
+set address-group ns-payments static [ payments_api-1 payments_worker-1 payments_api-1-ipv6 ]
+set address-group ns-payments description "the pods of namespace payments: payments/api-1, payments/worker-1"
+set address-group ns-shop static [ shop_web-1 shop_cart-1 shop_web-2 shop_db-1 shop_web-1-ipv6 shop_web-2-ipv6 ]
+set address-group ns-shop description "the pods of namespace shop: shop/web-1, shop/web-2, shop/cart-1, shop/db-1"
+set address-group all-pods static [ kube-system_coredns-5d7f shop_web-1 shop_cart-1 payments_api-1 shop_web-2 shop_db-1 payments_worker-1 monitoring_prometheus-0 dev_debug shop_web-1-ipv6 payments_api-1-ipv6 shop_web-2-ipv6 ]
+set address-group all-pods description "every pod of the export (9)"
+set address-group shop_app_web static [ shop_web-1 shop_web-2 shop_web-1-ipv6 shop_web-2-ipv6 ]
+set address-group shop_app_web description "the pods of shop/app=web: shop/web-1, shop/web-2"
+set address-group shop_app_cart static shop_cart-1
+set address-group shop_app_cart description "the pods of shop/app=cart: shop/cart-1"
+set address-group payments_app_worker static payments_worker-1
+set address-group payments_app_worker description "the pods of payments/app=worker: payments/worker-1"
+set address-group "namespaces env NotIn _prod_" static [ kube-system_coredns-5d7f monitoring_prometheus-0 dev_debug ]
+set address-group "namespaces env NotIn _prod_" description "the pods of namespaces env NotIn (prod): monitoring/prometheus-0, dev/debug, kube-system/coredns-5d7f"
+set address-group shop_app_db static shop_db-1
+set address-group shop_app_db description "the pods of shop/app=db: shop/db-1"
+set address-group "pods payments_api-1" static [ payments_api-1 payments_api-1-ipv6 ]
+set address-group "pods payments_api-1" description "the pods the ingress policies payments/api-ingress apply to: payments/api-1"
+set address-group "pods on node 10.0.0.11" static [ kube-system_coredns-5d7f shop_web-1 shop_cart-1 payments_api-1 dev_debug shop_web-1-ipv6 payments_api-1-ipv6 ]
+set address-group "pods on node 10.0.0.11" description "the pods on node 10.0.0.11: shop/web-1, shop/cart-1, payments/api-1, dev/debug, kube-system/coredns-5d7f"
+set address-group "pods on node 10.0.0.12" static [ shop_web-2 shop_db-1 payments_worker-1 monitoring_prometheus-0 shop_web-2-ipv6 ]
+set address-group "pods on node 10.0.0.12" description "the pods on node 10.0.0.12: shop/web-2, shop/db-1, payments/worker-1, monitoring/prometheus-0"
+set address-group "payments_api-ingress_ingress-1 sources" static [ shop_web-1 shop_cart-1 shop_web-2 shop_db-1 payments_worker-1 shop_web-1-ipv6 shop_web-2-ipv6 ]
+set service tcp-50051 protocol tcp port 50051
+set service tcp-53_udp-53-tcp protocol tcp port 53
+set service tcp-53_udp-53-udp protocol udp port 53
+set service-group tcp-53_udp-53 members [ tcp-53_udp-53-tcp tcp-53_udp-53-udp ]
+set service tcp-443 protocol tcp port 443
+set service tcp-5432 protocol tcp port 5432
+set service udp-53 protocol udp port 53
+set service tcp-8080 protocol tcp port 8080
+set service tcp-8081 protocol tcp port 8081
+set service tcp-9100 protocol tcp port 9100
+set service tcp-8443_tcp-9000-9010 protocol tcp port 8443,9000-9010
+set service sctp-3868 protocol sctp port 3868
+set service tcp-9090 protocol tcp port 9090
+set rulebase security rules "node 10.0.0.11 to its pods" from any
+set rulebase security rules "node 10.0.0.11 to its pods" to any
+set rulebase security rules "node 10.0.0.11 to its pods" source 10.0.0.11
+set rulebase security rules "node 10.0.0.11 to its pods" destination "pods on node 10.0.0.11"
+set rulebase security rules "node 10.0.0.11 to its pods" source-user any
+set rulebase security rules "node 10.0.0.11 to its pods" category any
+set rulebase security rules "node 10.0.0.11 to its pods" application any
+set rulebase security rules "node 10.0.0.11 to its pods" service any
+set rulebase security rules "node 10.0.0.11 to its pods" action allow
+set rulebase security rules "node 10.0.0.11 to its pods" log-end no
+set rulebase security rules "node 10.0.0.11 to its pods" description "traffic between a pod and the node it runs on is always allowed"
+set rulebase security rules "pods from node 10.0.0.11" from any
+set rulebase security rules "pods from node 10.0.0.11" to any
+set rulebase security rules "pods from node 10.0.0.11" source "pods on node 10.0.0.11"
+set rulebase security rules "pods from node 10.0.0.11" destination 10.0.0.11
+set rulebase security rules "pods from node 10.0.0.11" source-user any
+set rulebase security rules "pods from node 10.0.0.11" category any
+set rulebase security rules "pods from node 10.0.0.11" application any
+set rulebase security rules "pods from node 10.0.0.11" service any
+set rulebase security rules "pods from node 10.0.0.11" action allow
+set rulebase security rules "pods from node 10.0.0.11" log-end no
+set rulebase security rules "pods from node 10.0.0.11" description "traffic between a pod and the node it runs on is always allowed"
+set rulebase security rules "node 10.0.0.12 to its pods" from any
+set rulebase security rules "node 10.0.0.12 to its pods" to any
+set rulebase security rules "node 10.0.0.12 to its pods" source 10.0.0.12
+set rulebase security rules "node 10.0.0.12 to its pods" destination "pods on node 10.0.0.12"
+set rulebase security rules "node 10.0.0.12 to its pods" source-user any
+set rulebase security rules "node 10.0.0.12 to its pods" category any
+set rulebase security rules "node 10.0.0.12 to its pods" application any
+set rulebase security rules "node 10.0.0.12 to its pods" service any
+set rulebase security rules "node 10.0.0.12 to its pods" action allow
+set rulebase security rules "node 10.0.0.12 to its pods" log-end no
+set rulebase security rules "node 10.0.0.12 to its pods" description "traffic between a pod and the node it runs on is always allowed"
+set rulebase security rules "pods from node 10.0.0.12" from any
+set rulebase security rules "pods from node 10.0.0.12" to any
+set rulebase security rules "pods from node 10.0.0.12" source "pods on node 10.0.0.12"
+set rulebase security rules "pods from node 10.0.0.12" destination 10.0.0.12
+set rulebase security rules "pods from node 10.0.0.12" source-user any
+set rulebase security rules "pods from node 10.0.0.12" category any
+set rulebase security rules "pods from node 10.0.0.12" application any
+set rulebase security rules "pods from node 10.0.0.12" service any
+set rulebase security rules "pods from node 10.0.0.12" action allow
+set rulebase security rules "pods from node 10.0.0.12" log-end no
+set rulebase security rules "pods from node 10.0.0.12" description "traffic between a pod and the node it runs on is always allowed"
+set rulebase security rules "shop_web-egress_egress-1 _ shop_web-to-cart_ingress-1" from any
+set rulebase security rules "shop_web-egress_egress-1 _ shop_web-to-cart_ingress-1" to any
+set rulebase security rules "shop_web-egress_egress-1 _ shop_web-to-cart_ingress-1" source [ shop_web-1 shop_web-2 ]
+set rulebase security rules "shop_web-egress_egress-1 _ shop_web-to-cart_ingress-1" destination shop_app_cart
+set rulebase security rules "shop_web-egress_egress-1 _ shop_web-to-cart_ingress-1" source-user any
+set rulebase security rules "shop_web-egress_egress-1 _ shop_web-to-cart_ingress-1" category any
+set rulebase security rules "shop_web-egress_egress-1 _ shop_web-to-cart_ingress-1" application any
+set rulebase security rules "shop_web-egress_egress-1 _ shop_web-to-cart_ingress-1" service tcp-50051
+set rulebase security rules "shop_web-egress_egress-1 _ shop_web-to-cart_ingress-1" action allow
+set rulebase security rules "shop_web-egress_egress-1 _ shop_web-to-cart_ingress-1" log-end no
+set rulebase security rules "shop_web-egress_egress-1 _ shop_web-to-cart_ingress-1" description "shop/web-egress egress rule: shop/app=cart (from shop/app=web); shop/web-to-cart ingress rule: shop/app=web"
+set rulebase security rules shop_web-egress_egress-2 from any
+set rulebase security rules shop_web-egress_egress-2 to any
+set rulebase security rules shop_web-egress_egress-2 source [ shop_web-1 shop_web-2 ]
+set rulebase security rules shop_web-egress_egress-2 destination ns-kube-system
+set rulebase security rules shop_web-egress_egress-2 source-user any
+set rulebase security rules shop_web-egress_egress-2 category any
+set rulebase security rules shop_web-egress_egress-2 application any
+set rulebase security rules shop_web-egress_egress-2 service tcp-53_udp-53
+set rulebase security rules shop_web-egress_egress-2 action allow
+set rulebase security rules shop_web-egress_egress-2 log-end no
+set rulebase security rules shop_web-egress_egress-2 description "shop/web-egress egress rule: namespaces kubernetes.io/metadata.name=kube-system pods k8s-app=kube-dns (from shop/app=web), to what no ingress policy isolates"
+set rulebase security rules shop_web-egress_egress-3 from any
+set rulebase security rules shop_web-egress_egress-3 to any
+set rulebase security rules shop_web-egress_egress-3 source [ shop_web-1-ipv6 shop_web-2-ipv6 ]
+set rulebase security rules shop_web-egress_egress-3 destination 2001:db8:ffff::/48
+set rulebase security rules shop_web-egress_egress-3 source-user any
+set rulebase security rules shop_web-egress_egress-3 category any
+set rulebase security rules shop_web-egress_egress-3 application any
+set rulebase security rules shop_web-egress_egress-3 service tcp-443
+set rulebase security rules shop_web-egress_egress-3 action allow
+set rulebase security rules shop_web-egress_egress-3 log-end no
+set rulebase security rules shop_web-egress_egress-3 description "shop/web-egress egress rule: ipBlock 2001:db8:ffff::/48 (from shop/app=web), to what no ingress policy isolates"
+set rulebase security rules isolated_egress from any
+set rulebase security rules isolated_egress to any
+set rulebase security rules isolated_egress source shop_app_web
+set rulebase security rules isolated_egress destination any
+set rulebase security rules isolated_egress source-user any
+set rulebase security rules isolated_egress category any
+set rulebase security rules isolated_egress application any
+set rulebase security rules isolated_egress service any
+set rulebase security rules isolated_egress action drop
+set rulebase security rules isolated_egress log-end no
+set rulebase security rules isolated_egress description "the pods are isolated for egress: what no policy allows is denied (from shop/app=web)"
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" from any
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" to any
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" source shop_app_cart
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" destination shop_app_db
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" source-user any
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" category any
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" application any
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" service tcp-5432
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" action allow
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" log-end no
+set rulebase security rules "shop_cart-egress_egress-1 _ shop_cart-to-db_ingress-1" description "shop/cart-egress egress rule: shop/app=db (from shop/app=cart); shop/cart-to-db ingress rule: shop/app=cart"
+set rulebase security rules shop_cart-egress_egress-2 from any
+set rulebase security rules shop_cart-egress_egress-2 to any
+set rulebase security rules shop_cart-egress_egress-2 source shop_app_cart
+set rulebase security rules shop_cart-egress_egress-2 destination ns-kube-system
+set rulebase security rules shop_cart-egress_egress-2 source-user any
+set rulebase security rules shop_cart-egress_egress-2 category any
+set rulebase security rules shop_cart-egress_egress-2 application any
+set rulebase security rules shop_cart-egress_egress-2 service udp-53
+set rulebase security rules shop_cart-egress_egress-2 action allow
+set rulebase security rules shop_cart-egress_egress-2 log-end no
+set rulebase security rules shop_cart-egress_egress-2 description "shop/cart-egress egress rule: namespaces all pods k8s-app=kube-dns (from shop/app=cart), to what no ingress policy isolates"
+set rulebase security rules isolated_egress-2 from any
+set rulebase security rules isolated_egress-2 to any
+set rulebase security rules isolated_egress-2 source shop_app_cart
+set rulebase security rules isolated_egress-2 destination 0.0.0.0/0
+set rulebase security rules isolated_egress-2 source-user any
+set rulebase security rules isolated_egress-2 category any
+set rulebase security rules isolated_egress-2 application any
+set rulebase security rules isolated_egress-2 service any
+set rulebase security rules isolated_egress-2 action drop
+set rulebase security rules isolated_egress-2 log-end no
+set rulebase security rules isolated_egress-2 description "the pods are isolated for egress: what no policy allows is denied (from shop/app=cart)"
+set rulebase security rules isolated_egress-3 from any
+set rulebase security rules isolated_egress-3 to any
+set rulebase security rules isolated_egress-3 source shop_app_db
+set rulebase security rules isolated_egress-3 destination 0.0.0.0/0
+set rulebase security rules isolated_egress-3 source-user any
+set rulebase security rules isolated_egress-3 category any
+set rulebase security rules isolated_egress-3 application any
+set rulebase security rules isolated_egress-3 service any
+set rulebase security rules isolated_egress-3 action drop
+set rulebase security rules isolated_egress-3 log-end no
+set rulebase security rules isolated_egress-3 description "the pods are isolated for egress: what no policy allows is denied (from shop/app=db)"
+set rulebase security rules payments_worker-egress_egress-1 from any
+set rulebase security rules payments_worker-egress_egress-1 to any
+set rulebase security rules payments_worker-egress_egress-1 source payments_app_worker
+set rulebase security rules payments_worker-egress_egress-1 destination 192.0.2.0/24
+set rulebase security rules payments_worker-egress_egress-1 source-user any
+set rulebase security rules payments_worker-egress_egress-1 category any
+set rulebase security rules payments_worker-egress_egress-1 application any
+set rulebase security rules payments_worker-egress_egress-1 service tcp-443
+set rulebase security rules payments_worker-egress_egress-1 action allow
+set rulebase security rules payments_worker-egress_egress-1 log-end no
+set rulebase security rules payments_worker-egress_egress-1 description "payments/worker-egress egress rule: ipBlock 192.0.2.0/24 (from payments/app=worker), to what no ingress policy isolates"
+set rulebase security rules isolated_egress-4 from any
+set rulebase security rules isolated_egress-4 to any
+set rulebase security rules isolated_egress-4 source payments_app_worker
+set rulebase security rules isolated_egress-4 destination 0.0.0.0/0
+set rulebase security rules isolated_egress-4 source-user any
+set rulebase security rules isolated_egress-4 category any
+set rulebase security rules isolated_egress-4 application any
+set rulebase security rules isolated_egress-4 service any
+set rulebase security rules isolated_egress-4 action drop
+set rulebase security rules isolated_egress-4 log-end no
+set rulebase security rules isolated_egress-4 description "the pods are isolated for egress: what no policy allows is denied (from payments/app=worker)"
+set rulebase security rules shop_allow-web_ingress-1 from any
+set rulebase security rules shop_allow-web_ingress-1 to any
+set rulebase security rules shop_allow-web_ingress-1 source [ 0.0.0.0-9.255.255.255 11.0.0.0-192.167.255.255 192.169.0.0-255.255.255.255 2001:db8:ffff::/48 ]
+set rulebase security rules shop_allow-web_ingress-1 destination [ shop_web-1 shop_web-1-ipv6 ]
+set rulebase security rules shop_allow-web_ingress-1 source-user any
+set rulebase security rules shop_allow-web_ingress-1 category any
+set rulebase security rules shop_allow-web_ingress-1 application any
+set rulebase security rules shop_allow-web_ingress-1 service tcp-8080
+set rulebase security rules shop_allow-web_ingress-1 action allow
+set rulebase security rules shop_allow-web_ingress-1 log-end no
+set rulebase security rules shop_allow-web_ingress-1 description "shop/allow-web ingress rule: ipBlock 0.0.0.0/0 except 2; ipBlock 2001:db8:ffff::/48 (to shop/app=web)"
+set rulebase security rules shop_allow-web_ingress-1-2 from any
+set rulebase security rules shop_allow-web_ingress-1-2 to any
+set rulebase security rules shop_allow-web_ingress-1-2 source [ 0.0.0.0-9.255.255.255 11.0.0.0-192.167.255.255 192.169.0.0-255.255.255.255 2001:db8:ffff::/48 ]
+set rulebase security rules shop_allow-web_ingress-1-2 destination [ shop_web-2 shop_web-2-ipv6 ]
+set rulebase security rules shop_allow-web_ingress-1-2 source-user any
+set rulebase security rules shop_allow-web_ingress-1-2 category any
+set rulebase security rules shop_allow-web_ingress-1-2 application any
+set rulebase security rules shop_allow-web_ingress-1-2 service tcp-8081
+set rulebase security rules shop_allow-web_ingress-1-2 action allow
+set rulebase security rules shop_allow-web_ingress-1-2 log-end no
+set rulebase security rules shop_allow-web_ingress-1-2 description "shop/allow-web ingress rule: ipBlock 0.0.0.0/0 except 2; ipBlock 2001:db8:ffff::/48 (to shop/app=web)"
+set rulebase security rules shop_allow-web_ingress-2 from any
+set rulebase security rules shop_allow-web_ingress-2 to any
+set rulebase security rules shop_allow-web_ingress-2 source ns-monitoring
+set rulebase security rules shop_allow-web_ingress-2 destination [ shop_web-1 shop_web-2 ]
+set rulebase security rules shop_allow-web_ingress-2 source-user any
+set rulebase security rules shop_allow-web_ingress-2 category any
+set rulebase security rules shop_allow-web_ingress-2 application any
+set rulebase security rules shop_allow-web_ingress-2 service tcp-9100
+set rulebase security rules shop_allow-web_ingress-2 action allow
+set rulebase security rules shop_allow-web_ingress-2 log-end no
+set rulebase security rules shop_allow-web_ingress-2 description "shop/allow-web ingress rule: namespaces team=ops (to shop/app=web)"
+set rulebase security rules isolated_ingress from any
+set rulebase security rules isolated_ingress to any
+set rulebase security rules isolated_ingress source any
+set rulebase security rules isolated_ingress destination shop_app_web
+set rulebase security rules isolated_ingress source-user any
+set rulebase security rules isolated_ingress category any
+set rulebase security rules isolated_ingress application any
+set rulebase security rules isolated_ingress service any
+set rulebase security rules isolated_ingress action drop
+set rulebase security rules isolated_ingress log-end no
+set rulebase security rules isolated_ingress description "the pods are isolated for ingress: what no policy allows is denied (to shop/app=web)"
+set rulebase security rules shop_web-to-cart_ingress-1 from any
+set rulebase security rules shop_web-to-cart_ingress-1 to any
+set rulebase security rules shop_web-to-cart_ingress-1 source [ shop_web-1 shop_web-2 ]
+set rulebase security rules shop_web-to-cart_ingress-1 destination shop_app_cart
+set rulebase security rules shop_web-to-cart_ingress-1 source-user any
+set rulebase security rules shop_web-to-cart_ingress-1 category any
+set rulebase security rules shop_web-to-cart_ingress-1 application any
+set rulebase security rules shop_web-to-cart_ingress-1 service tcp-50051
+set rulebase security rules shop_web-to-cart_ingress-1 action allow
+set rulebase security rules shop_web-to-cart_ingress-1 log-end no
+set rulebase security rules shop_web-to-cart_ingress-1 description "shop/web-to-cart ingress rule: shop/app=web (to shop/app=cart)"
+set rulebase security rules isolated_ingress-2 from any
+set rulebase security rules isolated_ingress-2 to any
+set rulebase security rules isolated_ingress-2 source 0.0.0.0/0
+set rulebase security rules isolated_ingress-2 destination shop_app_cart
+set rulebase security rules isolated_ingress-2 source-user any
+set rulebase security rules isolated_ingress-2 category any
+set rulebase security rules isolated_ingress-2 application any
+set rulebase security rules isolated_ingress-2 service any
+set rulebase security rules isolated_ingress-2 action drop
+set rulebase security rules isolated_ingress-2 log-end no
+set rulebase security rules isolated_ingress-2 description "the pods are isolated for ingress: what no policy allows is denied (to shop/app=cart)"
+set rulebase security rules shop_cart-to-db_ingress-1 from any
+set rulebase security rules shop_cart-to-db_ingress-1 to any
+set rulebase security rules shop_cart-to-db_ingress-1 source shop_app_cart
+set rulebase security rules shop_cart-to-db_ingress-1 destination shop_app_db
+set rulebase security rules shop_cart-to-db_ingress-1 source-user any
+set rulebase security rules shop_cart-to-db_ingress-1 category any
+set rulebase security rules shop_cart-to-db_ingress-1 application any
+set rulebase security rules shop_cart-to-db_ingress-1 service tcp-5432
+set rulebase security rules shop_cart-to-db_ingress-1 action allow
+set rulebase security rules shop_cart-to-db_ingress-1 log-end no
+set rulebase security rules shop_cart-to-db_ingress-1 description "shop/cart-to-db ingress rule: shop/app=cart (to shop/app=db)"
+set rulebase security rules isolated_ingress-3 from any
+set rulebase security rules isolated_ingress-3 to any
+set rulebase security rules isolated_ingress-3 source 0.0.0.0/0
+set rulebase security rules isolated_ingress-3 destination shop_app_db
+set rulebase security rules isolated_ingress-3 source-user any
+set rulebase security rules isolated_ingress-3 category any
+set rulebase security rules isolated_ingress-3 application any
+set rulebase security rules isolated_ingress-3 service any
+set rulebase security rules isolated_ingress-3 action drop
+set rulebase security rules isolated_ingress-3 log-end no
+set rulebase security rules isolated_ingress-3 description "the pods are isolated for ingress: what no policy allows is denied (to shop/app=db)"
+set rulebase security rules payments_api-ingress_ingress-1 from any
+set rulebase security rules payments_api-ingress_ingress-1 to any
+set rulebase security rules payments_api-ingress_ingress-1 source "payments_api-ingress_ingress-1 sources"
+set rulebase security rules payments_api-ingress_ingress-1 destination "pods payments_api-1"
+set rulebase security rules payments_api-ingress_ingress-1 source-user any
+set rulebase security rules payments_api-ingress_ingress-1 category any
+set rulebase security rules payments_api-ingress_ingress-1 application any
+set rulebase security rules payments_api-ingress_ingress-1 service tcp-8443_tcp-9000-9010
+set rulebase security rules payments_api-ingress_ingress-1 action allow
+set rulebase security rules payments_api-ingress_ingress-1 log-end no
+set rulebase security rules payments_api-ingress_ingress-1 description "payments/api-ingress ingress rule: namespaces team=shop; payments/app=worker (to pods payments/api-1)"
+set rulebase security rules payments_api-ingress_ingress-1-2 from any
+set rulebase security rules payments_api-ingress_ingress-1-2 to any
+set rulebase security rules payments_api-ingress_ingress-1-2 source "payments_api-ingress_ingress-1 sources"
+set rulebase security rules payments_api-ingress_ingress-1-2 destination "pods payments_api-1"
+set rulebase security rules payments_api-ingress_ingress-1-2 source-user any
+set rulebase security rules payments_api-ingress_ingress-1-2 category any
+set rulebase security rules payments_api-ingress_ingress-1-2 application any
+set rulebase security rules payments_api-ingress_ingress-1-2 service sctp-3868
+set rulebase security rules payments_api-ingress_ingress-1-2 action allow
+set rulebase security rules payments_api-ingress_ingress-1-2 log-end no
+set rulebase security rules payments_api-ingress_ingress-1-2 description "payments/api-ingress ingress rule: namespaces team=shop; payments/app=worker (to pods payments/api-1)"
+set rulebase security rules payments_api-ingress_ingress-3 from any
+set rulebase security rules payments_api-ingress_ingress-3 to any
+set rulebase security rules payments_api-ingress_ingress-3 source payments_app_worker
+set rulebase security rules payments_api-ingress_ingress-3 destination payments_api-1
+set rulebase security rules payments_api-ingress_ingress-3 source-user any
+set rulebase security rules payments_api-ingress_ingress-3 category any
+set rulebase security rules payments_api-ingress_ingress-3 application any
+set rulebase security rules payments_api-ingress_ingress-3 service any
+set rulebase security rules payments_api-ingress_ingress-3 action allow
+set rulebase security rules payments_api-ingress_ingress-3 log-end no
+set rulebase security rules payments_api-ingress_ingress-3 disabled yes
+set rulebase security rules payments_api-ingress_ingress-3 description "FWSHIFT: disabled by the converter, see the report. payments/api-ingress ingress rule: payments/app=worker (to pods payments/api-1)"
+set rulebase security rules isolated_ingress-4 from any
+set rulebase security rules isolated_ingress-4 to any
+set rulebase security rules isolated_ingress-4 source any
+set rulebase security rules isolated_ingress-4 destination "pods payments_api-1"
+set rulebase security rules isolated_ingress-4 source-user any
+set rulebase security rules isolated_ingress-4 category any
+set rulebase security rules isolated_ingress-4 application any
+set rulebase security rules isolated_ingress-4 service any
+set rulebase security rules isolated_ingress-4 action drop
+set rulebase security rules isolated_ingress-4 log-end no
+set rulebase security rules isolated_ingress-4 description "the pods are isolated for ingress: what no policy allows is denied (to pods payments/api-1)"
+set rulebase security rules isolated_ingress-5 from any
+set rulebase security rules isolated_ingress-5 to any
+set rulebase security rules isolated_ingress-5 source 0.0.0.0/0
+set rulebase security rules isolated_ingress-5 destination payments_app_worker
+set rulebase security rules isolated_ingress-5 source-user any
+set rulebase security rules isolated_ingress-5 category any
+set rulebase security rules isolated_ingress-5 application any
+set rulebase security rules isolated_ingress-5 service any
+set rulebase security rules isolated_ingress-5 action drop
+set rulebase security rules isolated_ingress-5 log-end no
+set rulebase security rules isolated_ingress-5 description "the pods are isolated for ingress: what no policy allows is denied (to payments/app=worker)"
+set rulebase security rules monitoring_scrape-only_ingress-1 from any
+set rulebase security rules monitoring_scrape-only_ingress-1 to any
+set rulebase security rules monitoring_scrape-only_ingress-1 source ns-monitoring
+set rulebase security rules monitoring_scrape-only_ingress-1 destination ns-monitoring
+set rulebase security rules monitoring_scrape-only_ingress-1 source-user any
+set rulebase security rules monitoring_scrape-only_ingress-1 category any
+set rulebase security rules monitoring_scrape-only_ingress-1 application any
+set rulebase security rules monitoring_scrape-only_ingress-1 service tcp-9090
+set rulebase security rules monitoring_scrape-only_ingress-1 action allow
+set rulebase security rules monitoring_scrape-only_ingress-1 log-end no
+set rulebase security rules monitoring_scrape-only_ingress-1 description "monitoring/scrape-only ingress rule: namespaces team=ops (to ns-monitoring)"
+set rulebase security rules isolated_ingress-6 from any
+set rulebase security rules isolated_ingress-6 to any
+set rulebase security rules isolated_ingress-6 source 0.0.0.0/0
+set rulebase security rules isolated_ingress-6 destination ns-monitoring
+set rulebase security rules isolated_ingress-6 source-user any
+set rulebase security rules isolated_ingress-6 category any
+set rulebase security rules isolated_ingress-6 application any
+set rulebase security rules isolated_ingress-6 service any
+set rulebase security rules isolated_ingress-6 action drop
+set rulebase security rules isolated_ingress-6 log-end no
+set rulebase security rules isolated_ingress-6 description "the pods are isolated for ingress: what no policy allows is denied (to ns-monitoring)"
+set rulebase security rules dev_not-from-prod_ingress-1 from any
+set rulebase security rules dev_not-from-prod_ingress-1 to any
+set rulebase security rules dev_not-from-prod_ingress-1 source "namespaces env NotIn _prod_"
+set rulebase security rules dev_not-from-prod_ingress-1 destination ns-dev
+set rulebase security rules dev_not-from-prod_ingress-1 source-user any
+set rulebase security rules dev_not-from-prod_ingress-1 category any
+set rulebase security rules dev_not-from-prod_ingress-1 application any
+set rulebase security rules dev_not-from-prod_ingress-1 service any
+set rulebase security rules dev_not-from-prod_ingress-1 action allow
+set rulebase security rules dev_not-from-prod_ingress-1 log-end no
+set rulebase security rules dev_not-from-prod_ingress-1 description "dev/not-from-prod ingress rule: namespaces env NotIn (prod) (to ns-dev)"
+set rulebase security rules isolated_ingress-7 from any
+set rulebase security rules isolated_ingress-7 to any
+set rulebase security rules isolated_ingress-7 source 0.0.0.0/0
+set rulebase security rules isolated_ingress-7 destination ns-dev
+set rulebase security rules isolated_ingress-7 source-user any
+set rulebase security rules isolated_ingress-7 category any
+set rulebase security rules isolated_ingress-7 application any
+set rulebase security rules isolated_ingress-7 service any
+set rulebase security rules isolated_ingress-7 action drop
+set rulebase security rules isolated_ingress-7 log-end no
+set rulebase security rules isolated_ingress-7 description "the pods are isolated for ingress: what no policy allows is denied (to ns-dev)"
+set rulebase security rules "not isolated_ from pods" from any
+set rulebase security rules "not isolated_ from pods" to any
+set rulebase security rules "not isolated_ from pods" source all-pods
+set rulebase security rules "not isolated_ from pods" destination any
+set rulebase security rules "not isolated_ from pods" source-user any
+set rulebase security rules "not isolated_ from pods" category any
+set rulebase security rules "not isolated_ from pods" application any
+set rulebase security rules "not isolated_ from pods" service any
+set rulebase security rules "not isolated_ from pods" action allow
+set rulebase security rules "not isolated_ from pods" log-end no
+set rulebase security rules "not isolated_ from pods" description "what no policy decides is allowed to and from pods"
+set rulebase security rules "not isolated_ to pods" from any
+set rulebase security rules "not isolated_ to pods" to any
+set rulebase security rules "not isolated_ to pods" source any
+set rulebase security rules "not isolated_ to pods" destination all-pods
+set rulebase security rules "not isolated_ to pods" source-user any
+set rulebase security rules "not isolated_ to pods" category any
+set rulebase security rules "not isolated_ to pods" application any
+set rulebase security rules "not isolated_ to pods" service any
+set rulebase security rules "not isolated_ to pods" action allow
+set rulebase security rules "not isolated_ to pods" log-end no
+set rulebase security rules "not isolated_ to pods" description "what no policy decides is allowed to and from pods"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

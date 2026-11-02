@@ -1,0 +1,110 @@
+configure terminal
+firewall
+service name FWS_tcp-5986 proto tcp src all dst port 5986
+service name FWS_tcp-3389 proto tcp src all dst port 3389
+service name FWS_tcp-23 proto tcp src all dst port 23
+service name FWS_tcp_445 proto tcp src all dst port 445
+service name FWS_tcp_139 proto tcp src all dst port 139
+service name FWS_tcp-5985 proto tcp src all dst port 5985
+service name FWS_tcp_443 proto tcp src all dst port 443
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_udp-53 proto udp src all dst port 53
+service name FWS_tcp-22 proto tcp src all dst port 22
+icmp name FWS_icmp-8 type 8 code 0 ver ipv4
+icmp name FWS_icmp6-128 type 128 code 0 ver ipv6
+icmp name FWS_icmp_3_4 type 3 code 4 ver ipv4
+icmp name FWS_icmp_11_0 type 11 code 0 ver ipv4
+service name FWS_tcp-50000-50100 proto tcp src all dst range 50000 - 50100
+service name FWS_udp-161-from-1024-65535 proto udp src range 1024 - 65535 dst port 161
+proto name FWS_ip-47 num 47
+service name FWS_tcp-8443 proto tcp src all dst port 8443
+service name FWS_tcp-all proto tcp src all dst all
+service name FWS_udp-5353 proto udp src all dst port 5353
+service name FWS_udp-3544 proto udp src all dst port 3544
+service name FWS_tcp-9100 proto tcp src all dst port 9100
+service name FWS_udp-1900 proto udp src all dst port 1900
+service name FWS_tcp-10000-10010 proto tcp src all dst range 10000 - 10010
+ipv4rule from Host to Domain srcip 0.0.0.0/0 dstip 192.0.2.66 action drop log no prior 1
+ipv6rule from Host to Domain srcip ::/0 dstip 2001:db8:66::1 action drop log no prior 1
+ipv4rule from Host to Private srcip 0.0.0.0/0 dstip 192.0.2.66 action drop log no prior 1
+ipv6rule from Host to Private srcip ::/0 dstip 2001:db8:66::1 action drop log no prior 1
+ipv4rule from Host to Public srcip 0.0.0.0/0 dstip 192.0.2.66 action drop log no prior 1
+ipv6rule from Host to Public srcip ::/0 dstip 2001:db8:66::1 action drop log no prior 1
+ipv4rule from Domain to Host srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop service FWS_tcp-3389 log no prior 1
+ipv4rule from Private to Host srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop service FWS_tcp-3389 log no prior 1
+ipv4rule from Public to Host srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop service FWS_tcp-3389 log no prior 1
+ipv4rule from Host to Private srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp-23 log no prior 1
+ipv6rule from Host to Private srcip ::/0 dstip ::/0 action drop service FWS_tcp-23 log no prior 1
+ipv4rule from Host to Public srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp-23 log no prior 1
+ipv6rule from Host to Public srcip ::/0 dstip ::/0 action drop service FWS_tcp-23 log no prior 1
+ipv4rule from Private to Host srcip 198.51.100.10-198.51.100.20 dstip 0.0.0.0/0 action drop log no prior 1
+ipv4rule from Private to Host srcip 203.0.113.0/24 dstip 0.0.0.0/0 action drop log no prior 1
+ipv4rule from Public to Host srcip 198.51.100.10-198.51.100.20 dstip 0.0.0.0/0 action drop log no prior 1
+ipv4rule from Public to Host srcip 203.0.113.0/24 dstip 0.0.0.0/0 action drop log no prior 1
+ipv4rule from Public to Host srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_445 log no prior 1
+ipv4rule from Public to Host srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_139 log no prior 1
+ipv6rule from Public to Host srcip ::/0 dstip ::/0 action drop service FWS_tcp_445 log no prior 1
+ipv6rule from Public to Host srcip ::/0 dstip ::/0 action drop service FWS_tcp_139 log no prior 1
+ipv4rule from Domain to Host srcip 10.0.0.0/8 dstip 0.0.0.0/0 action acc service FWS_tcp-5985 log no prior 2
+ipv4rule from Host to Private srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log no prior 2
+ipv4rule from Host to Private srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log no prior 2
+ipv6rule from Host to Private srcip ::/0 dstip ::/0 action acc service FWS_tcp_443 log no prior 2
+ipv6rule from Host to Private srcip ::/0 dstip ::/0 action acc service FWS_tcp_80 log no prior 2
+ipv6rule from Domain to Host srcip 2001:db8:abcd::/48 dstip ::/0 action acc service FWS_tcp-22 log no prior 2
+ipv6rule from Private to Host srcip 2001:db8:abcd::/48 dstip ::/0 action acc service FWS_tcp-22 log no prior 2
+ipv6rule from Public to Host srcip 2001:db8:abcd::/48 dstip ::/0 action acc service FWS_tcp-22 log no prior 2
+ipv4rule from Domain to Host srcip 10.0.0.0/8 dstip 0.0.0.0/0 action acc service FWS_udp-53 log no prior 2
+ipv4rule from Private to Host srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp-8 log no prior 2
+ipv4rule from Public to Host srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp-8 log no prior 2
+ipv4rule from Private to Host srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp_3_4 log no prior 2
+ipv4rule from Private to Host srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp_11_0 log no prior 2
+ipv4rule from Public to Host srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp_3_4 log no prior 2
+ipv4rule from Public to Host srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp_11_0 log no prior 2
+ipv4rule from Private to Host srcip 10.20.0.0/16 dstip 0.0.0.0/0 action acc service FWS_tcp-3389 log no prior 2
+ipv4rule from Private to Host srcip 192.0.2.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp-3389 log no prior 2
+ipv6rule from Private to Host srcip 2001:db8:20::/48 dstip ::/0 action acc service FWS_tcp-3389 log no prior 2
+ipv4rule from Private to Host srcip 0.0.0.0/0 dstip 10.10.0.5 action acc service FWS_tcp_80 log no prior 2
+ipv4rule from Private to Host srcip 0.0.0.0/0 dstip 10.10.0.5 action acc service FWS_tcp_443 log no prior 2
+ipv6rule from Private to Host srcip ::/0 dstip 2001:db8:10::5 action acc service FWS_tcp_80 log no prior 2
+ipv6rule from Private to Host srcip ::/0 dstip 2001:db8:10::5 action acc service FWS_tcp_443 log no prior 2
+ipv4rule from Public to Host srcip 0.0.0.0/0 dstip 10.10.0.5 action acc service FWS_tcp_80 log no prior 2
+ipv4rule from Public to Host srcip 0.0.0.0/0 dstip 10.10.0.5 action acc service FWS_tcp_443 log no prior 2
+ipv6rule from Public to Host srcip ::/0 dstip 2001:db8:10::5 action acc service FWS_tcp_80 log no prior 2
+ipv6rule from Public to Host srcip ::/0 dstip 2001:db8:10::5 action acc service FWS_tcp_443 log no prior 2
+ipv4rule from Private to Host srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_tcp-50000-50100 log no prior 2
+ipv4rule from Private to Host srcip 198.51.100.1 dstip 0.0.0.0/0 action acc service FWS_ip-47 log no prior 2
+ipv4rule from Public to Host srcip 198.51.100.1 dstip 0.0.0.0/0 action acc service FWS_ip-47 log no prior 2
+ipv4rule from Public to Host srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_udp-3544 log no prior 2
+ipv6rule from Public to Host srcip ::/0 dstip ::/0 action acc service FWS_udp-3544 log no prior 2
+ipv4rule from Host to Private srcip 0.0.0.0/0 dstip 10.30.0.20 action acc service FWS_tcp-10000-10010 log no prior 2
+ipv4rule from Host to Public srcip 0.0.0.0/0 dstip 10.30.0.20 action acc service FWS_tcp-10000-10010 log no prior 2
+ipv4rule from Host to Domain srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 2
+ipv6rule from Host to Domain srcip ::/0 dstip ::/0 action acc log no prior 2
+ipv4rule from Host to Public srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 2
+ipv6rule from Host to Public srcip ::/0 dstip ::/0 action acc log no prior 2
+ipv4rule from Host to Domain srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Host to Domain srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Host to Private srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Host to Private srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Host to Public srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Host to Public srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Domain to Host srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Domain to Host srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Domain to Private srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Domain to Private srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Domain to Public srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Domain to Public srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Private to Host srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Private to Host srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Private to Domain srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Private to Domain srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Private to Public srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Private to Public srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Public to Host srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Public to Host srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Public to Domain srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Public to Domain srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Public to Private srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Public to Private srcip ::/0 dstip ::/0 action drop log no prior 3
+exit
+end

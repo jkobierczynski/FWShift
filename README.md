@@ -42,6 +42,11 @@ what was approximated and what a person has to look at.
 | Hillstone StoneOS (E-, T-, X-series, CloudEdge) | `show configuration`: zones, address and service books, the policy rules in query order, SNAT and DNAT rules | configuration-mode commands |
 | Zyxel ZLD (USG FLEX, ATP, VPN; ZLD 4.x and 5.x) | `startup-config.conf` / `show running-config`: zones, address and service objects and groups, `secure-policy` and `secure-policy6` with their default rules, virtual servers and 1:1 NAT, policy routes with SNAT | a script of CLI commands (`secure-policy insert`, `ip virtual-server`, `policy insert`) |
 | Windows Defender Firewall | registry export (`reg export` of the local and Group Policy stores) | a PowerShell script of `New-NetFirewallRule` calls in one rule group |
+| Kubernetes NetworkPolicy and Calico | `kubectl get networkpolicy,pod,namespace,service -A -o json` (and `calicoctl get ... -o json` for Calico tiers, global policies, network sets): selectors worked out on the pods of the export | NetworkPolicies selecting pods by a group label, or one Calico GlobalNetworkPolicy (JSON for `kubectl apply` / `calicoctl apply`) |
+| Phoenix Contact mGuard (FL/TC MGUARD, firmware 8.x to 10.x) | configuration profile (`.atv`, or `gaiconfig --get-all`): packet filter tables incoming, outgoing and DMZ, IP and port groups, rule sets, port forwarding, 1:1 NAT, IP masquerading | a shell script of `gaiconfig` calls that appends groups and rows |
+| Siemens SCALANCE SC-600 and S615 | `show running-config` (CLI configuration): VLAN interfaces as zones, IP and ICMP services, `ipv4rule` / `ipv6rule` with their priorities, NAPT, NETMAP, source NAT, masquerading | CLI commands for the FIREWALL and FIREWALL NAT modes |
+| Belden/Hirschmann HiSecOS (EAGLE40, EAGLE20/30, routed mode) | `show running-config script`: routing interfaces, the packet filter (`packet-filter l3` rules and their interface assignments, default policy), destination NAT, masquerading, 1:1 and double NAT | a CLI script that adds rules, assignments and NAT rules, nothing committed |
+| Moxa industrial secure routers (EDR-810, EDR-G902/G903, TN-4900; classic router firmware) | the CLI-based configuration file (`.ini`) / `show running-config`: the Layer 3 policy (`firewall N`), NAT (port forwards, 1-to-1, N-to-1) | CLI commands for the console (`firewall N`, `ip nat`) |
 | Juniper ScreenOS (NetScreen, SSG, ISG; 5.x and 6.x) | `get config` | — (read only) |
 | Cisco PIX (6.x; 7 and later read as an ASA) | `write terminal` / `show running-config` | — (read only) |
 
@@ -66,7 +71,7 @@ ticketing system) or one **HTML** page to read and sign (`--format`, and
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.42).** The converter is tested against synthetic
+> **Status: alpha (0.43).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -111,7 +116,8 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   with its block page, not by the host (`SOPHOS_DROP_WEB`).
 > * **Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
 >   WatchGuard, Barracuda, VMware NSX, RouterOS, Forcepoint, Azure Firewall, pf, VyOS, F5 BIG-IP AFM, OCI,
->   Hillstone, Zyxel and Windows Defender Firewall** output has **not been loaded on a device** (AWS Network Firewall
+>   Hillstone, Zyxel, Windows Defender Firewall, Kubernetes, Calico, mGuard, SCALANCE, HiSecOS (EAGLE) and Moxa** output has
+>   **not been loaded on a device** (AWS Network Firewall
 >   output was loaded by the lab in 0.41.7 and failed, every reply dropped; the fix of 0.41.8 has not been rerun), the **Terraform** output has not been applied with
 >   Terraform, and no **ScreenOS** or **PIX** configuration (both read only) was read from a device. The Check Point input format is taken from the API
 >   documentation, not from a real export, the FTD syntax from Cisco's
@@ -162,7 +168,13 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   configurations, much of the syntax assumed, and nothing was run on a firewall; Zyxel from the ZLD CLI Reference
 >   Guide (4.x and 2.11) and the USG FLEX User's Guide 5.42, some syntax assumed, and nothing was loaded on a firewall;
 >   Windows Defender Firewall from Microsoft's protocol specifications ([MS-GPFAS], [MS-FASP]) and its documentation,
->   and nothing was read from or loaded on a Windows host. None of these inputs is a real export.
+>   and nothing was read from or loaded on a Windows host; Kubernetes and Calico from their documentation, and nothing
+>   was applied to a cluster; the mGuard from Phoenix Contact's gaiconfig user guides and application notes (the
+>   syntax of the profile file, which Phoenix does not publish, from a public tool's reader); SCALANCE from Siemens's
+>   2015 and 2017 CLI manuals (the current ones could not be read past their contents), several rules assumed; HiSecOS
+>   from Belden's MIBs and the command list of its CLI reference, the command keywords not confirmed (run `script
+>   validate`); Moxa from its CLI manuals for the classic firmware (MX-ROS is not read); none of these was loaded on a
+>   device. None of these inputs is a real export.
 >   Several conversion rules rest on
 >   vendor behaviour taken from documentation rather than from a lab.
 >
@@ -242,8 +254,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.42.0.pyz --version
-python3 fwshift-0.42.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.43.0.pyz --version
+python3 fwshift-0.43.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -494,6 +506,27 @@ fwshift convert running-config.xml --to windows-firewall -o rules.ps1 --report r
     --zone-map dmz=Host --zone-map untrust=Public --zone-map trust=Domain
 powershell -ExecutionPolicy Bypass -File rules.ps1 -DryRun
 
+# Kubernetes and Calico: kubectl get networkpolicy,pod,namespace,service -A -o json (and
+# calicoctl get ... -o json). Selectors become the pods they picked: a snapshot. To Calico, one
+# GlobalNetworkPolicy in order; to NetworkPolicy, the deny rules taken out of the allow rules
+fwshift convert cluster.json --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to calico -o gnp.json --target-policy edge \
+    --zone-network pods=10.244.0.0/16 --zone-network untrust=0.0.0.0/0,::/0
+calicoctl apply -f gnp.json
+
+# Industrial firewalls: mGuard (.atv profile), SCALANCE SC-600/S615 (show running-config),
+# EAGLE40 / HiSecOS (show running-config script), Moxa EDR (configuration file). Each target
+# only adds; read the report and the manual's section 10 before you load anything
+fwshift convert profile.atv --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to mguard -o fwshift-mguard.sh --report report.txt \
+    --zone-map trust=internal --zone-map untrust=external
+fwshift convert running-config.xml --to scalance -o fwshift.cli --report report.txt \
+    --zone-map trust=vlan1 --zone-map untrust=vlan2 --zone-map dmz=vlan3
+fwshift convert running-config.xml --to hisecos -o fwshift.cli --report report.txt \
+    --interface-map ethernet1/1=1/1 --interface-map ethernet1/2=1/2
+fwshift convert running-config.xml --to moxa -o fwshift-moxa.txt --report report.txt \
+    --zone-map trust=lan --zone-map untrust=wan1 --zone-map dmz=wan2
+
 # pf: pf.conf of OpenBSD (FreeBSD's nat, rdr and binat too); addresses of
 # interfaces are not in it: give them. To pf, a ruleset for the anchor
 # "fwshift", for OpenBSD or FreeBSD 15 and later
@@ -559,7 +592,9 @@ Firewall the answers of `aws network-firewall describe-firewall-policy` and
 `describe-rule-group`, for pf its `pf.conf`, for VyOS or EdgeOS `show
 configuration commands`, for an F5 BIG-IP a few `tmsh list` commands, for OCI a few `oci network ...` answers,
 for Hillstone `show configuration`, for Zyxel `startup-config.conf`, for Windows `reg export` of the firewall's
-registry keys, for ScreenOS `get config`, for a PIX `write terminal`.
+registry keys, for Kubernetes `kubectl get ... -o json`, for an mGuard its `.atv` profile, for a SCALANCE or a
+Moxa `show running-config`, for an EAGLE `show running-config script`, for ScreenOS `get config`, for a PIX `write
+terminal`.
 
 The report starts with a summary and then lists every rule that is not exact:
 
@@ -977,6 +1012,23 @@ FWShift reads back) and does the same for the conversion. See
 | NAT | none |
 | Scope | the local, Group Policy and MDM stores of one host |
 
+| | Kubernetes NetworkPolicy and Calico |
+|---|---|
+| Address objects | pods (by their selectors, worked out on the export: a snapshot), namespaces, `ipBlock` with `except`, Calico's `nets`, `notNets` and network sets. Written: `ipBlock` (NetworkPolicy), `nets` (Calico) |
+| Address groups | a selector stands for its pods. Written: pods labelled by group (NetworkPolicy), `fwshift/policy=NAME` (Calico) |
+| Services | protocol, ports with `endPort`, named ports (a rule per number), Calico's ICMP and not-matches. Written: the same |
+| Security rules | isolation and the union of allows (NetworkPolicy); tiers, order, Allow, Deny, Pass, Log and the end of a tier (Calico); both ends of a connection composed into one first-match list. Written: Calico in order, exactly; NetworkPolicy with deny rules subtracted |
+| NAT | none |
+| Scope | a cluster's export; Services, AdminNetworkPolicy, staged policies and host endpoints' own behaviour not converted |
+
+| | Industrial firewalls: mGuard, SCALANCE, HiSecOS, Moxa |
+|---|---|
+| Address objects | addresses, ranges and networks in the rules; mGuard IP groups, SCALANCE addresses. Written: the same, prefixed |
+| Services | protocols and ports; mGuard port groups, SCALANCE IP, ICMP and protocol services. Written: the same |
+| Security rules | mGuard: the incoming, outgoing and DMZ tables, rule sets in place; SCALANCE: rules by priority; HiSecOS: the packet filter by the priority of its interface assignments; Moxa: the Layer 3 policy by index; each first match. Written: added after or before the device's own as each documents, with the source's default |
+| NAT | mGuard port forwarding (before the filter), 1:1 NAT, masquerading; SCALANCE NAPT, NETMAP, source NAT; HiSecOS DNAT, 1:1, masquerading, double NAT; Moxa port forwarding, 1-to-1, N-to-1 |
+| Scope | DPI enforcers, user firewalls, VPN firewalls and management access reported, not converted; Moxa MX-ROS not read |
+
 | | Juniper ScreenOS (read only) |
 |---|---|
 | Address objects | address books per zone with the Global book behind them: addresses (IPv4, IPv6), host names; `MIP(A)` and `VIP(A)` as objects |
@@ -1065,7 +1117,8 @@ and everything else outside the policy.
   and IOS XE 0.28, Huawei USG 0.29, Stormshield SNS 0.30, Cisco Meraki MX
   0.31; Azure Firewall, AWS Network Firewall, pf and VyOS, with Juniper
   ScreenOS and Cisco PIX 6.x read only, 0.41; F5 BIG-IP AFM, Oracle Cloud Infrastructure, Hillstone StoneOS,
-  Zyxel ZLD and Windows Defender Firewall 0.42; what is still open for each is in
+  Zyxel ZLD and Windows Defender Firewall 0.42; Kubernetes NetworkPolicy, Calico, Phoenix Contact mGuard, Siemens
+  SCALANCE, Hirschmann HiSecOS (EAGLE40) and Moxa 0.43; what is still open for each is in
   TODO.md.
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),

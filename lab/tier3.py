@@ -27,6 +27,7 @@ import labrun
 import sophos
 import tier1
 import tier2
+import watchguard
 from labrun import LabError, Runner
 
 ORDER = ["inside", "dmz", "outside"]  # the firewall's data interfaces, in this order
@@ -118,6 +119,9 @@ class Vendor:
     mgmt_ports: Tuple[int, ...] = ()
     secrets: Tuple[str, ...] = ()
     imdsv2: bool = False
+    # A step by hand before the CLI is waited for, given the firewall's address and instance id (WatchGuard: the setup
+    # wizard of its Web UI, which nothing else takes).
+    first_step: Optional[Callable[["Runner", str, str], None]] = None
 
 
 @dataclass(frozen=True)
@@ -739,6 +743,15 @@ VENDORS: Dict[str, Vendor] = {
                                                                            {zone: _addr(zone) for zone in ORDER}),
                      api=True, mgmt_index=1, mgmt_ports=(22, sophos.API_PORT), secrets=("admin", "backup"), imdsv2=True,
                      status="scripted from Sophos's CloudFormation templates and XML API documentation; passed on AWS (0.41.5, SFOS 22.0 MR2, NAT included; four web connections answered by its web proxy, counted as blocked); one step by hand (the XML API)"),  # fmt: skip
+    # WatchGuard Firebox Cloud, hourly (0.42.1; lab/watchguard.py): the setup wizard by hand, then the CLI (SSH on 4118)
+    # exports the configuration to a TFTP server on a test host, the lab merges FWShift's policy part into it, and the
+    # CLI imports the result. Four cards (eth0 external and management, eth1 to eth3 the zones): c5.xlarge.
+    "watchguard": Vendor("watchguard", "WatchGuard Firebox Cloud (hourly)", "watchguard", "*Firebox*,*firebox*,*FIREBOX*,*WatchGuard*,*watchguard*",
+                         "c5.xlarge", "admin", "show sysinfo", watchguard.ERRORS, ready_answer=r"(?im)(version|serial|uptime|model|^\S*#\s*$)",  # (its prompt will do)
+                         key_bits=2048, ssh_options=(f"Port={watchguard.CLI_PORT}",), boot_minutes=30, prompt=watchguard.PROMPT,
+                         mgmt_ports=(watchguard.CLI_PORT, watchguard.WEB_PORT), load=watchguard.load,
+                         first_step=lambda runner, host, instance: watchguard.wizard(runner, host, instance),
+                         status="scripted from WatchGuard's Firebox Cloud and CLI documentation, never run; one step by hand (the setup wizard)"),  # fmt: skip
     "asav": Vendor("asav", "Cisco ASAv (pay as you go)", "asa", "asav*,*ASAv*", "c5.xlarge", "admin", "show version | include up",
                    r"ERROR:|% Invalid input|% Incomplete command", list(_ZONE_NETWORKS), _asav_user_data(), _asav_session,
                    "run: passed (ASAv 9.24.10, 0.36.1; NAT included, 0.40.21)",
@@ -842,13 +855,14 @@ NOT_ON: Dict[Tuple[str, str], str] = {
     ("sonicwall", "gcp"): "not offered on Google Cloud",
     ("sophos", "azure"): "scripted for AWS first: its first-boot data, ports and secrets differ on Azure (not researched yet)",
     ("sophos", "gcp"): "scripted for AWS first: Sophos Firewall on Google Cloud not researched yet",
+    ("watchguard", "azure"): "scripted for AWS first: Firebox Cloud on Azure (its setup and interfaces) not researched yet",
+    ("watchguard", "gcp"): "not offered on Google Cloud",
 }
 
 
 NOT_SCRIPTED = {
     "stormshield": "Stormshield EVA: the licence of a pay-as-you-go image and snscli's login are not checked yet",
     "barracuda": "Barracuda CloudGen: the REST API needs a token made in Firewall Admin first",
-    "watchguard": "WatchGuard: the output is merged into a configuration with Policy Manager, a Windows program",
     "forcepoint": "Forcepoint NGFW: needs a Security Management Center",
     "meraki": "Meraki vMX: needs a Meraki licence and a Dashboard organisation; there is no image to start alone",
 }
@@ -1113,6 +1127,7 @@ EXPORTS: Dict[str, readback.Export] = {
                               readback.between(r"^(Building configuration|Current configuration|version \d)", r"^end\s*$"), "cfg"),
     "asav": readback.Export("asa", ("terminal pager 0", "show running-config", "exit"), readback.between(r"^(: Saved|: Serial|ASA Version)", r"^: end"), "cfg"),
     "sophos": readback.Export("sophos", (), lambda text: text, "xml"),  # (through the XML API: sophos.export)
+    "watchguard": readback.Export("watchguard", (), lambda text: text, "xml"),  # (exported to the lab's TFTP server: watchguard.export)
     "pfsense": readback.Export("pfsense", ("cat /conf/config.xml",), readback.between(r"<\?xml|<pfsense", r"</pfsense>"), "xml"),
     "opnsense": readback.Export("opnsense", ("cat /conf/config.xml",), readback.between(r"<\?xml|<opnsense", r"</opnsense>"), "xml"),
     # (every access layer, the inline ones of the converted policy among them, and the NAT rules: the manual's export)
@@ -1135,6 +1150,8 @@ def read_back(runner: Runner, vendor: Vendor, key: Path, host: str, out: Path, l
         merged = runner.work / "config.merged.xml"
         if vendor.api:
             text = sophos.export(runner, host, sophos.password(runner.work), loaded=out.read_text(encoding="utf-8"))
+        elif vendor.name == "watchguard":
+            text = watchguard.export(runner, vendor, key, host)
         elif runner.dry_run:
             text = readback.as_loaded(vendor.target, (merged if merged.exists() else out).read_text(encoding="utf-8"))
             raw = text if vendor.name != "checkpoint" else "{}"
@@ -1148,7 +1165,8 @@ def read_back(runner: Runner, vendor: Vendor, key: Path, host: str, out: Path, l
             text = export.extract(raw)
         if runner.dry_run and vendor.name == "checkpoint":
             return readback.not_read(runner, "a dry run has no Management API to export from")
-        return readback.check(runner, vendor.target, out, text, export, vendor.options)
+        options = list(vendor.options) + (watchguard.zone_options(runner.work) if vendor.name == "watchguard" else [])
+        return readback.check(runner, vendor.target, out, text, export, options)
 
     readback.safely(runner, step)
 
@@ -1238,6 +1256,8 @@ def _boot_load_probe(runner: Runner, vendor: Vendor, key: Path, outputs: Dict[st
     login: Dict[str, Any] = {"answers": tuple((q, _filled(a, fill)) for q, a in vendor.answers), "batch": not vendor.password_login,
                              "preamble": vendor.preamble, "preamble_when": vendor.preamble_when, "pager": vendor.pager, "idle": vendor.idle, "slow": vendor.slow, "close_after": vendor.close_after,
                              "noise": vendor.screen_noise}  # fmt: skip
+    if vendor.first_step is not None:
+        vendor.first_step(runner, outputs["firewall_ip"], outputs["firewall_instance"])
     if vendor.api:
         sophos.wait_web_console(runner, outputs["firewall_ip"], args.boot_minutes or vendor.boot_minutes)
     elif not runner.dry_run:

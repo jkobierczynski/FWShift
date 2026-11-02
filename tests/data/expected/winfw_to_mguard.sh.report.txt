@@ -1,0 +1,113 @@
+FWShift conversion report
+  source: windows-firewall (Group Policy, local)
+  target: mguard
+
+Summary
+  Security rules:     31   exact 0, approximated 0, needs review 0, skipped 31
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           23   exact 23, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] WINFW_BYPASS: rules with authenticated bypass let IPsec-authenticated connections through block rules; they are first in the converted policy and not converted: Management over IPsec, overriding block rules
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): Private=internal, Public=external
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] WINFW_DEFAULT_ASSUMED: settings that no store of the input holds were taken as Windows's defaults (firewall on, inbound blocked, outbound allowed): Private defaultinboundaction, Public defaultinboundaction, Public defaultoutboundaction
+  [info] WINFW_HOST_POLICY: a host firewall: the zone Host is the host itself, the zones Domain, Private and Public the networks of the interfaces in each profile. Windows has no rule order: block rules decide before allow rules, then the default of the profile; the converted policy says that in first-match order (block rules, allow rules, the defaults that allow). Traffic between the networks is not the host's to decide and is denied
+  [info] WINFW_STORES: stores read: Group Policy 8 rules, local 22 rules
+  [info] WINFW_PROFILES: Domain: inbound blocked (Group Policy), outbound allowed (Group Policy), local rules not merged (Group Policy); Private: inbound blocked (default), outbound blocked (Group Policy); Public: inbound blocked (default), outbound allowed (default)
+  [info] WINFW_LOCAL_NOT_MERGED: Group Policy (or MDM) does not merge local rules in the profile Domain: the local rules are left out there (16 rules named it)
+  [info] WINFW_SETTING_NOT_CONVERTED: profile settings that decide traffic no rule names are not converted: Public: unicast responses to multicast and broadcast traffic are blocked
+  [info] WINFW_ADDRESS_KEYWORDS: rules name address keywords, whose addresses only Windows knows at run time: DNS, LocalSubnet, LocalSubnet4, LocalSubnet6. They are dynamic groups; only a Windows target writes them again
+  [info] WINFW_NOT_READ: not read: 1 connection security (IPsec) rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\ConSecRules; 1 Windows Service Hardening rules in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Static\System
+
+Security rules
+  Management over IPsec, overriding block rules  ->  skipped
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: remote computers; IPsec (Authenticate): only connections IPsec protects match; authenticated bypass: only IPsec-authenticated connections match, and they override block rules. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: remote computers.
+      [needs-review] UNSUPPORTED_MATCH: not converted: IPsec (Authenticate): only connections IPsec protects match.
+      [needs-review] UNSUPPORTED_MATCH: not converted: authenticated bypass: only IPsec-authenticated connections match, and they override block rules.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Block a known bad host  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host, Domain: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Block RDP from the guest half of the admin network  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Domain, Host: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Block telnet out  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Block the scanner networks  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Block SMB on public networks  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Allow WinRM from management  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Domain, Host: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Web out on private networks  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  DNS out on private networks  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'DNS': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'DNS' holds members only its platform knows, or an address the profile does not hold.
+  SMB from the local subnet  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Domain, Host: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'LocalSubnet' holds members only its platform knows, or an address the profile does not hold.
+  SSH from the IPv6 jump hosts  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Domain, Host: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  DNS server  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Domain, Host: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Echo request (ICMPv4-In)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Echo request (ICMPv6-In)  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet6': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'LocalSubnet6' holds members only its platform knows, or an address the profile does not hold.
+  Fragmentation needed and time exceeded  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Remote Desktop from the admin networks  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Web server  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  FTP passive ports  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  SNMP from the local subnet  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet4': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'LocalSubnet4' holds members only its platform knows, or an address the profile does not hold.
+  GRE from the tunnel peer  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Example application server  ->  skipped
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: program C:\Program Files\Example\server.exe. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: program C:\Program Files\Example\server.exe.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Print spooler (RPC)  ->  skipped
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the local port keyword RPC; service Spooler. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the local port keyword RPC.
+      [needs-review] UNSUPPORTED_MATCH: not converted: service Spooler.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  OpenSSH server  ->  skipped
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  mDNS on wireless  ->  skipped
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: interface types wireless. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: interface types wireless.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Game server through edge traversal  ->  skipped
+      [approximated] WINFW_EDGE_TRAVERSAL: the rule also accepts traffic that came through edge traversal (Teredo); the model has no such path: the converted rule does not let it in
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Printer port  ->  skipped
+      [needs-review] WINFW_NOT_MODELLED: the rule matches only part of what its addresses and ports say: the field 'newfield2_40', which FWShift does not know. It is not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: the field 'newfield2_40', which FWShift does not know.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  A rule Windows cannot parse  ->  skipped
+      [needs-review] WINFW_RULE_INVALID: Windows does not enforce a rule it cannot parse (local ports without protocol TCP or UDP): it is kept disabled
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  SSDP discovery  ->  skipped
+      [info] WINFW_PLATFORM: the rule applies on Windows NT 6.2 and later; it is taken as applying on this host
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'LocalSubnet': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'LocalSubnet' holds members only its platform knows, or an address the profile does not hold.
+  DNS server (local copy)  ->  skipped
+      [info] WINFW_OVERRIDDEN: the Group Policy store has a rule of the same id ('Shared-Id'), which replaces this one: it is kept disabled
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  Backup agent to the backup server  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  (default) outbound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: Host, Domain: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.

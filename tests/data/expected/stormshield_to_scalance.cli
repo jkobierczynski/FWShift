@@ -1,0 +1,567 @@
+configure terminal
+firewall
+service name FWS_ssh proto tcp src all dst port 22
+service name FWS_https proto tcp src all dst port 443
+proto name FWS__rule__ipproto-icmp num 1
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_tcp_8080-8090 proto tcp src all dst range 8080 - 8090
+service name FWS__rule__dns_udp-udp proto udp src all dst port 53
+service name FWS_ident proto tcp src all dst port 113
+service name FWS_smtp proto tcp src all dst port 25
+service name FWS_tcp_5000-5010 proto tcp src all dst range 5000 - 5010
+service name FWS_udp_5000-5010 proto udp src all dst range 5000 - 5010
+proto name FWS__rule__ipproto-proto_200 num 200
+ipv4rule from out to in srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from out to dmz1 srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from out to lab srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from out to labbridge srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from in to out srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from in to dmz1 srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from in to lab srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from in to labbridge srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from dmz1 to out srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from dmz1 to in srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from dmz1 to lab srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from dmz1 to labbridge srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from lab to out srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from lab to in srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from lab to dmz1 srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from lab to labbridge srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from labbridge to out srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from labbridge to in srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from labbridge to dmz1 srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from labbridge to lab srcip 192.0.2.128/25 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from in to out srcip 10.10.0.50 dstip 10.10.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to out srcip 10.10.0.50 dstip 10.10.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to out srcip 10.10.0.50 dstip 10.20.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to out srcip 10.10.0.50 dstip 10.20.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to out srcip 10.10.0.50 dstip 10.30.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to out srcip 10.10.0.50 dstip 10.30.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to out srcip 10.10.0.50 dstip 203.0.113.2 action acc service FWS_ssh log info prior 2
+ipv4rule from in to out srcip 10.10.0.50 dstip 203.0.113.2 action acc service FWS_https log info prior 2
+ipv4rule from in to out srcip 10.10.0.60 dstip 10.10.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to out srcip 10.10.0.60 dstip 10.10.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to out srcip 10.10.0.60 dstip 10.20.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to out srcip 10.10.0.60 dstip 10.20.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to out srcip 10.10.0.60 dstip 10.30.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to out srcip 10.10.0.60 dstip 10.30.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to out srcip 10.10.0.60 dstip 203.0.113.2 action acc service FWS_ssh log info prior 2
+ipv4rule from in to out srcip 10.10.0.60 dstip 203.0.113.2 action acc service FWS_https log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.50 dstip 10.10.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.50 dstip 10.10.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.50 dstip 10.20.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.50 dstip 10.20.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.50 dstip 10.30.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.50 dstip 10.30.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.50 dstip 203.0.113.2 action acc service FWS_ssh log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.50 dstip 203.0.113.2 action acc service FWS_https log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.60 dstip 10.10.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.60 dstip 10.10.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.60 dstip 10.20.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.60 dstip 10.20.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.60 dstip 10.30.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.60 dstip 10.30.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.60 dstip 203.0.113.2 action acc service FWS_ssh log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.60 dstip 203.0.113.2 action acc service FWS_https log info prior 2
+ipv4rule from in to lab srcip 10.10.0.50 dstip 10.10.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to lab srcip 10.10.0.50 dstip 10.10.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to lab srcip 10.10.0.50 dstip 10.20.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to lab srcip 10.10.0.50 dstip 10.20.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to lab srcip 10.10.0.50 dstip 10.30.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to lab srcip 10.10.0.50 dstip 10.30.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to lab srcip 10.10.0.50 dstip 203.0.113.2 action acc service FWS_ssh log info prior 2
+ipv4rule from in to lab srcip 10.10.0.50 dstip 203.0.113.2 action acc service FWS_https log info prior 2
+ipv4rule from in to lab srcip 10.10.0.60 dstip 10.10.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to lab srcip 10.10.0.60 dstip 10.10.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to lab srcip 10.10.0.60 dstip 10.20.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to lab srcip 10.10.0.60 dstip 10.20.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to lab srcip 10.10.0.60 dstip 10.30.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to lab srcip 10.10.0.60 dstip 10.30.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to lab srcip 10.10.0.60 dstip 203.0.113.2 action acc service FWS_ssh log info prior 2
+ipv4rule from in to lab srcip 10.10.0.60 dstip 203.0.113.2 action acc service FWS_https log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.50 dstip 10.10.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.50 dstip 10.10.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.50 dstip 10.20.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.50 dstip 10.20.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.50 dstip 10.30.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.50 dstip 10.30.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.50 dstip 203.0.113.2 action acc service FWS_ssh log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.50 dstip 203.0.113.2 action acc service FWS_https log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.60 dstip 10.10.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.60 dstip 10.10.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.60 dstip 10.20.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.60 dstip 10.20.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.60 dstip 10.30.0.254 action acc service FWS_ssh log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.60 dstip 10.30.0.254 action acc service FWS_https log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.60 dstip 203.0.113.2 action acc service FWS_ssh log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.60 dstip 203.0.113.2 action acc service FWS_https log info prior 2
+ipv4rule from out to in srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to in srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to in srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to in srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to in srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to in srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to in srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to in srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to in srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to in srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to in srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to in srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to dmz1 srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to dmz1 srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to dmz1 srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to dmz1 srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to dmz1 srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to dmz1 srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to dmz1 srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to dmz1 srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to dmz1 srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to dmz1 srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to dmz1 srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to dmz1 srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to lab srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to lab srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to lab srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to lab srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to lab srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to lab srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to lab srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to lab srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to lab srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to lab srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to lab srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to lab srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to labbridge srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to labbridge srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to labbridge srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to labbridge srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to labbridge srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to labbridge srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to labbridge srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to labbridge srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to labbridge srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to labbridge srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to labbridge srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to labbridge srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to out srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to out srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to out srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to out srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to out srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to out srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to out srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to out srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to out srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to out srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to out srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to out srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to dmz1 srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to dmz1 srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to dmz1 srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to dmz1 srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to dmz1 srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to dmz1 srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to dmz1 srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to dmz1 srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to dmz1 srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to lab srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to lab srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to lab srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to lab srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to lab srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to lab srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to lab srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to lab srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to lab srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to lab srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to lab srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to lab srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to labbridge srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to labbridge srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to labbridge srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to labbridge srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to labbridge srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to labbridge srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to labbridge srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to labbridge srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from in to labbridge srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to out srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to out srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to out srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to out srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to out srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to out srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to out srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to out srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to out srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to out srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to out srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to out srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to in srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to in srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to in srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to in srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to in srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to in srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to in srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to in srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to in srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to in srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to in srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to in srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to lab srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to lab srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to lab srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to lab srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to lab srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to lab srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to lab srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to lab srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to lab srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to lab srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to lab srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to lab srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to labbridge srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to labbridge srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to labbridge srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to labbridge srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to labbridge srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to labbridge srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to labbridge srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to labbridge srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to labbridge srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to labbridge srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to labbridge srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from dmz1 to labbridge srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to out srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to out srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to out srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to out srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to out srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to out srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to out srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to out srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to out srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to out srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to out srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to out srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to in srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to in srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to in srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to in srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to in srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to in srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to in srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to in srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to in srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to in srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to in srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to in srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to dmz1 srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to dmz1 srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to dmz1 srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to dmz1 srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to dmz1 srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to dmz1 srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to dmz1 srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to dmz1 srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to dmz1 srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to dmz1 srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to dmz1 srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to dmz1 srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to labbridge srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to labbridge srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to labbridge srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to labbridge srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to labbridge srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to labbridge srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to labbridge srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to labbridge srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to labbridge srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to labbridge srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to labbridge srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from lab to labbridge srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to out srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to out srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to out srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to out srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to out srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to out srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to out srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to out srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to out srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to out srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to out srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to out srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to in srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to in srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to in srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to in srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to in srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to in srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to in srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to in srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to in srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to in srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to in srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to in srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to dmz1 srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to dmz1 srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to dmz1 srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to dmz1 srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to dmz1 srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to dmz1 srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to dmz1 srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to dmz1 srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to dmz1 srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to dmz1 srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to dmz1 srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to dmz1 srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to lab srcip 10.10.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to lab srcip 10.10.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to lab srcip 10.10.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to lab srcip 10.10.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to lab srcip 10.20.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to lab srcip 10.20.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to lab srcip 10.20.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to lab srcip 10.20.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to lab srcip 10.30.0.0/24 dstip 10.10.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to lab srcip 10.30.0.0/24 dstip 10.20.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to lab srcip 10.30.0.0/24 dstip 10.30.0.254 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from labbridge to lab srcip 10.30.0.0/24 dstip 203.0.113.2 action acc service FWS__rule__ipproto-icmp log info prior 2
+ipv4rule from out to in srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from out to dmz1 srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from out to lab srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from out to labbridge srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from in to out srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from in to dmz1 srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from in to lab srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from in to labbridge srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from dmz1 to out srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from dmz1 to in srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from dmz1 to lab srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from dmz1 to labbridge srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from lab to out srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from lab to in srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from lab to dmz1 srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from lab to labbridge srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from labbridge to out srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from labbridge to in srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from labbridge to dmz1 srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from labbridge to lab srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 3
+ipv4rule from in to out srcip 10.10.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__dns_udp-udp log info prior 4
+ipv4rule from in to dmz1 srcip 10.10.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__dns_udp-udp log info prior 4
+ipv4rule from in to lab srcip 10.10.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__dns_udp-udp log info prior 4
+ipv4rule from in to labbridge srcip 10.10.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__dns_udp-udp log info prior 4
+ipv4rule from out to in srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from out to in srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from out to in srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from out to dmz1 srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from out to dmz1 srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from out to dmz1 srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from out to lab srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from out to lab srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from out to lab srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from out to labbridge srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from out to labbridge srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from out to labbridge srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from in to out srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from in to out srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from in to out srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from in to dmz1 srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from in to dmz1 srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from in to dmz1 srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from in to lab srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from in to lab srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from in to lab srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from in to labbridge srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from in to labbridge srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from in to labbridge srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from dmz1 to out srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from dmz1 to out srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from dmz1 to out srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from dmz1 to in srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from dmz1 to in srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from dmz1 to in srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from dmz1 to lab srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from dmz1 to lab srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from dmz1 to lab srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from dmz1 to labbridge srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from dmz1 to labbridge srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from dmz1 to labbridge srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from lab to out srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from lab to out srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from lab to out srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from lab to in srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from lab to in srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from lab to in srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from lab to dmz1 srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from lab to dmz1 srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from lab to dmz1 srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from lab to labbridge srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from lab to labbridge srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from lab to labbridge srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from labbridge to out srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from labbridge to out srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from labbridge to out srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from labbridge to in srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from labbridge to in srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from labbridge to in srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from labbridge to dmz1 srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from labbridge to dmz1 srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from labbridge to dmz1 srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from labbridge to lab srcip 10.10.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from labbridge to lab srcip 10.20.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from labbridge to lab srcip 10.30.0.0/24 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 5
+ipv4rule from out to in srcip 0.0.0.0/0 dstip 203.0.113.3 action acc service FWS_tcp_80 log info prior 6
+ipv4rule from out to in srcip 0.0.0.0/0 dstip 203.0.113.3 action acc service FWS_https log info prior 6
+ipv4rule from out to dmz1 srcip 0.0.0.0/0 dstip 203.0.113.3 action acc service FWS_tcp_80 log info prior 6
+ipv4rule from out to dmz1 srcip 0.0.0.0/0 dstip 203.0.113.3 action acc service FWS_https log info prior 6
+ipv4rule from out to lab srcip 0.0.0.0/0 dstip 203.0.113.3 action acc service FWS_tcp_80 log info prior 6
+ipv4rule from out to lab srcip 0.0.0.0/0 dstip 203.0.113.3 action acc service FWS_https log info prior 6
+ipv4rule from out to labbridge srcip 0.0.0.0/0 dstip 203.0.113.3 action acc service FWS_tcp_80 log info prior 6
+ipv4rule from out to labbridge srcip 0.0.0.0/0 dstip 203.0.113.3 action acc service FWS_https log info prior 6
+ipv4rule from out to in srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_smtp log info prior 6
+ipv4rule from out to in srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_smtp log info prior 6
+ipv4rule from out to dmz1 srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_smtp log info prior 6
+ipv4rule from out to dmz1 srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_smtp log info prior 6
+ipv4rule from out to lab srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_smtp log info prior 6
+ipv4rule from out to lab srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_smtp log info prior 6
+ipv4rule from out to labbridge srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_smtp log info prior 6
+ipv4rule from out to labbridge srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_smtp log info prior 6
+ipv4rule from lab to out srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_5000-5010 log info prior 6
+ipv4rule from lab to out srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS_udp_5000-5010 log info prior 6
+ipv4rule from lab to in srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_5000-5010 log info prior 6
+ipv4rule from lab to in srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS_udp_5000-5010 log info prior 6
+ipv4rule from lab to dmz1 srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_5000-5010 log info prior 6
+ipv4rule from lab to dmz1 srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS_udp_5000-5010 log info prior 6
+ipv4rule from lab to labbridge srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_5000-5010 log info prior 6
+ipv4rule from lab to labbridge srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS_udp_5000-5010 log info prior 6
+ipv4rule from out to in srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from out to dmz1 srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from out to lab srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from out to labbridge srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from in to out srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from in to dmz1 srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from in to lab srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from in to labbridge srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from dmz1 to out srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from dmz1 to in srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from dmz1 to lab srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from dmz1 to labbridge srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from lab to out srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from lab to in srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from lab to dmz1 srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from lab to labbridge srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from labbridge to out srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from labbridge to in srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from labbridge to dmz1 srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv4rule from labbridge to lab srcip 10.30.0.0/24 dstip 0.0.0.0/0 action acc service FWS__rule__ipproto-proto_200 log info prior 6
+ipv6rule from out to in srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from out to dmz1 srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from out to lab srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from out to labbridge srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from in to out srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from in to dmz1 srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from in to lab srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from in to labbridge srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from dmz1 to out srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from dmz1 to in srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from dmz1 to lab srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from dmz1 to labbridge srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from lab to out srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from lab to in srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from lab to dmz1 srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from lab to labbridge srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from labbridge to out srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from labbridge to in srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from labbridge to dmz1 srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv6rule from labbridge to lab srcip 2001:db8:10::/64 dstip ::/0 action acc log info prior 6
+ipv4rule from out to in srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from out to in srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from out to dmz1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from out to dmz1 srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from out to lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from out to lab srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from out to labbridge srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from out to labbridge srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from in to out srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from in to out srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from in to dmz1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from in to dmz1 srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from in to lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from in to lab srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from in to labbridge srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from in to labbridge srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from dmz1 to out srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from dmz1 to out srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from dmz1 to in srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from dmz1 to in srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from dmz1 to lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from dmz1 to lab srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from dmz1 to labbridge srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from dmz1 to labbridge srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from lab to out srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from lab to out srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from lab to in srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from lab to in srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from lab to dmz1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from lab to dmz1 srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from lab to labbridge srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from lab to labbridge srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from labbridge to out srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from labbridge to out srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from labbridge to in srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from labbridge to in srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from labbridge to dmz1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from labbridge to dmz1 srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from labbridge to lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 7
+ipv6rule from labbridge to lab srcip ::/0 dstip ::/0 action drop log info prior 7
+ipv4rule from out to in srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from out to in srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from out to dmz1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from out to dmz1 srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from out to lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from out to lab srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from out to labbridge srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from out to labbridge srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from in to out srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from in to out srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from in to dmz1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from in to dmz1 srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from in to lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from in to lab srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from in to labbridge srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from in to labbridge srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from dmz1 to out srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from dmz1 to out srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from dmz1 to in srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from dmz1 to in srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from dmz1 to lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from dmz1 to lab srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from dmz1 to labbridge srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from dmz1 to labbridge srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from lab to out srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from lab to out srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from lab to in srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from lab to in srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from lab to dmz1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from lab to dmz1 srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from lab to labbridge srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from lab to labbridge srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from labbridge to out srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from labbridge to out srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from labbridge to in srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from labbridge to in srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from labbridge to dmz1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from labbridge to dmz1 srcip ::/0 dstip ::/0 action drop log no prior 8
+ipv4rule from labbridge to lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 8
+ipv6rule from labbridge to lab srcip ::/0 dstip ::/0 action drop log no prior 8
+exit
+end

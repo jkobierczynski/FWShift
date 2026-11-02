@@ -1,0 +1,115 @@
+FWShift conversion report
+  source: pfsense
+  target: mguard
+
+Summary
+  Security rules:     25   exact 4, approximated 6, needs review 3, skipped 12
+  NAT rules:           8   exact 0, approximated 0, needs review 0, skipped 8
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] RULE_NOT_LOADED: pfSense does not load 1 rule of the configuration, which it cannot resolve; they are not converted: 'Spare network, not in use' (its interface 'opt3' is not there or not enabled)
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: pfSense drops what arrives there from addresses nobody has been given, by a list it downloads. That list is not in the configuration, and nothing is converted for it
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): WAN=external, LAN=internal, DMZ=dmz
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] FLOATING_LAST_MATCH: 1 floating rule is not 'quick': such a rule decides only where no rule of an interface matched, and of several the last one. In the converted policy it stands behind the rules of the interfaces, the last one first: 'Telnet unless a rule says otherwise'
+  [info] PFSENSE_AUTOMATIC_RULES: pfSense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof), packets from or to 169.254.0.0/16, and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without; and it has rules for itself (anti-lockout, DHCP, IPsec). Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  Nothing leaves towards the sinkhole  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_OUTGOING_DMZWAN)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_OUTGOING_DMZWAN
+  SSH for the partner - pass  ->  needs-review  (emitted as 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] AUTOMATIC_RULE: port forward 'SSH for the partner' passes what it forwards without a rule ('Pass' as its filter rule association): pfSense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '192.168.20.25' because of NAT rule 'SSH for the partner'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'SSH for the partner' also translates the port to 22; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ
+  Block private networks from WAN  ->  needs-review  (emitted as 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks and loopback addresses' set: pfSense drops what arrives there from those networks before any rule is looked at. This rule stands for that
+      [needs-review] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4; IPv6 traffic is not blocked by it
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ
+  Ping from the inside  ->  skipped
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  DNS from the firewall  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: GUEST: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  NAT Web server HTTPS  ->  approximated  (emitted as 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to '192.168.20.10' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ
+  NAT Application ports  ->  exact  (emitted as 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ
+  Mail in  ->  approximated  (emitted as 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ
+  Web server over IPv6  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  Ping and errors to the firewall  ->  skipped
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  Administrators to the servers  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_OUTGOING_LANDMZ)
+      [approximated] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_OUTGOING_LANDMZ
+  Users to the web servers  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_OUTGOING_LANDMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'WebServers' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_OUTGOING_LANDMZ
+  Users to the web server by its outside address  ->  needs-review  (emitted as 1 row of FW_OUTGOING, 1 row of FW_OUTGOING_LANDMZ)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '198.51.100.10', the external address of NAT rule 'Web server HTTPS', but not '192.168.20.10' behind it. The source looks rules up after the translation and did not apply this rule to that traffic; the converted rule does
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_OUTGOING_LANDMZ
+  No other private network from the LAN  ->  approximated  (emitted as 1 row of FW_OUTGOING, 1 row of FW_OUTGOING_LANDMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_OUTGOING_LANDMZ
+      [info] MGUARD_REJECT: action reset-client: written as Reject
+  Default allow LAN to any rule  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_OUTGOING_LANDMZ)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_OUTGOING_LANDMZ
+  Default allow LAN IPv6 to any rule  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  Servers fetch their updates  ->  approximated  (emitted as 1 row of FW_INCOMING_DMZ_LAN, 1 row of FW_OUTGOING_DMZWAN)
+      [approximated] MGUARD_HOSTNAME: host names are written into an IP group: the mGuard resolves them for IPv4 with its own DNS settings (an FL MGUARD 2000 takes none)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING_DMZ_LAN, a row of FW_OUTGOING_DMZWAN
+  Mail out, not to the inside  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10).
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11).
+  Syslog to the collector  ->  skipped
+      [needs-review] SCHEDULE: schedule 'OfficeHours' is not converted; the rule would apply at all times.
+  Nothing from the list  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocklist': a URL table: its addresses are in a file on the firewall, not in the configuration. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'Blocklist' holds members only its platform knows, or an address the profile does not hold. This deny rule is NOT enforced; rules below it may match more traffic.
+  Tunnel of the old application  ->  skipped
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  Guests reach nothing private  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: GUEST: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  Guests browse  ->  skipped
+      [info] POLICY_ROUTING: the rule also sends what it passes to gateway 'WANGW' (policy routing), which is not converted
+      [needs-review] MGUARD_ZONE_UNKNOWN: GUEST: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Phones of the guests  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches a mark set by another rule (tagged) 'VOICE'.
+      [needs-review] MGUARD_ZONE_UNKNOWN: GUEST: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Telnet unless a rule says otherwise  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_OUTGOING_LANDMZ, 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ, 1 row of FW_INCOMING_DMZ_LAN, 1 row of FW_OUTGOING_DMZWAN)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_OUTGOING_LANDMZ, a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ, a row of FW_INCOMING_DMZ_LAN, a row of FW_OUTGOING_DMZWAN
+
+NAT rules
+  Web server HTTPS  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] MGUARD_FORWARD_BLOCKED: port forwarding skips the packet filter, and the rules of the model do not allow all of what it would forward (rule Block private networks from WAN blocks part of it): not written, as it would let in more
+  Application ports  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] NAT_NOT_CONVERTED: not converted: not converted on the source: a range of ports translated to another range (8000-8010 to 9000-9010), which the model cannot say
+  SSH for the partner  ->  skipped
+      [needs-review] MGUARD_FORWARD_BLOCKED: port forwarding skips the packet filter, and the rules of the model do not allow all of what it would forward (no rule allows part of it): not written, as it would let in more
+  Mail server - inbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: port forwarding takes tcp or udp with a port, or gre
+  Mail server - outbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the mGuard translates a source only to the address of an interface, or a network 1:1
+  DMZ leaves with the web address  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the mGuard translates a source only to the address of an interface, or a network 1:1
+  No NAT towards the partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule that translates nothing (an exemption): the mGuard has none
+  Automatic outbound NAT on WAN  ->  skipped
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: pfSense translates what leaves by an interface with a gateway and comes from the networks of its other interfaces and of its static routes. This rule stands for that
+      [needs-review] NAT_NOT_CONVERTED: not converted: IP masquerading has no destination or service

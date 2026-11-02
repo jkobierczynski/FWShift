@@ -1,0 +1,51 @@
+FWShift conversion report
+  source: hisecos (IPv4)
+  target: asa
+
+Summary
+  Security rules:     14   exact 8, approximated 1, needs review 4 (2 emitted disabled), skipped 1
+  NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HISECOS_NOT_CONVERTED: settings that change what passes and are not converted: deep packet inspection (enforcer profiles)
+  [needs-review] HISECOS_DIRECTION_ORDER: the policy mixes assignments for ingress only with assignments for egress only; the MIB does not say how they are ordered against each other, and they are read as one order by priority: rules assigned for ingress only and rules assigned for egress only
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: port1_1, port1_2, port1_3, vlan20. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [approximated] ZONE_NETWORK_GAP: the networks given with --zone-network leave out every IPv6 address, 0.0.0.0-10.9.255.255, 10.10.1.0-10.19.255.255, 10.20.1.0-10.29.255.255 and 2 more. Nobody said behind which zone those addresses lie: where a rule for any address is kept to its zones, a permit rule does not cover them and a deny rule does. Give the zone that has the default route 0.0.0.0/0 and ::/0 (a network inside another one goes before it, as with routes)
+  [info] HISECOS_SOURCE: 13 rules of the packet filter, 12 of them assigned and enabled, in the order of their priorities; zones are the routing interfaces (port1_1, port1_2, port1_3, vlan20); IPv4 only. The keywords of the commands are FWShift's reading of the MIB and the command list of the CLI reference, not confirmed by its Format lines
+  [info] HISECOS_DEFAULT: what no rule matches meets the default policy, drop (packet-filter l3 defaultpolicy)
+  [info] HISECOS_NAT_ORDER: destination NAT and 1:1 NAT are read as done before the packet filter, whose rules name the translated address (HiSecOS is built on netfilter; not confirmed): the rules were rewritten for the address as it arrives. Masquerading is done after it. The NAT rules are read in the order 1:1 NAT, double NAT, destination NAT, masquerading, each by priority (an assumption)
+  [info] HISECOS_MANAGEMENT: the device's own management access (network management access) is not converted; entries: entry 1
+  [info] HISECOS_EDITS: commands that change or delete rules, carried out in the order of the script: delrule 140
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: port1_1=192.0.2.0/24; port1_2=10.10.0.0/24; port1_3=10.30.0.0/24,10.30.1.0/24; vlan20=10.20.0.0/24. --no-source-networks takes none of them
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+
+Security rules
+  rule-30  ->  exact  (emitted as port1_2_access_in)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated source is written as the 3 address ranges it leaves
+  rule-20  ->  needs-review, emitted disabled  (emitted as vlan20_access_in)
+      [needs-review] UNSUPPORTED_MATCH: not converted: traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content.
+  rule-40-2  ->  approximated  (emitted as global_access)
+      [info] HISECOS_SPLIT: rule 40 is assigned at more than one place in the order (interfaces, directions or priorities); this is its placement number 2
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone port1_3. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
+  rule-100  ->  needs-review, emitted disabled  (emitted as port1_2_access_in)
+      [needs-review] UNSUPPORTED_MATCH: not converted: parameter flags=SYN is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-50  ->  skipped
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone port1_1. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses of its destination that lie in none of the networks given
+      [approximated] EGRESS_NO_ADDRESS: by the networks given with --zone-network no address of its destination lies behind the zones the rule is for: it is left out
+  rule-60  ->  needs-review  (emitted as port1_1_access_in)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+  rule-110  ->  needs-review  (emitted as port1_1_access_in)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+  rule-80  ->  exact  (emitted as global_access)
+      [info] HISECOS_NOT_ASSIGNED: rule 80 is assigned to no interface, so it applies to no traffic: read as disabled, at the end
+
+NAT rules
+  1to1nat-1  ->  exact  (emitted as 1 NAT line)
+      [info] HISECOS_1TO1: 1:1 NAT read as a static translation in both directions: the new target addresses leave as the target addresses, and connections to the target addresses reach the new ones (not confirmed)
+  doublenat-1  ->  exact  (emitted as 1 NAT line)
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+  doublenat-1-reverse  ->  exact  (emitted as 1 NAT line)
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)

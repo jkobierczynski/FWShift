@@ -1,0 +1,55 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: kubernetes
+
+Summary
+  Security rules:     10   exact 1, approximated 1, needs review 8 (8 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] K8S_LOAD: the output is a List of NetworkPolicies for kubectl apply -n NAMESPACE -f FILE (kubectl apply --dry-run=server checks it first). It names no namespace: apply it in the namespace of the pods it is for, and in each such namespace. Policies of the same name are replaced; nothing else is changed. A policy selects the pods labelled fwshift/group=<its group>, and no pod has that label yet: nothing changes until pods are labelled
+  [needs-review] K8S_LABEL_PODS: 1 group: label each pod with fwshift/group=<group> of the policy whose fwshift/addresses annotation holds the pod's address (kubectl label pod POD ...). A pod's address changes when it is created again: label the pods through their Deployment or StatefulSet template, where every address the template's pods get must be in that group. A pod with addresses of both IP versions needs a group that holds both
+  [needs-review] K8S_IPBLOCK_PODS: the peers are written as ipBlock. Whether an ipBlock matches the addresses of pods depends on the network plugin (the Kubernetes documentation says ipBlock is meant for addresses outside the cluster); where it does not, rules between pods allow nothing
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] K8S_PLATFORM_ALLOWS: a NetworkPolicy always allows traffic between a pod and the node it runs on, and a pod to itself; and it is only guaranteed to decide TCP, UDP and SCTP (for ICMP and other protocols the network plugin decides)
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a NetworkPolicy does not (some network plugins can log on their own)
+
+Security rules
+  Block Bad  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Trusted, Guests; a NetworkPolicy names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Admin SSH  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Trusted, and a NetworkPolicy names no zone: give the networks behind Trusted with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a NetworkPolicy names no zone: give the networks behind External with --zone-network.
+  Web Out  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Trusted, Guests, DMZ, and a NetworkPolicy names no zone: give the networks behind Trusted, Guests, DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a NetworkPolicy names no zone: give the networks behind External with --zone-network.
+  Web In  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Web-Public.1.snat' with post-NAT 'Web-Public.2.snat' because of NAT rule 'Web-Public (Web In)'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone External, and a NetworkPolicy names no zone: give the networks behind External with --zone-network.
+  Mail In  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Mail-Public.1.snat' with post-NAT 'Mail-Public.2.snat' because of NAT rule 'Mail-Public (Mail In)'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'Mail-Public (Mail In)' also translates the port to 2525: the service of this rule (SMTP) named the pre-NAT port only, and now names 2525, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone External, and a NetworkPolicy names no zone: give the networks behind External with --zone-network.
+  DMZ Updates  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object Update-Site.1.alm updates.example.com: a NetworkPolicy names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a NetworkPolicy names no zone: give the networks behind DMZ with --zone-network.
+  Staff Only  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Trusted, and a NetworkPolicy names no zone: give the networks behind Trusted with --zone-network.
+  Ping  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Trusted, Guests, and a NetworkPolicy names no zone: give the networks behind Trusted, Guests with --zone-network.
+  Lab Tunnel  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Lab, and a NetworkPolicy names no zone: give the networks behind Lab with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and a NetworkPolicy names no zone: give the networks behind External with --zone-network.
+
+NAT rules
+  Web-Public (Web In)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  Mail-Public (Mail In)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see

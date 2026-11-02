@@ -1,0 +1,89 @@
+configure terminal
+firewall
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_tcp_443 proto tcp src all dst port 443
+service name FWS_tcp_8080-8081 proto tcp src all dst range 8080 - 8081
+icmp name FWS_app-ping type 8 code 0 ver ipv4
+service name FWS_junos-smtp proto tcp src all dst port 25
+service name FWS_tcp_587 proto tcp src all dst port 587
+service name FWS_tcp_465 proto tcp src all dst port 465
+service name FWS_junos-ssh proto tcp src all dst port 22
+proto name FWS_app-gre num 47
+service name FWS_app-ntp proto udp src all dst port 123
+service name FWS_app-high proto tcp src range 1024 - 65535 dst range 1000 - 2000
+ipv4rule from trust to untrust srcip 0.0.0.0/0 dstip 192.0.2.66 action drop log info prior 1
+ipv4rule from trust to untrust srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log info prior 1
+ipv6rule from trust to untrust srcip ::/0 dstip 2001:db8:10::/48 action drop log info prior 1
+ipv4rule from trust to untrust srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 2
+ipv4rule from trust to untrust srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from trust to untrust srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_tcp_8080-8081 log info prior 2
+ipv4rule from trust to untrust srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_app-ping log no prior 3
+ipv4rule from untrust to dmz srcip 0.0.0.0/0 dstip 10.20.0.80 action acc service FWS_tcp_8080-8081 log no prior 3
+ipv4rule from untrust to dmz srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_tcp_8080-8081 log no prior 3
+ipv4rule from untrust to dmz srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_junos-smtp log no prior 3
+ipv4rule from untrust to dmz srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_tcp_587 log no prior 3
+ipv4rule from untrust to dmz srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_tcp_465 log no prior 3
+ipv4rule from untrust to dmz srcip 0.0.0.0/0 dstip 203.0.113.25 action acc service FWS_junos-smtp log no prior 3
+ipv4rule from untrust to dmz srcip 0.0.0.0/0 dstip 203.0.113.25 action acc service FWS_tcp_587 log no prior 3
+ipv4rule from untrust to dmz srcip 0.0.0.0/0 dstip 203.0.113.25 action acc service FWS_tcp_465 log no prior 3
+ipv4rule from trust to dmz srcip 10.10.5.10-10.10.5.20 dstip 10.20.0.0/24 action acc service FWS_junos-ssh log no prior 3
+ipv4rule from trust to dmz srcip 0.0.0.0-10.20.0.24 dstip 10.20.0.64/26 action acc service FWS_app-gre log no prior 3
+ipv4rule from trust to dmz srcip 10.20.0.26-10.20.0.79 dstip 10.20.0.64/26 action acc service FWS_app-gre log no prior 3
+ipv4rule from trust to dmz srcip 10.20.0.81-255.255.255.255 dstip 10.20.0.64/26 action acc service FWS_app-gre log no prior 3
+ipv4rule from untrust to trust srcip 192.0.2.66 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from untrust to trust srcip 198.51.100.0/24 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from untrust to dmz srcip 192.0.2.66 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from untrust to dmz srcip 198.51.100.0/24 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from untrust to guest srcip 192.0.2.66 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from untrust to guest srcip 198.51.100.0/24 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from trust to untrust srcip 192.0.2.66 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from trust to untrust srcip 198.51.100.0/24 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from trust to dmz srcip 192.0.2.66 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from trust to dmz srcip 198.51.100.0/24 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from trust to guest srcip 192.0.2.66 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from trust to guest srcip 198.51.100.0/24 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from dmz to untrust srcip 192.0.2.66 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from dmz to untrust srcip 198.51.100.0/24 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from dmz to trust srcip 192.0.2.66 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from dmz to trust srcip 198.51.100.0/24 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from dmz to guest srcip 192.0.2.66 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from dmz to guest srcip 198.51.100.0/24 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from guest to untrust srcip 192.0.2.66 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from guest to untrust srcip 198.51.100.0/24 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from guest to trust srcip 192.0.2.66 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from guest to trust srcip 198.51.100.0/24 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from guest to dmz srcip 192.0.2.66 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from guest to dmz srcip 198.51.100.0/24 dstip 0.0.0.0/0 action rej log no prior 4
+ipv4rule from trust to untrust srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_app-ntp log no prior 5
+ipv4rule from trust to untrust srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_app-high log no prior 5
+ipv6rule from trust to untrust srcip ::/0 dstip ::/0 action acc service FWS_app-ntp log no prior 5
+ipv6rule from trust to untrust srcip ::/0 dstip ::/0 action acc service FWS_app-high log no prior 5
+ipv4rule from untrust to trust srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from untrust to trust srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from untrust to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from untrust to dmz srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from untrust to guest srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from untrust to guest srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from trust to untrust srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from trust to untrust srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from trust to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from trust to dmz srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from trust to guest srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from trust to guest srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from dmz to untrust srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from dmz to untrust srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from dmz to trust srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from dmz to trust srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from dmz to guest srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from dmz to guest srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from guest to untrust srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from guest to untrust srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from guest to trust srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from guest to trust srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from guest to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from guest to dmz srcip ::/0 dstip ::/0 action drop log no prior 6
+exit
+firewallnat
+src-nat srcint trust dstint untrust type ipv4 srcip 10.10.0.0/16 dstip 0.0.0.0/0 transip auto
+exit
+end

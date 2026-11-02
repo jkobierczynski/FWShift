@@ -1,0 +1,74 @@
+configure terminal
+firewall
+service name FWS_domain-udp proto udp src all dst port 53
+service name FWS_domain-tcp proto tcp src all dst port 53
+service name FWS_ssh proto tcp src all dst port 22
+service name FWS_http proto tcp src all dst port 80
+service name FWS_https proto tcp src all dst port 443
+service name FWS_tcp_9000-9010 proto tcp src all dst range 9000 - 9010
+service name FWS_smtp proto tcp src all dst port 25
+icmp name FWS_echo-request type 8 code 0 ver ipv4
+proto name FWS_gre num 47
+service name FWS_ident proto tcp src all dst port 113
+ipv4rule from InternalZone to ExternalZone srcip 10.10.0.0/16 dstip 192.0.2.53-192.0.2.54 action acc service FWS_domain-udp log info prior 1
+ipv4rule from InternalZone to ExternalZone srcip 10.10.0.0/16 dstip 192.0.2.53-192.0.2.54 action acc service FWS_domain-tcp log info prior 1
+ipv4rule from InternalZone to ExternalZone srcip 10.20.0.0/24 dstip 192.0.2.53-192.0.2.54 action acc service FWS_domain-udp log info prior 1
+ipv4rule from InternalZone to ExternalZone srcip 10.20.0.0/24 dstip 192.0.2.53-192.0.2.54 action acc service FWS_domain-tcp log info prior 1
+ipv4rule from ExternalZone to InternalZone srcip 10.10.0.0/16 dstip 192.0.2.53-192.0.2.54 action acc service FWS_domain-udp log info prior 1
+ipv4rule from ExternalZone to InternalZone srcip 10.10.0.0/16 dstip 192.0.2.53-192.0.2.54 action acc service FWS_domain-tcp log info prior 1
+ipv4rule from ExternalZone to InternalZone srcip 10.20.0.0/24 dstip 192.0.2.53-192.0.2.54 action acc service FWS_domain-udp log info prior 1
+ipv4rule from ExternalZone to InternalZone srcip 10.20.0.0/24 dstip 192.0.2.53-192.0.2.54 action acc service FWS_domain-tcp log info prior 1
+ipv4rule from InternalZone to ExternalZone srcip 10.10.5.10-10.10.5.20 dstip 10.20.0.10 action acc service FWS_ssh log info prior 1
+ipv4rule from InternalZone to ExternalZone srcip 10.10.5.10-10.10.5.20 dstip 10.20.0.25 action acc service FWS_ssh log info prior 1
+ipv4rule from InternalZone to ExternalZone srcip 10.10.5.10-10.10.5.20 dstip 203.0.113.10 action acc service FWS_ssh log info prior 1
+ipv4rule from ExternalZone to InternalZone srcip 10.10.5.10-10.10.5.20 dstip 10.20.0.10 action acc service FWS_ssh log info prior 1
+ipv4rule from ExternalZone to InternalZone srcip 10.10.5.10-10.10.5.20 dstip 10.20.0.25 action acc service FWS_ssh log info prior 1
+ipv4rule from ExternalZone to InternalZone srcip 10.10.5.10-10.10.5.20 dstip 203.0.113.10 action acc service FWS_ssh log info prior 1
+ipv4rule from InternalZone to ExternalZone srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_http log info prior 1
+ipv4rule from InternalZone to ExternalZone srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_https log info prior 1
+ipv6rule from InternalZone to ExternalZone srcip ::/0 dstip ::/0 action acc service FWS_http log info prior 1
+ipv6rule from InternalZone to ExternalZone srcip ::/0 dstip ::/0 action acc service FWS_https log info prior 1
+ipv4rule from InternalZone to ExternalZone srcip 10.10.200.0/24 dstip 0.0.0.0-192.0.2.52 action drop log info prior 2
+ipv4rule from InternalZone to ExternalZone srcip 10.10.200.0/24 dstip 192.0.2.55-255.255.255.255 action drop log info prior 2
+ipv4rule from ExternalZone to InternalZone srcip 10.10.200.0/24 dstip 0.0.0.0-192.0.2.52 action drop log info prior 2
+ipv4rule from ExternalZone to InternalZone srcip 10.10.200.0/24 dstip 192.0.2.55-255.255.255.255 action drop log info prior 2
+ipv4rule from InternalZone to ExternalZone srcip 10.10.5.10-10.10.5.20 dstip 10.30.1.0/24 action acc service FWS_https log info prior 3
+ipv4rule from InternalZone to ExternalZone srcip 10.10.5.10-10.10.5.20 dstip 10.30.1.0/24 action acc service FWS_ssh log info prior 3
+ipv4rule from ExternalZone to InternalZone srcip 10.10.5.10-10.10.5.20 dstip 10.30.1.0/24 action acc service FWS_https log info prior 3
+ipv4rule from ExternalZone to InternalZone srcip 10.10.5.10-10.10.5.20 dstip 10.30.1.0/24 action acc service FWS_ssh log info prior 3
+ipv6rule from InternalZone to ExternalZone srcip 2001:db8:10::/48 dstip ::/0 action acc service FWS_https log no prior 4
+ipv6rule from ExternalZone to InternalZone srcip 2001:db8:10::/48 dstip ::/0 action acc service FWS_https log no prior 4
+ipv4rule from InternalZone to ExternalZone srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_https log info prior 5
+ipv4rule from InternalZone to ExternalZone srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_https log info prior 5
+ipv4rule from ExternalZone to InternalZone srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_https log info prior 5
+ipv4rule from ExternalZone to InternalZone srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_https log info prior 5
+ipv4rule from InternalZone to ExternalZone srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_https log info prior 5
+ipv4rule from InternalZone to ExternalZone srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_tcp_9000-9010 log info prior 5
+ipv4rule from ExternalZone to InternalZone srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_https log info prior 5
+ipv4rule from ExternalZone to InternalZone srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_tcp_9000-9010 log info prior 5
+ipv4rule from InternalZone to ExternalZone srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_smtp log info prior 5
+ipv4rule from ExternalZone to InternalZone srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_smtp log info prior 5
+ipv4rule from InternalZone to ExternalZone srcip 10.10.0.0/16 dstip 10.20.0.0/24 action acc service FWS_echo-request log no prior 6
+ipv4rule from ExternalZone to InternalZone srcip 10.10.0.0/16 dstip 10.20.0.0/24 action acc service FWS_echo-request log no prior 6
+ipv4rule from InternalZone to ExternalZone srcip 0.0.0.0/0 dstip 10.20.0.0/24 action drop log no prior 7
+ipv4rule from ExternalZone to InternalZone srcip 0.0.0.0/0 dstip 10.20.0.0/24 action drop log no prior 7
+ipv4rule from InternalZone to ExternalZone srcip 0.0.0.0/0 dstip 198.51.100.1 action acc service FWS_gre log info prior 8
+ipv4rule from ExternalZone to InternalZone srcip 0.0.0.0/0 dstip 198.51.100.1 action acc service FWS_gre log info prior 8
+ipv4rule from InternalZone to ExternalZone srcip 0.0.0.0/0 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 9
+ipv6rule from InternalZone to ExternalZone srcip ::/0 dstip ::/0 action rej service FWS_ident log info prior 9
+ipv4rule from ExternalZone to InternalZone srcip 0.0.0.0/0 dstip 0.0.0.0/0 action rej service FWS_ident log info prior 9
+ipv6rule from ExternalZone to InternalZone srcip ::/0 dstip ::/0 action rej service FWS_ident log info prior 9
+ipv4rule from InternalZone to ExternalZone srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 10
+ipv6rule from InternalZone to ExternalZone srcip ::/0 dstip ::/0 action drop log info prior 10
+ipv4rule from ExternalZone to InternalZone srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 10
+ipv6rule from ExternalZone to InternalZone srcip ::/0 dstip ::/0 action drop log info prior 10
+ipv4rule from InternalZone to ExternalZone srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 11
+ipv6rule from InternalZone to ExternalZone srcip ::/0 dstip ::/0 action drop log no prior 11
+ipv4rule from ExternalZone to InternalZone srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 11
+ipv6rule from ExternalZone to InternalZone srcip ::/0 dstip ::/0 action drop log no prior 11
+exit
+firewallnat
+napt srcint InternalZone proto tcp type ipv4 dstip 203.0.113.25 transip 10.20.0.25 dstport 2525 transport 25
+napt srcint ExternalZone proto tcp type ipv4 dstip 203.0.113.25 transip 10.20.0.25 dstport 2525 transport 25
+exit
+end

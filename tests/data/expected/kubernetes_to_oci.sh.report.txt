@@ -1,0 +1,36 @@
+FWShift conversion report
+  source: kubernetes
+  target: oci
+
+Summary
+  Security rules:     33   exact 28, approximated 0, needs review 2 (2 emitted disabled), skipped 3
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     15   exact 15, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] OCI_LOAD: the output is a shell script of OCI CLI calls (section 10): DRY_RUN=1 prints them, COMPARTMENT_ID and VCN_ID create the NSGs and their rules. It creates new NSGs only, and stops if an NSG of the same name exists in the VCN. The NSGs have no VNICs when it is done: nothing changes until VNICs are put in them
+  [needs-review] OCI_ATTACH: 20 NSGs: put each VNIC in the NSGs whose '# attach' line lists its addresses, and take it out of the others; a VNIC with addresses of both IP versions is in an NSG for each. An NSG applies to the whole VNIC: a VNIC with several addresses of one IP version in different NSGs gives each address the rules of all of them, so give such addresses the same NSG. 'oci network vnic update --nsg-ids' replaces the NSGs of a VNIC: it is left to you
+  [needs-review] OCI_SECURITY_LISTS: the security lists of the VNICs' subnets keep applying, and OCI allows what a rule of a security list or of an NSG allows: for the VNICs to be held to what the NSGs allow, their subnets need security lists that allow no more (the default security list of a VCN allows SSH from anywhere and every egress)
+  [needs-review] OCI_RULE_LIMIT: an NSG takes 120 rules, so these were split and a VNIC goes in every part: fwshift-ns-payments-ipv6 (2 NSGs)
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+
+Security rules
+  shop/web-to-cart/ingress-1  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  shop/cart-to-db/ingress-1  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  payments/api-ingress/ingress-1  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  payments/api-ingress/ingress-1-2  ->  needs-review, emitted disabled
+      [needs-review] SERVICE_SCTP: SCTP ports: an NSG rule has ports for TCP and UDP only, and would allow every SCTP port.
+  payments/api-ingress/ingress-3  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).
+  not isolated: from pods  ->  exact  (emitted as NSGs fwshift-addresses, fwshift-addresses-2, fwshift-addresses-3, fwshift-addresses-4, fwshift-ns-kube-system, fwshift-pods-payments-api-1, fwshift-ns-monitoring, fwshift-ns-dev, fwshift-addresses-5, fwshift-addresses-ipv6, fwshift-ns-payments-ipv6, fwshift-addresses-ipv6-2)
+      [info] DENY_SUBTRACTED: an NSG cannot block: the rule is written without what the blocking rules above it match
+  not isolated: to pods  ->  exact  (emitted as NSGs fwshift-addresses, fwshift-addresses-2, fwshift-addresses-3, fwshift-addresses-4, fwshift-ns-kube-system, fwshift-pods-payments-api-1, fwshift-ns-monitoring, fwshift-ns-dev, fwshift-addresses-5)
+      [info] DENY_SUBTRACTED: an NSG cannot block: the rule is written without what the blocking rules above it match

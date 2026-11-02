@@ -1,0 +1,49 @@
+FWShift conversion report
+  source: junos (root)
+  target: hisecos
+
+Summary
+  Security rules:     14   exact 9, approximated 0, needs review 5 (4 emitted disabled), skipped 0
+  NAT rules:           6   exact 1, approximated 1, needs review 0, skipped 4
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HISECOS_LOAD: the output is a CLI script of HiSecOS (section 10): commands of the Global Config mode that add rules 1001 to 1022 of the packet filter (they must be free) with their interface assignments, and NAT rules, and that delete nothing. The keywords are FWShift's reading of Belden's MIBs and command list, not confirmed on a device: check the script with 'script validate' first. Nothing applies until you commit: read 'show packet-filter l3 pending', then 'packet-filter l3 commit' (and 'nat dnat commit', 'nat masq commit', 'nat 1to1nat commit'). Rules of the device with lower priorities on the same interfaces come first, and its default policy is not changed. To take the rules away again: 'packet-filter l3 delif' for each assignment, then 'packet-filter l3 delrule N' for N from 1001 to 1022
+  [needs-review] INTERFACES_REQUIRED: zones are written as the routing interfaces of the device (1/1, vlan/10): these names are not such interfaces, and the device refuses the assignments that name them. Map the zones with --zone-map, or their interfaces with --interface-map: ge-0/0/0.0, ge-0/0/1.0, ge-0/0/2.0, ge-0/0/3.0, ge-0/0/4.0
+  [info] JUNOS_FORMAT: read 14 security policies and 6 NAT rules of the root system. Policies are looked up after static and destination NAT; they were brought back to the original destination, as the model has it
+  [info] PREDEFINED_APPLICATIONS: predefined applications are not in the configuration; these were taken from FWShift's table of them: junos-dns-udp, junos-http, junos-https, junos-ping, junos-smtp, junos-ssh
+  [info] HOST_POLICIES: policies for the zone junos-host (traffic to and from the firewall itself) are not read: 'to-box'
+  [info] HISECOS_IPV4_ONLY: HiSecOS filters IPv4: the IPv6 addresses and ICMPv6 of these rules are not written: block-bad
+  [info] HISECOS_NAT_WRITTEN: destination NAT and 1:1 NAT are done before the packet filter (assumed, as on netfilter): the rules were written for the translated address
+
+Security rules
+  updates  ->  needs-review, emitted disabled  (emitted as rule 1004 (a placeholder, disabled))
+      [needs-review] HISECOS_FQDN: the destination holds host names (updates); a rule of HiSecOS takes addresses only.
+  web-in  ->  needs-review  (emitted as rules 1006-1007)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to 'web-srv' because of NAT rule 'from-internet dnat-web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'from-internet dnat-web' also translates the port to 8080; the service of this rule still names the post-NAT port and must be adjusted
+  not-servers  ->  needs-review, emitted disabled  (emitted as rule 1013 (a placeholder, disabled))
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any.
+  dmz-out  ->  exact  (emitted as rule 1014)
+      [info] HISECOS_DISABLED: disabled in the source; written with disablerule
+  guest-web  ->  needs-review, emitted disabled  (emitted as rule 1015)
+      [needs-review] SCHEDULE: schedule 'work-hours' is not converted; the rule would apply at all times.
+  guest-ping  ->  needs-review, emitted disabled  (emitted as rule 1016 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'junos-ping': the predefined application junos-ping: Juniper describes it as ICMP echo, other readers of Junos as every ICMP type.
+  global-block  ->  exact  (emitted as rules 1018-1019)
+      [info] RESET_ACTION: action reset-client becomes reject, which answers the sender with an ICMP message, not a TCP reset
+
+NAT rules
+  from-internet dnat-web  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: service 'NAT from-internet dnat-web' is not one TCP or UDP entry, which a NAT rule of HiSecOS needs
+  inbound static-mail (outbound)  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: HiSecOS writes destination NAT to one address, masquerading behind the interface and 1:1 NAT of networks; this rule is none of them
+  trust-out snat-lan  ->  approximated  (emitted as nat masq add 101)
+      [approximated] HISECOS_NAT_INGRESS: masquerading of HiSecOS is assigned to the interface traffic leaves by; the zones it comes from are not a condition
+  dmz-out snat-dmz  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: HiSecOS writes destination NAT to one address, masquerading behind the interface and 1:1 NAT of networks; this rule is none of them
+  vr-out snat-vr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule set for routing instance 'VR1', which is not read; a rule set that does not say where its traffic comes from

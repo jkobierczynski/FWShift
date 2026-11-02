@@ -1,0 +1,266 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "defconf: accept in ipsec policy (not written, see the report); banned scanners (not written, see the report); ssh from the admins (not written, see the report); web for everyone (not written, see the report); web for everyone-2 (not written, see the report); ping \"echo\" only (not written, see the report); ping \"echo\" only-2 (not written, see the report); old partner access (disabled in the source); old partner access-2 (disabled in the source); rest of the DMZ (not written, see the report); rest of the DMZ-2 (not written, see the report); rest of the DMZ-3 (not written, see the report); LAN to the package mirrors (not written, see the report); guest DNS, either port (not written, see the report); guest DNS, either port-2 (not written, see the report); guests to the internet (not written, see the report); office hours for staff (not written, see the report); defconf: drop all from WAN not DSTNATed (allows publish web) (not written, see the report); defconf: drop all from WAN not DSTNATed (allows publish mail) (not written, see the report)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "notProtocol": "TCP",
+        "source": {
+          "nets": [
+            "192.168.10.50/31",
+            "192.168.10.52/30",
+            "192.168.10.56/30"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "nothing but TCP"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "notProtocol": "TCP",
+        "source": {
+          "notNets": [
+            "192.168.10.50/31",
+            "192.168.10.52/30",
+            "192.168.10.56/30"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "nothing but TCP-2"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            80,
+            443
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "no other web from guests"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "no guests elsewhere"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "defconf: drop all from WAN not DSTNATed"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "ICMPv6",
+        "icmp": {
+          "type": 128
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ICMPv6 echo"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "2001:db8:99::/48"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "2001:db8:10::/64"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "the partners reach the web servers of the LAN by HTTPS and nothing else"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "drop everything else not coming from LAN"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "notProtocol": "TCP",
+        "source": {
+          "nets": [
+            "192.168.10.50/31",
+            "192.168.10.52/30",
+            "192.168.10.56/30"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "nothing but TCP"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "notProtocol": "TCP",
+        "source": {
+          "notNets": [
+            "192.168.10.50/31",
+            "192.168.10.52/30",
+            "192.168.10.56/30"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "nothing but TCP-2"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            80,
+            443
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "no other web from guests"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "no guests elsewhere"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "defconf: drop all from WAN not DSTNATed"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "ICMPv6",
+        "icmp": {
+          "type": 128
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "ICMPv6 echo"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "2001:db8:99::/48"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "2001:db8:10::/64"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "the partners reach the web servers of the LAN by HTTPS and nothing else"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 6,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "drop everything else not coming from LAN"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

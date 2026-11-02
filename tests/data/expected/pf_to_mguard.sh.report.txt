@@ -1,0 +1,125 @@
+FWShift conversion report
+  source: pf
+  target: mguard
+
+Summary
+  Security rules:     31   exact 2, approximated 0, needs review 0, skipped 29
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 7, approximated 0, needs review 2, skipped 0
+  Services:           20   exact 20, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PF_ANCHOR: the rules of these anchors are not converted: 'relayd/*' (line 94). Rules loaded into an anchor decide where the anchor stands, before or after any converted rule; add them to the file to convert them
+  [needs-review] MGUARD_DEFAULT_ALLOW: the source allows what no rule matches: a row that accepts everything ends each table written
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] PF_LAST_MATCH: 22 rules are not quick: pf decides by the last rule that matches unless a quick rule matches first. The model is first match: the quick rules come first, in their order, then the others, the last one first
+  [info] PF_DEFAULT_PASS: pf passes what no rule matches; the model records that as its default action
+  [info] PF_HOST_NAMES: pfctl resolves host names once, when the rules are loaded: www.example.com. They are host name objects here
+  [info] PF_OVERLOAD: rules that add addresses to a table when they exceed a limit (overload): 'line 57'. The table they fill is empty in pf.conf
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  line 72  ->  skipped
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: em2: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  line 75  ->  skipped
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by em2: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: em2: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  line 46 out  ->  skipped
+      [info] PF_OUT_BLOCK: the rule blocks traffic when it leaves by every interface: written as a rule for that destination zone from every zone, ahead of the rules for arriving traffic, less what the rules before it that decide pass ('line 50', 'line 74')
+      [needs-review] PF_OUT_UNNAMED: the rule blocks what leaves by any interface, less what rules for some interfaces pass; it is written for the interfaces this ruleset names, and traffic that leaves by another interface is not blocked by it
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  line 41  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: em0: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  antispoof em1 network  ->  skipped
+      [needs-review] PF_NEGATED_INTERFACE: 'on ! em1' is every interface but em1; it is written for the other interfaces this ruleset names, em0, em2, and not for interfaces it does not name
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 network': the network of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: em0, em2: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'em1 network' holds members only its platform knows, or an address the profile does not hold. This deny rule is NOT enforced; rules below it may match more traffic.
+  antispoof em1 address  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em1 address': the address of em1 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'em1 address' holds members only its platform knows, or an address the profile does not hold. This deny rule is NOT enforced; rules below it may match more traffic.
+  bogons  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  brute force  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'bruteforce': it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload). This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: em0: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'bruteforce' holds members only its platform knows, or an address the profile does not hold. This deny rule is NOT enforced; rules below it may match more traffic.
+  line 49  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'spamd': its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: em0: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'spamd' holds members only its platform knows, or an address the profile does not hold. This deny rule is NOT enforced; rules below it may match more traffic.
+  admin ssh  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'em2 network': the network of em2 is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'em2 network' holds members only its platform knows, or an address the profile does not hold.
+  line 92  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: the user of the socket (user proxy), which only traffic of the firewall itself has.
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 91  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'egress address': the address of egress is not in pf.conf; give it with --interface-address INTERFACE=ADDRESS/BITS.
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'egress address' holds members only its platform knows, or an address the profile does not hold.
+  line 90  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: a mark set by another rule (tagged INTERNAL).
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 87  ->  skipped
+      [needs-review] PF_ROUTE_TO: the rule sends what it matches elsewhere (route-to ( em3 10.30.0.1 )); the converted rule decides only whether it passes, and the traffic takes the route the target chooses
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 86  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 85  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 84  ->  skipped
+      [approximated] PF_NO_STATE: the rule passes packets without keeping state (no state): the replies need a rule of their own on pf. The converted rule allows the connection, replies included
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 81  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  line 80  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 79  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 78  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 69  ->  skipped
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 69.2  ->  skipped
+      [info] PF_NEGATED_LIST: '!' before an element of the source list: pfctl makes a rule of each element, so the rule matches every address that one of them leaves out (every address, unless they overlap); converted as pf reads it, a rule per element
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 66  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 65  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1, em2: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 64  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: em2: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 57  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.1.10' because of NAT rule 'line 39 rdr'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: em0: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 54  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  line 53  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: em1: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  line 46  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_INCOMING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_INCOMING
+  line 73  ->  skipped
+      [info] PF_OUT_SHADOWED: the rule blocks traffic that leaves, but the rules before it that decide ('line 74') pass all of it: it decides nothing for forwarded traffic and is not converted for that direction
+
+NAT rules
+  line 36 nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IP masquerading names one interface (or all external ones)
+  line 37 nat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the mGuard translates a source only to the address of an interface, or a network 1:1
+  line 39 rdr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: port forwarding is for traffic that arrives on the external side
+  line 41 rdr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: port forwarding is for traffic that arrives on the external side
+
+Address groups
+  bruteforce  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <bruteforce> cannot be converted: it has no addresses in pf.conf: they are added at run time (pfctl -T add, overload)
+  spamd  ->  needs-review
+      [needs-review] PF_TABLE_UNKNOWN: table <spamd> cannot be converted: its addresses are read from '/etc/mail/spamd.list' when the rules are loaded, which is not in pf.conf

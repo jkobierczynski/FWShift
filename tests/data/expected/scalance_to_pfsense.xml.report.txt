@@ -1,0 +1,97 @@
+FWShift conversion report
+  source: scalance
+  target: pfsense
+
+Summary
+  Security rules:     17   exact 0, approximated 1, needs review 15 (15 emitted disabled), skipped 1
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] SCALANCE_RULESET: rule sets (user or digital-input firewall): rules assigned to one apply only while it is active and are not converted; check which rules belong to a set: ruleset name maintenance
+  [needs-review] PFSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of a pfSense configuration. Under Diagnostics > Backup & Restore, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every rule, every alias, every NAT rule that is there now is gone, with the separators, the rules pfSense linked to port forwards and the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. Keep a backup, and look at the rules before anything depends on them: pfSense does not check what it restores, and a rule it cannot resolve is not loaded. Written for pfSense 2.7 and later
+  [needs-review] INTERFACES_REQUIRED: pfSense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: ipsecALL
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside a zone unless a rule denies it; on pfSense traffic that leaves by the interface it came in on, or goes from one interface of a zone to another, is dropped unless a rule passes it
+  [info] SCALANCE_SOURCE: 4 interfaces as zones (vlan1, vlan2, vlan3, ipsecALL); 16 IP rules, in ascending priority (prior), equal priorities in the order they were created; the IPv4 rules, then the IPv6 rules. Rules of the firewall itself (device) and the predefined rules are not converted
+  [info] SCALANCE_DEFAULTS: what no rule matches between interfaces is dropped; traffic inside one VLAN does not pass the IP firewall
+  [info] SCALANCE_NAT_ORDER: destination NAT (NAPT, NETMAP of the destination) is done before the firewall, whose rules name the translated address: the rules were rewritten for the address as it arrives. Source NAT, NETMAP of the source and masquerading are done after it. Read in the order NAPT, NETMAP destination, NETMAP source, source NAT, masquerading, one rule of each direction per connection (assumed)
+  [info] SCALANCE_PRERULE: predefined rules (access to services of the firewall itself) are not converted; those the configuration does not list are at their factory setting: ssh ipv4 int vlan 1 enabled, https ipv4 int vlan 2 disabled
+  [info] SCALANCE_NETMAP_DSTINT: the destination interface of a NETMAP rule of the destination is not a condition of the converted rule: netmap destination 1: vlan3
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: vlan1=192.168.10.0/24,10.20.0.0/16; vlan2=198.51.100.0/24; vlan3=192.168.30.0/24. --no-source-networks takes none of them
+
+Security rules
+  ipv4rule 4  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan2. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'vlan1' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  ipv4rule 2  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv4rule 1  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  ipv4rule 3  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  ipv4rule 5  ->  needs-review, emitted disabled
+      [needs-review] ICMP_CODE: ICMP type 8 with code 0: a rule of pfSense names types, no codes.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan2, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind ipsecALL with --zone-network.
+      [needs-review] INTERFACE_NAME: 'vlan1' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  ipv4rule 6  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.2' next to '192.168.30.10' because of NAT rule 'napt 1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'napt 1' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan3. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  ipv4rule 7  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.64/30' next to '192.168.30.64/30' because of NAT rule 'netmap destination 1'; check that this rule is meant to cover the translated traffic
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan3. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  ipv4rule 8  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'vlan3' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ipv4rule 9  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan3. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'vlan1' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  ipv4rule 11  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNSUPPORTED_MATCH: not converted: source DYNAMIC: the address of the user who activates the rule set, or of the digital input.
+      [needs-review] INTERFACE_NAME: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  ipv4rule 12  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNSUPPORTED_MATCH: not converted: service ENIP is not in the configuration.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ENIP': unsupported or undefined service.
+      [needs-review] INTERFACE_NAME: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  ipv4rule 13  ->  approximated  (emitted as ipsecALL)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  ipv4rule 14  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNSUPPORTED_MATCH: not converted: assigned to the rule set maintenance: it applies only while the set is activated (by a user or a digital input).
+      [needs-review] INTERFACE_NAME: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  ipv4rule 15  ->  needs-review, emitted disabled
+      [needs-review] ICMP_CODE: ICMP type 3 with code 4: a rule of pfSense names types, no codes.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan2, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind ipsecALL with --zone-network.
+      [needs-review] INTERFACE_NAME: 'vlan3' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  ipv6rule 1  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  ipv6rule 2  ->  needs-review, emitted disabled
+      [needs-review] ICMP_CODE: ICMP type 128 with code 0: a rule of pfSense names types, no codes.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan2, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind ipsecALL with --zone-network.
+      [needs-review] INTERFACE_NAME: 'vlan1' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  ipv4rule 10  ->  skipped
+      [info] SCALANCE_DEVICE_RULE: a rule for traffic to or from the firewall itself (device): its own access, not converted
+
+NAT rules
+  napt 1  ->  skipped
+      [needs-review] NAT_INTERFACE: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map
+  napt 2  ->  skipped
+      [needs-review] NAT_INTERFACE: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map
+  netmap destination 1  ->  skipped
+      [needs-review] NAT_INTERFACE: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map
+  src-nat 1  ->  skipped
+      [needs-review] NAT_INTERFACE: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map
+  masquerading 1  ->  skipped
+      [needs-review] NAT_INTERFACE: 'vlan2' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map
+
+Services
+  ENIP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'ipv4rule 12' but not defined in the input; emitted as a placeholder

@@ -1,0 +1,90 @@
+FWShift conversion report
+  source: mguard
+  target: windows-firewall
+
+Summary
+  Security rules:     19   exact 13, approximated 0, needs review 4 (3 emitted disabled), skipped 2
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_USER_FIREWALL: the user firewall is on, with 1 templates (service technicians): rules that apply to users who log in; not converted. With it on, the mGuard lets through more than the converted policy
+  [needs-review] MGUARD_VPN_FIREWALL: 1 VPN connections have firewall rules of their own (FW_INCOMING, FW_OUTGOING of the connection): not converted, nor the VPN traffic they decide
+  [needs-review] WINFW_LOAD: the output is a PowerShell script of New-NetFirewallRule calls (section 10): -DryRun shows what it would create, without it it creates the rules, as administrator, in the rule group FWShift. It deletes nothing, changes no profile setting, and stops before it creates anything when a rule of that group exists
+  [needs-review] WINFW_HOST_RULES: Windows evaluates the rules written here together with every other rule of the host: a block rule of the host beats an allow rule written here, and an allow rule of the host lets through what the policy only denies by default. Check the host's own rules (Get-NetFirewallRule -PolicyStore ActiveStore) before it goes live
+  [needs-review] WINFW_DEFAULT_OUTBOUND: the policy denies outbound connections that no rule allows, and Windows allows them unless the profile's default outbound action is Block. The script changes no profile: set it where the policy needs it (Set-NetFirewallProfile -Name NAME -DefaultOutboundAction Block), which also blocks what the host's own rules do not allow: Domain, Private, Public
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] MGUARD_SOURCE: mGuard profile 8.6.1.default, router mode; zones internal, external, dmz; tables read: FW_INCOMING, FW_OUTGOING, FW_INCOMING_WAN_DMZ, FW_INCOMING_DMZ_LAN, FW_OUTGOING_LANDMZ. Each table is first match; what no rule matches is dropped; port forwarding skips the packet filter
+  [info] MGUARD_INTERNAL_ROUTED: the internal side has more than one network (LOCAL_ALIASES): the outgoing rules also decide connections from one of them to another, so they are read for internal -> internal as well
+  [info] MGUARD_IPV4_ONLY: the packet filter of the mGuard is IPv4: 0.0.0.0/0 is read as every IPv4 address, and the rules match no IPv6
+  [info] MGUARD_DEFAULT_LOG: connection attempts no rule covers are logged (LOG_DEFAULT_INCOMING); the model has no place for that
+  [info] MGUARD_MANAGEMENT_ACCESS: access to the mGuard itself is not converted (it protects the device, not forwarded traffic): HTTPS_REMOTE_ACCESS_RULES (1 rows); HTTPS_REMOTE_ENABLE yes; FW_ICMP ping
+  [info] MGUARD_HOSTNAME: host names in IP groups, resolved by the DNS settings of the mGuard; read as names resolved for IPv4: scada: historian.example.com
+  [info] MGUARD_REJECT: Reject: the mGuard sends the packets back and tells the sender; read as reset-both: FW_INCOMING row 4
+  [info] MGUARD_PORTS_IGNORED: ports in rules for a protocol other than tcp and udp, which the mGuard ignores: FW_INCOMING row 7
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. --no-source-networks takes none of them
+  [info] WINFW_DEFAULT_INBOUND: inbound connections that no rule allows are left to the default of the profile, Block, as Windows has it unless changed; the script warns when a profile allows them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a rule of Windows Firewall does not. Logging of dropped and allowed connections is a setting of each profile (Set-NetFirewallProfile -LogBlocked True)
+
+Security rules
+  portforward-1  ->  skipped
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+      [info] ZONE_BY_NETWORKS: the source in zone external is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written as the addresses of the networks given for it with --zone-network
+      [info] WINFW_NOTHING_TO_WRITE: the rule matches no connection to or from the host (only the host to itself, or nothing after the negation and the networks of its zones)
+  portforward-2  ->  skipped
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+      [info] WINFW_NOTHING_TO_WRITE: the rule matches no connection to or from the host (only the host to itself, or nothing after the negation and the networks of its zones)
+  incoming-1  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object historian.example.com: a rule of Windows Firewall names addresses.
+  incoming-3  ->  exact  (emitted as FWShift-incoming-3-1, FWShift-incoming-3-2)
+      [info] ZONE_BY_NETWORKS: the source in zone external is written without the networks given for the other zones with --zone-network
+  incoming-4  ->  exact  (emitted as FWShift-incoming-4-1, FWShift-incoming-4-2)
+      [info] ZONE_BY_NETWORKS: the source in zone external is written without the networks given for the other zones with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written without the networks given for the other zones with --zone-network
+      [info] ACTION_DROP: action reset-both: a block rule of Windows Firewall drops without an answer
+  incoming-5.maintenance-1  ->  needs-review, emitted disabled  (emitted as FWShift-incoming-5.maintenance-1-1, FWShift-incoming-5.maintenance-1-2)
+      [needs-review] MGUARD_RULESET_SWITCHED: a rule of rule set maintenance, which cmd1 switches on and off: not converted
+      [info] ZONE_BY_NETWORKS: the source in zone external is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule set maintenance is switched on and off (cmd1); its rules apply only while it is active.
+  incoming-6.vendor-1  ->  exact  (emitted as FWShift-incoming-6.vendor-1-1, FWShift-incoming-6.vendor-1-2)
+      [info] MGUARD_RULESET: rule 1 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+  incoming-6.vendor-2  ->  needs-review  (emitted as FWShift-incoming-6.vendor-2-1, FWShift-incoming-6.vendor-2-2, FWShift-incoming-6.vendor-2-3, FWShift-incoming-6.vendor-2-4)
+      [info] MGUARD_RULESET: rule 2 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written without the networks given for the other zones with --zone-network
+      [info] WINFW_BLOCK_CUT: Windows decides block rules before allow rules: the rule is written without what the allow rules above it match
+      [needs-review] WINFW_LEFT_TO_DEFAULT: part of it (every protocol but some, ports of SCTP, many ICMP codes, or all it blocks below allow rules) is left to the default of the profile, which blocks it inbound; the allow rules below it are written without it. Outbound it is blocked only where the profile's default outbound action is Block (Domain, Private, Public)
+  incoming-9  ->  needs-review, emitted disabled  (emitted as FWShift-incoming-9-1, FWShift-incoming-9-2)
+      [needs-review] MGUARD_UNREAD: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group
+      [info] ZONE_BY_NETWORKS: the source in zone external is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group.
+  outgoing-1  ->  exact  (emitted as FWShift-outgoing-1-1, FWShift-outgoing-1-2)
+      [info] ZONE_BY_NETWORKS: the destination in zone external is written without the networks given for the other zones with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written without the networks given for the other zones with --zone-network
+  outgoing-2  ->  exact  (emitted as FWShift-outgoing-2-1, FWShift-outgoing-2-2)
+      [info] ZONE_BY_NETWORKS: the destination in zone external is written as the addresses of the networks given for it with --zone-network
+  outgoing-3  ->  exact  (emitted as FWShift-outgoing-3-1, FWShift-outgoing-3-2)
+      [info] ZONE_BY_NETWORKS: the destination in zone external is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written as the addresses of the networks given for it with --zone-network
+  outgoing-4  ->  exact  (emitted as FWShift-outgoing-4-1, FWShift-outgoing-4-2)
+      [info] ZONE_BY_NETWORKS: the destination in zone external is written as the addresses of the networks given for it with --zone-network
+  wan-dmz-1  ->  exact  (emitted as FWShift-wan-dmz-1-1, FWShift-wan-dmz-1-2)
+      [info] ZONE_BY_NETWORKS: the source in zone external is written as the addresses of the networks given for it with --zone-network
+  lan-dmz-1  ->  exact  (emitted as FWShift-lan-dmz-1-1, FWShift-lan-dmz-1-2)
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+
+NAT rules
+  portforward-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  portforward-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  1to1-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  masquerade-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation
+  masquerade-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Windows Firewall does no NAT. The rules were written for the addresses the host sees, after the translation

@@ -1,0 +1,37 @@
+configure terminal
+firewall
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_tcp_443 proto tcp src all dst port 443
+service name FWS_DNS_over_UDP proto udp src all dst port 53
+service name FWS_nas-web proto tcp src all dst port 5001
+service name FWS_rdp proto tcp src all dst port 3389
+icmp name FWS_echo-request type 8 code 0 ver ipv4
+proto name FWS_gre num 47
+service name FWS_udp-src-53-dst-1024-65535 proto udp src port 53 dst range 1024 - 65535
+icmp name FWS_port-unreachable type 3 code 3 ver ipv4
+ipv4rule from inside_zone to outside_zone srcip 10.40.0.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 1
+ipv4rule from inside_zone to outside_zone srcip 10.40.0.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 1
+ipv4rule from inside_zone to outside_zone srcip 10.40.0.0/24 dstip 0.0.0.0/0 action acc service FWS_DNS_over_UDP log info prior 1
+ipv4rule from outside_zone to inside_zone srcip 0.0.0.0/0 dstip 10.40.0.10 action acc service FWS_nas-web log info prior 1
+ipv4rule from outside_zone to inside_zone srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_udp-src-53-dst-1024-65535 log no prior 2
+ipv6rule from outside_zone to inside_zone srcip ::/0 dstip ::/0 action acc service FWS_udp-src-53-dst-1024-65535 log no prior 2
+ipv4rule from outside_zone to inside_zone srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from outside_zone to inside_zone srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from outside_zone to iot srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from outside_zone to iot srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from inside_zone to outside_zone srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from inside_zone to outside_zone srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from inside_zone to iot srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from inside_zone to iot srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from iot to outside_zone srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from iot to outside_zone srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from iot to inside_zone srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from iot to inside_zone srcip ::/0 dstip ::/0 action drop log no prior 3
+exit
+firewallnat
+napt srcint outside_zone proto tcp type ipv4 dstip 192.0.2.2 transip 10.40.0.10 dstport 8443 transport 5001
+netmap source srcint inside_zone dstint outside_zone type ipv4 srcip 10.40.0.10 dstip 0.0.0.0/0 transip 192.0.2.10
+netmap destination srcint outside_zone dstint inside_zone type ipv4 srcip 0.0.0.0/0 dstip 192.0.2.10 transip 10.40.0.10
+src-nat srcint inside_zone dstint outside_zone type ipv4 srcip 0.0.0.0/0 dstip 0.0.0.0/0 transip auto
+exit
+end

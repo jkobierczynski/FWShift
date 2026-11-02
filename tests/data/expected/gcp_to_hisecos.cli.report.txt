@@ -1,0 +1,86 @@
+FWShift conversion report
+  source: gcp (vpc-shop)
+  target: hisecos
+
+Summary
+  Security rules:     28   exact 0, approximated 0, needs review 25 (25 emitted disabled), skipped 3
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] HISECOS_NO_ZONES: the source names no zones: there is no interface to assign the rules to, and they are written disabled. Give the rules zones, or map them with --zone-map and --interface-map
+  [needs-review] HISECOS_LOAD: the output is a CLI script of HiSecOS (section 10): commands of the Global Config mode that add rules 1001 to 1186 of the packet filter (they must be free) with their interface assignments, and NAT rules, and that delete nothing. The keywords are FWShift's reading of Belden's MIBs and command list, not confirmed on a device: check the script with 'script validate' first. Nothing applies until you commit: read 'show packet-filter l3 pending', then 'packet-filter l3 commit' (and 'nat dnat commit', 'nat masq commit', 'nat 1to1nat commit'). Rules of the device with lower priorities on the same interfaces come first, and its default policy is not changed. To take the rules away again: 'packet-filter l3 delif' for each assignment, then 'packet-filter l3 delrule N' for N from 1001 to 1186
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] HISECOS_IPV4_ONLY: HiSecOS filters IPv4: the IPv6 addresses and ICMPv6 of these rules are not written: implied allow egress+allow-https-web-v6, implied allow egress+implied deny ingress, allow-https-web-v6, old-dns, allow-mgmt-v6, pol-shop:geo-and-fqdn (in), implied deny ingress (in), implied allow egress (out)
+
+Security rules
+  db-to-vpc+allow-https-web  ->  needs-review, emitted disabled  (emitted as rules 1001-1002)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  db-to-vpc+implied deny ingress  ->  needs-review, emitted disabled  (emitted as rules 1003-1008)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-no-internet (between instances)  ->  needs-review, emitted disabled  (emitted as rules 1009-1015)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  pol-shop:deny-smtp-out (between instances)  ->  needs-review, emitted disabled  (emitted as rules 1016-1050)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  implied allow egress+allow-app-from-web  ->  needs-review, emitted disabled  (emitted as rules 1051-1054)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  implied allow egress+allow-db-from-app  ->  needs-review, emitted disabled  (emitted as rule 1055)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  implied allow egress+allow-https-web  ->  needs-review, emitted disabled  (emitted as rules 1056-1065)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  implied allow egress+allow-https-web-v6  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  implied allow egress+implied deny ingress  ->  needs-review, emitted disabled  (emitted as rules 1066-1100)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow-app-from-web  ->  needs-review, emitted disabled  (emitted as rules 1101-1104)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  allow-db-from-app  ->  needs-review, emitted disabled  (emitted as rule 1105)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  deny-ssh-blocked  ->  needs-review, emitted disabled  (emitted as rules 1106-1112)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow-https-web  ->  needs-review, emitted disabled  (emitted as rules 1113-1114)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  allow-https-web-v6  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  old-dns  ->  needs-review, emitted disabled  (emitted as rules 1115-1121)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  allow-ssh-admins  ->  needs-review, emitted disabled  (emitted as rules 1122-1128)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  allow-mgmt-v6  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  pol-shop:deny-tor (in)  ->  needs-review, emitted disabled  (emitted as rules 1129-1135)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  pol-shop:allow-monitoring (in)  ->  needs-review, emitted disabled  (emitted as rules 1136-1142)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  pol-shop:geo-and-fqdn (in)  ->  needs-review, emitted disabled  (emitted as rules 1143-1149)
+      [needs-review] UNSUPPORTED_MATCH: not converted: matches srcFqdns, srcRegionCodes, which the export does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  pol-ew1:allow-lb-health (in)  ->  needs-review, emitted disabled  (emitted as rules 1150-1156)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  implied deny ingress (in)  ->  needs-review, emitted disabled  (emitted as rules 1157-1163)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  deny-egress-doc  ->  needs-review, emitted disabled  (emitted as rules 1164-1168)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-to-vpc  ->  needs-review, emitted disabled  (emitted as rules 1169-1171)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  db-no-internet  ->  needs-review, emitted disabled  (emitted as rule 1172)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  pol-shop:allow-dns-out (out)  ->  needs-review, emitted disabled  (emitted as rules 1173-1176)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  pol-shop:deny-smtp-out (out)  ->  needs-review, emitted disabled  (emitted as rules 1177-1181)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  implied allow egress (out)  ->  needs-review, emitted disabled  (emitted as rules 1182-1186)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+
+NAT rules
+  external-192.0.2.10  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: 1:1 NAT of HiSecOS needs one network on each side and the zone of each side
+  external-192.0.2.5  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: 1:1 NAT of HiSecOS needs one network on each side and the zone of each side

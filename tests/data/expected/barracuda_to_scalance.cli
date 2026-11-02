@@ -1,0 +1,49 @@
+configure terminal
+firewall
+service name FWS_SSH proto tcp src all dst port 22
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_tcp_443 proto tcp src all dst port 443
+service name FWS_tcp_8080 proto tcp src all dst port 8080
+proto name FWS_Ping num 1
+proto name FWS_GRE num 47
+service name FWS_Odd-Ports proto tcp src range 1024 - 65535 dst range 1000 - 2000
+ipv4rule from port1 to port2 srcip 198.51.100.0/24 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from port2 to port1 srcip 198.51.100.0/24 dstip 0.0.0.0/0 action drop log info prior 1
+ipv6rule from port1 to port2 srcip 2001:db8:bad::/48 dstip ::/0 action drop log info prior 1
+ipv6rule from port2 to port1 srcip 2001:db8:bad::/48 dstip ::/0 action drop log info prior 1
+ipv4rule from port2 to port1 srcip 10.10.5.10/31 dstip 10.20.0.16-10.20.0.255 action acc service FWS_SSH log info prior 2
+ipv4rule from port1 to port2 srcip 192.0.2.50 dstip 10.20.0.16-10.20.0.255 action acc service FWS_SSH log info prior 2
+ipv4rule from port1 to port2 srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 2
+ipv4rule from port1 to port2 srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from port2 to port1 srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 2
+ipv4rule from port2 to port1 srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from port1 to port2 srcip 10.20.0.16-10.20.0.255 dstip 10.10.0.0/16 action acc service FWS_tcp_80 log info prior 2
+ipv4rule from port1 to port2 srcip 10.20.0.16-10.20.0.255 dstip 10.10.0.0/16 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from port1 to port2 srcip 10.20.0.16-10.20.0.255 dstip 10.10.0.0/16 action acc service FWS_tcp_8080 log info prior 2
+ipv4rule from port2 to port1 srcip 10.20.0.16-10.20.0.255 dstip 10.10.0.0/16 action acc service FWS_tcp_80 log info prior 2
+ipv4rule from port2 to port1 srcip 10.20.0.16-10.20.0.255 dstip 10.10.0.0/16 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from port2 to port1 srcip 10.20.0.16-10.20.0.255 dstip 10.10.0.0/16 action acc service FWS_tcp_8080 log info prior 2
+ipv4rule from port1 to port2 srcip 10.10.0.0/16 dstip 10.20.0.16-10.20.0.255 action acc service FWS_tcp_80 log info prior 2
+ipv4rule from port1 to port2 srcip 10.10.0.0/16 dstip 10.20.0.16-10.20.0.255 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from port1 to port2 srcip 10.10.0.0/16 dstip 10.20.0.16-10.20.0.255 action acc service FWS_tcp_8080 log info prior 2
+ipv4rule from port2 to port1 srcip 10.10.0.0/16 dstip 10.20.0.16-10.20.0.255 action acc service FWS_tcp_80 log info prior 2
+ipv4rule from port2 to port1 srcip 10.10.0.0/16 dstip 10.20.0.16-10.20.0.255 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from port2 to port1 srcip 10.10.0.0/16 dstip 10.20.0.16-10.20.0.255 action acc service FWS_tcp_8080 log info prior 2
+ipv4rule from port1 to port2 srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_Ping log info prior 2
+ipv4rule from port2 to port1 srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_Ping log info prior 2
+ipv6rule from port1 to port2 srcip ::/0 dstip 2001:db8:20::/64 action acc service FWS_tcp_80 log info prior 2
+ipv6rule from port1 to port2 srcip ::/0 dstip 2001:db8:20::/64 action acc service FWS_tcp_443 log info prior 2
+ipv6rule from port2 to port1 srcip ::/0 dstip 2001:db8:20::/64 action acc service FWS_tcp_80 log info prior 2
+ipv6rule from port2 to port1 srcip ::/0 dstip 2001:db8:20::/64 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from port1 to port2 srcip 10.10.0.0/16 dstip 10.20.0.16-10.20.0.255 action rej log info prior 3
+ipv4rule from port2 to port1 srcip 10.10.0.0/16 dstip 10.20.0.16-10.20.0.255 action rej log info prior 3
+ipv4rule from port1 to port2 srcip 10.10.0.0/16 dstip 10.20.0.25 action acc service FWS_GRE log info prior 4
+ipv4rule from port2 to port1 srcip 10.10.0.0/16 dstip 10.20.0.25 action acc service FWS_GRE log info prior 4
+ipv4rule from port1 to port2 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 5
+ipv4rule from port2 to port1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 5
+ipv4rule from port1 to port2 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from port1 to port2 srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from port2 to port1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from port2 to port1 srcip ::/0 dstip ::/0 action drop log no prior 6
+exit
+end

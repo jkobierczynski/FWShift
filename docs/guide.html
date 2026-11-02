@@ -229,6 +229,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#hillstone">Hillstone StoneOS</a></li>
       <li><a href="#zyxel">Zyxel ZLD</a></li>
       <li><a href="#winfw">Windows Defender Firewall</a></li>
+      <li><a href="#kubernetes">Kubernetes and Calico</a></li>
+      <li><a href="#mguard">Phoenix Contact mGuard</a></li>
+      <li><a href="#scalance">Siemens SCALANCE SC-600 / S615</a></li>
+      <li><a href="#hisecos">Hirschmann EAGLE40 (HiSecOS)</a></li>
+      <li><a href="#moxa">Moxa EDR / TN routers</a></li>
       <li><a href="#vyos">VyOS</a></li>
       <li><a href="#screenos">Juniper ScreenOS</a></li>
       <li><a href="#pix">Cisco PIX</a></li>
@@ -249,7 +254,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.42</div>
+  <div class="eyebrow">Field guide · version 0.43</div>
   <h1>FWShift, feature by feature</h1>
   <p class="lead">FWShift converts firewall policies between thirty-one platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
@@ -344,6 +349,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>Hillstone StoneOS</td><td><code>hillstone</code></td><td><code>show configuration</code></td><td>configuration-mode commands</td></tr>
       <tr><td>Zyxel ZLD (USG FLEX, ATP, VPN)</td><td><code>zyxel</code></td><td><code>startup-config.conf</code></td><td>shell script (<code>.zysh</code>) of CLI commands</td></tr>
       <tr><td>Windows Defender Firewall</td><td><code>windows-firewall</code></td><td><code>reg export</code> of the firewall's registry keys</td><td>PowerShell script of <code>New-NetFirewallRule</code></td></tr>
+      <tr><td>Kubernetes and Calico</td><td><code>kubernetes</code>, <code>calico</code></td><td><code>kubectl get networkpolicy,pod,namespace,service -A -o json</code> (+ <code>calicoctl get ... -o json</code>)</td><td>NetworkPolicy <code>List</code> (pods labelled by group) / one Calico GlobalNetworkPolicy</td></tr>
+      <tr><td>Phoenix Contact mGuard</td><td><code>mguard</code></td><td>configuration profile <code>.atv</code> (mGuard 8.x to 10.x), or <code>gaiconfig --get-all</code></td><td>shell script of <code>gaiconfig</code> calls (rows and groups appended)</td></tr>
+      <tr><td>Siemens SCALANCE SC-600 / S615</td><td><code>scalance</code></td><td><code>show running-config</code> (CLI configuration)</td><td>CLI commands for the FIREWALL and FIREWALL NAT modes</td></tr>
+      <tr><td>Hirschmann EAGLE40 (HiSecOS)</td><td><code>hisecos</code></td><td><code>show running-config script</code> (routed mode)</td><td>CLI script: rules, interface assignments, NAT; nothing committed</td></tr>
+      <tr><td>Moxa EDR / TN routers</td><td><code>moxa</code></td><td>configuration file (<code>.ini</code>) / <code>show running-config</code>, classic router firmware</td><td>CLI commands for the console (<code>firewall N</code>, <code>ip nat</code>)</td></tr>
       <tr><td>VyOS 1.4+ (read also VyOS 1.3, Vyatta, EdgeOS)</td><td><code>vyos</code></td><td><code>show configuration commands</code> or <code>config.boot</code></td><td><code>set</code> commands</td></tr>
       <tr><td>Juniper ScreenOS 5.x, 6.x</td><td><code>screenos</code> (source only)</td><td><code>get config</code></td><td>—</td></tr>
       <tr><td>Cisco PIX 6.x</td><td><code>pix</code> (source only)</td><td><code>write terminal</code></td><td>—</td></tr>
@@ -359,8 +369,8 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>FWShift is on PyPI: <code>pip install fwshift</code>. Each release also has the project as a zip and a single file that runs with any Python 3.9 or newer. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.42.0.pyz --version
-python3 fwshift-0.42.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.43.0.pyz --version
+python3 fwshift-0.43.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip, from PyPI</span>
 pip install fwshift
@@ -427,19 +437,19 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa ios huawei stormshield meraki fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure gcp terraform-aws terraform-azure terraform-google routeros forcepoint azure-firewall aws-network-firewall pf vyos f5-afm oci hillstone zyxel windows-firewall json</code>.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa ios huawei stormshield meraki fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure gcp terraform-aws terraform-azure terraform-google routeros forcepoint azure-firewall aws-network-firewall pf vyos f5-afm oci hillstone zyxel windows-firewall kubernetes calico mguard scalance hisecos moxa json</code>.</td></tr>
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
       <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Azure Firewall, AWS Network Firewall, Google Cloud, Terraform, Meraki, OCI, Windows Defender Firewall; SonicWall object zones).</td></tr>
-      <tr><td><code>--compare[=FILE]</code></td><td>Reads the output back (twenty targets) and reports every connection it decides differently from the source (section 13).</td></tr>
+      <tr><td><code>--compare[=FILE]</code></td><td>Reads the output back (twenty-three targets) and reports every connection it decides differently from the source (section 13).</td></tr>
       <tr><td><code>--inside-zone ZONE</code></td><td>AWS, Azure and Terraform: a zone inside the VPC or the virtual network; only its addresses get security groups. Meraki: a zone of the LAN of the MX.</td></tr>
       <tr><td><code>--app-map FILE</code></td><td>JSON of extra application-to-port mappings.</td></tr>
       <tr><td><code>--target-vsys</code>, <code>--target-device-group</code>, <code>--target-shared</code></td><td>Where PAN-OS output goes.</td></tr>
       <tr><td><code>--target-version SERIES</code></td><td>OPNsense: the series to write for, <code>24.7</code>, <code>25.1</code>, <code>25.7</code>, <code>26.1</code> or <code>26.7</code> (default).</td></tr>
-      <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick). VyOS: the forward filter rule that jumps, and the first NAT rule (default 10000). Hillstone: the first rule id and NAT rule id (default 10000). Zyxel: the position the rules are inserted from (default 1).</td></tr>
+      <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick). VyOS: the forward filter rule that jumps, and the first NAT rule (default 10000). Hillstone: the first rule id and NAT rule id (default 10000). Zyxel: the position the rules are inserted from (default 1). SCALANCE: the first priority (default 1). HiSecOS: the first rule index (default 1001). Moxa: the first policy index (default 1).</td></tr>
       <tr><td><code>--target-layer</code>, <code>--target-package</code>, <code>--target-gateway</code></td><td>Check Point layer (default <code>Network</code>), package (default <code>Standard</code>), hide-NAT gateway.</td></tr>
       <tr><td><code>--target-nat-zone ZONE</code></td><td>Destination zone for NAT rules of a source that names none; ASA interface for "NAT to the outgoing interface".</td></tr>
-      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, IOS, Huawei, Stormshield, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, NSX, AWS, Azure, Azure Firewall, AWS Network Firewall, Google Cloud, RouterOS, Forcepoint, pf, VyOS, F5 BIG-IP AFM, OCI, Hillstone, Zyxel, Windows Defender Firewall).</td></tr>
+      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, IOS, Huawei, Stormshield, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, NSX, AWS, Azure, Azure Firewall, AWS Network Firewall, Google Cloud, RouterOS, Forcepoint, pf, VyOS, F5 BIG-IP AFM, OCI, Hillstone, Zyxel, Windows Defender Firewall, Kubernetes, mGuard, SCALANCE).</td></tr>
       <tr><td><code>--target-policy NAME</code></td><td>Name of the FMC access and NAT policy created, of the NSX security policy, of the Forcepoint firewall policy, of the Google Cloud network firewall policy, of the Azure Firewall policy, of the AWS Network Firewall policy and its rule group (default <code>FWShift</code>; <code>fwshift</code> for Google Cloud and AWS Network Firewall).</td></tr>
       <tr><td><code>--target-template NAME</code></td><td>Forcepoint: the template the new policy is based on (default <code>Firewall Template</code>).</td></tr>
       <tr><td><code>--prune-unused</code></td><td>Leave out objects no rule uses.</td></tr>
@@ -626,6 +636,11 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#hillstone"><b>Hillstone StoneOS</b><span>configuration → commands</span></a>
     <a href="#zyxel"><b>Zyxel ZLD</b><span>configuration → shell script</span></a>
     <a href="#winfw"><b>Windows Defender Firewall</b><span>reg export → PowerShell</span></a>
+    <a href="#kubernetes"><b>Kubernetes and Calico</b><span>kubectl / calicoctl JSON → policy</span></a>
+    <a href="#mguard"><b>Phoenix Contact mGuard</b><span>profile → gaiconfig script</span></a>
+    <a href="#scalance"><b>Siemens SCALANCE SC-600 / S615</b><span>CLI → CLI</span></a>
+    <a href="#hisecos"><b>Hirschmann EAGLE40 (HiSecOS)</b><span>script → script</span></a>
+    <a href="#moxa"><b>Moxa EDR / TN routers</b><span>configuration → console commands</span></a>
     <a href="#vyos"><b>VyOS</b><span>set commands, both ways</span></a>
     <a href="#screenos"><b>Juniper ScreenOS</b><span>get config, read only</span></a>
     <a href="#pix"><b>Cisco PIX</b><span>write terminal, read only</span></a>
@@ -1537,6 +1552,88 @@ powershell -ExecutionPolicy Bypass -File rules.ps1</pre></div>
       <li>Rules that name a program, service, user, interface or IPsec are reported and written disabled. Nothing was read from or loaded on a Windows host.</li>
     </ul>
   </article>
+  <!-- kubernetes -->
+  <article class="brand" id="kubernetes">
+    <h3>Kubernetes and Calico</h3>
+    <div class="ports"><span class="port"><i>IN</i><span><code>kubectl get networkpolicy,pod,namespace,service -A -o json</code> (+ <code>calicoctl get ... -o json</code>)</span></span><span class="port"><i>OUT</i><span>NetworkPolicy <code>List</code> (pods labelled by group) / one Calico GlobalNetworkPolicy</span></span><span class="port"><i>ID</i><span>kubernetes, calico</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>kubectl get networkpolicy,pod,namespace,service -A -o json for NetworkPolicy; append calicoctl get ... -o json for Calico tiers, global policies and network sets.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to calico -o gnp.json --target-policy edge --zone-network pods=10.244.0.0/16 --zone-network untrust=0.0.0.0/0,::/0
+calicoctl apply -f gnp.json</pre></div>
+    <div class="callout"><b>A snapshot.</b> Selectors are worked out on the pods of the export, so the model is a snapshot of the cluster. Calico output keeps the order exactly (one GlobalNetworkPolicy, for pods labelled <code>fwshift/policy=NAME</code>); NetworkPolicy output takes the deny rules out of the allow rules, as the AWS target does, for pods you label by group.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Isolation and the union of allows (NetworkPolicy), tiers, order, Pass and the end of a tier (Calico) and both ends of a connection are composed into one first-match list (<code>K8S_SNAPSHOT</code>).</li>
+      <li>Input is JSON only: convert YAML kept in git with <code>kubectl create --dry-run=client -o json</code>.</li>
+      <li>Services, AdminNetworkPolicy, staged policies and Calico's <code>http</code> and <code>services</code> matches are not converted. Nothing was applied to a cluster.</li>
+    </ul>
+  </article>
+  <!-- mguard -->
+  <article class="brand" id="mguard">
+    <h3>Phoenix Contact mGuard</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>configuration profile <code>.atv</code> (mGuard 8.x to 10.x), or <code>gaiconfig --get-all</code></span></span><span class="port"><i>OUT</i><span>shell script of <code>gaiconfig</code> calls (rows and groups appended)</span></span><span class="port"><i>ID</i><span>mguard</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>Management &gt;&gt; Configuration Profiles: download the profile (.atv), or gaiconfig --get-all on the device.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to mguard -o fwshift-mguard.sh --report report.txt --zone-map trust=internal --zone-map untrust=external
+DRY_RUN=1 sh fwshift-mguard.sh      # the calls, without an mGuard</pre></div>
+    <div class="callout"><b>One first-match list.</b> The packet filter tables become one list over the zones internal, external and dmz; port forwarding skips the packet filter, so it is read as an allow rule at the top and written only where the rules allow all of what it forwards. The script appends rows after the tables' own and stops when they are not empty, unless <code>FWSHIFT_APPEND=yes</code>.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Rule sets are put in place of the rule that enters them; sets switched by a button, CMD input, VPN or timeout are not converted.</li>
+      <li>The syntax of the profile file is not published by Phoenix Contact: it is taken from a public tool's reader, and assumed.</li>
+      <li>The user firewall, VPN firewalls, the MAC filter and access to the mGuard are reported. IPv4 only. Nothing was loaded on an mGuard.</li>
+    </ul>
+  </article>
+  <!-- scalance -->
+  <article class="brand" id="scalance">
+    <h3>Siemens SCALANCE SC-600 / S615</h3>
+    <div class="ports"><span class="port"><i>IN</i><span><code>show running-config</code> (CLI configuration)</span></span><span class="port"><i>OUT</i><span>CLI commands for the FIREWALL and FIREWALL NAT modes</span></span><span class="port"><i>ID</i><span>scalance</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>show running-config over SSH or the serial console.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to scalance -o fwshift.cli --report report.txt --zone-map trust=vlan1 --zone-map untrust=vlan2 --zone-map dmz=vlan3</pre></div>
+    <div class="callout"><b>Placed by priority.</b> The interfaces of the rules are the zones (<code>vlan 1</code> is <code>vlan1</code>); rules get priorities from <code>--policy-id-start</code>, one per pair of interfaces, address and service, and end with the source's default for every pair of zones. Destination NAT comes before the firewall, as on FortiOS.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>The command syntax comes from Siemens's 2015 (S615) and 2017 (SC-600) CLI manuals; first match, the order of equal priorities and <code>ipv6rule</code> are assumed.</li>
+      <li>The CLI has no disabled rule: a rule it cannot say is left out and listed in the report.</li>
+      <li>Rules the device has with a lower priority still come first (<code>SCALANCE_LOAD</code>). Nothing was loaded on a device.</li>
+    </ul>
+  </article>
+  <!-- hisecos -->
+  <article class="brand" id="hisecos">
+    <h3>Hirschmann EAGLE40 (HiSecOS)</h3>
+    <div class="ports"><span class="port"><i>IN</i><span><code>show running-config script</code> (routed mode)</span></span><span class="port"><i>OUT</i><span>CLI script: rules, interface assignments, NAT; nothing committed</span></span><span class="port"><i>ID</i><span>hisecos</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>show running-config script, or the script file the device exports.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to hisecos -o fwshift.cli --report report.txt --interface-map ethernet1/1=1/1 --interface-map ethernet1/2=1/2</pre></div>
+    <div class="callout"><b>Validate it first.</b> Rules are read in the order of the priorities of their interface assignments, as Belden's MIB describes them. The command keywords come from Belden's MIBs and the CLI reference's command list, not its Format lines: run <code>script validate</code> on the device before you apply the script.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Rules are written from index 1001 (<code>--policy-id-start</code>), each with an ingress assignment and its index as priority; nothing is deleted or committed.</li>
+      <li>Deep packet inspection (Modbus, OPC enforcers), the user firewall, transparent mode and management access are reported.</li>
+      <li>IPv4 only. Nothing was loaded on a device.</li>
+    </ul>
+  </article>
+  <!-- moxa -->
+  <article class="brand" id="moxa">
+    <h3>Moxa EDR / TN routers</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>configuration file (<code>.ini</code>) / <code>show running-config</code>, classic router firmware</span></span><span class="port"><i>OUT</i><span>CLI commands for the console (<code>firewall N</code>, <code>ip nat</code>)</span></span><span class="port"><i>ID</i><span>moxa</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>System &gt; Config Import/Export (a CLI-based .ini since firmware 3.4), or show running-config.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to moxa -o fwshift-moxa.txt --report report.txt --zone-map trust=lan --zone-map untrust=wan1 --zone-map dmz=wan2</pre></div>
+    <div class="callout"><b>Mind the indexes.</b> The Layer 3 policy is first match by index and names the interfaces lan, wan1 and wan2. <code>firewall N</code> changes a policy that exists at N: on a router with policies, start above the last index (<code>--policy-id-start</code>).</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>MX-ROS (EDR-G9010, EDR-G9004, EDR-8010) is refused: its commands could not be read in Moxa's documentation.</li>
+      <li>What no policy matches is assumed to pass, and NAT to come before the policy.</li>
+      <li>The Layer 2 policy, the Modbus filter, DoS and trusted access are reported. Nothing was loaded on a router.</li>
+    </ul>
+  </article>
   <!-- pf -->
   <article class="brand" id="pf">
     <h3>pf (OpenBSD, FreeBSD)</h3>
@@ -1912,6 +2009,11 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
       <tr><td>Hillstone</td><td>Nothing is deleted; rules with ids from 10000, after the existing ones</td><td>Check that the ids are free (<code>show policy</code>); nothing is saved</td></tr>
       <tr><td>Zyxel</td><td>Nothing is deleted; rules inserted from position 1, inactive until complete</td><td>Run as a shell script, never as a <code>.conf</code>; nothing is saved</td></tr>
       <tr><td>Windows Defender Firewall</td><td>Nothing: one new rule group; stops if the group exists; no profile setting changed</td><td><code>-DryRun</code>; <code>Remove-NetFirewallRule -Group FWShift</code> undoes it</td></tr>
+      <tr><td>Kubernetes / Calico</td><td>NetworkPolicies or a GlobalNetworkPolicy of the same name; selects only pods with FWShift's labels</td><td><code>kubectl apply --dry-run=server</code>; label the pods by hand</td></tr>
+      <tr><td>mGuard</td><td>Nothing: rows and groups appended; stops if a table has rows</td><td><code>DRY_RUN=1</code>; <code>FWSHIFT_APPEND=yes</code> to add after existing rows</td></tr>
+      <tr><td>SCALANCE</td><td>Nothing is deleted; rules with lower priorities still come first</td><td>Paste in a maintenance window; check priorities with <code>show firewall ip-rules ipv4</code></td></tr>
+      <tr><td>HiSecOS</td><td>Nothing is deleted or committed</td><td><code>script validate</code> first: the keywords are not confirmed</td></tr>
+      <tr><td>Moxa</td><td><code>firewall N</code> replaces a policy that exists at N</td><td><code>--policy-id-start</code> above the last index</td></tr>
       <tr><td>Terraform</td><td>Nothing: new groups or a policy, attached to nothing; the apply fails on a name that exists</td><td><code>terraform plan</code>; attach or associate by hand</td></tr>
       <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
       <tr><td>OPNsense</td><td>Each restored area (Aliases; NAT with NPt; the rules of both pages)</td><td>A full backup; <code>--target-version</code> of the firewall</td></tr>

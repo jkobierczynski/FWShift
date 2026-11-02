@@ -1,0 +1,61 @@
+FWShift conversion report
+  source: fortios
+  target: hisecos
+
+Summary
+  Security rules:     14   exact 4, approximated 2, needs review 7 (6 emitted disabled), skipped 1
+  NAT rules:           5   exact 0, approximated 2, needs review 2, skipped 1
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HISECOS_LOAD: the output is a CLI script of HiSecOS (section 10): commands of the Global Config mode that add rules 1001 to 1031 of the packet filter (they must be free) with their interface assignments, and NAT rules, and that delete nothing. The keywords are FWShift's reading of Belden's MIBs and command list, not confirmed on a device: check the script with 'script validate' first. Nothing applies until you commit: read 'show packet-filter l3 pending', then 'packet-filter l3 commit' (and 'nat dnat commit', 'nat masq commit', 'nat 1to1nat commit'). Rules of the device with lower priorities on the same interfaces come first, and its default policy is not changed. To take the rules away again: 'packet-filter l3 delif' for each assignment, then 'packet-filter l3 delrule N' for N from 1001 to 1031
+  [needs-review] INTERFACES_REQUIRED: zones are written as the routing interfaces of the device (1/1, vlan/10): these names are not such interfaces, and the device refuses the assignments that name them. Map the zones with --zone-map, or their interfaces with --interface-map: wan1, internal1, internal2, dmz, ot
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] HISECOS_IPV4_ONLY: HiSecOS filters IPv4: the IPv6 addresses and ICMPv6 of these rules are not written: LAN v6 out
+  [info] HISECOS_NAT_WRITTEN: destination NAT and 1:1 NAT are done before the packet filter (assumed, as on netfilter): the rules were written for the translated address
+
+Security rules
+  LAN to Internet  ->  approximated  (emitted as rules 1001-1002)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
+  Inbound web  ->  needs-review  (emitted as rule 1006)
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination 'vip-web' with post-NAT '10.20.0.10' because of NAT rule 'vip-web', which translates only some of the services of this rule: for the others the rule now names '10.20.0.10', sent there directly, and no longer 'vip-web'
+  Inbound mail  ->  approximated  (emitted as rule 1007)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'vip-mail' with post-NAT '10.20.0.25' because of NAT rule 'vip-mail'; check that this rule is meant to cover the translated traffic
+  Admins to DMZ  ->  needs-review, emitted disabled  (emitted as rules 1008-1015)
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+  Block geo  ->  needs-review, emitted disabled  (emitted as rule 1016 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ out via pool  ->  needs-review, emitted disabled  (emitted as rule 1017 (a placeholder, disabled))
+      [needs-review] HISECOS_FQDN: the destination holds host names (updates.example.com); a rule of HiSecOS takes addresses only.
+  Partner tunnel  ->  needs-review, emitted disabled  (emitted as rule 1020 (a placeholder, disabled))
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any.
+  LAN v6 out  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  policy-12  ->  needs-review, emitted disabled  (emitted as rule 1021)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  Not web  ->  needs-review, emitted disabled  (emitted as rule 1022 (a placeholder, disabled))
+      [needs-review] HISECOS_NEGATED_SERVICE: a negated service: a rule of HiSecOS cannot negate its protocol or ports.
+  Timestamp probes  ->  exact  (emitted as rules 1023-1030)
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+
+NAT rules
+  vip-web  ->  approximated  (emitted as nat dnat add 201)
+      [approximated] HISECOS_NAT_EGRESS: destination NAT of HiSecOS is assigned to the interface traffic arrives on; the zones it leaves by are not a condition
+  vip-mail  ->  approximated  (emitted as nat dnat add 202)
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+      [approximated] HISECOS_NAT_EGRESS: destination NAT of HiSecOS is assigned to the interface traffic arrives on; the zones it leaves by are not a condition
+  snat-1  ->  needs-review  (emitted as nat masq add 101)
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [approximated] HISECOS_NAT_INGRESS: masquerading of HiSecOS is assigned to the interface traffic leaves by; the zones it comes from are not a condition
+  snat-2  ->  needs-review  (emitted as nat masq add 102)
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [approximated] HISECOS_NAT_INGRESS: masquerading of HiSecOS is assigned to the interface traffic leaves by; the zones it comes from are not a condition
+  snat-7  ->  skipped
+      [needs-review] HISECOS_NAT_FORM: the source is not one IPv4 address or network
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted

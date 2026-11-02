@@ -1,0 +1,134 @@
+configure terminal
+firewall
+service name FWS_backup proto tcp src all dst port 10000
+proto name FWS_gre num 47
+proto name FWS_ipinip num 4
+proto name FWS_proto-41 num 41
+service name FWS_udp-3544 proto udp src all dst port 3544
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_tcp_443 proto tcp src all dst port 443
+service name FWS_tcp_8080-8081 proto tcp src all dst range 8080 - 8081
+service name FWS_DNS_over_UDP proto udp src all dst port 53
+service name FWS_DNS_over_TCP proto tcp src all dst port 53
+service name FWS_NTP-UDP proto udp src all dst port 123
+service name FWS_smtp proto tcp src all dst port 25
+service name FWS_tcp_22 proto tcp src all dst port 22
+icmp name FWS_icmp_8_0 type 8 code 0 ver ipv4
+service name FWS_tcp-3389 proto tcp src all dst port 3389
+proto name FWS_ipsec-esp num 50
+service name FWS_tcp-8443 proto tcp src all dst port 8443
+service name FWS_udp-src-53-dst-1024-65535 proto udp src port 53 dst range 1024 - 65535
+icmp name FWS_echo6 type 128 code 0 ver ipv6
+ipv4rule from inside to dmz srcip 10.10.0.0/24 dstip 10.20.0.25 action acc service FWS_backup log no prior 1
+ipv4rule from outside to inside srcip 10.0.0.0/8 dstip 0.0.0.0/0 action drop log info prior 2
+ipv4rule from outside to dmz srcip 10.0.0.0/8 dstip 0.0.0.0/0 action drop log info prior 2
+ipv4rule from outside to dmz srcip 198.51.100.0/24 dstip 10.20.0.10 action acc service FWS_gre log no prior 3
+ipv4rule from outside to dmz srcip 198.51.100.0/24 dstip 203.0.113.10 action acc service FWS_gre log no prior 3
+ipv4rule from dmz to outside srcip 10.20.0.10 dstip 198.51.100.0/24 action acc service FWS_gre log no prior 3
+ipv4rule from outside to inside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_gre log no prior 4
+ipv4rule from outside to inside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_ipinip log no prior 4
+ipv4rule from outside to inside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto-41 log no prior 4
+ipv4rule from outside to inside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp-3544 log no prior 4
+ipv6rule from outside to inside srcip ::/0 dstip ::/0 action drop service FWS_gre log no prior 4
+ipv6rule from outside to inside srcip ::/0 dstip ::/0 action drop service FWS_ipinip log no prior 4
+ipv6rule from outside to inside srcip ::/0 dstip ::/0 action drop service FWS_proto-41 log no prior 4
+ipv6rule from outside to inside srcip ::/0 dstip ::/0 action drop service FWS_udp-3544 log no prior 4
+ipv4rule from outside to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_gre log no prior 4
+ipv4rule from outside to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_ipinip log no prior 4
+ipv4rule from outside to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto-41 log no prior 4
+ipv4rule from outside to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp-3544 log no prior 4
+ipv6rule from outside to dmz srcip ::/0 dstip ::/0 action drop service FWS_gre log no prior 4
+ipv6rule from outside to dmz srcip ::/0 dstip ::/0 action drop service FWS_ipinip log no prior 4
+ipv6rule from outside to dmz srcip ::/0 dstip ::/0 action drop service FWS_proto-41 log no prior 4
+ipv6rule from outside to dmz srcip ::/0 dstip ::/0 action drop service FWS_udp-3544 log no prior 4
+ipv4rule from inside to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_gre log no prior 4
+ipv4rule from inside to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_ipinip log no prior 4
+ipv4rule from inside to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto-41 log no prior 4
+ipv4rule from inside to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp-3544 log no prior 4
+ipv6rule from inside to outside srcip ::/0 dstip ::/0 action drop service FWS_gre log no prior 4
+ipv6rule from inside to outside srcip ::/0 dstip ::/0 action drop service FWS_ipinip log no prior 4
+ipv6rule from inside to outside srcip ::/0 dstip ::/0 action drop service FWS_proto-41 log no prior 4
+ipv6rule from inside to outside srcip ::/0 dstip ::/0 action drop service FWS_udp-3544 log no prior 4
+ipv4rule from inside to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_gre log no prior 4
+ipv4rule from inside to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_ipinip log no prior 4
+ipv4rule from inside to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto-41 log no prior 4
+ipv4rule from inside to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp-3544 log no prior 4
+ipv6rule from inside to dmz srcip ::/0 dstip ::/0 action drop service FWS_gre log no prior 4
+ipv6rule from inside to dmz srcip ::/0 dstip ::/0 action drop service FWS_ipinip log no prior 4
+ipv6rule from inside to dmz srcip ::/0 dstip ::/0 action drop service FWS_proto-41 log no prior 4
+ipv6rule from inside to dmz srcip ::/0 dstip ::/0 action drop service FWS_udp-3544 log no prior 4
+ipv4rule from dmz to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_gre log no prior 4
+ipv4rule from dmz to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_ipinip log no prior 4
+ipv4rule from dmz to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto-41 log no prior 4
+ipv4rule from dmz to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp-3544 log no prior 4
+ipv6rule from dmz to outside srcip ::/0 dstip ::/0 action drop service FWS_gre log no prior 4
+ipv6rule from dmz to outside srcip ::/0 dstip ::/0 action drop service FWS_ipinip log no prior 4
+ipv6rule from dmz to outside srcip ::/0 dstip ::/0 action drop service FWS_proto-41 log no prior 4
+ipv6rule from dmz to outside srcip ::/0 dstip ::/0 action drop service FWS_udp-3544 log no prior 4
+ipv4rule from dmz to inside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_gre log no prior 4
+ipv4rule from dmz to inside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_ipinip log no prior 4
+ipv4rule from dmz to inside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_proto-41 log no prior 4
+ipv4rule from dmz to inside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp-3544 log no prior 4
+ipv6rule from dmz to inside srcip ::/0 dstip ::/0 action drop service FWS_gre log no prior 4
+ipv6rule from dmz to inside srcip ::/0 dstip ::/0 action drop service FWS_ipinip log no prior 4
+ipv6rule from dmz to inside srcip ::/0 dstip ::/0 action drop service FWS_proto-41 log no prior 4
+ipv6rule from dmz to inside srcip ::/0 dstip ::/0 action drop service FWS_udp-3544 log no prior 4
+ipv4rule from inside to outside srcip 10.30.0.0/24 dstip 0.0.0.0/0 action drop log info prior 5
+ipv4rule from inside to outside srcip 10.10.0.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 6
+ipv4rule from inside to outside srcip 10.10.0.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 6
+ipv4rule from inside to outside srcip 10.10.0.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_8080-8081 log info prior 6
+ipv4rule from inside to outside srcip 10.10.0.0/24 dstip 0.0.0.0/0 action acc service FWS_DNS_over_UDP log no prior 7
+ipv4rule from inside to outside srcip 10.10.0.0/24 dstip 0.0.0.0/0 action acc service FWS_DNS_over_TCP log no prior 7
+ipv4rule from inside to outside srcip 10.10.0.0/24 dstip 0.0.0.0/0 action acc service FWS_NTP-UDP log no prior 7
+ipv4rule from outside to dmz srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_tcp_80 log info prior 8
+ipv4rule from outside to dmz srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_tcp_443 log info prior 8
+ipv4rule from outside to dmz srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_tcp_80 log info prior 8
+ipv4rule from outside to dmz srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_tcp_443 log info prior 8
+ipv4rule from outside to dmz srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_smtp log info prior 8
+ipv4rule from inside to dmz srcip 10.10.0.100-10.10.0.120 dstip 10.20.0.10 action acc service FWS_tcp_22 log info prior 8
+ipv4rule from inside to dmz srcip 10.10.0.100-10.10.0.120 dstip 10.20.0.10 action acc service FWS_icmp_8_0 log info prior 8
+ipv4rule from inside to dmz srcip 10.10.0.100-10.10.0.120 dstip 10.20.0.25 action acc service FWS_tcp_22 log info prior 8
+ipv4rule from inside to dmz srcip 10.10.0.100-10.10.0.120 dstip 10.20.0.25 action acc service FWS_icmp_8_0 log info prior 8
+ipv4rule from inside to dmz srcip 10.10.0.100-10.10.0.120 dstip 10.20.0.30 action acc service FWS_tcp_22 log info prior 8
+ipv4rule from inside to dmz srcip 10.10.0.100-10.10.0.120 dstip 10.20.0.30 action acc service FWS_icmp_8_0 log info prior 8
+ipv4rule from outside to dmz srcip 198.51.100.0/24 dstip 10.20.0.10 action acc service FWS_ipsec-esp log info prior 8
+ipv4rule from outside to dmz srcip 198.51.100.0/24 dstip 10.20.0.10 action acc service FWS_tcp-8443 log info prior 8
+ipv4rule from outside to dmz srcip 198.51.100.0/24 dstip 203.0.113.10 action acc service FWS_ipsec-esp log info prior 8
+ipv4rule from outside to dmz srcip 198.51.100.0/24 dstip 203.0.113.10 action acc service FWS_tcp-8443 log info prior 8
+ipv4rule from inside to outside srcip 10.10.0.200-10.10.0.250 dstip 0.0.0.0/0 action drop service FWS_tcp_80 log info prior 9
+ipv4rule from inside to outside srcip 10.10.0.200-10.10.0.250 dstip 0.0.0.0/0 action drop service FWS_tcp_443 log info prior 9
+ipv4rule from outside to dmz srcip 0.0.0.0/0 dstip 10.20.0.53 action acc service FWS_udp-src-53-dst-1024-65535 log no prior 10
+ipv6rule from outside to dmz srcip 2001:db8:10::/48 dstip 2001:db8:20::10 action acc service FWS_tcp_443 log info prior 11
+ipv6rule from outside to dmz srcip 2001:db8:10::/48 dstip 2001:db8:20::10 action acc service FWS_echo6 log info prior 11
+ipv4rule from inside to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp_8_0 log no prior 12
+ipv4rule from inside to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp_8_0 log no prior 12
+ipv4rule from dmz to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp_8_0 log no prior 12
+ipv4rule from dmz to inside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp_8_0 log no prior 12
+ipv4rule from inside to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action rej log info prior 13
+ipv6rule from inside to outside srcip ::/0 dstip ::/0 action rej log info prior 13
+ipv4rule from inside to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action rej log info prior 13
+ipv6rule from inside to dmz srcip ::/0 dstip ::/0 action rej log info prior 13
+ipv4rule from outside to inside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from outside to inside srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from outside to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from outside to dmz srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from inside to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from inside to outside srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from inside to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from inside to dmz srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from dmz to outside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from dmz to outside srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from dmz to inside srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from dmz to inside srcip ::/0 dstip ::/0 action drop log no prior 14
+exit
+firewallnat
+napt srcint outside proto tcp type ipv4 dstip 203.0.113.2 transip 10.20.0.10 dstport 8443 transport 8080
+netmap source srcint dmz dstint outside type ipv4 srcip 10.20.0.25 dstip 0.0.0.0/0 transip 203.0.113.25
+netmap destination srcint outside dstint dmz type ipv4 srcip 0.0.0.0/0 dstip 203.0.113.25 transip 10.20.0.25
+src-nat srcint dmz dstint outside type ipv4 srcip 10.20.0.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint inside dstint outside type ipv4 srcip 10.10.0.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint inside dstint outside type ipv4 srcip 10.20.0.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint dmz dstint outside type ipv4 srcip 10.10.0.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint dmz dstint outside type ipv4 srcip 10.20.0.0/24 dstip 0.0.0.0/0 transip auto
+exit
+end

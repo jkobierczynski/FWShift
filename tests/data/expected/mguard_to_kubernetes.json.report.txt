@@ -1,0 +1,90 @@
+FWShift conversion report
+  source: mguard
+  target: kubernetes
+
+Summary
+  Security rules:     19   exact 11, approximated 0, needs review 6 (4 emitted disabled), skipped 2
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_USER_FIREWALL: the user firewall is on, with 1 templates (service technicians): rules that apply to users who log in; not converted. With it on, the mGuard lets through more than the converted policy
+  [needs-review] MGUARD_VPN_FIREWALL: 1 VPN connections have firewall rules of their own (FW_INCOMING, FW_OUTGOING of the connection): not converted, nor the VPN traffic they decide
+  [needs-review] K8S_LOAD: the output is a List of NetworkPolicies for kubectl apply -n NAMESPACE -f FILE (kubectl apply --dry-run=server checks it first). It names no namespace: apply it in the namespace of the pods it is for, and in each such namespace. Policies of the same name are replaced; nothing else is changed. A policy selects the pods labelled fwshift/group=<its group>, and no pod has that label yet: nothing changes until pods are labelled
+  [needs-review] K8S_LABEL_PODS: 11 groups: label each pod with fwshift/group=<group> of the policy whose fwshift/addresses annotation holds the pod's address (kubectl label pod POD ...). A pod's address changes when it is created again: label the pods through their Deployment or StatefulSet template, where every address the template's pods get must be in that group. A pod with addresses of both IP versions needs a group that holds both
+  [needs-review] K8S_IPBLOCK_PODS: the peers are written as ipBlock. Whether an ipBlock matches the addresses of pods depends on the network plugin (the Kubernetes documentation says ipBlock is meant for addresses outside the cluster); where it does not, rules between pods allow nothing
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] MGUARD_SOURCE: mGuard profile 8.6.1.default, router mode; zones internal, external, dmz; tables read: FW_INCOMING, FW_OUTGOING, FW_INCOMING_WAN_DMZ, FW_INCOMING_DMZ_LAN, FW_OUTGOING_LANDMZ. Each table is first match; what no rule matches is dropped; port forwarding skips the packet filter
+  [info] MGUARD_INTERNAL_ROUTED: the internal side has more than one network (LOCAL_ALIASES): the outgoing rules also decide connections from one of them to another, so they are read for internal -> internal as well
+  [info] MGUARD_IPV4_ONLY: the packet filter of the mGuard is IPv4: 0.0.0.0/0 is read as every IPv4 address, and the rules match no IPv6
+  [info] MGUARD_DEFAULT_LOG: connection attempts no rule covers are logged (LOG_DEFAULT_INCOMING); the model has no place for that
+  [info] MGUARD_MANAGEMENT_ACCESS: access to the mGuard itself is not converted (it protects the device, not forwarded traffic): HTTPS_REMOTE_ACCESS_RULES (1 rows); HTTPS_REMOTE_ENABLE yes; FW_ICMP ping
+  [info] MGUARD_HOSTNAME: host names in IP groups, resolved by the DNS settings of the mGuard; read as names resolved for IPv4: scada: historian.example.com
+  [info] MGUARD_REJECT: Reject: the mGuard sends the packets back and tells the sender; read as reset-both: FW_INCOMING row 4
+  [info] MGUARD_PORTS_IGNORED: ports in rules for a protocol other than tcp and udp, which the mGuard ignores: FW_INCOMING row 7
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. --no-source-networks takes none of them
+  [info] K8S_PLATFORM_ALLOWS: a NetworkPolicy always allows traffic between a pod and the node it runs on, and a pod to itself; and it is only guaranteed to decide TCP, UDP and SCTP (for ICMP and other protocols the network plugin decides)
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a NetworkPolicy does not (some network plugins can log on their own)
+
+Security rules
+  portforward-1  ->  skipped
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+      [info] ZONE_BY_NETWORKS: the source in zone external is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written as the addresses of the networks given for it with --zone-network
+      [info] MATCHES_NOTHING: after the negation and the networks of its zones, the rule matches no connection
+  portforward-2  ->  skipped
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+      [info] MATCHES_NOTHING: after the negation and the networks of its zones, the rule matches no connection
+  incoming-1  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object historian.example.com: a NetworkPolicy names addresses.
+  incoming-2  ->  needs-review
+      [needs-review] K8S_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a NetworkPolicy (ICMP or another protocol on its own, every protocol but some, a range of source ports) and is not written; the converted rule allows less
+  incoming-3  ->  exact  (emitted as taken out of the rules below it)
+      [info] ZONE_BY_NETWORKS: the source in zone external is written without the networks given for the other zones with --zone-network
+  incoming-4  ->  exact  (emitted as taken out of the rules below it)
+      [info] ZONE_BY_NETWORKS: the source in zone external is written without the networks given for the other zones with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written without the networks given for the other zones with --zone-network
+  incoming-5.maintenance-1  ->  needs-review, emitted disabled
+      [needs-review] MGUARD_RULESET_SWITCHED: a rule of rule set maintenance, which cmd1 switches on and off: not converted
+      [info] ZONE_BY_NETWORKS: the source in zone external is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule set maintenance is switched on and off (cmd1); its rules apply only while it is active.
+  incoming-6.vendor-1  ->  exact  (emitted as NetworkPolicies fwshift-internal-2, fwshift-internal-3, fwshift-plc-cell1, fwshift-internal-4, fwshift-vendor-vpn)
+      [info] MGUARD_RULESET: rule 1 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+  incoming-6.vendor-2  ->  exact  (emitted as taken out of the rules below it)
+      [info] MGUARD_RULESET: rule 2 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+      [info] ZONE_BY_NETWORKS: the destination in zone internal is written without the networks given for the other zones with --zone-network
+  incoming-7  ->  needs-review
+      [needs-review] K8S_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a NetworkPolicy (ICMP or another protocol on its own, every protocol but some, a range of source ports) and is not written; the converted rule allows less
+  incoming-8  ->  needs-review, emitted disabled
+      [needs-review] SOURCE_PORTS: source ports: a NetworkPolicy matches destination ports only.
+  incoming-9  ->  needs-review, emitted disabled
+      [needs-review] MGUARD_UNREAD: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group
+      [info] ZONE_BY_NETWORKS: the source in zone external is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group.
+  outgoing-1  ->  exact  (emitted as taken out of the rules below it)
+      [info] ZONE_BY_NETWORKS: the destination in zone external, internal is written without the networks given for the other zones with --zone-network
+  outgoing-2  ->  exact  (emitted as NetworkPolicies fwshift-internal-2, fwshift-internal-3, fwshift-internal-4)
+      [info] DENY_SUBTRACTED: a NetworkPolicy cannot block: the rule is written without what the blocking rules above it match
+  outgoing-3  ->  exact  (emitted as NetworkPolicies fwshift-external, fwshift-internal, fwshift-internal-2, fwshift-internal-3, fwshift-plc-cell1, fwshift-internal-4, fwshift-internal-5, fwshift-vendor-vpn)
+      [info] ZONE_BY_NETWORKS: the destination in zone external, internal is written as the addresses of the networks given for it with --zone-network
+      [info] DENY_SUBTRACTED: a NetworkPolicy cannot block: the rule is written without what the blocking rules above it match
+  wan-dmz-1  ->  exact  (emitted as NetworkPolicies fwshift-external, fwshift-dmz-2, fwshift-vendor-vpn)
+      [info] ZONE_BY_NETWORKS: the source in zone external is written as the addresses of the networks given for it with --zone-network
+  lan-dmz-1  ->  exact  (emitted as NetworkPolicies fwshift-internal, fwshift-dmz, fwshift-dmz-2, fwshift-internal-2, fwshift-internal-3, fwshift-plc-cell1, fwshift-internal-4, fwshift-internal-5)
+      [info] ZONE_BY_NETWORKS: the source in zone internal is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+
+NAT rules
+  portforward-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  portforward-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  1to1-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  masquerade-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see
+  masquerade-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NetworkPolicy does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what the policies see

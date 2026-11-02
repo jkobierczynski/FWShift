@@ -1,0 +1,54 @@
+packet-filter l3 addrule 1001 srcip 10.41.0.0/24 dstip 10.40.0.0/24 proto any action drop log enable trap disable description Block_IoT_to_office
+packet-filter l3 enablerule 1001
+packet-filter l3 addif inside rule 1001 direction ingress priority 1001
+packet-filter l3 addif inside rule 1001 direction egress priority 1001
+packet-filter l3 addrule 1002 srcip 10.40.0.0/24 dstip any proto tcp dstport 80,443 action accept log disable trap disable description Inside_Outside_web
+packet-filter l3 enablerule 1002
+packet-filter l3 addif inside rule 1002 direction ingress priority 1002
+packet-filter l3 addif outside rule 1002 direction egress priority 1002
+packet-filter l3 addrule 1003 srcip 10.40.0.0/24 dstip any proto udp dstport 53 action accept log disable trap disable description Inside_Outside_web
+packet-filter l3 enablerule 1003
+packet-filter l3 addif inside rule 1003 direction ingress priority 1003
+packet-filter l3 addif outside rule 1003 direction egress priority 1003
+packet-filter l3 addrule 1004 srcip 0.0.0.0 dstip 0.0.0.0 proto any action accept log disable trap disable description IoT_telemetry
+packet-filter l3 disablerule 1004
+packet-filter l3 addrule 1005 srcip any dstip 10.40.0.10 proto tcp dstport 5001 action accept log disable trap disable description NAS_from_Internet
+packet-filter l3 enablerule 1005
+packet-filter l3 addif outside rule 1005 direction ingress priority 1005
+packet-filter l3 addif inside rule 1005 direction egress priority 1005
+packet-filter l3 addrule 1006 srcip 0.0.0.0 dstip 0.0.0.0 proto any action accept log disable trap disable description Head_office_v6
+packet-filter l3 disablerule 1006
+packet-filter l3 addrule 1007 srcip any dstip any proto udp srcport 53 dstport 1024-65535 action accept log disable trap disable description DNS_answers
+packet-filter l3 enablerule 1007
+packet-filter l3 addif outside rule 1007 direction ingress priority 1007
+packet-filter l3 addif inside rule 1007 direction egress priority 1007
+packet-filter l3 addrule 1008 srcip any dstip any proto any action drop log disable trap disable description Staff_streaming
+packet-filter l3 disablerule 1008
+packet-filter l3 addif inside rule 1008 direction ingress priority 1008
+packet-filter l3 addif outside rule 1008 direction egress priority 1008
+packet-filter l3 addrule 1009 srcip 10.40.0.200/29 dstip any proto icmp param type=3,code=3 action accept log disable trap disable description Guests_by_time
+packet-filter l3 disablerule 1009
+packet-filter l3 addif inside rule 1009 direction ingress priority 1009
+packet-filter l3 addif outside rule 1009 direction egress priority 1009
+packet-filter l3 addrule 1010 srcip 10.40.0.208/29 dstip any proto icmp param type=3,code=3 action accept log disable trap disable description Guests_by_time
+packet-filter l3 disablerule 1010
+packet-filter l3 addif inside rule 1010 direction ingress priority 1010
+packet-filter l3 addif outside rule 1010 direction egress priority 1010
+packet-filter l3 addrule 1011 srcip 10.40.0.216/30 dstip any proto icmp param type=3,code=3 action accept log disable trap disable description Guests_by_time
+packet-filter l3 disablerule 1011
+packet-filter l3 addif inside rule 1011 direction ingress priority 1011
+packet-filter l3 addif outside rule 1011 direction egress priority 1011
+packet-filter l3 addrule 1012 srcip 10.40.0.220 dstip any proto icmp param type=3,code=3 action accept log disable trap disable description Guests_by_time
+packet-filter l3 disablerule 1012
+packet-filter l3 addif inside rule 1012 direction ingress priority 1012
+packet-filter l3 addif outside rule 1012 direction egress priority 1012
+packet-filter l3 addrule 1013 srcip any dstip any proto any action drop log disable trap disable description fwshift-default
+packet-filter l3 enablerule 1013
+packet-filter l3 addif outside rule 1013 direction ingress priority 1013
+packet-filter l3 addif inside rule 1013 direction ingress priority 1013
+packet-filter l3 addif iot rule 1013 direction ingress priority 1013
+nat dnat add 201 srcip any srcport any dstip 192.0.2.2 dstport 8443 proto tcp newdstip 10.40.0.10 newdstport 5001 description NAS_published
+nat dnat if add outside rule 201 direction ingress priority 201
+nat 1to1nat add 202 dstip 192.0.2.10 newdstip 10.40.0.10 ingress-if outside egress-if inside priority 202 description nas_static
+nat masq add 101 srcip any srcport any proto any description InsideOutsideNatRule
+nat masq if add outside rule 101 direction egress priority 101

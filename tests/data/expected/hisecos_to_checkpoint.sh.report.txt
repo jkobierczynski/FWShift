@@ -1,0 +1,65 @@
+FWShift conversion report
+  source: hisecos (IPv4)
+  target: checkpoint
+
+Summary
+  Security rules:     14   exact 8, approximated 2, needs review 4 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 5, needs review 0, skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HISECOS_NOT_CONVERTED: settings that change what passes and are not converted: deep packet inspection (enforcer profiles)
+  [needs-review] HISECOS_DIRECTION_ORDER: the policy mixes assignments for ingress only with assignments for egress only; the MIB does not say how they are ordered against each other, and they are read as one order by priority: rules assigned for ingress only and rules assigned for egress only
+  [needs-review] CHECKPOINT_SCRIPT: the output is a shell script of mgmt_cli calls. It changes one session and publishes nothing: log in, run it, review the session in SmartConsole, then publish and install the policy yourself. It stops at the first call the server refuses; discard the session before running it again
+  [needs-review] IMPLIED_RULES: Check Point applies implied rules (Global Properties) next to the rulebase, and every ordered layer of the policy package must accept a connection. Neither is part of the conversion: check that they allow no more and no less than intended
+  [needs-review] ZONES_REQUIRED: the rules use these security zones, which must be assigned to the interfaces of the gateway (or renamed with --zone-map): port1_2, port1_3, port1_1, vlan20. Rules that name a zone and addresses on the same side are sorted into 10 inline layers, one per pair of zones. An interface without a zone only reaches the rules that name no zone
+  [needs-review] NAT_MANUAL_RULES: 5 NAT rules are written as manual rules at the bottom of the NAT rulebase, below the automatic ones. Manual NAT does not answer ARP for translated addresses: add proxy ARP on the gateway for every translated address that is not routed to it
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] HISECOS_SOURCE: 13 rules of the packet filter, 12 of them assigned and enabled, in the order of their priorities; zones are the routing interfaces (port1_1, port1_2, port1_3, vlan20); IPv4 only. The keywords of the commands are FWShift's reading of the MIB and the command list of the CLI reference, not confirmed by its Format lines
+  [info] HISECOS_DEFAULT: what no rule matches meets the default policy, drop (packet-filter l3 defaultpolicy)
+  [info] HISECOS_NAT_ORDER: destination NAT and 1:1 NAT are read as done before the packet filter, whose rules name the translated address (HiSecOS is built on netfilter; not confirmed): the rules were rewritten for the address as it arrives. Masquerading is done after it. The NAT rules are read in the order 1:1 NAT, double NAT, destination NAT, masquerading, each by priority (an assumption)
+  [info] HISECOS_MANAGEMENT: the device's own management access (network management access) is not converted; entries: entry 1
+  [info] HISECOS_EDITS: commands that change or delete rules, carried out in the order of the script: delrule 140
+  [info] LAYER_PLACEMENT: the rules are written to the top of access layer 'Network', in order, and end in a cleanup rule; rules the layer held before stay below it and are no longer reached. Choose another layer with --target-layer
+  [info] NAME_COLLISIONS: Check Point predefines several hundred objects (http, https, ssh, ...). If the script stops because a name exists already, convert again with --target-prefix to give every created object a prefix
+  [info] ANY_ONE_IP_VERSION: 'any address of one IP version' is written as a range object covering that version (All-IPv4, All-IPv6)
+
+Security rules
+  rule-10  ->  approximated  (emitted as layer Network_vlan20_to_port1_3, layer Network_vlan20_to_any)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '172.16.10.30' next to '10.10.0.0/24' because of NAT rule 'doublenat-1-reverse'; check that this rule is meant to cover the translated traffic
+  rule-20  ->  needs-review, emitted disabled  (emitted as layer Network_vlan20_to_port1_3, layer Network_vlan20_to_any)
+      [needs-review] UNSUPPORTED_MATCH: not converted: traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content.
+  rule-40-2  ->  exact  (emitted as layer Network_port1_2_to_port1_3, layer Network_vlan20_to_port1_3, layer Network_port1_3_to_port1_3, layer Network_port1_1_to_port1_3, layer Network_any_to_port1_3)
+      [info] HISECOS_SPLIT: rule 40 is assigned at more than one place in the order (interfaces, directions or priorities); this is its placement number 2
+  rule-100  ->  needs-review, emitted disabled  (emitted as layer Network_port1_2_to_port1_3, layer Network_port1_2_to_port1_1, layer Network_port1_2_to_any)
+      [needs-review] UNSUPPORTED_MATCH: not converted: parameter flags=SYN is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-60  ->  needs-review  (emitted as layer Network_port1_1_to_port1_3, layer Network_port1_1_to_any)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '192.0.2.10' next to '10.30.0.10' because of NAT rule 'dnat-1'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'dnat-1' also translates the port to 80; the service of this rule still names the post-NAT port and must be adjusted
+  rule-110  ->  needs-review  (emitted as layer Network_port1_1_to_port1_3, layer Network_port1_1_to_any)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+  rule-80  ->  approximated  (emitted as layer Network_port1_2_to_port1_3, layer Network_port1_2_to_port1_1, layer Network_vlan20_to_port1_3, layer Network_port1_3_to_port1_3, layer Network_port1_1_to_port1_3, layer Network_port1_2_to_any, layer Network_vlan20_to_any, layer Network_port1_3_to_any, layer Network_port1_1_to_any, layer Network_any_to_port1_3, layer Network)
+      [info] HISECOS_NOT_ASSIGNED: rule 80 is assigned to no interface, so it applies to no traffic: read as disabled, at the end
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '172.16.20.40' next to '10.20.0.0/24' because of NAT rule 'doublenat-1'; check that this rule is meant to cover the translated traffic
+
+NAT rules
+  1to1nat-1  ->  approximated
+      [info] HISECOS_1TO1: 1:1 NAT read as a static translation in both directions: the new target addresses leave as the target addresses, and connections to the target addresses reach the new ones (not confirmed)
+      [approximated] NAT_ZONES: the rule applied to traffic from port1_3 only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONE_NETWORKS: the rule applied to traffic to port1_1 only: written for the networks of that zone (192.0.2.0/24), as the source's interfaces and routes or --zone-network give them
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two rules, one for each direction
+  doublenat-1  ->  approximated
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [approximated] NAT_ZONES: the rule applied to traffic from port1_2 only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to vlan20 only; it is written without zones
+  doublenat-1-reverse  ->  approximated
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [approximated] NAT_ZONES: the rule applied to traffic from vlan20 only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to port1_2 only; it is written without zones
+  dnat-1  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from port1_1 only; it is written without zones and applies whatever the zone the traffic comes from
+  masq-1  ->  approximated
+      [approximated] NAT_INTERFACE_ADDRESS: hides behind 192.0.2.1, the address interface '1/1' has in the source; check it is the address of the interface the traffic leaves by on the gateway
+      [approximated] NAT_ZONE_NETWORKS: the rule applied to traffic to port1_1 only: written for the networks of that zone (192.0.2.0/24), as the source's interfaces and routes or --zone-network give them

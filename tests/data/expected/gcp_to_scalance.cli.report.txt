@@ -1,0 +1,83 @@
+FWShift conversion report
+  source: gcp (vpc-shop)
+  target: scalance
+
+Summary
+  Security rules:     28   exact 0, approximated 0, needs review 0, skipped 28
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] SCALANCE_LOAD: the output is CLI commands for the FIREWALL and FIREWALL NAT modes (section 10): 0 IP rules with no rules. The device processes rules by ascending priority: rules it has with a lower priority come first. Commands take effect as they are entered; nothing is deleted and nothing is saved
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+
+Security rules
+  db-to-vpc+allow-https-web  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  db-to-vpc+implied deny ingress  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-no-internet (between instances)  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  pol-shop:deny-smtp-out (between instances)  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  implied allow egress+allow-app-from-web  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  implied allow egress+allow-db-from-app  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  implied allow egress+allow-https-web  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  implied allow egress+allow-https-web-v6  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  implied allow egress+implied deny ingress  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow-app-from-web  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  allow-db-from-app  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  deny-ssh-blocked  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  allow-https-web  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  allow-https-web-v6  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  old-dns  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  allow-ssh-admins  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  allow-mgmt-v6  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  pol-shop:deny-tor (in)  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  pol-shop:allow-monitoring (in)  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  pol-shop:geo-and-fqdn (in)  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  pol-ew1:allow-lb-health (in)  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  implied deny ingress (in)  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  deny-egress-doc  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  db-to-vpc  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  db-no-internet  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  pol-shop:allow-dns-out (out)  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  pol-shop:deny-smtp-out (out)  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  implied allow egress (out)  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+
+NAT rules
+  external-192.0.2.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption
+  external-192.0.2.5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption

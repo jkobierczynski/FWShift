@@ -1,0 +1,65 @@
+FWShift conversion report
+  source: junos (root)
+  target: mguard
+
+Summary
+  Security rules:     14   exact 6, approximated 1, needs review 2, skipped 5
+  NAT rules:           6   exact 0, approximated 1, needs review 0, skipped 5
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): untrust=external, trust=internal
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] JUNOS_FORMAT: read 14 security policies and 6 NAT rules of the root system. Policies are looked up after static and destination NAT; they were brought back to the original destination, as the model has it
+  [info] PREDEFINED_APPLICATIONS: predefined applications are not in the configuration; these were taken from FWShift's table of them: junos-dns-udp, junos-http, junos-https, junos-ping, junos-smtp, junos-ssh
+  [info] HOST_POLICIES: policies for the zone junos-host (traffic to and from the firewall itself) are not read: 'to-box'
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  block-bad  ->  needs-review  (emitted as 1 row of FW_OUTGOING)
+      [needs-review] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4; IPv6 traffic is not blocked by it
+  updates  ->  exact  (emitted as 1 row of FW_OUTGOING)
+      [info] MGUARD_HOSTNAME: host names are written into an IP group: the mGuard resolves them for IPv4 with its own DNS settings (an FL MGUARD 2000 takes none)
+  ping-out  ->  skipped
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  web-in  ->  needs-review  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to 'web-srv' because of NAT rule 'from-internet dnat-web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'from-internet dnat-web' also translates the port to 8080; the service of this rule still names the post-NAT port and must be adjusted
+  mail-in  ->  approximated  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to 'mail-srv' because of NAT rule 'inbound static-mail'; check that this rule is meant to cover the translated traffic
+  not-servers  ->  exact  (emitted as 1 row of FW_OUTGOING_LANDMZ)
+      [info] NEGATION_EXPANDED: a row of the mGuard cannot negate: written as an IP group of the IPv4 addresses that are left
+  dmz-out  ->  skipped
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  guest-web  ->  skipped
+      [needs-review] SCHEDULE: schedule 'work-hours' is not converted; the rule would apply at all times.
+      [needs-review] MGUARD_ZONE_UNKNOWN: guest: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  guest-ping  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'junos-ping': the predefined application junos-ping: Juniper describes it as ICMP echo, other readers of Junos as every ICMP type.
+      [needs-review] MGUARD_ZONE_UNKNOWN: guest: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  intra  ->  skipped
+      [needs-review] MGUARD_INTERNAL_ROUTING: traffic between networks of the internal side only: the mGuard decides it by the outgoing rules, which decide traffic to the external side as well; not written
+  global-block  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_OUTGOING_LANDMZ, 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ, 1 row of FW_INCOMING_DMZ_LAN, 1 row of FW_OUTGOING_DMZWAN)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_OUTGOING_LANDMZ, a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ, a row of FW_INCOMING_DMZ_LAN, a row of FW_OUTGOING_DMZWAN
+      [info] MGUARD_REJECT: action reset-client: written as Reject
+  global-ntp  ->  exact  (emitted as 2 rows of FW_OUTGOING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as 2 rows of FW_OUTGOING
+
+NAT rules
+  inbound static-mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: port forwarding takes tcp or udp with a port, or gre
+  from-internet dnat-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: port forwarding takes one protocol
+  inbound static-mail (outbound)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the mGuard translates a source only to the address of an interface, or a network 1:1
+  trust-out snat-lan  ->  approximated  (emitted as IP masquerading)
+      [approximated] MGUARD_NAT_ZONES: the rule is for traffic from internal; IP masquerading applies to traffic from every zone
+  dmz-out snat-dmz  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the mGuard translates a source only to the address of an interface, or a network 1:1
+  vr-out snat-vr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: not converted on the source: a rule set for routing instance 'VR1', which is not read; a rule set that does not say where its traffic comes from

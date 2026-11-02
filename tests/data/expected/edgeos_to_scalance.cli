@@ -1,0 +1,78 @@
+configure terminal
+firewall
+service name FWS_tcp-32400 proto tcp src all dst port 32400
+icmp name FWS_icmp-8 type 8 code 0 ver ipv4
+service name FWS_tcp-25 proto tcp src all dst port 25
+service name FWS_tcp_8096-8097 proto tcp src all dst range 8096 - 8097
+service name FWS_udp_8096-8097 proto udp src all dst range 8096 - 8097
+service name FWS_udp_32400 proto udp src all dst port 32400
+service name FWS_tcp_0-52 proto tcp src all dst range 0 - 52
+service name FWS_tcp_54-79 proto tcp src all dst range 54 - 79
+service name FWS_tcp_81-442 proto tcp src all dst range 81 - 442
+service name FWS_tcp_444-65535 proto tcp src all dst range 444 - 65535
+service name FWS_udp_0-52 proto udp src all dst range 0 - 52
+service name FWS_udp_54-79 proto udp src all dst range 54 - 79
+service name FWS_udp_81-442 proto udp src all dst range 81 - 442
+service name FWS_udp_444-65535 proto udp src all dst range 444 - 65535
+icmp name FWS_icmp6-128 type 128 code 0 ver ipv6
+ipv4rule from pppoe0 to eth1 srcip 192.168.10.0/24 dstip 192.168.1.30 action drop service FWS_tcp-32400 log no prior 1
+ipv4rule from pppoe0 to eth1 srcip 0.0.0.0/0 dstip 192.168.1.30 action acc service FWS_tcp-32400 log no prior 2
+ipv4rule from pppoe0 to eth1.10 srcip 0.0.0.0/0 dstip 192.168.1.30 action acc service FWS_tcp-32400 log no prior 2
+ipv4rule from pppoe0 to eth1 srcip 0.0.0.0/0 dstip 192.168.1.20/31 action acc service FWS_icmp-8 log no prior 2
+ipv4rule from pppoe0 to eth1.10 srcip 0.0.0.0/0 dstip 192.168.1.20/31 action acc service FWS_icmp-8 log no prior 2
+ipv4rule from pppoe0 to eth1 srcip 0.0.0.0/0 dstip 192.168.1.25 action acc service FWS_tcp-25 log no prior 2
+ipv4rule from pppoe0 to eth1.10 srcip 0.0.0.0/0 dstip 192.168.1.25 action acc service FWS_tcp-25 log no prior 2
+ipv4rule from pppoe0 to eth1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv4rule from pppoe0 to eth1.10 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv4rule from eth1.10 to pppoe0 srcip 0.0.0.0/0 dstip 10.8.0.0/24 action drop log info prior 4
+ipv4rule from eth1.10 to pppoe0 srcip 0.0.0.0/0 dstip 192.168.1.0/25 action drop log info prior 4
+ipv4rule from eth1.10 to eth1 srcip 0.0.0.0/0 dstip 10.8.0.0/24 action drop log info prior 4
+ipv4rule from eth1.10 to eth1 srcip 0.0.0.0/0 dstip 192.168.1.0/25 action drop log info prior 4
+ipv4rule from eth1.10 to pppoe0 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_0-52 log no prior 5
+ipv4rule from eth1.10 to pppoe0 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_54-79 log no prior 5
+ipv4rule from eth1.10 to pppoe0 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_81-442 log no prior 5
+ipv4rule from eth1.10 to pppoe0 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_444-65535 log no prior 5
+ipv4rule from eth1.10 to pppoe0 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_0-52 log no prior 5
+ipv4rule from eth1.10 to pppoe0 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_54-79 log no prior 5
+ipv4rule from eth1.10 to pppoe0 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_81-442 log no prior 5
+ipv4rule from eth1.10 to pppoe0 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_444-65535 log no prior 5
+ipv4rule from eth1.10 to eth1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_0-52 log no prior 5
+ipv4rule from eth1.10 to eth1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_54-79 log no prior 5
+ipv4rule from eth1.10 to eth1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_81-442 log no prior 5
+ipv4rule from eth1.10 to eth1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp_444-65535 log no prior 5
+ipv4rule from eth1.10 to eth1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_0-52 log no prior 5
+ipv4rule from eth1.10 to eth1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_54-79 log no prior 5
+ipv4rule from eth1.10 to eth1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_81-442 log no prior 5
+ipv4rule from eth1.10 to eth1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_udp_444-65535 log no prior 5
+ipv4rule from pppoe0 to eth1 srcip 192.168.10.0/24 dstip 0.0.0.0/0 action drop service FWS_tcp_8096-8097 log no prior 5
+ipv4rule from pppoe0 to eth1 srcip 192.168.10.0/24 dstip 0.0.0.0/0 action drop service FWS_tcp-32400 log no prior 5
+ipv4rule from pppoe0 to eth1 srcip 192.168.10.0/24 dstip 0.0.0.0/0 action drop service FWS_udp_8096-8097 log no prior 5
+ipv4rule from pppoe0 to eth1 srcip 192.168.10.0/24 dstip 0.0.0.0/0 action drop service FWS_udp_32400 log no prior 5
+ipv4rule from eth1.10 to eth1 srcip 192.168.10.0/24 dstip 0.0.0.0/0 action drop service FWS_tcp_8096-8097 log no prior 5
+ipv4rule from eth1.10 to eth1 srcip 192.168.10.0/24 dstip 0.0.0.0/0 action drop service FWS_tcp-32400 log no prior 5
+ipv4rule from eth1.10 to eth1 srcip 192.168.10.0/24 dstip 0.0.0.0/0 action drop service FWS_udp_8096-8097 log no prior 5
+ipv4rule from eth1.10 to eth1 srcip 192.168.10.0/24 dstip 0.0.0.0/0 action drop service FWS_udp_32400 log no prior 5
+ipv6rule from pppoe0 to eth1 srcip ::/0 dstip ::/0 action acc service FWS_icmp6-128 log no prior 6
+ipv6rule from pppoe0 to eth1.10 srcip ::/0 dstip ::/0 action acc service FWS_icmp6-128 log no prior 6
+ipv6rule from pppoe0 to eth1 srcip ::/0 dstip ::/0 action drop log no prior 7
+ipv6rule from pppoe0 to eth1.10 srcip ::/0 dstip ::/0 action drop log no prior 7
+ipv4rule from pppoe0 to eth1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 8
+ipv6rule from pppoe0 to eth1 srcip ::/0 dstip ::/0 action acc log no prior 8
+ipv4rule from pppoe0 to eth1.10 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 8
+ipv6rule from pppoe0 to eth1.10 srcip ::/0 dstip ::/0 action acc log no prior 8
+ipv4rule from eth1 to pppoe0 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 8
+ipv6rule from eth1 to pppoe0 srcip ::/0 dstip ::/0 action acc log no prior 8
+ipv4rule from eth1 to eth1.10 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 8
+ipv6rule from eth1 to eth1.10 srcip ::/0 dstip ::/0 action acc log no prior 8
+ipv4rule from eth1.10 to pppoe0 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 8
+ipv6rule from eth1.10 to pppoe0 srcip ::/0 dstip ::/0 action acc log no prior 8
+ipv4rule from eth1.10 to eth1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 8
+ipv6rule from eth1.10 to eth1 srcip ::/0 dstip ::/0 action acc log no prior 8
+exit
+firewallnat
+napt srcint pppoe0 proto tcp type ipv4 dstip 198.51.100.7 transip 192.168.1.20 dstport 8443 transport 443
+src-nat srcint eth1 dstint pppoe0 type ipv4 srcip 192.168.1.20 dstip 0.0.0.0/0 transip 198.51.100.7
+src-nat srcint eth1.10 dstint pppoe0 type ipv4 srcip 192.168.1.20 dstip 0.0.0.0/0 transip 198.51.100.7
+masquerading pppoe0
+exit
+end

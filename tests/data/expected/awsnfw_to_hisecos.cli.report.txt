@@ -1,0 +1,140 @@
+FWShift conversion report
+  source: aws-network-firewall (pol-inspection)
+  target: hisecos
+
+Summary
+  Security rules:     41   exact 0, approximated 0, needs review 38 (38 emitted disabled), skipped 3
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           21   exact 21, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWSNFW_ASYMMETRIC: one direction of some connections is passed by the stateless rules and the other forwarded to the stateful engine, which then sees half a flow and may drop it (sl-edge-8, the stateless default action aws:forward_to_sfe). The converted policy leaves those connections to the stateful rules
+  [needs-review] AWSNFW_STATELESS_NOT_WORKED_OUT: some stateless rules cannot be read (TCP flags, a rule group not in the input, a value that cannot be read): they are not converted, and what the rules after them and the replies meet was worked out as if they matched nothing
+  [needs-review] AWSNFW_GROUP_MISSING: the policy names rule groups that are not in the input: ThreatSignaturesMalwareStrictOrder. Their rules are not converted; add the answers of describe-rule-group
+  [needs-review] HISECOS_NO_ZONES: the source names no zones: there is no interface to assign the rules to, and they are written disabled. Give the rules zones, or map them with --zone-map and --interface-map
+  [needs-review] HISECOS_LOAD: the output is a CLI script of HiSecOS (section 10): commands of the Global Config mode that add rules 1001 to 1138 of the packet filter (they must be free) with their interface assignments, and NAT rules, and that delete nothing. The keywords are FWShift's reading of Belden's MIBs and command list, not confirmed on a device: check the script with 'script validate' first. Nothing applies until you commit: read 'show packet-filter l3 pending', then 'packet-filter l3 commit' (and 'nat dnat commit', 'nat masq commit', 'nat 1to1nat commit'). Rules of the device with lower priorities on the same interfaces come first, and its default policy is not changed. To take the rules away again: 'packet-filter l3 delif' for each assignment, then 'packet-filter l3 delrule N' for N from 1001 to 1138
+  [info] AWSNFW_FRAGMENTS: UDP fragments that no stateless rule matches are handled by aws:drop, other packets by the default for full packets; the model has no fragments, and the converted policy follows the default for full packets. Fragments of other protocols are dropped
+  [info] AWSNFW_STATELESS_FORWARD: these stateless rules forward what they match to the stateful engine, so the stateless rules below them do not see it: sl-edge-10
+  [info] AWSNFW_ALERT_RULES: 1 alert rule decides nothing (an alert only logs) and was left out
+  [info] AWSNFW_CUSTOM_ACTIONS: custom actions publish metrics to CloudWatch; they decide nothing and are not converted
+  [info] AWSNFW_HOME_NET: HOME_NET is 10.20.0.0/16, 2001:db8:20::/56 (the CIDR blocks of VPC vpc-0a1b2c3d4e5f60789); EXTERNAL_NET is everything else, unless a rule group sets it
+  [info] AWSNFW_NO_ZONES: the firewall sits in a route path and names no zones or interfaces: the converted policy has none. A target with zones needs the networks behind them (--zone-network)
+  [info] HISECOS_IPV4_ONLY: HiSecOS filters IPv4: the IPv6 addresses and ICMPv6 of these rules are not written: sl-edge-20-replies, sl-edge-20-replies-2, sl-edge-20, sf-baseline-100, sf-baseline-101, sf-baseline-105, sf-baseline-106, sf-app-1000, sf-app-1003, sf-app-1004, sf-app-1013, sf-baseline-100-reply ...
+
+Security rules
+  sl-edge-1-replies  ->  needs-review, emitted disabled  (emitted as rule 1001)
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-1, which drops them, so the connections are blocked whatever else would allow them
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-20-replies  ->  needs-review, emitted disabled  (emitted as rule 1002 (a placeholder, disabled))
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [needs-review] HISECOS_NEGATED_SERVICE: a negated service: a rule of HiSecOS cannot negate its protocol or ports. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-20-replies-2  ->  skipped
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  sl-edge-1  ->  needs-review, emitted disabled  (emitted as rule 1003)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-5  ->  needs-review, emitted disabled  (emitted as rule 1004)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sl-edge-6  ->  needs-review, emitted disabled  (emitted as rule 1005)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sl-edge-12  ->  needs-review, emitted disabled  (emitted as rule 1006)
+      [needs-review] UNSUPPORTED_MATCH: not converted: TCP flags: the rule matches some packets of a connection and not others. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-20  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  ThreatSignaturesMalwareStrictOrder-1  ->  needs-review, emitted disabled  (emitted as rule 1007)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule group ThreatSignaturesMalwareStrictOrder is not in the input; add the answer of describe-rule-group for arn:aws:network-firewall:eu-west-1:aws-managed:stateful-rulegroup/ThreatSignaturesMalwareStrictOrder (an AWS managed rule group, whose rules AWS may not show). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-100  ->  needs-review, emitted disabled  (emitted as rule 1008)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-baseline-101  ->  needs-review, emitted disabled  (emitted as rule 1009)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-baseline-102  ->  needs-review, emitted disabled  (emitted as rule 1010)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-102-rev  ->  needs-review, emitted disabled  (emitted as rule 1011)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-103  ->  needs-review, emitted disabled  (emitted as rule 1012)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] RESET_ACTION: action reset-client becomes reject, which answers the sender with an ICMP message, not a TCP reset
+  sf-baseline-105  ->  needs-review, emitted disabled  (emitted as rule 1013)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-baseline-106  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match an IPv4 packet (HiSecOS filters IPv4 only)
+  sf-baseline-107  ->  needs-review, emitted disabled  (emitted as rule 1014)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-app-1000  ->  needs-review, emitted disabled  (emitted as rule 1015)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-app-1003  ->  needs-review, emitted disabled  (emitted as rules 1016-1017)
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-app-1004  ->  needs-review, emitted disabled  (emitted as rules 1018-1019)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-app-1005  ->  needs-review, emitted disabled  (emitted as rule 1020 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-app-1005-rev  ->  needs-review, emitted disabled  (emitted as rule 1021 (a placeholder, disabled))
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-app-1007  ->  needs-review, emitted disabled  (emitted as rule 1022 (a placeholder, disabled))
+      [needs-review] HISECOS_PROTOCOL: IP protocol 47: a rule of HiSecOS names tcp, udp, icmp, igmp, ipip, esp, ah or any.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-app-1008  ->  needs-review, emitted disabled  (emitted as rule 1023)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-app-1011  ->  needs-review, emitted disabled  (emitted as rule 1024)
+      [info] AWSNFW_REJECT_NOT_TCP: reject sends a TCP reset, and is for TCP only; the rule, which matches other protocols too, is read as drop
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-app-1012  ->  needs-review, emitted disabled  (emitted as rules 1025-1032)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-app-1013  ->  needs-review, emitted disabled  (emitted as rule 1033)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  stateful-default-not-tcp  ->  needs-review, emitted disabled  (emitted as rule 1034 (a placeholder, disabled))
+      [needs-review] HISECOS_NEGATED_SERVICE: a negated service: a rule of HiSecOS cannot negate its protocol or ports. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-100-reply  ->  needs-review, emitted disabled  (emitted as rule 1035)
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-100 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-baseline-103-reply  ->  needs-review, emitted disabled  (emitted as rule 1036)
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-103 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] RESET_ACTION: action reset-server becomes reject, which answers the sender with an ICMP message, not a TCP reset
+  sf-app-1003-reply  ->  needs-review, emitted disabled  (emitted as rules 1037-1038)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1003 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-app-1009-reply  ->  needs-review, emitted disabled  (emitted as rule 1039)
+      [info] AWSNFW_REPLY_READING: rule sf-app-1009 matches packets in the direction of its header, so also the first reply of a connection opened the other way; this rule is what it decides then
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-app-1001  ->  needs-review, emitted disabled  (emitted as rule 1040)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-app-1002  ->  needs-review, emitted disabled  (emitted as rules 1041-1056)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  sf-app-1006  ->  needs-review, emitted disabled  (emitted as rule 1057)
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword http.uri. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword content:"/admin". This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-block-1  ->  needs-review, emitted disabled  (emitted as rules 1058-1073)
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-egress-1  ->  needs-review, emitted disabled  (emitted as rules 1074-1089)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  dl-egress-2  ->  needs-review, emitted disabled  (emitted as rules 1090-1105)
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-egress-3  ->  needs-review, emitted disabled  (emitted as rules 1106-1121)
+      [approximated] APP_TO_PORTS: applications web-browsing reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: http.host: the rule matches by domain name, which is not an address.
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.
+  dl-egress-4  ->  needs-review, emitted disabled  (emitted as rules 1122-1137)
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-app-1010  ->  needs-review, emitted disabled  (emitted as rule 1138)
+      [info] AWSNFW_NEVER_MATCHES: with aws:drop_established a flow that no rule passed is dropped before this rule can match; the rule is disabled in the converted policy: pass tcp any any -> $HOME_NET any (msg:"established to clients"; flow:established,to_client; sid:1010;)
+      [needs-review] HISECOS_NO_INTERFACES: the policy names no zone, so there is no interface to assign the rule to; give the rules zones, or map them with --zone-map.

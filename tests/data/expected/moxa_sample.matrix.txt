@@ -1,0 +1,91 @@
+FWShift zone matrix
+  source: moxa
+  security rules: 10 (1 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 lan               wan1              wan2              (other zones)
+  lan            any               any~              any               any
+  wan1           any               any               any               any
+  wan2           any~              any               any               any
+  (other zones)  any               any               any               any
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+In every conduit
+  by default, what no rule decides: any
+
+Conduits
+lan -> lan (inside the zone)
+  allowed: any
+  rule 'firewall 5': 0.0.0.0/0 -> 0.0.0.0/0: icmp
+  and the 1 listed under 'In every conduit'
+lan -> wan1
+  allowed: any ~
+  industrial protocols: modbus (rule 'firewall 1')
+  rule 'firewall 1': 192.168.127.10-192.168.127.20 -> 172.16.40.5: tcp/502
+  rule 'firewall 5': 0.0.0.0/0 -> 0.0.0.0/0: icmp
+  rule 'firewall 7': 0.0.0.0/0 -> 0.0.0.0/0: any (only with source MAC address 00:90:e8:00:00:01, which the model cannot match, mode MAC: the policy filters by source MAC address, which the model cannot match, which is not in the model) ~
+  and the 1 listed under 'In every conduit'
+lan -> wan2
+  allowed: any
+  industrial protocols: dnp3 (rule 'firewall 4')
+  rule 'firewall 4': 192.168.127.30 -> 0.0.0.0/0: udp/20000-20010 from port 1024-65535
+  rule 'firewall 5': 0.0.0.0/0 -> 0.0.0.0/0: icmp
+  and the 1 listed under 'In every conduit'
+lan -> (other zones)
+  allowed: any
+  rule 'firewall 5': 0.0.0.0/0 -> 0.0.0.0/0: icmp
+  and the 1 listed under 'In every conduit'
+wan1 -> lan
+  allowed: any
+  rule 'firewall 3': 198.51.100.0-198.51.100.255 -> 192.168.127.50: tcp/443
+  and the 1 listed under 'In every conduit'
+wan1 -> wan1 (inside the zone)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+wan1 -> wan2
+  allowed: any
+  and the 1 listed under 'In every conduit'
+wan1 -> (other zones)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+wan2 -> lan
+  allowed: any ~
+  rule 'firewall 8': 0.0.0.0/0 -> 192.168.127.60-192.168.127.69: any (only with 'session-limit 50' is not converted, which is not in the model) ~
+  rule 'firewall 10': 0.0.0.0/0 -> 192.168.127.60: tcp/22
+  and the 1 listed under 'In every conduit'
+wan2 -> wan1
+  allowed: any
+  and the 1 listed under 'In every conduit'
+wan2 -> wan2 (inside the zone)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+wan2 -> (other zones)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+(other zones) -> lan
+  allowed: any
+  and the 1 listed under 'In every conduit'
+(other zones) -> wan1
+  allowed: any
+  and the 1 listed under 'In every conduit'
+(other zones) -> wan2
+  allowed: any
+  and the 1 listed under 'In every conduit'
+(other zones) -> (other zones)
+  allowed: any
+  and the 1 listed under 'In every conduit'
+
+From reading the configuration
+  MOXA_SOURCE: EDR-810-VPN-2GSFP: 10 policies of the Layer 3 policy, first match by index; zones are the interfaces lan, wan1 and wan2. IPv4 only
+  MOXA_DEFAULT_ACCEPT: what no policy matches is read as passing: the configuration names no default action, and FWShift found none for the classic firmware in Moxa's documentation (not confirmed on a device). If the router drops it, add a policy at the end of the converted policy that drops everything
+  MOXA_NAT_ORDER: port forwarding and 1-to-1 NAT are read as done before the Layer 3 policy, whose policies name the inside address (as iptables does it on Linux; Moxa's documentation does not say, not confirmed): the policies were rewritten for the address as it arrives. N-to-1 NAT is done after it
+  MOXA_TRUSTED_ACCESS: trusted access, which limits who reaches the router itself; not converted: lan 192.168.127.0 255.255.255.0 enable
+  MOXA_DOS: DoS defence settings; not converted: syn-flood 300, null-scan
+  MOXA_DPI: the Modbus filter (DPI) checks Modbus TCP traffic beyond addresses and ports; not converted: modbus-filter 1
+  MOXA_L2_POLICY: the Layer 2 policy filters bridged traffic before the Layer 3 policy; not converted: l2-filter 1 enable
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

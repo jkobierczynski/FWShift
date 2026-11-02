@@ -1,0 +1,80 @@
+FWShift conversion report
+  source: meraki
+  target: mguard
+
+Summary
+  Security rules:     20   exact 0, approximated 0, needs review 0, skipped 20
+  NAT rules:           4   exact 1, approximated 1, needs review 0, skipped 2
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): internet=external
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  inside a VLAN  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  layer 7 rule 2  ->  skipped
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  layer 7 rule 3  ->  skipped
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  office to servers web  ->  skipped
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.20.25', the address NAT rule 'NAT mail' translates '203.0.113.25' to. The target looks rules up after that translation, so traffic sent to '203.0.113.25' now matches this rule; on the source it did not
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  historian  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  eng ws to plc  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ot cell isolated  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  ot no internet  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  block update site  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  dns to servers  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  ping servers  ->  skipped
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.20.25', the address NAT rule 'NAT mail' translates '203.0.113.25' to. The target looks rules up after that translation, so traffic sent to '203.0.113.25' now matches this rule; on the source it did not
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  office ipv6 out  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  passive ftp  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  bad ports  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  Default rule  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan10-office, vlan20-servers, vlan30-ot-cell: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  vpn-portal  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan20-servers: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  mail (1)  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan20-servers: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  mail (2)  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan20-servers: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  scada-view  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: vlan20-servers: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT vpn-portal  ->  skipped
+      [needs-review] MGUARD_FORWARD_BLOCKED: port forwarding skips the packet filter, and the rules of the model do not allow all of what it would forward (rule vpn-portal may decide part of it, and the zone the forwarded traffic goes to is not known): not written, as it would let in more
+  NAT scada-view  ->  skipped
+      [needs-review] MGUARD_FORWARD_BLOCKED: port forwarding skips the packet filter, and the rules of the model do not allow all of what it would forward (rule scada-view may decide part of it, and the zone the forwarded traffic goes to is not known): not written, as it would let in more
+  NAT to the uplink  ->  approximated  (emitted as IP masquerading)
+      [approximated] MGUARD_NAT_ZONES: the rule is for traffic from vlan10-office, vlan20-servers, vlan30-ot-cell; IP masquerading applies to traffic from every zone

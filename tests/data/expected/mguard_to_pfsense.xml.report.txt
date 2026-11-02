@@ -1,0 +1,67 @@
+FWShift conversion report
+  source: mguard
+  target: pfsense
+
+Summary
+  Security rules:     19   exact 10, approximated 5, needs review 2 (2 emitted disabled), skipped 2
+  NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_USER_FIREWALL: the user firewall is on, with 1 templates (service technicians): rules that apply to users who log in; not converted. With it on, the mGuard lets through more than the converted policy
+  [needs-review] MGUARD_VPN_FIREWALL: 1 VPN connections have firewall rules of their own (FW_INCOMING, FW_OUTGOING of the connection): not converted, nor the VPN traffic they decide
+  [needs-review] PFSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of a pfSense configuration. Under Diagnostics > Backup & Restore, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every rule, every alias, every NAT rule that is there now is gone, with the separators, the rules pfSense linked to port forwards and the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. The NAT area holds 2 port forwards and 1 1:1 rule, and sets outbound NAT to manual mode with the 2 rules of the source. Keep a backup, and look at the rules before anything depends on them: pfSense does not check what it restores, and a rule it cannot resolve is not loaded. Written for pfSense 2.7 and later
+  [needs-review] INTERFACES_REQUIRED: pfSense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: external, internal, dmz
+  [approximated] ZONE_NETWORK_GAP: the networks given with --zone-network do not cover every address: ::/0. Rules that pass traffic to a zone leave those addresses out, rules that block keep them
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] MGUARD_SOURCE: mGuard profile 8.6.1.default, router mode; zones internal, external, dmz; tables read: FW_INCOMING, FW_OUTGOING, FW_INCOMING_WAN_DMZ, FW_INCOMING_DMZ_LAN, FW_OUTGOING_LANDMZ. Each table is first match; what no rule matches is dropped; port forwarding skips the packet filter
+  [info] MGUARD_INTERNAL_ROUTED: the internal side has more than one network (LOCAL_ALIASES): the outgoing rules also decide connections from one of them to another, so they are read for internal -> internal as well
+  [info] MGUARD_IPV4_ONLY: the packet filter of the mGuard is IPv4: 0.0.0.0/0 is read as every IPv4 address, and the rules match no IPv6
+  [info] MGUARD_DEFAULT_LOG: connection attempts no rule covers are logged (LOG_DEFAULT_INCOMING); the model has no place for that
+  [info] MGUARD_MANAGEMENT_ACCESS: access to the mGuard itself is not converted (it protects the device, not forwarded traffic): HTTPS_REMOTE_ACCESS_RULES (1 rows); HTTPS_REMOTE_ENABLE yes; FW_ICMP ping
+  [info] MGUARD_HOSTNAME: host names in IP groups, resolved by the DNS settings of the mGuard; read as names resolved for IPv4: scada: historian.example.com
+  [info] MGUARD_REJECT: Reject: the mGuard sends the packets back and tells the sender; read as reset-both: FW_INCOMING row 4
+  [info] MGUARD_PORTS_IGNORED: ports in rules for a protocol other than tcp and udp, which the mGuard ignores: FW_INCOMING row 7
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. --no-source-networks takes none of them
+
+Security rules
+  portforward-1  ->  skipped
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+      [info] EGRESS_BY_NETWORKS: the rule is for traffic to zone internal. A rule of pfSense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network)
+      [approximated] EGRESS_NO_ADDRESS: by the networks given with --zone-network no address of its destination lies behind the zones the rule is for: it is left out
+  portforward-2  ->  skipped
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+      [info] EGRESS_BY_NETWORKS: the rule is for traffic to zone dmz. A rule of pfSense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network)
+      [approximated] EGRESS_NO_ADDRESS: by the networks given with --zone-network no address of its destination lies behind the zones the rule is for: it is left out
+  incoming-4  ->  approximated  (emitted as external)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone internal. A rule of pfSense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network). The addresses that lie in none of the networks given are blocked by it as well
+      [info] RESET_ACTION: action reset-both becomes 'reject': pfSense answers the sender, with a TCP reset or an ICMP message, and tells the other side nothing
+  incoming-5.maintenance-1  ->  needs-review, emitted disabled  (emitted as external)
+      [needs-review] MGUARD_RULESET_SWITCHED: a rule of rule set maintenance, which cmd1 switches on and off: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule set maintenance is switched on and off (cmd1); its rules apply only while it is active.
+  incoming-6.vendor-1  ->  exact  (emitted as external)
+      [info] MGUARD_RULESET: rule 1 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+  incoming-6.vendor-2  ->  approximated  (emitted as external)
+      [info] MGUARD_RULESET: rule 2 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone internal. A rule of pfSense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network). The addresses that lie in none of the networks given are blocked by it as well
+  incoming-9  ->  needs-review, emitted disabled  (emitted as external)
+      [needs-review] MGUARD_UNREAD: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group
+      [needs-review] UNSUPPORTED_MATCH: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group.
+  outgoing-1  ->  approximated  (emitted as internal)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone external, internal. A rule of pfSense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network). The addresses that lie in none of the networks given are blocked by it as well
+  outgoing-3  ->  approximated  (emitted as internal)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone external, internal. A rule of pfSense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
+  lan-dmz-1  ->  approximated  (emitted as internal)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone dmz. A rule of pfSense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
+
+NAT rules
+  1to1-1  ->  exact  (emitted as 1:1 NAT)
+      [info] NAT_INPUT_INTERFACE: the rule names the zone of the inside address (internal), which a 1:1 rule of pfSense has no place for
+
+Addresses
+  historian.example.com  ->  exact  (emitted as historian_example_com)
+      [info] RENAMED: renamed to 'historian_example_com' to fit the target's naming rules
+  mguard-extern  ->  exact  (emitted as mguard_extern)
+      [info] RENAMED: renamed to 'mguard_extern' to fit the target's naming rules

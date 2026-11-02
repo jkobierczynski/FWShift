@@ -1,0 +1,184 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "LAN1_Outgoing (not written, see the report); WAN_to_Web (not written, see the report); WAN_to_Mail (not written, see the report); Admin_Mgmt (not written, see the report); Old_Rule (disabled in the source); Alice_Workhours (not written, see the report); DNS_From_Port (not written, see the report); Country_Block (not written, see the report); Portal_Access (not written, see the report); VS_Only (not written, see the report); ESP_Out (not written, see the report); V6_LAN_Out (not written, see the report); V6_Admin_Web (not written, see the report)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "block intra-zone DMZ"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "203.0.113.0/25"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.30.0.10/32",
+            "10.30.0.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block_Partner_SSH"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN1_to_DMZ_Reject"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "icmp": {
+          "type": 8
+        },
+        "source": {
+          "nets": [
+            "192.0.2.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Monitor_Ping"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "ICMPv6",
+        "icmp": {
+          "type": 128
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "V6_Ping"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "block intra-zone DMZ"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "203.0.113.0/25"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.30.0.10/32",
+            "10.30.0.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block_Partner_SSH"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN1_to_DMZ_Reject"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "icmp": {
+          "type": 8
+        },
+        "source": {
+          "nets": [
+            "192.0.2.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Monitor_Ping"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "ICMPv6",
+        "icmp": {
+          "type": 128
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "V6_Ping"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

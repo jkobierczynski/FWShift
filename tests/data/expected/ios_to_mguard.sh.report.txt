@@ -1,0 +1,392 @@
+FWShift conversion report
+  source: ios
+  target: mguard
+
+Summary
+  Security rules:    204   exact 36, approximated 10, needs review 16, skipped 142
+  NAT rules:           3   exact 0, approximated 2, needs review 0, skipped 1
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): OUTSIDE=external, INSIDE=internal, DMZ=dmz
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  WAN-IN-10 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (external -> external): nothing to write
+  WAN-IN-20 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (external -> external): nothing to write
+  WAN-IN-40 (OUTSIDE to OUTSIDE)  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (external -> external): nothing to write
+  WAN-IN-50 (OUTSIDE to OUTSIDE)  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (external -> external): nothing to write
+  WAN-IN-60 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (external -> external): nothing to write
+  WAN-IN-70 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  WAN-IN-80 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  WAN-IN-90 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  WAN-IN-100 (OUTSIDE to OUTSIDE)  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (external -> external): nothing to write
+  WAN-IN-110 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (external -> external): nothing to write
+  WAN-IN-120 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (external -> external): nothing to write
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (external -> external): nothing to write
+  WAN-IN implicit deny (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (external -> external): nothing to write
+  WAN6-IN-10 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  WAN6-IN-20 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  WAN6-IN-30 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  WAN6-IN-40 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  WAN6-IN-50 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written. This deny rule is NOT enforced
+  WAN6-IN implicit deny (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written. This deny rule is NOT enforced
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 row of FW_INCOMING)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 row of FW_INCOMING)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review  (emitted as 1 row of FW_INCOMING)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review  (emitted as 1 row of FW_INCOMING)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review  (emitted as 1 row of FW_INCOMING)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review  (emitted as 1 row of FW_INCOMING)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review  (emitted as 1 row of FW_INCOMING)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review  (emitted as 1 row of FW_INCOMING)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 row of FW_INCOMING)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  skipped
+      [needs-review] SERVICE_NEGATE: every service but some: a row of the mGuard names the protocol and ports it matches. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written. This deny rule is NOT enforced
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written. This deny rule is NOT enforced
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written. This deny rule is NOT enforced
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written. This deny rule is NOT enforced
+  WAN6-IN-50 (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written. This deny rule is NOT enforced
+  WAN6-IN implicit deny (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written. This deny rule is NOT enforced
+  WAN-IN-40 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+  WAN-IN-50 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-100 + DMZ-OUT-30 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+  WAN-IN-100 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+  WAN-IN-140 + DMZ-OUT-30 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  needs-review  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)-2  ->  needs-review  (emitted as 1 row of FW_INCOMING_WAN_DMZ)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  skipped
+      [needs-review] SERVICE_NEGATE: every service but some: a row of the mGuard names the protocol and ports it matches. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN-10 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  WAN6-IN-20 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  WAN6-IN-30 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written. This deny rule is NOT enforced
+  WAN6-IN-40 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written. This deny rule is NOT enforced
+  WAN6-IN-50 (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written. This deny rule is NOT enforced
+  WAN6-IN implicit deny (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written. This deny rule is NOT enforced
+  WAN-IN-10 (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-20 (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to LAB)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN implicit deny (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN-50 (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN implicit deny (OUTSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-10 (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-20 (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN-IN implicit deny (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN-50 (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  WAN6-IN implicit deny (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-DNS (INSIDE to OUTSIDE)  ->  exact  (emitted as 2 rows of FW_OUTGOING)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as 2 rows of FW_OUTGOING
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review  (emitted as 1 row of FW_OUTGOING)
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-PING (INSIDE to OUTSIDE)  ->  approximated  (emitted as 1 row of FW_OUTGOING)
+      [approximated] MGUARD_IPV6: the IPv6 part of the rule (addresses, ICMPv6) is left out: the mGuard filters IPv4
+  INSIDE (in): no access list (INSIDE to INSIDE)  ->  skipped
+      [needs-review] MGUARD_INTERNAL_ROUTING: traffic between networks of the internal side only: the mGuard decides it by the outgoing rules, which decide traffic to the external side as well; not written
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  skipped
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  needs-review  (emitted as 1 row of FW_OUTGOING_LANDMZ)
+      [needs-review] MGUARD_ICMP_TYPE: a row cannot match an ICMP type or code: written for all of ICMP, so it blocks more
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)-2  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written. This deny rule is NOT enforced
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to LAB (INSIDE to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to MGMT (INSIDE to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-DNS (DMZ to OUTSIDE)  ->  exact  (emitted as 2 rows of FW_OUTGOING_DMZWAN)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as 2 rows of FW_OUTGOING_DMZWAN
+  DMZ (in): no access list + DMZ-OUT-10 (DMZ to DMZ)  ->  skipped
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (dmz -> dmz): nothing to write
+  DMZ (in): no access list + DMZ-OUT-20 (DMZ to DMZ)  ->  skipped
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (dmz -> dmz): nothing to write
+  DMZ (in): no access list + DMZ-OUT-30 (DMZ to DMZ)  ->  skipped
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (dmz -> dmz): nothing to write
+  DMZ (in): no access list + DMZ-OUT-40 (DMZ to DMZ)  ->  skipped
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  DMZ (in): no access list + DMZ-OUT-50 (DMZ to DMZ)  ->  skipped
+      [info] MGUARD_NOT_FORWARDED: the mGuard forwards no traffic between these zones (dmz -> dmz): nothing to write
+  DMZ (in): no access list + no outbound access list (DMZ to DMZ)  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to LAB (DMZ to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to MGMT (DMZ to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-10 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  110-20 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  110-30 + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  110-40 (LAB to OUTSIDE)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-50 (LAB to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110 implicit deny (LAB to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)-2  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT class-default (LAB to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-10 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-20 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-30 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-40 (LAB to INSIDE)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-50 (LAB to INSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110 implicit deny (LAB to INSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-10 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-10 + DMZ-OUT-50 (LAB to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-20 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-20 + DMZ-OUT-50 (LAB to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-30 + DMZ-OUT-50 (LAB to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-40 (LAB to DMZ)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-50 (LAB to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110 implicit deny (LAB to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to DMZ (LAB to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-10 (LAB to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  110-20 (LAB to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  110-30 (LAB to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  110-40 (LAB to LAB)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-50 (LAB to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110 implicit deny (LAB to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  LAB (in): no access list (LAB to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  110-10 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB, MGMT: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-20 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB, MGMT: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-30 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB, MGMT: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-40 (LAB to MGMT)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB, MGMT: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110-50 (LAB to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB, MGMT: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  110 implicit deny (LAB to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB, MGMT: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: LAB, MGMT: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to OUTSIDE (MGMT to OUTSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to INSIDE (MGMT to INSIDE)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  MGMT (in): no access list + DMZ-OUT-10 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  MGMT (in): no access list + DMZ-OUT-20 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  MGMT (in): no access list + DMZ-OUT-30 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  MGMT (in): no access list + DMZ-OUT-40 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  MGMT (in): no access list + DMZ-OUT-50 (MGMT to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to LAB (MGMT to LAB)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT, LAB: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  MGMT (in): no access list (MGMT to MGMT)  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: MGMT: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+
+NAT rules
+  nat-176  ->  approximated  (emitted as 1:1 NAT)
+      [approximated] MGUARD_NAT_ZONES: 1:1 NAT maps between the internal and the external side; the zones of the rule are internal, dmz -> external
+  nat-177  ->  skipped
+      [needs-review] MGUARD_FORWARD_BLOCKED: port forwarding skips the packet filter, and the rules of the model do not allow all of what it would forward (rule WAN-IN-10 (OUTSIDE to OUTSIDE) blocks part of it): not written, as it would let in more
+  nat-178  ->  approximated  (emitted as IP masquerading)
+      [approximated] MGUARD_NAT_ZONES: the rule is for traffic from internal, dmz; IP masquerading applies to traffic from every zone

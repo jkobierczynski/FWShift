@@ -1,0 +1,151 @@
+FWShift conversion report
+  source: ios
+  target: scalance
+
+Summary
+  Security rules:    204   exact 148, approximated 7, needs review 4, skipped 45
+  NAT rules:           3   exact 2, approximated 0, needs review 0, skipped 1
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] SCALANCE_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the device passes everything: OUTSIDE, INSIDE, DMZ, LAB, MGMT
+  [needs-review] SCALANCE_LOAD: the output is CLI commands for the FIREWALL and FIREWALL NAT modes (section 10): 425 IP rules with priorities 1 to 49. The device processes rules by ascending priority: rules it has with a lower priority come first. Commands take effect as they are entered; nothing is deleted and nothing is saved
+  [needs-review] SCALANCE_ZONE_NAMES: zones that are not interfaces of the device (vlan N, ipsecALL, ipsec N, sinemarcall, ppp 0, usb 0) are written as they are, and the device refuses those rules: map them with --zone-map ZONE=vlanN: OUTSIDE, INSIDE, DMZ, LAB, MGMT
+  [needs-review] SCALANCE_IPV6: ipv6rule and ICMP services of IPv6 are written in the form of the IPv4 commands; no Siemens manual FWShift could read shows them: check them on the device
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] SCALANCE_DEFAULT_RULES: after the converted rules, rules that drop what no rule matches, as the source does, for every pair of the 5 zones written (priority 49); traffic inside one zone does not pass the IP firewall
+  [info] SCALANCE_RULE_COUNT: 425 IP rules: the S615 CLI manual of 2015 numbers rules 1 to 100; check how many the firmware takes
+  [info] LOGGING_CONVERTED: rules of the source log; their rules log at the level info
+  [info] SCALANCE_NAT_WRITTEN: destination NAT is done before the firewall: the rules were written for the translated address
+
+Security rules
+  WAN-IN-10 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN-IN-20 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN-IN-40 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN-IN-50 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN-IN-60 (OUTSIDE to OUTSIDE)  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN-IN-70 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN-IN-80 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN-IN-90 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN-IN-100 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN-IN-110 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN-IN-120 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN-IN implicit deny (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN6-IN-10 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN6-IN-20 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN6-IN-30 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN6-IN-40 (OUTSIDE to OUTSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN6-IN-50 (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN6-IN implicit deny (OUTSIDE to OUTSIDE)  ->  skipped
+      [needs-review] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 IP rules, priority 2)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review  (emitted as 2 IP rules, priority 2)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  skipped
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177', which translates only some of the services of this rule: for the others the rule now names '10.20.0.25', sent there directly, and no longer '203.0.113.2'
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-177' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] SERVICE_NEGATE: every service but some: a rule of the device names one service. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-3  ->  approximated  (emitted as 1 IP rules, priority 2)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-60 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 IP rules, priority 6)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review  (emitted as 1 IP rules, priority 8)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)-2  ->  approximated  (emitted as 1 IP rules, priority 8)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review  (emitted as 2 IP rules, priority 11)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  skipped
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177', which translates only some of the services of this rule: for the others the rule now names '10.20.0.25', sent there directly, and no longer '203.0.113.2'
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-177' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] SERVICE_NEGATE: every service but some: a rule of the device names one service. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-3  ->  approximated  (emitted as 1 IP rules, priority 11)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 IP rules, priority 17)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-130 (OUTSIDE to LAB)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 IP rules, priority 21)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review  (emitted as 1 IP rules, priority 24)
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+  INSIDE (in): no access list (INSIDE to INSIDE)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  DMZ (in): no access list + DMZ-OUT-10 (DMZ to DMZ)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  DMZ (in): no access list + DMZ-OUT-20 (DMZ to DMZ)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  DMZ (in): no access list + DMZ-OUT-30 (DMZ to DMZ)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  DMZ (in): no access list + DMZ-OUT-40 (DMZ to DMZ)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  DMZ (in): no access list + DMZ-OUT-50 (DMZ to DMZ)  ->  skipped
+      [needs-review] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  DMZ (in): no access list + no outbound access list (DMZ to DMZ)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  110-40 (LAB to OUTSIDE)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to INSIDE)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to DMZ)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-10 (LAB to LAB)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  110-20 (LAB to LAB)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  110-30 (LAB to LAB)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  110-40 (LAB to LAB)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to LAB)  ->  skipped
+      [needs-review] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  110 implicit deny (LAB to LAB)  ->  skipped
+      [needs-review] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  LAB (in): no access list (LAB to LAB)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+  110-40 (LAB to MGMT)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  MGMT (in): no access list (MGMT to MGMT)  ->  skipped
+      [info] SCALANCE_INTRAZONE: the rule matches traffic inside one zone only, which does not pass the IP firewall of the device
+
+NAT rules
+  nat-176  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the device writes destination NAT for one address and one TCP or UDP port or range (napt), or a subnet onto one of the same size (netmap), and source NAT to the interface, to one address or 1:1 (masquerading, src-nat, netmap); IPv4 only, no service in source NAT, no exemption

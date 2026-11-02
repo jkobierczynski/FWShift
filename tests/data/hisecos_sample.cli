@@ -1,0 +1,78 @@
+!EAGLE40-07 synthetic configuration for the FWShift tests
+!
+!System Description "Hirschmann EAGLE40 Industrial Firewall (synthetic)"
+!Version "HiSecOS-3A-04.8.00 (synthetic)"
+!
+system name "eagle-line1"
+vlan database
+vlan add 20
+routing add 20
+exit
+interface 1/1
+ip address primary 192.0.2.1 255.255.255.0
+ip routing
+exit
+interface 1/2
+ip address primary 10.10.0.1 255.255.255.0
+ip routing
+exit
+interface 1/3
+ip address primary 10.30.0.1 255.255.255.0
+ip address secondary 10.30.1.1 255.255.255.0
+ip routing
+exit
+interface vlan/20
+ip address primary 10.20.0.1 255.255.255.0
+exit
+network management access add 1 ip 10.20.0.0 mask 24 http enable https enable ssh enable snmp disable
+network management access operation
+asset add 1 name historian description "process historian" type computer ip 10.20.0.50
+asset add 2 name plc-line1 type controller ip 10.10.0.20
+dpi modbus addprofile 1 description "read only" functiontype readonly
+dpi modbus enableprofile 1
+packet-filter l3 defaultpolicy drop
+packet-filter l3 addrule 10 srcip 10.20.0.0/24 srcport any dstip 10.10.0.0/24 dstport 502 proto tcp action accept log disable trap disable description "scada-to-cell"
+packet-filter l3 addrule 20 srcip 10.20.0.0/24 dstip plc-line1 dstport 502 proto tcp action enforce-modbus profile 1 description "modbus-enforced"
+packet-filter l3 addrule 30 srcip !10.10.0.0/24 dstip any proto any action drop description "anti-spoof-cell"
+packet-filter l3 addrule 40 srcip any dstip any proto icmp param type=8 action accept description "ping-dmz"
+packet-filter l3 addrule 50 srcip 10.10.0.0/24 srcport 1024-65535 dstip 198.51.100.53 dstport 53 proto udp action accept description "dns-out"
+packet-filter l3 modifyrule 50 log enable
+packet-filter l3 addrule 60 srcip any dstip 10.30.0.10 dstport 80,443,8000-8010 proto tcp action accept description "web-dmz"
+packet-filter l3 addrule 70 srcip 203.0.113.0/24 dstip 10.30.0.20 proto esp action accept description "vpn-esp"
+packet-filter l3 disablerule 70
+packet-filter l3 addrule 80 srcip 10.30.0.0/24 dstip 10.20.0.0/24 proto tcp dstport 22 action accept description "spare"
+packet-filter l3 addrule 90 srcip any dstip any proto any action reject log enable description "wan-reject"
+packet-filter l3 addrule 100 srcip 10.10.0.0/24 dstip any proto tcp param flags=SYN action drop description "syn-only"
+packet-filter l3 addrule 110 srcip 198.51.100.0/24 dstip any proto any action drop description "block-partner"
+packet-filter l3 addrule 130 srcip 10.10.0.0/24 dstip historian dstport 1433 proto tcp action accept description "cell-to-historian"
+packet-filter l3 addrule 140 srcip any dstip any proto igmp action accept description "removed"
+packet-filter l3 delrule 140
+packet-filter l3 addrule 150 srcip 10.30.0.64/28 dstip any proto tcp dstport 443 action accept description "dmz-servers-out"
+packet-filter l3 addif vlan/20 rule 10 direction ingress priority 10
+packet-filter l3 addif vlan/20 rule 20 direction ingress priority 15
+packet-filter l3 addif 1/2 rule 30 direction ingress priority 5
+packet-filter l3 addif 1/3 rule 40 direction both priority 20
+packet-filter l3 addif 1/2 rule 50 direction ingress priority 30
+packet-filter l3 addif 1/1 rule 50 direction egress priority 30
+packet-filter l3 addif 1/1 rule 60 direction ingress priority 40
+packet-filter l3 addif 1/1 rule 70 direction ingress priority 50
+packet-filter l3 addif 1/1 rule 90 direction ingress priority 60
+packet-filter l3 addif 1/2 rule 100 direction ingress priority 25
+packet-filter l3 addif 1/1 rule 110 direction ingress priority 40
+packet-filter l3 addif 1/2 rule 130 direction ingress priority 35
+packet-filter l3 addif 1/3 rule 150 direction ingress priority 45
+packet-filter l3 addif 1/3 rule 150 direction egress priority 45
+packet-filter l3 disableif 1/3 rule 150 direction egress
+packet-filter l3 commit
+nat dnat add 1 srcip any srcport any dstip 192.0.2.10 dstport 8080 proto tcp newdstip 10.30.0.10 newdstport 80 description "web-in"
+nat dnat if add 1/1 rule 1 priority 1
+nat dnat commit
+nat 1to1nat add 1 dstip 192.0.2.64/28 newdstip 10.30.0.64/28 ingress-if 1/1 egress-if 1/3 priority 1 description "dmz-servers"
+nat 1to1nat commit
+nat masq add 1 srcip 10.10.0.0/24 srcport any proto any description "cell-out"
+nat masq if add 1/1 rule 1 priority 1
+nat masq commit
+nat doublenat add 1 local-internal 10.10.0.30 local-external 172.16.10.30 remote-internal 10.20.0.40 remote-external 172.16.20.40 description "overlap"
+nat doublenat if add 1/2 rule 1 direction ingress priority 1
+nat doublenat if add vlan/20 rule 1 direction egress priority 1
+nat doublenat commit

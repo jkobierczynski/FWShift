@@ -1,0 +1,65 @@
+packet-filter l3 addrule 1001 srcip 192.168.10.0/24 dstip 192.168.1.30 proto tcp dstport 32400 action reject log disable trap disable description no_media_from_the_guests
+packet-filter l3 enablerule 1001
+packet-filter l3 addif pppoe0 rule 1001 direction ingress priority 1001
+packet-filter l3 addif eth1 rule 1001 direction egress priority 1001
+packet-filter l3 addrule 1002 srcip any dstip 192.168.1.30 proto tcp dstport 32400 action accept log disable trap disable description plex_to_the_media_box
+packet-filter l3 enablerule 1002
+packet-filter l3 addif pppoe0 rule 1002 direction ingress priority 1002
+packet-filter l3 addrule 1003 srcip any dstip 192.168.1.20/31 proto icmp param type=8 action accept log disable trap disable description ping_the_nas
+packet-filter l3 enablerule 1003
+packet-filter l3 addif pppoe0 rule 1003 direction ingress priority 1003
+packet-filter l3 addrule 1004 srcip any dstip 192.168.1.40 proto tcp action accept log disable trap disable description old_rule
+packet-filter l3 disablerule 1004
+packet-filter l3 addif pppoe0 rule 1004 direction ingress priority 1004
+packet-filter l3 addrule 1005 srcip any dstip 192.168.1.25 proto tcp dstport 25 action accept log disable trap disable description syn_to_the_mail_server
+packet-filter l3 enablerule 1005
+packet-filter l3 addif pppoe0 rule 1005 direction ingress priority 1005
+packet-filter l3 addrule 1006 srcip 192.168.10.0/24 dstip any proto tcp dstport 8096-8097,32400 action reject log disable trap disable description no_media_from_the_guests-2
+packet-filter l3 disablerule 1006
+packet-filter l3 addif pppoe0 rule 1006 direction ingress priority 1006
+packet-filter l3 addif eth1 rule 1006 direction egress priority 1006
+packet-filter l3 addrule 1007 srcip 192.168.10.0/24 dstip any proto udp dstport 8096-8097,32400 action reject log disable trap disable description no_media_from_the_guests-2
+packet-filter l3 disablerule 1007
+packet-filter l3 addif pppoe0 rule 1007 direction ingress priority 1007
+packet-filter l3 addif eth1 rule 1007 direction egress priority 1007
+packet-filter l3 addrule 1008 srcip any dstip any proto any action accept log disable trap disable description sessions_of_the_voip_box
+packet-filter l3 disablerule 1008
+packet-filter l3 addif pppoe0 rule 1008 direction ingress priority 1008
+packet-filter l3 addrule 1009 srcip any dstip any proto any action drop log disable trap disable description forward-5.default
+packet-filter l3 enablerule 1009
+packet-filter l3 addif pppoe0 rule 1009 direction ingress priority 1009
+packet-filter l3 addrule 1010 srcip any dstip 10.8.0.0/24 proto any action drop log enable trap disable description no_way_into_the_LAN
+packet-filter l3 enablerule 1010
+packet-filter l3 addif eth1.10 rule 1010 direction ingress priority 1010
+packet-filter l3 addrule 1011 srcip any dstip 192.168.1.0/25 proto any action drop log enable trap disable description no_way_into_the_LAN
+packet-filter l3 enablerule 1011
+packet-filter l3 addif eth1.10 rule 1011 direction ingress priority 1011
+packet-filter l3 addrule 1012 srcip any dstip any proto tcp dstport 0-52,54-79,81-442,444-65535 action drop log disable trap disable description only_web_and_dns_out
+packet-filter l3 enablerule 1012
+packet-filter l3 addif eth1.10 rule 1012 direction ingress priority 1012
+packet-filter l3 addrule 1013 srcip any dstip any proto udp dstport 0-52,54-79,81-442,444-65535 action drop log disable trap disable description only_web_and_dns_out
+packet-filter l3 enablerule 1013
+packet-filter l3 addif eth1.10 rule 1013 direction ingress priority 1013
+packet-filter l3 addrule 1014 srcip 192.168.10.0/24 dstip any proto tcp dstport 8096-8097,32400 action reject log disable trap disable description no_media_from_the_guests-3
+packet-filter l3 enablerule 1014
+packet-filter l3 addif pppoe0 rule 1014 direction ingress priority 1014
+packet-filter l3 addif eth1 rule 1014 direction ingress priority 1014
+packet-filter l3 addif eth1.10 rule 1014 direction ingress priority 1014
+packet-filter l3 addif eth1 rule 1014 direction egress priority 1014
+packet-filter l3 addrule 1015 srcip 192.168.10.0/24 dstip any proto udp dstport 8096-8097,32400 action reject log disable trap disable description no_media_from_the_guests-3
+packet-filter l3 enablerule 1015
+packet-filter l3 addif pppoe0 rule 1015 direction ingress priority 1015
+packet-filter l3 addif eth1 rule 1015 direction ingress priority 1015
+packet-filter l3 addif eth1.10 rule 1015 direction ingress priority 1015
+packet-filter l3 addif eth1 rule 1015 direction egress priority 1015
+packet-filter l3 addrule 1016 srcip any dstip any proto any action accept log disable trap disable description fwshift-default
+packet-filter l3 enablerule 1016
+packet-filter l3 addif pppoe0 rule 1016 direction ingress priority 1016
+packet-filter l3 addif eth1 rule 1016 direction ingress priority 1016
+packet-filter l3 addif eth1.10 rule 1016 direction ingress priority 1016
+nat dnat add 201 srcip any srcport any dstip any dstport 32400 proto tcp newdstip 192.168.1.30 newdstport any description plex_from_outside
+nat dnat if add pppoe0 rule 201 direction ingress priority 201
+nat dnat add 202 srcip any srcport any dstip 198.51.100.7 dstport 8443 proto tcp newdstip 192.168.1.20 newdstport 443 description web_on_8443_to_the_nas
+nat dnat if add pppoe0 rule 202 direction ingress priority 202
+nat masq add 101 srcip any srcport any proto any description masquerade_for_WAN
+nat masq if add pppoe0 rule 101 direction egress priority 101

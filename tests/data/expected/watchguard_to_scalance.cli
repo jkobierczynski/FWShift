@@ -1,0 +1,109 @@
+configure terminal
+firewall
+service name FWS_SSH proto tcp src all dst port 22
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_tcp_443 proto tcp src all dst port 443
+service name FWS_tcp_8000-8010 proto tcp src all dst range 8000 - 8010
+service name FWS_tcp-2525 proto tcp src all dst port 2525
+service name FWS_Staff_Only proto tcp src all dst port 3389
+icmp name FWS_Ping type 8 code 0 ver ipv4
+proto name FWS_Lab_Tunnel num 47
+ipv4rule from Trusted to External srcip 0.0.0.0/0 dstip 192.0.2.66 action drop log info prior 1
+ipv4rule from Trusted to External srcip 0.0.0.0/0 dstip 203.0.113.0/25 action drop log info prior 1
+ipv4rule from Trusted to DMZ srcip 0.0.0.0/0 dstip 192.0.2.66 action drop log info prior 1
+ipv4rule from Trusted to DMZ srcip 0.0.0.0/0 dstip 203.0.113.0/25 action drop log info prior 1
+ipv4rule from Trusted to Guests srcip 0.0.0.0/0 dstip 192.0.2.66 action drop log info prior 1
+ipv4rule from Trusted to Guests srcip 0.0.0.0/0 dstip 203.0.113.0/25 action drop log info prior 1
+ipv4rule from Trusted to Lab srcip 0.0.0.0/0 dstip 192.0.2.66 action drop log info prior 1
+ipv4rule from Trusted to Lab srcip 0.0.0.0/0 dstip 203.0.113.0/25 action drop log info prior 1
+ipv4rule from Guests to External srcip 0.0.0.0/0 dstip 192.0.2.66 action drop log info prior 1
+ipv4rule from Guests to External srcip 0.0.0.0/0 dstip 203.0.113.0/25 action drop log info prior 1
+ipv4rule from Guests to Trusted srcip 0.0.0.0/0 dstip 192.0.2.66 action drop log info prior 1
+ipv4rule from Guests to Trusted srcip 0.0.0.0/0 dstip 203.0.113.0/25 action drop log info prior 1
+ipv4rule from Guests to DMZ srcip 0.0.0.0/0 dstip 192.0.2.66 action drop log info prior 1
+ipv4rule from Guests to DMZ srcip 0.0.0.0/0 dstip 203.0.113.0/25 action drop log info prior 1
+ipv4rule from Guests to Lab srcip 0.0.0.0/0 dstip 192.0.2.66 action drop log info prior 1
+ipv4rule from Guests to Lab srcip 0.0.0.0/0 dstip 203.0.113.0/25 action drop log info prior 1
+ipv4rule from Trusted to External srcip 10.10.5.10-10.10.5.20 dstip 0.0.0.0/0 action acc service FWS_SSH log info prior 2
+ipv4rule from Trusted to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 2
+ipv4rule from Trusted to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from Trusted to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_8000-8010 log info prior 2
+ipv6rule from Trusted to External srcip ::/0 dstip ::/0 action acc service FWS_tcp_80 log info prior 2
+ipv6rule from Trusted to External srcip ::/0 dstip ::/0 action acc service FWS_tcp_443 log info prior 2
+ipv6rule from Trusted to External srcip ::/0 dstip ::/0 action acc service FWS_tcp_8000-8010 log info prior 2
+ipv4rule from Guests to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 2
+ipv4rule from Guests to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from Guests to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_8000-8010 log info prior 2
+ipv6rule from Guests to External srcip ::/0 dstip ::/0 action acc service FWS_tcp_80 log info prior 2
+ipv6rule from Guests to External srcip ::/0 dstip ::/0 action acc service FWS_tcp_443 log info prior 2
+ipv6rule from Guests to External srcip ::/0 dstip ::/0 action acc service FWS_tcp_8000-8010 log info prior 2
+ipv4rule from DMZ to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 2
+ipv4rule from DMZ to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from DMZ to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_8000-8010 log info prior 2
+ipv6rule from DMZ to External srcip ::/0 dstip ::/0 action acc service FWS_tcp_80 log info prior 2
+ipv6rule from DMZ to External srcip ::/0 dstip ::/0 action acc service FWS_tcp_443 log info prior 2
+ipv6rule from DMZ to External srcip ::/0 dstip ::/0 action acc service FWS_tcp_8000-8010 log info prior 2
+ipv4rule from External to Trusted srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from External to DMZ srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from External to Guests srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from External to Lab srcip 0.0.0.0/0 dstip 10.20.0.10 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from External to Trusted srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_tcp-2525 log info prior 2
+ipv4rule from External to DMZ srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_tcp-2525 log info prior 2
+ipv4rule from External to Guests srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_tcp-2525 log info prior 2
+ipv4rule from External to Lab srcip 0.0.0.0/0 dstip 10.20.0.25 action acc service FWS_tcp-2525 log info prior 2
+ipv4rule from Trusted to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_Ping log info prior 2
+ipv4rule from Trusted to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_Ping log info prior 2
+ipv4rule from Trusted to Guests srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_Ping log info prior 2
+ipv4rule from Trusted to Lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_Ping log info prior 2
+ipv4rule from Guests to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_Ping log info prior 2
+ipv4rule from Guests to Trusted srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_Ping log info prior 2
+ipv4rule from Guests to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_Ping log info prior 2
+ipv4rule from Guests to Lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_Ping log info prior 2
+ipv4rule from Lab to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_Lab_Tunnel log info prior 2
+ipv6rule from Lab to External srcip ::/0 dstip ::/0 action acc service FWS_Lab_Tunnel log info prior 2
+ipv4rule from External to Trusted srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from External to Trusted srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from External to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from External to DMZ srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from External to Guests srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from External to Guests srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from External to Lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from External to Lab srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Trusted to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Trusted to External srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Trusted to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Trusted to DMZ srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Trusted to Guests srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Trusted to Guests srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Trusted to Lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Trusted to Lab srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from DMZ to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from DMZ to External srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from DMZ to Trusted srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from DMZ to Trusted srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from DMZ to Guests srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from DMZ to Guests srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from DMZ to Lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from DMZ to Lab srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Guests to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Guests to External srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Guests to Trusted srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Guests to Trusted srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Guests to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Guests to DMZ srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Guests to Lab srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Guests to Lab srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Lab to External srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Lab to External srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Lab to Trusted srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Lab to Trusted srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Lab to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Lab to DMZ srcip ::/0 dstip ::/0 action drop log no prior 3
+ipv4rule from Lab to Guests srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 3
+ipv6rule from Lab to Guests srcip ::/0 dstip ::/0 action drop log no prior 3
+exit
+firewallnat
+napt srcint External proto tcp type ipv4 dstip 198.51.100.10 transip 10.20.0.10 dstport 443 transport 443
+napt srcint External proto tcp type ipv4 dstip 198.51.100.11 transip 10.20.0.25 dstport 25 transport 2525
+exit
+end

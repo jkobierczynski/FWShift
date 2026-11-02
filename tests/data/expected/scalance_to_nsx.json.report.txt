@@ -1,0 +1,73 @@
+FWShift conversion report
+  source: scalance
+  target: nsx
+
+Summary
+  Security rules:     17   exact 8, approximated 2, needs review 4 (4 emitted disabled), skipped 3
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] SCALANCE_RULESET: rule sets (user or digital-input firewall): rules assigned to one apply only while it is active and are not converted; check which rules belong to a set: ruleset name maintenance
+  [needs-review] NSX_LOAD: the output is the body of one hierarchical PATCH of the Policy API: curl -X PATCH -H 'Content-Type: application/json' --data @FILE https://MANAGER/policy/api/v1/infra. It creates or updates the services, the groups and one security policy of category Application (sequence number 1: give it the place you want), and leaves everything else alone, except objects of the same id, which it changes: give --target-prefix to keep the new ones apart. There is no dry run: load it on a lab manager first
+  [needs-review] NSX_DEFAULT_DENY: the source denies what no rule allows: the policy ends in fwshift-default-deny, which drops every connection no rule above it allows, for all workloads. It ends the Application category: policies after it and the default layer-3 rule are never reached
+  [needs-review] INTRAZONE_DEFAULT: the source treats traffic inside a zone and between zones differently when no rule matches; the distributed firewall has no zones, and the default of traffic between zones was written
+  [info] SCALANCE_SOURCE: 4 interfaces as zones (vlan1, vlan2, vlan3, ipsecALL); 16 IP rules, in ascending priority (prior), equal priorities in the order they were created; the IPv4 rules, then the IPv6 rules. Rules of the firewall itself (device) and the predefined rules are not converted
+  [info] SCALANCE_DEFAULTS: what no rule matches between interfaces is dropped; traffic inside one VLAN does not pass the IP firewall
+  [info] SCALANCE_NAT_ORDER: destination NAT (NAPT, NETMAP of the destination) is done before the firewall, whose rules name the translated address: the rules were rewritten for the address as it arrives. Source NAT, NETMAP of the source and masquerading are done after it. Read in the order NAPT, NETMAP destination, NETMAP source, source NAT, masquerading, one rule of each direction per connection (assumed)
+  [info] SCALANCE_PRERULE: predefined rules (access to services of the firewall itself) are not converted; those the configuration does not list are at their factory setting: ssh ipv4 int vlan 1 enabled, https ipv4 int vlan 2 disabled
+  [info] SCALANCE_NETMAP_DSTINT: the destination interface of a NETMAP rule of the destination is not a condition of the converted rule: netmap destination 1: vlan3
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: vlan1=192.168.10.0/24,10.20.0.0/16; vlan2=198.51.100.0/24; vlan3=192.168.30.0/24. --no-source-networks takes none of them
+
+Security rules
+  ipv4rule 2  ->  approximated  (emitted as rule ipv4rule_2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan2; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone vlan1; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv4rule 5  ->  exact  (emitted as rule ipv4rule_5)
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+  ipv4rule 6  ->  exact  (emitted as rule ipv4rule_6)
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+  ipv4rule 7  ->  exact  (emitted as rule ipv4rule_7)
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+  ipv4rule 8  ->  approximated  (emitted as rule ipv4rule_8)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan3; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone vlan1; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  ipv4rule 11  ->  needs-review, emitted disabled  (emitted as rule ipv4rule_11)
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: source DYNAMIC: the address of the user who activates the rule set, or of the digital input.
+  ipv4rule 12  ->  needs-review, emitted disabled  (emitted as rule ipv4rule_12)
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: service ENIP is not in the configuration.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ENIP': unsupported or undefined service.
+  ipv4rule 13  ->  needs-review, emitted disabled  (emitted as rule ipv4rule_13)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone ipsecALL, and a rule of the distributed firewall names no zone: give the networks behind ipsecALL with --zone-network.
+  ipv4rule 14  ->  needs-review, emitted disabled  (emitted as rule ipv4rule_14)
+      [needs-review] UNSUPPORTED_MATCH: not converted: assigned to the rule set maintenance: it applies only while the set is activated (by a user or a digital input).
+  ipv4rule 15  ->  exact  (emitted as rule ipv4rule_15)
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+  ipv6rule 1  ->  skipped
+      [info] ZONE_BY_NETWORKS: the source in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan1 is written as the addresses of the networks given for it with --zone-network
+      [info] MATCHES_NOTHING: after the negation and the networks of its zones, a side of the rule holds no address
+  ipv6rule 2  ->  skipped
+      [info] ZONE_BY_NETWORKS: the source in zone vlan1 is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone vlan2 is written as the addresses of the networks given for it with --zone-network
+      [info] MATCHES_NOTHING: after the negation and the networks of its zones, a side of the rule holds no address
+  ipv4rule 10  ->  skipped
+      [info] SCALANCE_DEVICE_RULE: a rule for traffic to or from the firewall itself (device): its own access, not converted
+
+NAT rules
+  napt 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  napt 2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  netmap destination 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  src-nat 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  masquerading 1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+
+Services
+  ENIP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'ipv4rule 12' but not defined in the input; emitted as a placeholder

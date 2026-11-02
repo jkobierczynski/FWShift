@@ -1,0 +1,83 @@
+configure terminal
+firewall
+service name FWS_SSH proto tcp src all dst port 22
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_tcp_443 proto tcp src all dst port 443
+service name FWS_tcp_8443 proto tcp src all dst port 8443
+service name FWS_SMTP_Alt proto tcp src all dst port 2525
+service name FWS_Media proto udp src all dst range 16384 - 16484
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 192.0.2.66 action drop log info prior 1
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 203.0.113.0/25 action drop log info prior 1
+ipv4rule from LAN to WAN srcip 10.10.5.10-10.10.5.20 dstip 0.0.0.0/0 action acc service FWS_SSH log info prior 2
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 2
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_tcp_8443 log info prior 2
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log info prior 2
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 198.51.100.10 action acc service FWS_tcp_443 log info prior 2
+ipv4rule from WAN to DMZ srcip 192.0.2.66 dstip 198.51.100.11 action acc service FWS_SMTP_Alt log info prior 2
+ipv4rule from WAN to DMZ srcip 192.0.2.128/26 dstip 198.51.100.11 action acc service FWS_SMTP_Alt log info prior 2
+ipv4rule from WAN to DMZ srcip 203.0.113.0/25 dstip 198.51.100.11 action acc service FWS_SMTP_Alt log info prior 2
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 3
+ipv4rule from WAN to LAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log info prior 3
+ipv4rule from DMZ to Servers srcip 10.20.0.10 dstip 10.30.0.5 action acc service FWS_Media log info prior 4
+ipv6rule from LAN to WAN srcip ::/0 dstip ::/0 action acc log info prior 4
+ipv4rule from LAN to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 5
+ipv6rule from LAN to DMZ srcip ::/0 dstip ::/0 action acc log no prior 5
+ipv4rule from DMZ to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 5
+ipv6rule from DMZ to WAN srcip ::/0 dstip ::/0 action acc log no prior 5
+ipv4rule from Servers to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 5
+ipv6rule from Servers to WAN srcip ::/0 dstip ::/0 action acc log no prior 5
+ipv4rule from Servers to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 5
+ipv6rule from Servers to DMZ srcip ::/0 dstip ::/0 action acc log no prior 5
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from LAN to WAN srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from LAN to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from LAN to DMZ srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from LAN to Servers srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from LAN to Servers srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from LAN to VPN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from LAN to VPN srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from WAN to LAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from WAN to LAN srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from WAN to DMZ srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from WAN to Servers srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from WAN to Servers srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from WAN to VPN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from WAN to VPN srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from DMZ to LAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from DMZ to LAN srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from DMZ to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from DMZ to WAN srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from DMZ to Servers srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from DMZ to Servers srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from DMZ to VPN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from DMZ to VPN srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from Servers to LAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from Servers to LAN srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from Servers to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from Servers to WAN srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from Servers to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from Servers to DMZ srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from Servers to VPN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from Servers to VPN srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from VPN to LAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from VPN to LAN srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from VPN to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from VPN to WAN srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from VPN to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from VPN to DMZ srcip ::/0 dstip ::/0 action drop log no prior 6
+ipv4rule from VPN to Servers srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 6
+ipv6rule from VPN to Servers srcip ::/0 dstip ::/0 action drop log no prior 6
+exit
+firewallnat
+src-nat srcint LAN dstint WAN type ipv4 srcip 10.10.0.0/16 dstip 0.0.0.0/0 transip auto
+src-nat srcint DMZ dstint WAN type ipv4 srcip 10.10.0.0/16 dstip 0.0.0.0/0 transip auto
+src-nat srcint Servers dstint WAN type ipv4 srcip 10.10.0.0/16 dstip 0.0.0.0/0 transip auto
+src-nat srcint VPN dstint WAN type ipv4 srcip 10.10.0.0/16 dstip 0.0.0.0/0 transip auto
+netmap source srcint LAN dstint WAN type ipv4 srcip 10.30.0.0/28 dstip 0.0.0.0/0 transip 198.51.100.32/28
+netmap source srcint DMZ dstint WAN type ipv4 srcip 10.30.0.0/28 dstip 0.0.0.0/0 transip 198.51.100.32/28
+netmap source srcint Servers dstint WAN type ipv4 srcip 10.30.0.0/28 dstip 0.0.0.0/0 transip 198.51.100.32/28
+netmap source srcint VPN dstint WAN type ipv4 srcip 10.30.0.0/28 dstip 0.0.0.0/0 transip 198.51.100.32/28
+exit
+end

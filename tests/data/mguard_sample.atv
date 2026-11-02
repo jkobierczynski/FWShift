@@ -1,0 +1,457 @@
+#version 8.6.1.default
+// Synthetic configuration profile of an mGuard (FL MGUARD 4305 style, router mode), written by hand for the tests
+// of FWShift. It is not from a device; only RFC 1918 and documentation addresses are used.
+NETWORKMODE = "router"
+ROUTER_MODE = "static"
+MY_LOCAL_IP = "192.168.10.1"
+MY_LOCAL_NET = "255.255.255.0"
+MY_LOCAL_USE_VLAN = "no"
+LOCAL_ALIASES = {
+  {
+    LOCAL_IP = "192.168.20.1"
+    LOCAL_NET = "255.255.255.0"
+    USE_VLAN = "yes"
+    VLAN_ID = "20"
+  }
+}
+LOCAL_ROUTES = {
+  {
+    NETWORK = "10.10.0.0/16"
+    GATEWAY = "192.168.10.254"
+  }
+}
+MY_ROUTER_IP = "203.0.113.2"
+MY_ROUTER_NET = "255.255.255.240"
+EXTERN_ALIASES = {
+}
+DEFAULT_GW = "203.0.113.1"
+DMZ_ALIASES = {
+  {
+    DMZ_IP = "172.16.30.1"
+    DMZ_NET = "255.255.255.0"
+  }
+}
+HTTPS_REMOTE_ENABLE = {
+  value = "yes"
+  uuid = "6b0e3c1a-0000-4000-8000-000000000001"
+}
+HTTPS_REMOTE_ACCESS_RULES = {
+  {
+    COMMENT = "engineering laptop"
+    FROM_IP = "198.51.100.10/32"
+    INTERFACE_DEV = "extern"
+    LOG = "yes"
+    TARGET = "ACCEPT"
+  }
+}
+SSH_REMOTE_ENABLE = "no"
+FW_ICMP = "ping"
+FW_INCOMING_GLOBAL = "rules"
+FW_OUTGOING_GLOBAL = "rules"
+LOG_DEFAULT_INCOMING = "yes"
+FW_NEW_CONNECTIONS_UPON_SYN_ONLY = "yes"
+FW_GROUP_IP = {
+  {
+    { rid = "MAI0000000101" }
+    NAME = "plc_cell1"
+    COMMENT = "PLCs of cell 1"
+    ENTRY = {
+      {
+        IP = "192.168.10.20-192.168.10.29"
+      }
+      {
+        IP = "192.168.10.40"
+      }
+    }
+  }
+  {
+    { rid = "MAI0000000102" }
+    NAME = "scada"
+    COMMENT = "SCADA servers at the control centre"
+    ENTRY = {
+      {
+        IP = "198.51.100.0/28"
+      }
+      {
+        IP = "historian.example.com"
+      }
+    }
+  }
+  {
+    { rid = "MAI0000000103" }
+    NAME = "vendor_vpn"
+    COMMENT = ""
+    ENTRY = {
+      {
+        IP = "198.51.100.64/27"
+      }
+    }
+  }
+}
+FW_GROUP_PORT = {
+  {
+    { rid = "MAI0000000201" }
+    NAME = "web"
+    COMMENT = "HTTP and HTTPS"
+    ENTRY = {
+      {
+        PORT = "80"
+      }
+      {
+        PORT = "443"
+      }
+    }
+  }
+  {
+    { rid = "MAI0000000202" }
+    NAME = "s7_iso"
+    COMMENT = "ISO-on-TCP and a block of high ports"
+    ENTRY = {
+      {
+        PORT = "102"
+      }
+      {
+        PORT = "20000-20010"
+      }
+    }
+  }
+}
+FW_RULESETS = {
+  {
+    { rid = "MAI0000000301" }
+    FRIENDLY_NAME = "maintenance"
+    SET_ACTIVE = "inactive"
+    CONTROL = "cmd1"
+    CONTROL_INV = "no"
+    TIMEOUT = "0"
+    SET = {
+      {
+        PROTO = "tcp"
+        FROM_IP = "0.0.0.0/0"
+        FROM_PORT = "any"
+        IN_IP = "192.168.10.0/24"
+        IN_PORT = "22"
+        TARGET_REF = "ACCEPT"
+        COMMENT = "SSH while the key switch is on"
+        LOG = "yes"
+      }
+    }
+  }
+  {
+    { rid = "MAI0000000302" }
+    FRIENDLY_NAME = "vendor"
+    SET_ACTIVE = "active"
+    CONTROL = "none"
+    CONTROL_INV = "no"
+    TIMEOUT = "0"
+    SET = {
+      {
+        PROTO = "tcp"
+        FROM_IP = "0.0.0.0/0"
+        FROM_PORT = "any"
+        IN_IP = "192.168.10.0/24"
+        IN_PORT = {
+          rowref = "MAI0000000202"
+        }
+        TARGET_REF = "ACCEPT"
+        COMMENT = "S7 for the vendor"
+        LOG = "no"
+      }
+      {
+        PROTO = "all"
+        FROM_IP = "0.0.0.0/0"
+        FROM_PORT = "any"
+        IN_IP = "0.0.0.0/0"
+        IN_PORT = "any"
+        TARGET_REF = "DROP"
+        COMMENT = "nothing else from the vendor"
+        LOG = "yes"
+      }
+    }
+  }
+}
+FW_INCOMING = {
+  {
+    EXT_IF = "ext1"
+    PROTO = "tcp"
+    FROM_IP = {
+      rowref = "MAI0000000102"
+    }
+    FROM_PORT = "any"
+    IN_IP = {
+      rowref = "MAI0000000101"
+    }
+    IN_PORT = "502"
+    TARGET_REF = "ACCEPT"
+    COMMENT = "Modbus/TCP from \"SCADA\" to the PLCs"
+    LOG = "yes"
+  }
+  {
+    EXT_IF = "all"
+    PROTO = "icmp"
+    FROM_IP = "198.51.100.0/24"
+    FROM_PORT = "any"
+    IN_IP = "192.168.10.0/24"
+    IN_PORT = "any"
+    TARGET_REF = "ACCEPT"
+    COMMENT = "ping from the control centre"
+    LOG = "no"
+  }
+  {
+    EXT_IF = "ext1"
+    PROTO = "tcp"
+    FROM_IP = "0.0.0.0/0"
+    FROM_PORT = "any"
+    IN_IP = "192.168.10.0/24"
+    IN_PORT = {
+      rowref = "MAI0000000201"
+    }
+    TARGET_REF = "DROP"
+    COMMENT = "no web from outside"
+    LOG = "yes"
+  }
+  {
+    EXT_IF = "ext1"
+    PROTO = "udp"
+    FROM_IP = "0.0.0.0/0"
+    FROM_PORT = "any"
+    IN_IP = "0.0.0.0/0"
+    IN_PORT = "snmp"
+    TARGET_REF = "REJECT"
+    COMMENT = "SNMP refused"
+    LOG = "no"
+  }
+  {
+    EXT_IF = "ext1"
+    PROTO = "all"
+    FROM_IP = "0.0.0.0/0"
+    FROM_PORT = "any"
+    IN_IP = "0.0.0.0/0"
+    IN_PORT = "any"
+    TARGET_REF = {
+      rowref = "MAI0000000301"
+    }
+    COMMENT = "maintenance access when the switch is on"
+    LOG = "no"
+  }
+  {
+    EXT_IF = "ext1"
+    PROTO = "all"
+    FROM_IP = {
+      rowref = "MAI0000000103"
+    }
+    FROM_PORT = "any"
+    IN_IP = "0.0.0.0/0"
+    IN_PORT = "any"
+    TARGET_REF = {
+      rowref = "MAI0000000302"
+    }
+    COMMENT = "vendor rule set"
+    LOG = "no"
+  }
+  {
+    EXT_IF = "ext1"
+    PROTO = "gre"
+    FROM_IP = "198.51.100.7"
+    FROM_PORT = "1723"
+    IN_IP = "192.168.10.5"
+    IN_PORT = "any"
+    TARGET_REF = "ACCEPT"
+    COMMENT = "GRE of a legacy tunnel; the port is ignored"
+    LOG = "no"
+  }
+  {
+    EXT_IF = "ext1"
+    PROTO = "tcp"
+    FROM_IP = "198.51.100.0/24"
+    FROM_PORT = "1024:65535"
+    IN_IP = "192.168.10.50"
+    IN_PORT = "8000:8080"
+    TARGET_REF = "ACCEPT"
+    COMMENT = "HMI web, published by 1:1 NAT (the rule names the real address)"
+    LOG = "no"
+  }
+  {
+    EXT_IF = "ext1"
+    PROTO = "tcp"
+    FROM_IP = "plant_b"
+    FROM_PORT = "any"
+    IN_IP = "192.168.10.0/24"
+    IN_PORT = "any"
+    TARGET_REF = "ACCEPT"
+    COMMENT = "names a group the profile does not have"
+    LOG = "no"
+  }
+}
+FW_OUTGOING = {
+  {
+    PROTO = "all"
+    FROM_IP = {
+      rowref = "MAI0000000101"
+    }
+    FROM_PORT = "any"
+    IN_IP = "0.0.0.0/0"
+    IN_PORT = "any"
+    TARGET_REF = "DROP"
+    COMMENT = "the PLCs do not talk out"
+    LOG = "yes"
+  }
+  {
+    PROTO = "udp"
+    FROM_IP = "192.168.10.0/24"
+    FROM_PORT = "any"
+    IN_IP = "192.168.10.1"
+    IN_PORT = "domain"
+    TARGET_REF = "ACCEPT"
+    COMMENT = "DNS"
+    LOG = "no"
+  }
+  {
+    PROTO = "tcp"
+    FROM_IP = "192.168.10.0/24"
+    FROM_PORT = "any"
+    IN_IP = "0.0.0.0/0"
+    IN_PORT = {
+      rowref = "MAI0000000201"
+    }
+    TARGET_REF = "ACCEPT"
+    COMMENT = "web out"
+    LOG = "no"
+  }
+  {
+    PROTO = "tcp"
+    FROM_IP = "192.168.20.0/24"
+    FROM_PORT = "any"
+    IN_IP = "192.168.10.0/24"
+    IN_PORT = "102"
+    TARGET_REF = "ACCEPT"
+    COMMENT = "engineering VLAN 20 to the S7 PLCs"
+    LOG = "no"
+  }
+}
+FW_INCOMING_WAN_DMZ = {
+  {
+    PROTO = "tcp"
+    FROM_IP = "0.0.0.0/0"
+    FROM_PORT = "any"
+    IN_IP = "172.16.30.10"
+    IN_PORT = {
+      rowref = "MAI0000000201"
+    }
+    TARGET_REF = "ACCEPT"
+    COMMENT = "the DMZ web server"
+    LOG = "no"
+  }
+}
+FW_INCOMING_DMZ_LAN = {
+  {
+    PROTO = "tcp"
+    FROM_IP = "172.16.30.10"
+    FROM_PORT = "any"
+    IN_IP = "192.168.10.60"
+    IN_PORT = "1433"
+    TARGET_REF = "ACCEPT"
+    COMMENT = "web server to the historian database"
+    LOG = "no"
+  }
+}
+FW_OUTGOING_LANDMZ = {
+  {
+    PROTO = "all"
+    FROM_IP = "0.0.0.0/0"
+    FROM_PORT = "any"
+    IN_IP = "0.0.0.0/0"
+    IN_PORT = "any"
+    TARGET_REF = "ACCEPT"
+    COMMENT = "LAN to DMZ: everything (the factory rule)"
+    LOG = "no"
+  }
+}
+FW_OUTGOING_DMZWAN = {
+}
+FW_PORTFORWARDING = {
+  {
+    PROTO = "tcp"
+    SRC_IP = "0.0.0.0/0"
+    SRC_PORT = "any"
+    IN_IP = "%extern"
+    IN_PORT = "8443"
+    OUT_IP = "192.168.10.30"
+    OUT_PORT = "443"
+    COMMENT = "remote HMI"
+    LOG = "yes"
+  }
+  {
+    PROTO = "udp"
+    SRC_IP = {
+      rowref = "MAI0000000103"
+    }
+    SRC_PORT = "any"
+    IN_IP = "203.0.113.3"
+    IN_PORT = "47808"
+    OUT_IP = "172.16.30.20"
+    OUT_PORT = "47808"
+    COMMENT = "BACnet gateway in the DMZ"
+    LOG = "no"
+  }
+}
+FW_1TO1_NAT = {
+  {
+    LOCAL_NET = "192.168.10.48"
+    REMOTE_NET = "203.0.113.8"
+    MASK = "29"
+    ENABLE_ARP = "yes"
+    COMMENT = "HMI subnet published"
+  }
+}
+FW_NAT = {
+  {
+    EXT_IF = "ext1"
+    IN_IP = "192.168.10.0/24"
+    COMMENT = "LAN out to the WAN"
+  }
+  {
+    EXT_IF = "int"
+    IN_IP = "172.16.30.0/24"
+    COMMENT = "DMZ hosts reach the LAN as the mGuard"
+  }
+}
+USERFW_ENABLE = "yes"
+USERFW_TEMPLATE = {
+  {
+    TEMPLATE_ENABLED = "yes"
+    TEMPLATE_NAME = "service technicians"
+    TEMPLATE_COMMENT = ""
+    TEMPLATE_TIMEOUT = "28800"
+    TEMPLATE_TOUT_TYPE = "static"
+    TEMPLATE_SRC_IP = "%authorized_ip"
+    TEMPLATE_RULE = {
+      {
+        PROTO = "tcp"
+        SRC_PORT = "any"
+        DST_IP = "192.168.10.0/24"
+        DST_PORT = "3389"
+        COMMENT = "remote desktop"
+        LOG = "yes"
+      }
+    }
+  }
+}
+VPN_CONNECTION = {
+  {
+    { rid = "MAI0000000401" }
+    NAME = "control-centre"
+    FW_INCOMING = {
+      {
+        PROTO = "all"
+        FROM_IP = "10.99.0.0/16"
+        FROM_PORT = "any"
+        IN_IP = "0.0.0.0/0"
+        IN_PORT = "any"
+        TARGET_REF = "ACCEPT"
+        COMMENT = "everything from the control centre over the tunnel"
+        LOG = "no"
+      }
+    }
+  }
+}

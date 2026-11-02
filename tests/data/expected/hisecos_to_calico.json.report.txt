@@ -1,0 +1,62 @@
+FWShift conversion report
+  source: hisecos (IPv4)
+  target: calico
+
+Summary
+  Security rules:     14   exact 9, approximated 0, needs review 4 (2 emitted disabled), skipped 1
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HISECOS_NOT_CONVERTED: settings that change what passes and are not converted: deep packet inspection (enforcer profiles)
+  [needs-review] HISECOS_DIRECTION_ORDER: the policy mixes assignments for ingress only with assignments for egress only; the MIB does not say how they are ordered against each other, and they are read as one order by priority: rules assigned for ingress only and rules assigned for egress only
+  [needs-review] CALICO_LOAD: the output is one GlobalNetworkPolicy (fwshift) for calicoctl apply -f FILE, or kubectl apply -f FILE where the Calico API server is installed. It applies to the endpoints labelled fwshift/policy=fwshift and to nothing else: label the pods it is for (kubectl label pod POD fwshift/policy=fwshift). It stands in the default tier with order 100, before the Kubernetes network policies (order 1000), and ends with the source's default, so that it decides everything for those endpoints; a policy of the same name is replaced
+  [info] HISECOS_SOURCE: 13 rules of the packet filter, 12 of them assigned and enabled, in the order of their priorities; zones are the routing interfaces (port1_1, port1_2, port1_3, vlan20); IPv4 only. The keywords of the commands are FWShift's reading of the MIB and the command list of the CLI reference, not confirmed by its Format lines
+  [info] HISECOS_DEFAULT: what no rule matches meets the default policy, drop (packet-filter l3 defaultpolicy)
+  [info] HISECOS_NAT_ORDER: destination NAT and 1:1 NAT are read as done before the packet filter, whose rules name the translated address (HiSecOS is built on netfilter; not confirmed): the rules were rewritten for the address as it arrives. Masquerading is done after it. The NAT rules are read in the order 1:1 NAT, double NAT, destination NAT, masquerading, each by priority (an assumption)
+  [info] HISECOS_MANAGEMENT: the device's own management access (network management access) is not converted; entries: entry 1
+  [info] HISECOS_EDITS: commands that change or delete rules, carried out in the order of the script: delrule 140
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: port1_1=192.0.2.0/24; port1_2=10.10.0.0/24; port1_3=10.30.0.0/24,10.30.1.0/24; vlan20=10.20.0.0/24. --no-source-networks takes none of them
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; the Calico rules written do not (a rule with action Log before a rule would log what it matches)
+
+Security rules
+  rule-30  ->  exact  (emitted as rule 1)
+      [info] ZONE_BY_NETWORKS: the source in zone port1_2 is written without the networks given for the other zones with --zone-network
+  rule-20  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content.
+  rule-40  ->  exact  (emitted as rule 3)
+      [info] ZONE_BY_NETWORKS: the source in zone port1_3 is written as the addresses of the networks given for it with --zone-network
+  rule-40-2  ->  exact  (emitted as rule 4)
+      [info] HISECOS_SPLIT: rule 40 is assigned at more than one place in the order (interfaces, directions or priorities); this is its placement number 2
+      [info] ZONE_BY_NETWORKS: the destination in zone port1_3 is written as the addresses of the networks given for it with --zone-network
+  rule-100  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: parameter flags=SYN is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rule-50  ->  skipped
+      [info] ZONE_BY_NETWORKS: the destination in zone port1_1 is written as the addresses of the networks given for it with --zone-network
+      [info] MATCHES_NOTHING: after the negation and the networks of its zones, the rule matches no connection
+  rule-60  ->  needs-review  (emitted as rule 6)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+      [info] ZONE_BY_NETWORKS: the source in zone port1_1 is written as the addresses of the networks given for it with --zone-network
+  rule-110  ->  needs-review  (emitted as rule 7)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+  rule-90  ->  exact  (emitted as rule 9)
+      [info] ZONE_BY_NETWORKS: the source in zone port1_1 is written without the networks given for the other zones with --zone-network
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  rule-80  ->  exact
+      [info] HISECOS_NOT_ASSIGNED: rule 80 is assigned to no interface, so it applies to no traffic: read as disabled, at the end
+
+NAT rules
+  1to1nat-1  ->  skipped
+      [info] HISECOS_1TO1: 1:1 NAT read as a static translation in both directions: the new target addresses leave as the target addresses, and connections to the target addresses reach the new ones (not confirmed)
+      [needs-review] NAT_NOT_CONVERTED: not converted: Calico does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what Calico sees
+  doublenat-1  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] NAT_NOT_CONVERTED: not converted: Calico does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what Calico sees
+  doublenat-1-reverse  ->  skipped
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [needs-review] NAT_NOT_CONVERTED: not converted: Calico does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what Calico sees
+  dnat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Calico does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what Calico sees
+  masq-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Calico does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what Calico sees

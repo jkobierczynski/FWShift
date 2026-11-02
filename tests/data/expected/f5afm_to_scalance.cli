@@ -1,0 +1,198 @@
+configure terminal
+firewall
+service name FWS_udp-53 proto udp src all dst port 53
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_tcp_443 proto tcp src all dst port 443
+service name FWS_tcp-8080 proto tcp src all dst port 8080
+service name FWS_tcp-23 proto tcp src all dst port 23
+icmp name FWS_icmp-8-0 type 8 code 0 ver ipv4
+service name FWS_tcp-22 proto tcp src all dst port 22
+service name FWS_tcp_8443 proto tcp src all dst port 8443
+ipv4rule from external to internal srcip 198.51.100.0/24 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from external to internal srcip 203.0.113.200-203.0.113.220 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from external to dmz srcip 198.51.100.0/24 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from external to dmz srcip 203.0.113.200-203.0.113.220 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from internal to external srcip 198.51.100.0/24 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from internal to external srcip 203.0.113.200-203.0.113.220 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from internal to dmz srcip 198.51.100.0/24 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from internal to dmz srcip 203.0.113.200-203.0.113.220 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from dmz to external srcip 198.51.100.0/24 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from dmz to external srcip 203.0.113.200-203.0.113.220 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from dmz to internal srcip 198.51.100.0/24 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from dmz to internal srcip 203.0.113.200-203.0.113.220 dstip 0.0.0.0/0 action drop log info prior 1
+ipv4rule from internal to external srcip 10.10.5.0/24 dstip 203.0.113.53 action acc service FWS_udp-53 log no prior 2
+ipv4rule from internal to external srcip 10.10.6.10 dstip 203.0.113.53 action acc service FWS_udp-53 log no prior 2
+ipv4rule from internal to dmz srcip 10.10.5.0/24 dstip 203.0.113.53 action acc service FWS_udp-53 log no prior 2
+ipv4rule from internal to dmz srcip 10.10.6.10 dstip 203.0.113.53 action acc service FWS_udp-53 log no prior 2
+ipv4rule from internal to external srcip 10.10.5.0/24 dstip 0.0.0.0/0 action acc service FWS_udp-53 log no prior 2
+ipv4rule from internal to external srcip 10.10.6.10 dstip 0.0.0.0/0 action acc service FWS_udp-53 log no prior 2
+ipv4rule from internal to dmz srcip 10.10.5.0/24 dstip 0.0.0.0/0 action acc service FWS_udp-53 log no prior 2
+ipv4rule from internal to dmz srcip 10.10.6.10 dstip 0.0.0.0/0 action acc service FWS_udp-53 log no prior 2
+ipv4rule from internal to external srcip 10.10.5.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 3
+ipv4rule from internal to external srcip 10.10.5.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 3
+ipv4rule from internal to external srcip 10.10.6.10 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 3
+ipv4rule from internal to external srcip 10.10.6.10 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 3
+ipv4rule from internal to dmz srcip 10.10.5.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 3
+ipv4rule from internal to dmz srcip 10.10.5.0/24 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 3
+ipv4rule from internal to dmz srcip 10.10.6.10 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 3
+ipv4rule from internal to dmz srcip 10.10.6.10 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 3
+ipv4rule from dmz to external srcip 10.10.5.0/24 dstip 10.10.0.0/16 action drop log no prior 4
+ipv4rule from dmz to external srcip 10.10.6.10 dstip 10.10.0.0/16 action drop log no prior 4
+ipv6rule from dmz to external srcip 2001:db8:10:5::/64 dstip 2001:db8:10:5::/64 action drop log no prior 4
+ipv4rule from dmz to internal srcip 10.10.5.0/24 dstip 10.10.0.0/16 action drop log no prior 4
+ipv4rule from dmz to internal srcip 10.10.6.10 dstip 10.10.0.0/16 action drop log no prior 4
+ipv6rule from dmz to internal srcip 2001:db8:10:5::/64 dstip 2001:db8:10:5::/64 action drop log no prior 4
+ipv6rule from external to internal srcip 2001:db8:10:5::/64 dstip 2001:db8:203::10 action acc service FWS_tcp_443 log no prior 5
+ipv6rule from external to dmz srcip 2001:db8:10:5::/64 dstip 2001:db8:203::10 action acc service FWS_tcp_443 log no prior 5
+ipv6rule from external to internal srcip 2001:db8:10:5::/64 dstip 2001:db8:203::10 action drop service FWS_tcp_443 log no prior 6
+ipv6rule from external to dmz srcip 2001:db8:10:5::/64 dstip 2001:db8:203::10 action drop service FWS_tcp_443 log no prior 6
+ipv4rule from external to internal srcip 10.10.5.0/24 dstip 203.0.113.10 action acc service FWS_tcp_443 log no prior 7
+ipv4rule from external to internal srcip 10.10.6.10 dstip 203.0.113.10 action acc service FWS_tcp_443 log no prior 7
+ipv4rule from external to dmz srcip 10.10.5.0/24 dstip 203.0.113.10 action acc service FWS_tcp_443 log no prior 7
+ipv4rule from external to dmz srcip 10.10.6.10 dstip 203.0.113.10 action acc service FWS_tcp_443 log no prior 7
+ipv4rule from external to internal srcip 10.10.5.0/24 dstip 203.0.113.10 action drop service FWS_tcp_443 log no prior 8
+ipv4rule from external to internal srcip 10.10.6.10 dstip 203.0.113.10 action drop service FWS_tcp_443 log no prior 8
+ipv4rule from external to dmz srcip 10.10.5.0/24 dstip 203.0.113.10 action drop service FWS_tcp_443 log no prior 8
+ipv4rule from external to dmz srcip 10.10.6.10 dstip 203.0.113.10 action drop service FWS_tcp_443 log no prior 8
+ipv4rule from external to internal srcip 10.10.5.0/24 dstip 203.0.113.10 action drop service FWS_tcp_80 log no prior 8
+ipv4rule from external to internal srcip 10.10.6.10 dstip 203.0.113.10 action drop service FWS_tcp_80 log no prior 8
+ipv4rule from external to dmz srcip 10.10.5.0/24 dstip 203.0.113.10 action drop service FWS_tcp_80 log no prior 8
+ipv4rule from external to dmz srcip 10.10.6.10 dstip 203.0.113.10 action drop service FWS_tcp_80 log no prior 8
+ipv4rule from external to internal srcip 10.10.5.0/24 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 8
+ipv4rule from external to internal srcip 10.10.6.10 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 8
+ipv4rule from external to dmz srcip 10.10.5.0/24 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 8
+ipv4rule from external to dmz srcip 10.10.6.10 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 8
+ipv4rule from internal to external srcip 10.10.5.0/24 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 8
+ipv4rule from internal to external srcip 10.10.6.10 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 8
+ipv4rule from internal to dmz srcip 10.10.5.0/24 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 8
+ipv4rule from internal to dmz srcip 10.10.6.10 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 8
+ipv4rule from dmz to external srcip 10.10.5.0/24 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 8
+ipv4rule from dmz to external srcip 10.10.6.10 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 8
+ipv4rule from dmz to internal srcip 10.10.5.0/24 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 8
+ipv4rule from dmz to internal srcip 10.10.6.10 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 8
+ipv4rule from external to internal srcip 10.10.5.0/24 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 8
+ipv4rule from external to internal srcip 10.10.6.10 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 8
+ipv4rule from external to dmz srcip 10.10.5.0/24 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 8
+ipv4rule from external to dmz srcip 10.10.6.10 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 8
+ipv4rule from internal to external srcip 10.10.5.0/24 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 8
+ipv4rule from internal to external srcip 10.10.6.10 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 8
+ipv4rule from internal to dmz srcip 10.10.5.0/24 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 8
+ipv4rule from internal to dmz srcip 10.10.6.10 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 8
+ipv4rule from dmz to external srcip 10.10.5.0/24 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 8
+ipv4rule from dmz to external srcip 10.10.6.10 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 8
+ipv4rule from dmz to internal srcip 10.10.5.0/24 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 8
+ipv4rule from dmz to internal srcip 10.10.6.10 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 8
+ipv4rule from dmz to external srcip 10.10.5.0/24 dstip 192.168.50.0/24 action drop log no prior 8
+ipv4rule from dmz to external srcip 10.10.6.10 dstip 192.168.50.0/24 action drop log no prior 8
+ipv4rule from dmz to internal srcip 10.10.5.0/24 dstip 192.168.50.0/24 action drop log no prior 8
+ipv4rule from dmz to internal srcip 10.10.6.10 dstip 192.168.50.0/24 action drop log no prior 8
+ipv4rule from external to internal srcip 10.10.5.0/24 dstip 192.168.50.0/24 action drop log no prior 8
+ipv4rule from external to internal srcip 10.10.6.10 dstip 192.168.50.0/24 action drop log no prior 8
+ipv4rule from external to dmz srcip 10.10.5.0/24 dstip 192.168.50.0/24 action drop log no prior 8
+ipv4rule from external to dmz srcip 10.10.6.10 dstip 192.168.50.0/24 action drop log no prior 8
+ipv4rule from dmz to external srcip 10.10.5.0/24 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from dmz to external srcip 10.10.6.10 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from dmz to internal srcip 10.10.5.0/24 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from dmz to internal srcip 10.10.6.10 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from internal to external srcip 10.10.5.0/24 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from internal to external srcip 10.10.6.10 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from internal to dmz srcip 10.10.5.0/24 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from internal to dmz srcip 10.10.6.10 dstip 0.0.0.0/0 action drop log no prior 8
+ipv4rule from external to internal srcip 0.0.0.0/0 dstip 0.0.0.0/0 action rej service FWS_tcp-23 log no prior 9
+ipv6rule from external to internal srcip ::/0 dstip ::/0 action rej service FWS_tcp-23 log no prior 9
+ipv4rule from external to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action rej service FWS_tcp-23 log no prior 9
+ipv6rule from external to dmz srcip ::/0 dstip ::/0 action rej service FWS_tcp-23 log no prior 9
+ipv4rule from internal to external srcip 0.0.0.0/0 dstip 0.0.0.0/0 action rej service FWS_tcp-23 log no prior 9
+ipv6rule from internal to external srcip ::/0 dstip ::/0 action rej service FWS_tcp-23 log no prior 9
+ipv4rule from internal to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action rej service FWS_tcp-23 log no prior 9
+ipv6rule from internal to dmz srcip ::/0 dstip ::/0 action rej service FWS_tcp-23 log no prior 9
+ipv4rule from dmz to external srcip 0.0.0.0/0 dstip 0.0.0.0/0 action rej service FWS_tcp-23 log no prior 9
+ipv6rule from dmz to external srcip ::/0 dstip ::/0 action rej service FWS_tcp-23 log no prior 9
+ipv4rule from dmz to internal srcip 0.0.0.0/0 dstip 0.0.0.0/0 action rej service FWS_tcp-23 log no prior 9
+ipv6rule from dmz to internal srcip ::/0 dstip ::/0 action rej service FWS_tcp-23 log no prior 9
+ipv4rule from dmz to external srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_icmp-8-0 log no prior 10
+ipv4rule from dmz to internal srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_icmp-8-0 log no prior 10
+ipv4rule from internal to external srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_icmp-8-0 log no prior 10
+ipv4rule from internal to dmz srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_icmp-8-0 log no prior 10
+ipv4rule from dmz to external srcip 0.0.0.0/0 dstip 10.10.0.0/16 action drop service FWS_tcp-8080 log no prior 11
+ipv6rule from dmz to external srcip ::/0 dstip 2001:db8:10:5::/64 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from dmz to internal srcip 0.0.0.0/0 dstip 10.10.0.0/16 action drop service FWS_tcp-8080 log no prior 11
+ipv6rule from dmz to internal srcip ::/0 dstip 2001:db8:10:5::/64 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from external to internal srcip 0.0.0.0/0 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from external to dmz srcip 0.0.0.0/0 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from internal to external srcip 0.0.0.0/0 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from internal to dmz srcip 0.0.0.0/0 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from dmz to external srcip 0.0.0.0/0 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from dmz to internal srcip 0.0.0.0/0 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from dmz to external srcip 0.0.0.0/0 dstip 192.168.50.0/24 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from dmz to internal srcip 0.0.0.0/0 dstip 192.168.50.0/24 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from external to internal srcip 0.0.0.0/0 dstip 192.168.50.0/24 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from external to dmz srcip 0.0.0.0/0 dstip 192.168.50.0/24 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from dmz to external srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from dmz to internal srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from internal to external srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from internal to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp-8080 log no prior 11
+ipv4rule from internal to external srcip 0.0.0.0/0 dstip 203.0.113.53 action acc service FWS_udp-53 log no prior 12
+ipv4rule from internal to dmz srcip 0.0.0.0/0 dstip 203.0.113.53 action acc service FWS_udp-53 log no prior 12
+ipv4rule from internal to external srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_udp-53 log no prior 12
+ipv4rule from internal to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_udp-53 log no prior 12
+ipv4rule from internal to external srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 13
+ipv4rule from internal to external srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 13
+ipv4rule from internal to dmz srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_tcp_80 log info prior 13
+ipv4rule from internal to dmz srcip 10.10.0.0/16 dstip 0.0.0.0/0 action acc service FWS_tcp_443 log info prior 13
+ipv4rule from dmz to external srcip 0.0.0.0/0 dstip 10.10.0.0/16 action drop log no prior 14
+ipv6rule from dmz to external srcip ::/0 dstip 2001:db8:10:5::/64 action drop log no prior 14
+ipv4rule from dmz to internal srcip 0.0.0.0/0 dstip 10.10.0.0/16 action drop log no prior 14
+ipv6rule from dmz to internal srcip ::/0 dstip 2001:db8:10:5::/64 action drop log no prior 14
+ipv6rule from external to internal srcip ::/0 dstip 2001:db8:203::10 action acc service FWS_tcp_443 log no prior 15
+ipv6rule from external to dmz srcip ::/0 dstip 2001:db8:203::10 action acc service FWS_tcp_443 log no prior 15
+ipv6rule from external to internal srcip 2001:db8:ff::/48 dstip 2001:db8:203::10 action acc service FWS_tcp_443 log no prior 15
+ipv6rule from external to dmz srcip 2001:db8:ff::/48 dstip 2001:db8:203::10 action acc service FWS_tcp_443 log no prior 15
+ipv6rule from external to internal srcip ::/0 dstip 2001:db8:203::10 action drop service FWS_tcp_443 log no prior 16
+ipv6rule from external to dmz srcip ::/0 dstip 2001:db8:203::10 action drop service FWS_tcp_443 log no prior 16
+ipv4rule from external to internal srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_tcp_443 log no prior 17
+ipv4rule from external to dmz srcip 0.0.0.0/0 dstip 203.0.113.10 action acc service FWS_tcp_443 log no prior 17
+ipv4rule from external to internal srcip 0.0.0.0/0 dstip 203.0.113.10 action drop service FWS_tcp_443 log no prior 18
+ipv4rule from external to dmz srcip 0.0.0.0/0 dstip 203.0.113.10 action drop service FWS_tcp_443 log no prior 18
+ipv4rule from external to internal srcip 0.0.0.0/0 dstip 203.0.113.10 action drop service FWS_tcp_80 log no prior 18
+ipv4rule from external to dmz srcip 0.0.0.0/0 dstip 203.0.113.10 action drop service FWS_tcp_80 log no prior 18
+ipv4rule from external to internal srcip 192.0.2.0/24 dstip 203.0.113.53 action acc service FWS_udp-53 log no prior 19
+ipv4rule from external to dmz srcip 192.0.2.0/24 dstip 203.0.113.53 action acc service FWS_udp-53 log no prior 19
+ipv4rule from internal to external srcip 192.0.2.0/24 dstip 203.0.113.53 action acc service FWS_udp-53 log no prior 19
+ipv4rule from internal to dmz srcip 192.0.2.0/24 dstip 203.0.113.53 action acc service FWS_udp-53 log no prior 19
+ipv4rule from dmz to external srcip 192.0.2.0/24 dstip 203.0.113.53 action acc service FWS_udp-53 log no prior 19
+ipv4rule from dmz to internal srcip 192.0.2.0/24 dstip 203.0.113.53 action acc service FWS_udp-53 log no prior 19
+ipv4rule from external to internal srcip 0.0.0.0/0 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 20
+ipv4rule from external to dmz srcip 0.0.0.0/0 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 20
+ipv4rule from internal to external srcip 0.0.0.0/0 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 20
+ipv4rule from internal to dmz srcip 0.0.0.0/0 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 20
+ipv4rule from dmz to external srcip 0.0.0.0/0 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 20
+ipv4rule from dmz to internal srcip 0.0.0.0/0 dstip 203.0.113.53 action drop service FWS_udp-53 log no prior 20
+ipv4rule from external to internal srcip 0.0.0.0/0 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 20
+ipv4rule from external to dmz srcip 0.0.0.0/0 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 20
+ipv4rule from internal to external srcip 0.0.0.0/0 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 20
+ipv4rule from internal to dmz srcip 0.0.0.0/0 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 20
+ipv4rule from dmz to external srcip 0.0.0.0/0 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 20
+ipv4rule from dmz to internal srcip 0.0.0.0/0 dstip 203.0.113.60 action drop service FWS_tcp-8080 log no prior 20
+ipv4rule from dmz to external srcip 0.0.0.0/0 dstip 192.168.50.0/24 action drop log no prior 20
+ipv4rule from dmz to internal srcip 0.0.0.0/0 dstip 192.168.50.0/24 action drop log no prior 20
+ipv4rule from external to internal srcip 0.0.0.0/0 dstip 192.168.50.0/24 action drop log no prior 20
+ipv4rule from external to dmz srcip 0.0.0.0/0 dstip 192.168.50.0/24 action drop log no prior 20
+ipv4rule from dmz to external srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 20
+ipv4rule from dmz to internal srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 20
+ipv4rule from internal to external srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 20
+ipv4rule from internal to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 20
+ipv4rule from external to internal srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 20
+ipv6rule from external to internal srcip ::/0 dstip ::/0 action drop log no prior 20
+ipv4rule from external to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 20
+ipv6rule from external to dmz srcip ::/0 dstip ::/0 action drop log no prior 20
+ipv4rule from internal to external srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 20
+ipv6rule from internal to external srcip ::/0 dstip ::/0 action drop log no prior 20
+ipv4rule from internal to dmz srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 20
+ipv6rule from internal to dmz srcip ::/0 dstip ::/0 action drop log no prior 20
+ipv4rule from dmz to external srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 20
+ipv6rule from dmz to external srcip ::/0 dstip ::/0 action drop log no prior 20
+ipv4rule from dmz to internal srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 20
+ipv6rule from dmz to internal srcip ::/0 dstip ::/0 action drop log no prior 20
+exit
+end

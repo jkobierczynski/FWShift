@@ -1,0 +1,1168 @@
+# The policy, as data. Do not change it here: convert again.
+#
+#: {
+#:  "format": 1,
+#:  "generator": "FWShift (this version)",
+#:  "policy": "FWShift",
+#:  "template": "Firewall Template",
+#:  "comment": "Converted by FWShift from hisecos",
+#:  "zones": [
+#:   "port1_2",
+#:   "vlan20",
+#:   "port1_3",
+#:   "port1_1"
+#:  ],
+#:  "existing": [
+#:   {
+#:    "type": "default_nat_address_alias",
+#:    "name": "$$ Default NAT Address"
+#:   }
+#:  ],
+#:  "elements": [
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "plc-line1",
+#:     "address": "10.10.0.20",
+#:     "comment": "asset"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "historian",
+#:     "address": "10.20.0.50",
+#:     "comment": "asset"
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-502",
+#:     "min_dst_port": 502,
+#:     "max_dst_port": 502
+#:    }
+#:   },
+#:   {
+#:    "type": "icmp_service",
+#:    "body": {
+#:     "name": "icmp-type8",
+#:     "icmp_type": 8
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp",
+#:     "min_dst_port": 1,
+#:     "max_dst_port": 65535
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "udp-53-from-1024-65535",
+#:     "min_dst_port": 53,
+#:     "max_dst_port": 53,
+#:     "min_src_port": 1024,
+#:     "max_src_port": 65535
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-1433",
+#:     "min_dst_port": 1433,
+#:     "max_dst_port": 1433
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-80_443_8000-8010 tcp-80",
+#:     "min_dst_port": 80,
+#:     "max_dst_port": 80
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-80_443_8000-8010 tcp-443",
+#:     "min_dst_port": 443,
+#:     "max_dst_port": 443
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-80_443_8000-8010 tcp-8000-8010",
+#:     "min_dst_port": 8000,
+#:     "max_dst_port": 8010
+#:    }
+#:   },
+#:   {
+#:    "type": "service_group",
+#:    "body": {
+#:     "name": "tcp-80_443_8000-8010",
+#:     "element": [
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "tcp-80_443_8000-8010 tcp-80"
+#:      },
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "tcp-80_443_8000-8010 tcp-443"
+#:      },
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "tcp-80_443_8000-8010 tcp-8000-8010"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-443",
+#:     "min_dst_port": 443,
+#:     "max_dst_port": 443
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "esp",
+#:     "protocol_number": 50
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-22",
+#:     "min_dst_port": 22,
+#:     "max_dst_port": 22
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-8080",
+#:     "min_dst_port": 8080,
+#:     "max_dst_port": 8080
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-10.10.0.0_24",
+#:     "ipv4_network": "10.10.0.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "expression",
+#:    "body": {
+#:     "name": "not n-10.10.0.0_24",
+#:     "operator": "exclusion",
+#:     "ne_ref": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.10.0.0_24"
+#:      }
+#:     ],
+#:     "sub_expression": []
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "port1_2 and not n-10.10.0.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "port1_2"
+#:      },
+#:      {
+#:       "@ref": "expression",
+#:       "name": "not n-10.10.0.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-10.20.0.0_24",
+#:     "ipv4_network": "10.20.0.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "vlan20 and n-10.20.0.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "vlan20"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.20.0.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-172.16.10.30",
+#:     "address": "172.16.10.30"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "port1_2 and n-10.10.0.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "port1_2"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.10.0.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-198.51.100.53",
+#:     "address": "198.51.100.53"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "port1_1 and h-198.51.100.53",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "port1_1"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-198.51.100.53"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-10.30.0.10",
+#:     "address": "10.30.0.10"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-192.0.2.10",
+#:     "address": "192.0.2.10"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-198.51.100.0_24",
+#:     "ipv4_network": "198.51.100.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "port1_1 and n-198.51.100.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "port1_1"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-198.51.100.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-10.30.0.64_28",
+#:     "ipv4_network": "10.30.0.64/28",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "port1_3 and n-10.30.0.64_28",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "port1_3"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.30.0.64_28"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-203.0.113.0_24",
+#:     "ipv4_network": "203.0.113.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "port1_1 and n-203.0.113.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "port1_1"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-203.0.113.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-10.30.0.20",
+#:     "address": "10.30.0.20"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-10.30.0.0_24",
+#:     "ipv4_network": "10.30.0.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-172.16.20.40",
+#:     "address": "172.16.20.40"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-192.0.2.64_28",
+#:     "ipv4_network": "192.0.2.64/28",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-10.10.0.30",
+#:     "address": "10.10.0.30"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-10.20.0.40",
+#:     "address": "10.20.0.40"
+#:    }
+#:   }
+#:  ],
+#:  "rules": {
+#:   "fw_ipv4_access_rule": [
+#:    {
+#:     "name": "rule-30",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "port1_2 and not n-10.10.0.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "anti-spoof-cell"
+#:    },
+#:    {
+#:     "name": "rule-10",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "vlan20 and n-10.20.0.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "n-10.10.0.0_24"
+#:       },
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-172.16.10.30"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-502"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "scada-to-cell"
+#:    },
+#:    {
+#:     "name": "rule-20",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "vlan20 and n-10.20.0.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "plc-line1"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-502"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report. modbus-enforced"
+#:    },
+#:    {
+#:     "name": "rule-40",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "port1_3"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "icmp_service",
+#:        "name": "icmp-type8"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "ping-dmz"
+#:    },
+#:    {
+#:     "name": "rule-40-2",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "port1_3"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "icmp_service",
+#:        "name": "icmp-type8"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "ping-dmz"
+#:    },
+#:    {
+#:     "name": "rule-100",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "port1_2 and n-10.10.0.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report. syn-only"
+#:    },
+#:    {
+#:     "name": "rule-50",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "port1_2 and n-10.10.0.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "port1_1 and h-198.51.100.53"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53-from-1024-65535"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "dns-out"
+#:    },
+#:    {
+#:     "name": "rule-130",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "port1_2 and n-10.10.0.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "historian"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "cell-to-historian"
+#:    },
+#:    {
+#:     "name": "rule-60",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "port1_1"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-10.30.0.10"
+#:       },
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-192.0.2.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-80_443_8000-8010"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "web-dmz"
+#:    },
+#:    {
+#:     "name": "rule-110",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "port1_1 and n-198.51.100.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "block-partner"
+#:    },
+#:    {
+#:     "name": "rule-150",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "port1_3 and n-10.30.0.64_28"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "dmz-servers-out"
+#:    },
+#:    {
+#:     "name": "rule-70",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "port1_1 and n-203.0.113.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-10.30.0.20"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "esp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "vpn-esp"
+#:    },
+#:    {
+#:     "name": "rule-90",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "port1_1"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "wan-reject"
+#:    },
+#:    {
+#:     "name": "rule-80",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "n-10.30.0.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "n-10.20.0.0_24"
+#:       },
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-172.16.20.40"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-22"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "spare"
+#:    }
+#:   ],
+#:   "fw_ipv6_access_rule": []
+#:  },
+#:  "nat": {
+#:   "fw_ipv4_nat_rule": [
+#:    {
+#:     "name": "1to1nat-1",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "n-10.30.0.64_28"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "static_src_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "element": {
+#:         "@ref": "network",
+#:         "name": "n-10.30.0.64_28"
+#:        }
+#:       },
+#:       "translated_value": {
+#:        "element": {
+#:         "@ref": "network",
+#:         "name": "n-192.0.2.64_28"
+#:        }
+#:       }
+#:      }
+#:     },
+#:     "comment": "dmz-servers"
+#:    },
+#:    {
+#:     "name": "1to1nat-1 (inbound)",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "n-192.0.2.64_28"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "static_dst_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "element": {
+#:         "@ref": "network",
+#:         "name": "n-192.0.2.64_28"
+#:        }
+#:       },
+#:       "translated_value": {
+#:        "element": {
+#:         "@ref": "network",
+#:         "name": "n-10.30.0.64_28"
+#:        }
+#:       }
+#:      }
+#:     },
+#:     "comment": "dmz-servers"
+#:    },
+#:    {
+#:     "name": "doublenat-1",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-10.10.0.30"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-172.16.20.40"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "static_dst_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "ip_descriptor": "172.16.20.40"
+#:       },
+#:       "translated_value": {
+#:        "ip_descriptor": "10.20.0.40"
+#:       }
+#:      },
+#:      "static_src_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "ip_descriptor": "10.10.0.30"
+#:       },
+#:       "translated_value": {
+#:        "ip_descriptor": "172.16.10.30"
+#:       }
+#:      }
+#:     },
+#:     "comment": "overlap"
+#:    },
+#:    {
+#:     "name": "doublenat-1-reverse",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-10.20.0.40"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-172.16.10.30"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "static_dst_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "ip_descriptor": "172.16.10.30"
+#:       },
+#:       "translated_value": {
+#:        "ip_descriptor": "10.10.0.30"
+#:       }
+#:      },
+#:      "static_src_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "ip_descriptor": "10.20.0.40"
+#:       },
+#:       "translated_value": {
+#:        "ip_descriptor": "172.16.20.40"
+#:       }
+#:      }
+#:     },
+#:     "comment": "overlap"
+#:    },
+#:    {
+#:     "name": "dnat-1",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-192.0.2.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8080"
+#:       }
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "static_dst_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "ip_descriptor": "192.0.2.10",
+#:        "min_port": "8080",
+#:        "max_port": "8080"
+#:       },
+#:       "translated_value": {
+#:        "ip_descriptor": "10.30.0.10",
+#:        "min_port": "80",
+#:        "max_port": "80"
+#:       }
+#:      }
+#:     },
+#:     "comment": "web-in"
+#:    },
+#:    {
+#:     "name": "masq-1",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "n-10.10.0.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "dynamic_src_nat": {
+#:       "automatic_proxy": true,
+#:       "translation_values": [
+#:        {
+#:         "element": {
+#:          "@ref": "default_nat_address_alias",
+#:          "name": "$$ Default NAT Address"
+#:         },
+#:         "min_port": 1024,
+#:         "max_port": 65535
+#:        }
+#:       ]
+#:      }
+#:     },
+#:     "comment": "cell-out"
+#:    }
+#:   ],
+#:   "fw_ipv6_nat_rule": []
+#:  }
+#: }

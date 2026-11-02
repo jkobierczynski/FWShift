@@ -1,0 +1,728 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "Admins to DMZ (not written, see the report); Block geo (not written, see the report); DMZ out via pool (not written, see the report); policy-12 (not written, see the report); Not web (disabled in the source)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80
+          ],
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN to Internet"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN to Internet"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN to Internet"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN to Internet"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN basics"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN basics"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "icmp": {
+          "type": 8
+        },
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN basics"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8080,
+            8443,
+            "9000:9010"
+          ],
+          "nets": [
+            "10.20.0.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Inbound web"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            25
+          ],
+          "nets": [
+            "10.20.0.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Inbound mail"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.7.15/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            502
+          ],
+          "nets": [
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "SCADA to PLCs"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.30.1.0/24"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "OT no internet"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": 47,
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.99.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Partner tunnel"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "ports": [
+            "1024:65535"
+          ],
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            514
+          ],
+          "nets": [
+            "10.99.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Partner tunnel"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "icmp": {
+          "type": 13
+        },
+        "source": {
+          "nets": [
+            "10.10.5.10/31",
+            "10.10.5.12/30",
+            "10.10.5.16/30",
+            "10.10.5.20/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.0.10/32",
+            "10.20.0.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Timestamp probes"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            80
+          ],
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN to Internet"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN to Internet"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN to Internet"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN to Internet"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN basics"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            53
+          ],
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN basics"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "icmp": {
+          "type": 8
+        },
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "LAN basics"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8080,
+            8443,
+            "9000:9010"
+          ],
+          "nets": [
+            "10.20.0.10/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Inbound web"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            25
+          ],
+          "nets": [
+            "10.20.0.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Inbound mail"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.10.7.15/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            502
+          ],
+          "nets": [
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "SCADA to PLCs"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.30.1.0/24"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "10.10.0.0/15",
+            "10.20.0.0/24",
+            "10.30.1.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "OT no internet"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": 47,
+        "source": {
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.99.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Partner tunnel"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "ports": [
+            "1024:65535"
+          ],
+          "nets": [
+            "10.10.0.0/15"
+          ]
+        },
+        "destination": {
+          "ports": [
+            514
+          ],
+          "nets": [
+            "10.99.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Partner tunnel"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "icmp": {
+          "type": 13
+        },
+        "source": {
+          "nets": [
+            "10.10.5.10/31",
+            "10.10.5.12/30",
+            "10.10.5.16/30",
+            "10.10.5.20/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.0.10/32",
+            "10.20.0.25/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Timestamp probes"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,66 @@
+packet-filter l3 addrule 1001 srcip any dstip 192.0.2.66 proto any action reject log disable trap disable description Block_Bad
+packet-filter l3 enablerule 1001
+packet-filter l3 addif Trusted rule 1001 direction ingress priority 1001
+packet-filter l3 addif Guests rule 1001 direction ingress priority 1001
+packet-filter l3 addrule 1002 srcip any dstip 203.0.113.0/25 proto any action reject log disable trap disable description Block_Bad
+packet-filter l3 enablerule 1002
+packet-filter l3 addif Trusted rule 1002 direction ingress priority 1002
+packet-filter l3 addif Guests rule 1002 direction ingress priority 1002
+packet-filter l3 addrule 1003 srcip 10.10.5.10/31 dstip any proto tcp dstport 22 action accept log disable trap disable description Admin_SSH
+packet-filter l3 enablerule 1003
+packet-filter l3 addif Trusted rule 1003 direction ingress priority 1003
+packet-filter l3 addif External rule 1003 direction egress priority 1003
+packet-filter l3 addrule 1004 srcip 10.10.5.12/30 dstip any proto tcp dstport 22 action accept log disable trap disable description Admin_SSH
+packet-filter l3 enablerule 1004
+packet-filter l3 addif Trusted rule 1004 direction ingress priority 1004
+packet-filter l3 addif External rule 1004 direction egress priority 1004
+packet-filter l3 addrule 1005 srcip 10.10.5.16/30 dstip any proto tcp dstport 22 action accept log disable trap disable description Admin_SSH
+packet-filter l3 enablerule 1005
+packet-filter l3 addif Trusted rule 1005 direction ingress priority 1005
+packet-filter l3 addif External rule 1005 direction egress priority 1005
+packet-filter l3 addrule 1006 srcip 10.10.5.20 dstip any proto tcp dstport 22 action accept log disable trap disable description Admin_SSH
+packet-filter l3 enablerule 1006
+packet-filter l3 addif Trusted rule 1006 direction ingress priority 1006
+packet-filter l3 addif External rule 1006 direction egress priority 1006
+packet-filter l3 addrule 1007 srcip any dstip any proto tcp dstport 80,443,8000-8010 action accept log disable trap disable description Web_Out
+packet-filter l3 enablerule 1007
+packet-filter l3 addif Trusted rule 1007 direction ingress priority 1007
+packet-filter l3 addif Guests rule 1007 direction ingress priority 1007
+packet-filter l3 addif DMZ rule 1007 direction ingress priority 1007
+packet-filter l3 addif External rule 1007 direction egress priority 1007
+packet-filter l3 addrule 1008 srcip any dstip 10.20.0.10 proto tcp dstport 443 action accept log disable trap disable description Web_In
+packet-filter l3 enablerule 1008
+packet-filter l3 addif External rule 1008 direction ingress priority 1008
+packet-filter l3 addrule 1009 srcip any dstip 10.20.0.25 proto tcp dstport 2525 action accept log disable trap disable description Mail_In
+packet-filter l3 enablerule 1009
+packet-filter l3 addif External rule 1009 direction ingress priority 1009
+packet-filter l3 addrule 1010 srcip 0.0.0.0 dstip 0.0.0.0 proto any action accept log disable trap disable description DMZ_Updates
+packet-filter l3 disablerule 1010
+packet-filter l3 addrule 1011 srcip any dstip any proto tcp dstport 53 action accept log disable trap disable description Guests_Out
+packet-filter l3 disablerule 1011
+packet-filter l3 addif Guests rule 1011 direction ingress priority 1011
+packet-filter l3 addif External rule 1011 direction egress priority 1011
+packet-filter l3 addrule 1012 srcip any dstip any proto udp dstport 53 action accept log disable trap disable description Guests_Out
+packet-filter l3 disablerule 1012
+packet-filter l3 addif Guests rule 1012 direction ingress priority 1012
+packet-filter l3 addif External rule 1012 direction egress priority 1012
+packet-filter l3 addrule 1013 srcip any dstip 10.20.0.10 proto tcp dstport 3389 action accept log disable trap disable description Staff_Only
+packet-filter l3 disablerule 1013
+packet-filter l3 addif Trusted rule 1013 direction ingress priority 1013
+packet-filter l3 addrule 1014 srcip any dstip any proto icmp param type=8 action accept log disable trap disable description Ping
+packet-filter l3 enablerule 1014
+packet-filter l3 addif Trusted rule 1014 direction ingress priority 1014
+packet-filter l3 addif Guests rule 1014 direction ingress priority 1014
+packet-filter l3 addrule 1015 srcip 0.0.0.0 dstip 0.0.0.0 proto any action accept log disable trap disable description Lab_Tunnel
+packet-filter l3 disablerule 1015
+packet-filter l3 addrule 1016 srcip any dstip any proto any action drop log disable trap disable description fwshift-default
+packet-filter l3 enablerule 1016
+packet-filter l3 addif External rule 1016 direction ingress priority 1016
+packet-filter l3 addif Trusted rule 1016 direction ingress priority 1016
+packet-filter l3 addif DMZ rule 1016 direction ingress priority 1016
+packet-filter l3 addif Guests rule 1016 direction ingress priority 1016
+packet-filter l3 addif Lab rule 1016 direction ingress priority 1016
+nat dnat add 201 srcip any srcport any dstip 198.51.100.10 dstport 443 proto tcp newdstip 10.20.0.10 newdstport any description Web-Public__Web_In_
+nat dnat if add External rule 201 direction ingress priority 201
+nat dnat add 202 srcip any srcport any dstip 198.51.100.11 dstport 25 proto tcp newdstip 10.20.0.25 newdstport 2525 description Mail-Public__Mail_In_
+nat dnat if add External rule 202 direction ingress priority 202

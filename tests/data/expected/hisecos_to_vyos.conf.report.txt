@@ -1,0 +1,87 @@
+FWShift conversion report
+  source: hisecos (IPv4)
+  target: vyos
+
+Summary
+  Security rules:     14   exact 10, approximated 0, needs review 4 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 2, approximated 3, needs review 0, skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           10   exact 10, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HISECOS_NOT_CONVERTED: settings that change what passes and are not converted: deep packet inspection (enforcer profiles)
+  [needs-review] HISECOS_DIRECTION_ORDER: the policy mixes assignments for ingress only with assignments for egress only; the MIB does not say how they are ordered against each other, and they are read as one order by priority: rules assigned for ingress only and rules assigned for egress only
+  [needs-review] VYOS_LOAD: load the commands in configuration mode: 'configure', paste them, 'compare', then 'commit-confirm 10' (unless 'confirm' follows within 10 minutes, VyOS goes back to the configuration before; older releases reboot to do so) and 'save'. A commit applies all of them or none. The policy is written as the zone-based firewall: zones port1_1, port1_2, port1_3, vlan20, and a chain FWS-<from>-<to> for each pair of zones that needs one. Interfaces of the router in no zone: VyOS drops their traffic into a zone and leaves traffic from a zone to them to the forward filter; that traffic is decided by chain FWS-NO-ZONE (the rules for any destination and the default of the policy), jumped to from rule 10000 of the forward filter for what leaves by an interface not in interface group FWS-ZONES. Check that the forward filter has no rule 10000 (show firewall ipv4 forward filter), or give another number with --policy-id-start; its rules with lower numbers come first, and those after rule 10000 are no longer reached by what the chain decides, as it ends with the default of the policy. The forward filter of the router still applies before the zones (an accept there goes on to the zones, a drop is final). A zone of the same name that exists gets these interfaces and chains in addition to its own; a chain set for a pair that has one replaces it. NAT rules are numbered from 10000: rules of the router with lower numbers come first. To take a conversion away: delete the groups, chains, zones and NAT rules the commands name (all under FWS-, and the NAT rules from 10000 on). Assumed: names of up to 63 characters
+  [needs-review] INTERFACES_REQUIRED: zones need the interfaces of the router: these were written with their own name as interface, which matches no traffic until it is replaced (--interface-map, or --zone-map with zones of the router's interfaces): port1_1, port1_2, port1_3, vlan20 (interfaces of the source that are no names of Linux interfaces: port1_1: 1/1; port1_2: 1/2; port1_3: 1/3; vlan20: vlan/20)
+  [needs-review] VYOS_NO_ZONE: traffic from a zone to an interface in no zone is decided by chain FWS-NO-ZONE; its replies come in from an interface in no zone, which VyOS drops at the zones unless 'firewall global-options state-policy' accepts established and related packets (the commands do not set it, as it applies to the whole router)
+  [needs-review] ONE_IP_VERSION: the source policy is for IPv4 only: the commands write IPv4 chains only, and the router goes on deciding IPv6 as its own configuration says
+  [info] HISECOS_SOURCE: 13 rules of the packet filter, 12 of them assigned and enabled, in the order of their priorities; zones are the routing interfaces (port1_1, port1_2, port1_3, vlan20); IPv4 only. The keywords of the commands are FWShift's reading of the MIB and the command list of the CLI reference, not confirmed by its Format lines
+  [info] HISECOS_DEFAULT: what no rule matches meets the default policy, drop (packet-filter l3 defaultpolicy)
+  [info] HISECOS_NAT_ORDER: destination NAT and 1:1 NAT are read as done before the packet filter, whose rules name the translated address (HiSecOS is built on netfilter; not confirmed): the rules were rewritten for the address as it arrives. Masquerading is done after it. The NAT rules are read in the order 1:1 NAT, double NAT, destination NAT, masquerading, each by priority (an assumption)
+  [info] HISECOS_MANAGEMENT: the device's own management access (network management access) is not converted; entries: entry 1
+  [info] HISECOS_EDITS: commands that change or delete rules, carried out in the order of the script: delrule 140
+  [info] VYOS_LOG: rules that log the start of a connection have 'log': VyOS logs every packet the rule matches, which, after the replies are accepted at the top of each chain, is the first packet of each connection
+
+Security rules
+  rule-30  ->  exact  (emitted as FWS-port1_2-port1_1 rule 10, FWS-port1_2-port1_2 rule 10, FWS-port1_2-port1_3 rule 10, FWS-port1_2-vlan20 rule 10, FWS-NO-ZONE rule 10)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (port1_1, port1_2, port1_3, vlan20); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  rule-10  ->  exact  (emitted as FWS-vlan20-port1_1 rule 10, FWS-vlan20-port1_2 rule 10, FWS-vlan20-port1_3 rule 10, FWS-vlan20-vlan20 rule 10, FWS-NO-ZONE rule 20)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (port1_1, port1_2, port1_3, vlan20); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  rule-20  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: traffic it matches is handed to the Modbus enforcer (deep packet inspection, profile 1), which forwards or drops it by content.
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (port1_1, port1_2, port1_3, vlan20); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  rule-40  ->  exact  (emitted as FWS-port1_3-port1_1 rule 10, FWS-port1_3-port1_2 rule 10, FWS-port1_3-port1_3 rule 10, FWS-port1_3-vlan20 rule 10, FWS-NO-ZONE rule 30)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (port1_1, port1_2, port1_3, vlan20); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  rule-40-2  ->  exact  (emitted as FWS-port1_1-port1_3 rule 10, FWS-port1_2-port1_3 rule 20, FWS-port1_3-port1_3 rule 20, FWS-vlan20-port1_3 rule 20)
+      [info] HISECOS_SPLIT: rule 40 is assigned at more than one place in the order (interfaces, directions or priorities); this is its placement number 2
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (port1_1, port1_2, port1_3, vlan20); traffic from an interface in no zone into a zone VyOS drops
+  rule-100  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: parameter flags=SYN is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (port1_1, port1_2, port1_3, vlan20); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  rule-130  ->  exact  (emitted as FWS-port1_2-port1_1 rule 30, FWS-port1_2-port1_2 rule 20, FWS-port1_2-port1_3 rule 30, FWS-port1_2-vlan20 rule 20, FWS-NO-ZONE rule 40)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (port1_1, port1_2, port1_3, vlan20); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  rule-60  ->  needs-review  (emitted as FWS-port1_1-port1_1 rule 10, FWS-port1_1-port1_2 rule 10, FWS-port1_1-port1_3 rule 20, FWS-port1_1-vlan20 rule 10, FWS-NO-ZONE rule 50)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (port1_1, port1_2, port1_3, vlan20); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  rule-110  ->  needs-review  (emitted as FWS-port1_1-port1_1 rule 20, FWS-port1_1-port1_2 rule 20, FWS-port1_1-port1_3 rule 30, FWS-port1_1-vlan20 rule 20, FWS-NO-ZONE rule 60)
+      [needs-review] HISECOS_PRIORITY_TIE: rules 60, 110 have priority 40 and different actions; the device keeps no defined order between them, and they are read in the order of their indexes
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (port1_1, port1_2, port1_3, vlan20); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  rule-150  ->  exact  (emitted as FWS-port1_3-port1_1 rule 20, FWS-port1_3-port1_2 rule 20, FWS-port1_3-port1_3 rule 30, FWS-port1_3-vlan20 rule 20, FWS-NO-ZONE rule 70)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (port1_1, port1_2, port1_3, vlan20); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  rule-70  ->  exact  (emitted as FWS-port1_1-port1_1 rule 30, FWS-port1_1-port1_2 rule 30, FWS-port1_1-port1_3 rule 40, FWS-port1_1-vlan20 rule 30, FWS-NO-ZONE rule 80)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (port1_1, port1_2, port1_3, vlan20); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  rule-90  ->  exact  (emitted as FWS-port1_1-port1_1 rule 40, FWS-port1_1-port1_2 rule 40, FWS-port1_1-port1_3 rule 50, FWS-port1_1-vlan20 rule 40, FWS-NO-ZONE rule 90)
+      [info] RULE_SPLIT: written in the chains of 4 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (port1_1, port1_2, port1_3, vlan20); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+  rule-80  ->  exact  (emitted as FWS-port1_1-port1_1 rule 50, FWS-port1_1-port1_2 rule 50, FWS-port1_1-port1_3 rule 60, FWS-port1_1-vlan20 rule 50, FWS-port1_2-port1_1 rule 40, FWS-port1_2-port1_2 rule 30, FWS-port1_2-port1_3 rule 40, FWS-port1_2-vlan20 rule 30, FWS-port1_3-port1_1 rule 30, FWS-port1_3-port1_2 rule 30, FWS-port1_3-port1_3 rule 40, FWS-port1_3-vlan20 rule 30, FWS-vlan20-port1_1 rule 20, FWS-vlan20-port1_2 rule 20, FWS-vlan20-port1_3 rule 30, FWS-vlan20-vlan20 rule 20, FWS-NO-ZONE rule 100)
+      [info] HISECOS_NOT_ASSIGNED: rule 80 is assigned to no interface, so it applies to no traffic: read as disabled, at the end
+      [info] RULE_SPLIT: written in the chains of 16 pairs of zones
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (port1_1, port1_2, port1_3, vlan20); it is also written for traffic to interfaces in no zone, which VyOS leaves to the forward filter; traffic from an interface in no zone into a zone VyOS drops
+
+NAT rules
+  1to1nat-1  ->  approximated  (emitted as destination rule 10000, source rule 10000)
+      [info] HISECOS_1TO1: 1:1 NAT read as a static translation in both directions: the new target addresses leave as the target addresses, and connections to the target addresses reach the new ones (not confirmed)
+      [approximated] NAT_STATIC_RANGE: static NAT of several addresses becomes SNAT to a range, which does not promise that each host keeps the same translated address
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from port1_3 only; nat source cannot match the input interface, so it applies to traffic from every interface
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as an SNAT rule plus a DNAT rule for the inbound direction
+  doublenat-1  ->  approximated  (emitted as destination rule 10010, source rule 10010)
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from port1_2 only; nat source cannot match the input interface, so it applies to traffic from every interface
+      [approximated] NAT_OUTPUT_INTERFACE: the rule also translates the destination, so the traffic does not leave by vlan20; its source translation is written for every output interface
+      [approximated] NAT_AFTER_DNAT: the source translation of this rule is matched after its destination translation; a NAT rule of VyOS cannot match the destination a connection had before it, so it also applies to traffic from the same sources sent to the translated address directly
+  doublenat-1-reverse  ->  approximated  (emitted as destination rule 10020, source rule 10020)
+      [info] HISECOS_DOUBLE_NAT: double NAT read as two rules, one for each direction, each translating the source and the destination (not confirmed)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from vlan20 only; nat source cannot match the input interface, so it applies to traffic from every interface
+      [approximated] NAT_OUTPUT_INTERFACE: the rule also translates the destination, so the traffic does not leave by port1_2; its source translation is written for every output interface
+      [approximated] NAT_AFTER_DNAT: the source translation of this rule is matched after its destination translation; a NAT rule of VyOS cannot match the destination a connection had before it, so it also applies to traffic from the same sources sent to the translated address directly

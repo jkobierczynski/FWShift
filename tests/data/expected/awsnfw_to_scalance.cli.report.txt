@@ -1,0 +1,139 @@
+FWShift conversion report
+  source: aws-network-firewall (pol-inspection)
+  target: scalance
+
+Summary
+  Security rules:     41   exact 0, approximated 0, needs review 0, skipped 41
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           21   exact 21, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWSNFW_ASYMMETRIC: one direction of some connections is passed by the stateless rules and the other forwarded to the stateful engine, which then sees half a flow and may drop it (sl-edge-8, the stateless default action aws:forward_to_sfe). The converted policy leaves those connections to the stateful rules
+  [needs-review] AWSNFW_STATELESS_NOT_WORKED_OUT: some stateless rules cannot be read (TCP flags, a rule group not in the input, a value that cannot be read): they are not converted, and what the rules after them and the replies meet was worked out as if they matched nothing
+  [needs-review] AWSNFW_GROUP_MISSING: the policy names rule groups that are not in the input: ThreatSignaturesMalwareStrictOrder. Their rules are not converted; add the answers of describe-rule-group
+  [needs-review] SCALANCE_LOAD: the output is CLI commands for the FIREWALL and FIREWALL NAT modes (section 10): 0 IP rules with no rules. The device processes rules by ascending priority: rules it has with a lower priority come first. Commands take effect as they are entered; nothing is deleted and nothing is saved
+  [needs-review] SCALANCE_IPV6: ipv6rule and ICMP services of IPv6 are written in the form of the IPv4 commands; no Siemens manual FWShift could read shows them: check them on the device
+  [info] AWSNFW_FRAGMENTS: UDP fragments that no stateless rule matches are handled by aws:drop, other packets by the default for full packets; the model has no fragments, and the converted policy follows the default for full packets. Fragments of other protocols are dropped
+  [info] AWSNFW_STATELESS_FORWARD: these stateless rules forward what they match to the stateful engine, so the stateless rules below them do not see it: sl-edge-10
+  [info] AWSNFW_ALERT_RULES: 1 alert rule decides nothing (an alert only logs) and was left out
+  [info] AWSNFW_CUSTOM_ACTIONS: custom actions publish metrics to CloudWatch; they decide nothing and are not converted
+  [info] AWSNFW_HOME_NET: HOME_NET is 10.20.0.0/16, 2001:db8:20::/56 (the CIDR blocks of VPC vpc-0a1b2c3d4e5f60789); EXTERNAL_NET is everything else, unless a rule group sets it
+  [info] AWSNFW_NO_ZONES: the firewall sits in a route path and names no zones or interfaces: the converted policy has none. A target with zones needs the networks behind them (--zone-network)
+
+Security rules
+  sl-edge-1-replies  ->  skipped
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-1, which drops them, so the connections are blocked whatever else would allow them
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-20-replies  ->  skipped
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [needs-review] SERVICE_NEGATE: every service but some: a rule of the device names one service. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-20-replies-2  ->  skipped
+      [info] AWSNFW_REPLY_DROPPED: the stateless engine filters each packet: the replies of these connections meet sl-edge-20, which drops them, so the connections are blocked whatever else would allow them
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-1  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-5  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sl-edge-6  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sl-edge-12  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: TCP flags: the rule matches some packets of a connection and not others. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sl-edge-20  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ThreatSignaturesMalwareStrictOrder-1  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule group ThreatSignaturesMalwareStrictOrder is not in the input; add the answer of describe-rule-group for arn:aws:network-firewall:eu-west-1:aws-managed:stateful-rulegroup/ThreatSignaturesMalwareStrictOrder (an AWS managed rule group, whose rules AWS may not show). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-100  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-baseline-101  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-baseline-102  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-102-rev  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-103  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-105  ->  skipped
+      [needs-review] SERVICE_NOT_WRITTEN: ICMPv6 type 8 without a code: an ICMP service of the device names a type and a code, and FWShift knows no codes of this type.
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-baseline-106  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-baseline-107  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-app-1000  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-app-1003  ->  skipped
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-app-1004  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-app-1005  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+      [needs-review] ZONE_DYNAMIC: 'branches' holds members only its platform knows.
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-app-1005-rev  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'branches': the entries of prefix list pl-0f9e8d7c6b5a40321 are not in the input (add the answer of aws ec2 get-managed-prefix-list-entries, wrapped with its PrefixListId).
+      [needs-review] ZONE_DYNAMIC: 'branches' holds members only its platform knows.
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-app-1007  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-app-1008  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written
+  sf-app-1011  ->  skipped
+      [info] AWSNFW_REJECT_NOT_TCP: reject sends a TCP reset, and is for TCP only; the rule, which matches other protocols too, is read as drop
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-app-1012  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-app-1013  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  stateful-default-not-tcp  ->  skipped
+      [needs-review] SERVICE_NEGATE: every service but some: a rule of the device names one service. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-baseline-100-reply  ->  skipped
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-100 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-baseline-103-reply  ->  skipped
+      [info] AWSNFW_REPLY_READING: rule sf-baseline-103 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-app-1003-reply  ->  skipped
+      [info] AWSNFW_REPLY_READING: rule sf-app-1003 matches packets in the direction of its header, so also the first reply of a connection opened the other way (it has no flow:to_server); this rule is what it decides then
+      [approximated] AWSNFW_APP_TIMING: dns over UDP is identified on the first packet, over TCP once data flows; the converted rule decides both on the first packet, so over TCP it may decide a connection that a rule below it, or the default action, decides on the firewall
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-app-1009-reply  ->  skipped
+      [info] AWSNFW_REPLY_READING: rule sf-app-1009 matches packets in the direction of its header, so also the first reply of a connection opened the other way; this rule is what it decides then
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-app-1001  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-app-1002  ->  skipped
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  sf-app-1006  ->  skipped
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword http.uri. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: keyword content:"/admin". This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-block-1  ->  skipped
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-egress-1  ->  skipped
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: tls.sni: the rule matches by domain name, which is not an address.
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  dl-egress-2  ->  skipped
+      [needs-review] APP_TO_PORTS: the source blocked applications ssl on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dl-egress-3  ->  skipped
+      [approximated] APP_TO_PORTS: applications web-browsing reduced to their well-known ports (the source matched them on any port); layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNSUPPORTED_MATCH: not converted: http.host: the rule matches by domain name, which is not an address.
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  dl-egress-4  ->  skipped
+      [needs-review] APP_TO_PORTS: the source blocked applications web-browsing on every port; only their well-known ports are blocked now, so the same applications on other ports are no longer stopped by this rule
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  sf-app-1010  ->  skipped
+      [info] AWSNFW_NEVER_MATCHES: with aws:drop_established a flow that no rule passed is dropped before this rule can match; the rule is disabled in the converted policy: pass tcp any any -> $HOME_NET any (msg:"established to clients"; flow:established,to_client; sid:1010;)
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the device cannot be disabled: not written

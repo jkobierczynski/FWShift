@@ -1,0 +1,87 @@
+FWShift conversion report
+  source: kubernetes
+  target: scalance
+
+Summary
+  Security rules:     33   exact 0, approximated 0, needs review 0, skipped 33
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     15   exact 15, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] SCALANCE_LOAD: the output is CLI commands for the FIREWALL and FIREWALL NAT modes (section 10): 0 IP rules with no rules. The device processes rules by ascending priority: rules it has with a lower priority come first. Commands take effect as they are entered; nothing is deleted and nothing is saved
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+
+Security rules
+  node 10.0.0.11 to its pods  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  pods from node 10.0.0.11  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  node 10.0.0.12 to its pods  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  pods from node 10.0.0.12  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  shop/web-egress/egress-1 + shop/web-to-cart/ingress-1  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  shop/web-egress/egress-2  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  shop/web-egress/egress-3  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  isolated/egress  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop/cart-egress/egress-1 + shop/cart-to-db/ingress-1  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  shop/cart-egress/egress-2  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  isolated/egress-2  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  isolated/egress-3  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  payments/worker-egress/egress-1  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  isolated/egress-4  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop/allow-web/ingress-1  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  shop/allow-web/ingress-1-2  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  shop/allow-web/ingress-2  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  isolated/ingress  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop/web-to-cart/ingress-1  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  isolated/ingress-2  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop/cart-to-db/ingress-1  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  isolated/ingress-3  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  payments/api-ingress/ingress-1  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  payments/api-ingress/ingress-1-2  ->  skipped
+      [needs-review] SERVICE_SCTP: SCTP ports: an IP service of the device is TCP or UDP.
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  payments/api-ingress/ingress-3  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  isolated/ingress-4  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  isolated/ingress-5  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  monitoring/scrape-only/ingress-1  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  isolated/ingress-6  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dev/not-from-prod/ingress-1  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  isolated/ingress-7  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  not isolated: from pods  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.
+  not isolated: to pods  ->  skipped
+      [needs-review] SCALANCE_NO_ZONES: the policy names no zones: a rule of the device names its two interfaces.

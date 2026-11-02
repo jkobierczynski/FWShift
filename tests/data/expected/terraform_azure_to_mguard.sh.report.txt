@@ -1,0 +1,220 @@
+FWShift conversion report
+  source: terraform-azure
+  target: mguard
+
+Summary
+  Security rules:     86   exact 0, approximated 0, needs review 0, skipped 86
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: azurerm_firewall. The converted policy does not hold what they do
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): outside=external
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.40.1.0/24 --zone-network nsg-app=10.40.2.0/24 --zone-network nsg-db=10.40.3.0/24
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 58 rules say what both allow, in the order of the two
+  [info] AZURE_DEFAULT_RULES_ADDED: the export does not list the default rules of these groups (a template never does); the six rules every group has were added: nsg-web, nsg-app, nsg-db
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-app, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Azure command line for the same resources: 2 azurerm_application_security_group, 3 azurerm_network_interface, 3 azurerm_network_interface_application_security_group_association, 3 azurerm_network_security_group, 2 azurerm_network_security_rule, 3 azurerm_subnet, 3 azurerm_subnet_network_security_group_association, 1 azurerm_virtual_network. Resources outside this state (made by hand, or by another state) are not in it
+
+Security rules
+  nsg-web:https-in  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'Internet' holds members only its platform knows, or an address the profile does not hold.
+  nsg-web:block-doc  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:ssh-admin  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:AllowVnetInBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows, or an address the profile does not hold.
+  nsg-web:AllowAzureLoadBalancerInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:to-app  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:no-internet  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'Internet' holds members only its platform knows, or an address the profile does not hold. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows, or an address the profile does not hold.
+  nsg-web:AllowInternetOutBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'Internet' holds members only its platform knows, or an address the profile does not hold.
+  nsg-web:DenyAllOutBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-app:from-web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-app:icmp-vnet  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows, or an address the profile does not hold.
+  nsg-app:deny-rest  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-app:AllowVnetInBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows, or an address the profile does not hold.
+  nsg-app:AllowAzureLoadBalancerInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-app:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows, or an address the profile does not hold.
+  nsg-app:AllowInternetOutBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'Internet' holds members only its platform knows, or an address the profile does not hold.
+  nsg-app:DenyAllOutBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-db:postgres-from-app  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-db:deny-web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-db:AllowVnetInBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows, or an address the profile does not hold.
+  nsg-db:AllowAzureLoadBalancerInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-db:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows, or an address the profile does not hold.
+  nsg-db:AllowInternetOutBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+      [needs-review] ZONE_DYNAMIC: 'Internet' holds members only its platform knows, or an address the profile does not hold.
+  nsg-db:DenyAllOutBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:to-app+nsg-web:block-doc  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:to-app+nsg-web:AllowVnetInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:to-app+nsg-web:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-web:block-doc  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-web:ssh-admin  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:DenyAllOutBound to nsg-web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:to-app+nsg-app:from-web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:to-app+nsg-app:deny-rest  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:to-app+nsg-app:AllowVnetInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:to-app+nsg-app:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-app:from-web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-app:icmp-vnet  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-app:deny-rest  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:DenyAllOutBound to nsg-app  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:to-app+nsg-db:deny-web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-db: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:to-app+nsg-db:AllowVnetInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-db: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:to-app+nsg-db:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-db: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-db:postgres-from-app  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-db: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-db:deny-web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-db: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-db: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-db: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-web:DenyAllOutBound to nsg-db  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-web, nsg-db: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-web:block-doc  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app, nsg-web: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-web:ssh-admin  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app, nsg-web: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app, nsg-web: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app, nsg-web: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-app:DenyAllOutBound to nsg-web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app, nsg-web: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-app:from-web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-app:icmp-vnet  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-app:deny-rest  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-app:DenyAllOutBound to nsg-app  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-db:postgres-from-app  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app, nsg-db: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-db:deny-web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app, nsg-db: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app, nsg-db: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app, nsg-db: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-app:DenyAllOutBound to nsg-db  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-app, nsg-db: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-web:block-doc  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db, nsg-web: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-web:ssh-admin  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db, nsg-web: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db, nsg-web: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db, nsg-web: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-db:DenyAllOutBound to nsg-web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db, nsg-web: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-app:from-web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-app:icmp-vnet  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-app:deny-rest  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-db:DenyAllOutBound to nsg-app  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db, nsg-app: not zones of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-db:postgres-from-app  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-db:deny-web  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  nsg-db:DenyAllOutBound to nsg-db  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: nsg-db: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.

@@ -1,0 +1,31 @@
+configure terminal
+firewall
+service name FWS_tcp-502 proto tcp src all dst port 502
+service name FWS_tcp-23 proto tcp src all dst port 23
+service name FWS_tcp-443 proto tcp src all dst port 443
+service name FWS_udp-20000-20010-from-1024-65 proto udp src range 1024 - 65535 dst range 20000 - 20010
+proto name FWS_icmp num 1
+service name FWS_tcp-8080-8090 proto tcp src all dst range 8080 - 8090
+service name FWS_tcp-22 proto tcp src all dst port 22
+ipv4rule from lan to wan1 srcip 192.168.127.10-192.168.127.20 dstip 172.16.40.5 action acc service FWS_tcp-502 log no prior 1
+ipv4rule from wan1 to lan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp-23 log no prior 2
+ipv4rule from wan1 to lan srcip 198.51.100.0/24 dstip 192.168.127.50 action acc service FWS_tcp-443 log no prior 3
+ipv4rule from lan to wan2 srcip 192.168.127.30 dstip 0.0.0.0/0 action acc service FWS_udp-20000-20010-from-1024-65 log no prior 3
+ipv4rule from lan to wan1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp log no prior 3
+ipv4rule from lan to wan2 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc service FWS_icmp log no prior 3
+ipv4rule from lan to wan1 srcip 192.168.127.200-192.168.127.250 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from lan to wan2 srcip 192.168.127.200-192.168.127.250 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from wan2 to lan srcip 0.0.0.0/0 dstip 192.168.127.60 action acc service FWS_tcp-22 log no prior 5
+ipv4rule from wan2 to lan srcip 0.0.0.0/0 dstip 198.51.100.60 action acc service FWS_tcp-22 log no prior 5
+ipv4rule from lan to wan1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 5
+ipv4rule from lan to wan2 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 5
+ipv4rule from wan1 to lan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 5
+ipv4rule from wan1 to wan2 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 5
+ipv4rule from wan2 to lan srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 5
+ipv4rule from wan2 to wan1 srcip 0.0.0.0/0 dstip 0.0.0.0/0 action acc log no prior 5
+exit
+firewallnat
+napt srcint wan1 proto tcp type ipv4 dstip 203.0.113.2 transip 192.168.127.50 dstport 8443 transport 443
+src-nat srcint lan dstint wan1 type ipv4 srcip 192.168.127.1-192.168.127.199 dstip 0.0.0.0/0 transip auto
+exit
+end

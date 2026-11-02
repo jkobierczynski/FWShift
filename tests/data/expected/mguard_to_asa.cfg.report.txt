@@ -1,0 +1,60 @@
+FWShift conversion report
+  source: mguard
+  target: asa
+
+Summary
+  Security rules:     19   exact 10, approximated 5, needs review 2 (2 emitted disabled), skipped 2
+  NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
+  Addresses:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MGUARD_USER_FIREWALL: the user firewall is on, with 1 templates (service technicians): rules that apply to users who log in; not converted. With it on, the mGuard lets through more than the converted policy
+  [needs-review] MGUARD_VPN_FIREWALL: 1 VPN connections have firewall rules of their own (FW_INCOMING, FW_OUTGOING of the connection): not converted, nor the VPN traffic they decide
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: internal, external, dmz. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 1 destination NAT rule is written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [approximated] ZONE_NETWORK_GAP: the networks given with --zone-network leave out every IPv6 address. Nobody said behind which zone those addresses lie: where a rule for any address is kept to its zones, a permit rule does not cover them and a deny rule does. Give the zone that has the default route 0.0.0.0/0 and ::/0 (a network inside another one goes before it, as with routes)
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] MGUARD_SOURCE: mGuard profile 8.6.1.default, router mode; zones internal, external, dmz; tables read: FW_INCOMING, FW_OUTGOING, FW_INCOMING_WAN_DMZ, FW_INCOMING_DMZ_LAN, FW_OUTGOING_LANDMZ. Each table is first match; what no rule matches is dropped; port forwarding skips the packet filter
+  [info] MGUARD_INTERNAL_ROUTED: the internal side has more than one network (LOCAL_ALIASES): the outgoing rules also decide connections from one of them to another, so they are read for internal -> internal as well
+  [info] MGUARD_IPV4_ONLY: the packet filter of the mGuard is IPv4: 0.0.0.0/0 is read as every IPv4 address, and the rules match no IPv6
+  [info] MGUARD_DEFAULT_LOG: connection attempts no rule covers are logged (LOG_DEFAULT_INCOMING); the model has no place for that
+  [info] MGUARD_MANAGEMENT_ACCESS: access to the mGuard itself is not converted (it protects the device, not forwarded traffic): HTTPS_REMOTE_ACCESS_RULES (1 rows); HTTPS_REMOTE_ENABLE yes; FW_ICMP ping
+  [info] MGUARD_HOSTNAME: host names in IP groups, resolved by the DNS settings of the mGuard; read as names resolved for IPv4: scada: historian.example.com
+  [info] MGUARD_REJECT: Reject: the mGuard sends the packets back and tells the sender; read as reset-both: FW_INCOMING row 4
+  [info] MGUARD_PORTS_IGNORED: ports in rules for a protocol other than tcp and udp, which the mGuard ignores: FW_INCOMING row 7
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=172.16.30.0/24; external=0.0.0.0/0,203.0.113.0/28; internal=10.10.0.0/16,192.168.10.0/24,192.168.20.0/24. --no-source-networks takes none of them
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+  [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
+
+Security rules
+  portforward-1  ->  skipped
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+      [info] EGRESS_BY_NETWORKS: the rule is for traffic to zone internal. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network)
+      [approximated] EGRESS_NO_ADDRESS: by the networks given with --zone-network no address of its destination lies behind the zones the rule is for: it is left out
+  portforward-2  ->  skipped
+      [info] MGUARD_PORT_FORWARDING: port forwarding is done before the packet filter and skips it: an allow rule at the top for what it forwards
+      [info] EGRESS_BY_NETWORKS: the rule is for traffic to zone dmz. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network)
+      [approximated] EGRESS_NO_ADDRESS: by the networks given with --zone-network no address of its destination lies behind the zones the rule is for: it is left out
+  incoming-4  ->  approximated  (emitted as external_access_in)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone internal. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network). The addresses that lie in none of the networks given are denied by it as well
+      [info] RESET_ACTION: action reset-both becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+  incoming-5.maintenance-1  ->  needs-review, emitted disabled  (emitted as external_access_in)
+      [needs-review] MGUARD_RULESET_SWITCHED: a rule of rule set maintenance, which cmd1 switches on and off: not converted
+      [needs-review] UNSUPPORTED_MATCH: not converted: rule set maintenance is switched on and off (cmd1); its rules apply only while it is active.
+  incoming-6.vendor-1  ->  exact  (emitted as external_access_in)
+      [info] MGUARD_RULESET: rule 1 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+  incoming-6.vendor-2  ->  approximated  (emitted as external_access_in)
+      [info] MGUARD_RULESET: rule 2 of rule set vendor, which incoming-6 enters: in its place, limited to what that rule matches
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone internal. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network). The addresses that lie in none of the networks given are denied by it as well
+  incoming-9  ->  needs-review, emitted disabled  (emitted as external_access_in)
+      [needs-review] MGUARD_UNREAD: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group
+      [needs-review] UNSUPPORTED_MATCH: not converted: FROM_IP 'plant_b' is not an IPv4 address, a network or an IP group.
+  outgoing-1  ->  approximated  (emitted as internal_access_in)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone external, internal. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network). The addresses that lie in none of the networks given are denied by it as well
+  outgoing-3  ->  approximated  (emitted as internal_access_in)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone external, internal. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
+  lan-dmz-1  ->  approximated  (emitted as internal_access_in)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone dmz. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given

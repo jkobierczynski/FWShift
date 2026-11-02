@@ -1,0 +1,70 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "Admin SSH (not written, see the report); Web Out (not written, see the report); Web In (not written, see the report); Mail In (not written, see the report); DMZ Updates (not written, see the report); Guests Out (disabled in the source); Staff Only (not written, see the report); Ping (not written, see the report); Lab Tunnel (not written, see the report)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "192.0.2.66/32",
+            "203.0.113.0/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block Bad"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "destination": {
+          "nets": [
+            "192.0.2.66/32",
+            "203.0.113.0/25"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "Block Bad"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

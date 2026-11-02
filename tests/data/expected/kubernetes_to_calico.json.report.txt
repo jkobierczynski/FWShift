@@ -1,0 +1,22 @@
+FWShift conversion report
+  source: kubernetes
+  target: calico
+
+Summary
+  Security rules:     33   exact 32, approximated 0, needs review 1 (1 emitted disabled), skipped 0
+  Addresses:          12   exact 12, approximated 0, needs review 0, skipped 0
+  Address groups:     15   exact 15, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] K8S_IPBLOCK_PODS: shop/allow-web: an ipBlock of a ingress rule holds pod addresses. Whether an ipBlock matches pods depends on the network plugin (the Kubernetes documentation says it is meant for addresses outside the cluster); FWShift reads it as matching every address in it
+  [needs-review] K8S_SNAPSHOT: the selectors were worked out for the 9 pods of the export: every rule names the addresses those pods had then. Pods created, deleted or moved since, and new labels, are not in it
+  [needs-review] K8S_SERVICES: Services are not converted: kube-proxy translates a Service's address to a pod's before the policy sees the connection, and the rules name pod addresses. Traffic through a NodePort or LoadBalancer (web-public) may also reach the pod with a node's address as its source, which the rules do not name
+  [needs-review] CALICO_LOAD: the output is one GlobalNetworkPolicy (fwshift) for calicoctl apply -f FILE, or kubectl apply -f FILE where the Calico API server is installed. It applies to the endpoints labelled fwshift/policy=fwshift and to nothing else: label the pods it is for (kubectl label pod POD fwshift/policy=fwshift). It stands in the default tier with order 100, before the Kubernetes network policies (order 1000), and ends with the source's default, so that it decides everything for those endpoints; a policy of the same name is replaced
+  [info] K8S_IGNORED: left out: 1 Pod on the host network, 1 Pod that has ended. Policies do not apply to pods on the host network, nor to pods without an address
+  [info] K8S_SELF_TRAFFIC: a pod can always reach itself; the converted policy has no rule for it (it never leaves the pod)
+  [info] CALICO_SELECTORS_AS_NETS: the selectors of the source were worked out as the pods' addresses when it was exported; the rules name those addresses, not labels, and do not follow pods that are created or move
+
+Security rules
+  payments/api-ingress/ingress-3  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: protocol 'ICMP' (TCP, UDP or SCTP).

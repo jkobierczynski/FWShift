@@ -1,0 +1,1244 @@
+{
+  "apiVersion": "projectcalico.org/v3",
+  "kind": "GlobalNetworkPolicy",
+  "metadata": {
+    "name": "fwshift",
+    "annotations": {
+      "fwshift/generated": "FWShift - review the conversion report before applying this",
+      "fwshift/not-written": "db-acl-in-db-3 (not written, see the report); db-acl-in-db-4 (not written, see the report); db-acl-in-db-5 (not written, see the report); db-acl-out-db-2 (not written, see the report); db-sg-in-2 (not written, see the report)"
+    }
+  },
+  "spec": {
+    "tier": "default",
+    "order": 100,
+    "selector": "fwshift/policy == 'fwshift'",
+    "types": [
+      "Ingress",
+      "Egress"
+    ],
+    "ingress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.1.0/24"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.3.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "db-acl-in-db"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "notNets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.3.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "db-acl-in-db-2"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.20.3.0/24"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "db-acl-out-db"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.2.30/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            5432
+          ],
+          "nets": [
+            "10.20.3.40/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-to-db-sg"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.20.2.30/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-outbound-rest"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.20.3.40/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "db-sg-outbound-rest"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.20.9.5/32",
+            "10.20.9.6/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.9.5/32",
+            "10.20.9.6/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "default-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "10.20.1.10/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "2001:db8:20:1::10/127"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-in-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            80
+          ],
+          "nets": [
+            "10.20.1.10/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-in-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            80
+          ],
+          "nets": [
+            "2001:db8:20:1::10/127"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-in-4"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.9.5/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.20.1.10/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-in-5"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "icmp": {
+          "type": 8
+        },
+        "source": {
+          "nets": [
+            "10.20.1.10/31",
+            "10.20.2.20/31",
+            "10.20.9.6/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.1.10/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-in-6"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.1.10/31"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8443
+          ],
+          "nets": [
+            "10.20.2.20/31",
+            "10.20.2.30/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "2001:db8:20:1::10/127"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8443
+          ],
+          "nets": [
+            "2001:db8:20:2::20/128"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.9.5/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.20.2.20/31",
+            "10.20.2.30/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-in-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "ICMPv6",
+        "source": {
+          "nets": [
+            "2001:db8:20::/56"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "2001:db8:20:2::20/128"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-in-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.2.20/31",
+            "10.20.2.30/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            5432
+          ],
+          "nets": [
+            "10.20.3.40/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "db-sg-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.9.5/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.20.3.40/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "db-sg-in-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "192.0.2.128/25",
+            "198.51.100.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.20.9.5/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "bastion-sg-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "nets": [
+            "10.20.9.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            "161:162"
+          ],
+          "nets": [
+            "10.20.1.10/31",
+            "10.20.2.20/31",
+            "10.20.9.6/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "monitoring-sg-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.20.9.5/32",
+            "10.20.9.6/32"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "default-out-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.1.10/31"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "notNets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-out-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "2001:db8:20:1::10/127"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "notNets": [
+            "2001:db8:20::/56"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-out-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.2.20/31",
+            "10.20.2.30/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "203.0.113.128/26",
+            "203.0.113.192/27"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-out-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.9.5/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "notNets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "bastion-sg-out-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.20.1.10/31",
+            "10.20.2.20/31",
+            "10.20.9.6/32"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "monitoring-sg-out-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "source": {
+          "nets": [
+            "2001:db8:20:1::10/127",
+            "2001:db8:20:2::20/128"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "2001:db8:20::/56"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "monitoring-sg-out-2"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ],
+    "egress": [
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.1.0/24"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.3.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "db-acl-in-db"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "notNets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.3.0/24"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "db-acl-in-db-2"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.20.3.0/24"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "db-acl-out-db"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.2.30/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            5432
+          ],
+          "nets": [
+            "10.20.3.40/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-to-db-sg"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.20.2.30/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-outbound-rest"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.20.3.40/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "db-sg-outbound-rest"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.20.9.5/32",
+            "10.20.9.6/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.9.5/32",
+            "10.20.9.6/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "default-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "10.20.1.10/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "2001:db8:20:1::10/127"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-in-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            80
+          ],
+          "nets": [
+            "10.20.1.10/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-in-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "destination": {
+          "ports": [
+            80
+          ],
+          "nets": [
+            "2001:db8:20:1::10/127"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-in-4"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.9.5/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.20.1.10/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-in-5"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "ICMP",
+        "icmp": {
+          "type": 8
+        },
+        "source": {
+          "nets": [
+            "10.20.1.10/31",
+            "10.20.2.20/31",
+            "10.20.9.6/32"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "10.20.1.10/31"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-in-6"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.1.10/31"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8443
+          ],
+          "nets": [
+            "10.20.2.20/31",
+            "10.20.2.30/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "2001:db8:20:1::10/127"
+          ]
+        },
+        "destination": {
+          "ports": [
+            8443
+          ],
+          "nets": [
+            "2001:db8:20:2::20/128"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.9.5/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.20.2.20/31",
+            "10.20.2.30/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-in-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "ICMPv6",
+        "source": {
+          "nets": [
+            "2001:db8:20::/56"
+          ]
+        },
+        "destination": {
+          "nets": [
+            "2001:db8:20:2::20/128"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-in-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.2.20/31",
+            "10.20.2.30/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            5432
+          ],
+          "nets": [
+            "10.20.3.40/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "db-sg-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.9.5/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.20.3.40/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "db-sg-in-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "192.0.2.128/25",
+            "198.51.100.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            22
+          ],
+          "nets": [
+            "10.20.9.5/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "bastion-sg-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "UDP",
+        "source": {
+          "nets": [
+            "10.20.9.0/24"
+          ]
+        },
+        "destination": {
+          "ports": [
+            "161:162"
+          ],
+          "nets": [
+            "10.20.1.10/31",
+            "10.20.2.20/31",
+            "10.20.9.6/32"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "monitoring-sg-in-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.20.9.5/32",
+            "10.20.9.6/32"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "default-out-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.1.10/31"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "notNets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-out-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "2001:db8:20:1::10/127"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "notNets": [
+            "2001:db8:20::/56"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "web-sg-out-3"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.2.20/31",
+            "10.20.2.30/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "nets": [
+            "203.0.113.128/26",
+            "203.0.113.192/27"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "app-sg-out-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "protocol": "TCP",
+        "source": {
+          "nets": [
+            "10.20.9.5/32"
+          ]
+        },
+        "destination": {
+          "ports": [
+            443
+          ],
+          "notNets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "bastion-sg-out-2"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 4,
+        "source": {
+          "nets": [
+            "10.20.1.10/31",
+            "10.20.2.20/31",
+            "10.20.9.6/32"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "10.20.0.0/16"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "monitoring-sg-out-1"
+          }
+        }
+      },
+      {
+        "action": "Allow",
+        "ipVersion": 6,
+        "source": {
+          "nets": [
+            "2001:db8:20:1::10/127",
+            "2001:db8:20:2::20/128"
+          ]
+        },
+        "destination": {
+          "notNets": [
+            "2001:db8:20::/56"
+          ]
+        },
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "monitoring-sg-out-2"
+          }
+        }
+      },
+      {
+        "action": "Deny",
+        "metadata": {
+          "annotations": {
+            "fwshift/rule": "(default of the source policy)"
+          }
+        }
+      }
+    ]
+  }
+}

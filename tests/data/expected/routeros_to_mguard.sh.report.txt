@@ -1,0 +1,105 @@
+FWShift conversion report
+  source: routeros
+  target: mguard
+
+Summary
+  Security rules:     27   exact 5, approximated 0, needs review 2, skipped 20
+  NAT rules:           3   exact 0, approximated 1, needs review 0, skipped 2
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of /ip firewall filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] TABLE_NOT_CONVERTED: /ip firewall mangle has 1 rules and is not converted (it can mark connections and routes, which the filter rules may test)
+  [needs-review] ROUTEROS_DYNAMIC_LIST: address lists that rules fill while the router runs decide what their rules match; those rules are not converted: /ip scanners
+  [needs-review] MGUARD_ZONES_GUESSED: zones taken for the mGuard's by their names (check them, or give --zone-map ZONE=internal|external|external2|dmz): DMZ=dmz, LAN=internal, WAN=external
+  [needs-review] MGUARD_DEFAULT_ALLOW: the source allows what no rule matches: a row that accepts everything ends each table written
+  [needs-review] MGUARD_LOAD: the output is a shell script of gaiconfig calls, to run on the mGuard as root or admin (section 10): DRY_RUN=1 prints them. It adds groups and rows after the rows the tables have, and stops before it writes anything when a group name is taken or a table it adds to has rows (FWSHIFT_APPEND=yes adds after them). The rows take effect with the last call, and only where FW_INCOMING_GLOBAL and FW_OUTGOING_GLOBAL are 'rules'
+  [approximated] MGUARD_VLAN_ROUTING: the outgoing rows also decide connections from one VLAN of the internal side to another, which the mGuard routes when it has more than one internal network: there they match as they do towards the external side
+  [approximated] MGUARD_IPV4_ONLY: the mGuard filters IPv4: rules that match any address are written for 0.0.0.0/0, and match no IPv6
+  [info] ROUTEROS_ZONES: the interface lists the rules use do not overlap: each is a zone (DMZ: vlan20-dmz, GUEST: vlan30-guest, LAN: bridge-lan, WAN: ether1); an interface in none of them is a zone of its own
+  [info] ROUTEROS_PASSIVE: 2 rules with action log, passthrough or add-*-to-address-list decide nothing and were left out. A log rule directly before a rule with the same match, or one that matches everything, sets the logging of the rules it logs for
+  [info] ROUTEROS_FQDN_LIST: address lists that hold host names, which RouterOS resolves while it runs: converted as host name objects (mirrors)
+  [info] ROUTEROS_BRIDGE: traffic between the ports of one bridge (bridge-lan) does not pass the IP firewall of the source (use-ip-firewall=no); the conversion is of routed traffic
+  [info] FORWARD_POLICY_ACCEPT: RouterOS accepts what no rule of the forward chain decides; the model records that as its default action
+  [info] LOGGING_CONVERTED: rules of the source log; their rows have LOG yes
+
+Security rules
+  defconf: accept in ipsec policy  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: ipsec-policy=in,ipsec (traffic of IPsec tunnels).
+  banned scanners  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: address list 'scanners', which rules fill while the router runs. This deny rule is NOT enforced; rules below it may match more traffic.
+  ssh from the admins  ->  exact  (emitted as 1 row of FW_OUTGOING_LANDMZ, 1 row of FW_INCOMING_WAN_DMZ)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING_LANDMZ, a row of FW_INCOMING_WAN_DMZ
+  web for everyone  ->  needs-review  (emitted as 1 row of FW_OUTGOING_LANDMZ, 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING_LANDMZ, a row of FW_INCOMING_WAN_DMZ
+  web for everyone-2  ->  needs-review  (emitted as 1 row of FW_OUTGOING_LANDMZ, 1 row of FW_INCOMING_WAN_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] NEGATION_EXPANDED: a row of the mGuard cannot negate: written as an IP group of the IPv4 addresses that are left
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING_LANDMZ, a row of FW_INCOMING_WAN_DMZ
+  ping "echo" only  ->  skipped
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  ping "echo" only-2  ->  skipped
+      [needs-review] MGUARD_NOT_WRITTEN: none of its services can be written (ICMP types, ICMPv6, other IP protocols)
+  old partner access  ->  skipped
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  old partner access-2  ->  skipped
+      [info] MGUARD_DISABLED_LEFT_OUT: disabled on the source; the mGuard has no rule that is switched off: left out
+  nothing but TCP  ->  skipped
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] SERVICE_NEGATE: every service but some: a row of the mGuard names the protocol and ports it matches. This deny rule is NOT enforced; rules below it may match more traffic.
+  nothing but TCP-2  ->  skipped
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] SERVICE_NEGATE: every service but some: a row of the mGuard names the protocol and ports it matches. This deny rule is NOT enforced; rules below it may match more traffic.
+  rest of the DMZ  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced; rules below it may match more traffic.
+  rest of the DMZ-2  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] SERVICE_NEGATE: every service but some: a row of the mGuard names the protocol and ports it matches. This deny rule is NOT enforced; rules below it may match more traffic.
+  rest of the DMZ-3  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced; rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced; rules below it may match more traffic.
+  LAN to the package mirrors  ->  exact  (emitted as 1 row of FW_OUTGOING, 1 row of FW_OUTGOING_LANDMZ)
+      [info] MGUARD_HOSTNAME: host names are written into an IP group: the mGuard resolves them for IPv4 with its own DNS settings (an FL MGUARD 2000 takes none)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_OUTGOING, a row of FW_OUTGOING_LANDMZ
+  no other web from guests  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: GUEST: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  guest DNS, either port  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: GUEST: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  guest DNS, either port-2  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: GUEST: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  guests to the internet  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: GUEST: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map.
+  office hours for staff  ->  skipped
+      [needs-review] SCHEDULE: schedule 'time=8h-18h,mon,tue,wed,thu,fri' is not converted; the rule would apply at all times.
+  no guests elsewhere  ->  skipped
+      [needs-review] MGUARD_ZONE_UNKNOWN: GUEST: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+  defconf: drop all from WAN not DSTNATed (allows publish web)  ->  exact  (emitted as 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ
+  defconf: drop all from WAN not DSTNATed (allows publish mail)  ->  exact  (emitted as 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ)
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ
+  defconf: drop all from WAN not DSTNATed  ->  exact  (emitted as 1 row of FW_INCOMING, 1 row of FW_INCOMING_WAN_DMZ)
+      [info] ROUTEROS_DSTNAT_EXCEPTION: connection-nat-state=!dstnat: the rule does not block connections a destination NAT rule translated. Those are allowed by 2 rules ahead of it (defconf: drop all from WAN not DSTNATed (allows publish web), defconf: drop all from WAN not DSTNATed (allows publish mail))
+      [info] MGUARD_ROWS_SPLIT: a row of the mGuard has one protocol and is in one table: written as a row of FW_INCOMING, a row of FW_INCOMING_WAN_DMZ
+  ICMPv6 echo  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  the partners reach the web servers of the LAN by HTTPS and nothing else  ->  skipped
+      [needs-review] MGUARD_IPV6: the rule matches IPv6 only (after negation), and the mGuard filters IPv4: not written
+  drop everything else not coming from LAN  ->  skipped
+      [needs-review] ROUTEROS_NEGATED_INTERFACE: negated input interface (on the rule or the jump to its chain): the export does not list every interface of the router, and the rule covers the zones it does show (DMZ, GUEST, WAN). On the source it also blocks traffic of interfaces the export leaves out
+      [needs-review] MGUARD_ZONE_UNKNOWN: GUEST: not a zone of the mGuard (internal, external, external2, dmz); give the mGuard's zone with --zone-map. This deny rule is NOT enforced; rules below it may match more traffic.
+
+NAT rules
+  publish web  ->  skipped
+      [needs-review] MGUARD_FORWARD_BLOCKED: port forwarding skips the packet filter, and the rules of the model do not allow all of what it would forward (rule defconf: accept in ipsec policy may decide part of it and cannot be read exactly): not written, as it would let in more
+  publish mail  ->  skipped
+      [needs-review] MGUARD_FORWARD_BLOCKED: port forwarding skips the packet filter, and the rules of the model do not allow all of what it would forward (rule defconf: accept in ipsec policy may decide part of it and cannot be read exactly): not written, as it would let in more
+  defconf: masquerade  ->  approximated  (emitted as IP masquerading)
+      [approximated] ROUTEROS_NAT_IPSEC_EXEMPT: ipsec-policy=out,none: on the source, traffic that goes into an IPsec tunnel is not translated; the converted rule translates it unless the target exempts it

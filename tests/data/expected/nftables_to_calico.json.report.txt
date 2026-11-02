@@ -1,0 +1,77 @@
+FWShift conversion report
+  source: nftables
+  target: calico
+
+Summary
+  Security rules:     16   exact 1, approximated 2, needs review 13 (12 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] CALICO_LOAD: the output is one GlobalNetworkPolicy (fwshift) for calicoctl apply -f FILE, or kubectl apply -f FILE where the Calico API server is installed. It applies to the endpoints labelled fwshift/policy=fwshift and to nothing else: label the pods it is for (kubectl label pod POD fwshift/policy=fwshift). It stands in the default tier with order 100, before the Kubernetes network policies (order 1000), and ends with the source's default, so that it decides everything for those endpoints; a policy of the same name is replaced
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; the Calico rules written do not (a rule with action Log before a rule would log what it matches)
+
+Security rules
+  Banned by fail2ban  ->  needs-review, emitted disabled
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  needs-review  (emitted as rule 1)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Guests stay in  ->  approximated  (emitted as rule 2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone eth1; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone eth0; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAN web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a Calico rule names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a Calico rule names no zone: give the networks behind eth0 with --zone-network.
+  LAN DNS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a Calico rule names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a Calico rule names no zone: give the networks behind eth0 with --zone-network.
+  Rate limited mail  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a Calico rule names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a Calico rule names no zone: give the networks behind eth0 with --zone-network.
+  Partner tunnel  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a Calico rule names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a Calico rule names no zone: give the networks behind eth0 with --zone-network.
+  Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a Calico rule names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a Calico rule names no zone: give the networks behind eth2 with --zone-network.
+  Ping the DMZ  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a Calico rule names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a Calico rule names no zone: give the networks behind eth2 with --zone-network.
+  SCADA to PLCs  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a Calico rule names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth3, and a Calico rule names no zone: give the networks behind eth3 with --zone-network.
+  OT no internet  ->  approximated  (emitted as rule 3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone eth3; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone eth0; a Calico rule names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: Calico's Deny drops, without an answer
+  Inbound web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth0, and a Calico rule names no zone: give the networks behind eth0 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a Calico rule names no zone: give the networks behind eth2 with --zone-network.
+  Inbound mail  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth0, and a Calico rule names no zone: give the networks behind eth0 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a Calico rule names no zone: give the networks behind eth2 with --zone-network.
+  Inbound IPv6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth0, and a Calico rule names no zone: give the networks behind eth0 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a Calico rule names no zone: give the networks behind eth2 with --zone-network.
+  DMZ updates  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a Calico rule names no zone: give the networks behind eth2 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a Calico rule names no zone: give the networks behind eth0 with --zone-network.
+
+NAT rules
+  Web DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Calico does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what Calico sees
+  Mail DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Calico does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what Calico sees
+  No NAT to partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Calico does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what Calico sees
+  DMZ out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Calico does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what Calico sees
+  LAN out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: Calico does not translate addresses (kube-proxy, the cloud's load balancers and the gateways do). The rules were written for the addresses it translates to, which is what Calico sees

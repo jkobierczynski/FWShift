@@ -144,3 +144,25 @@ def unique(name: str, taken: Set[str], rules: NameRules) -> str:
 # characters. Rules of a rule list are kept to the same.
 F5AFM = NameRules(128, re.compile(r"[^A-Za-z0-9_.-]"), True, True)
 F5AFM_RULE = F5AFM
+
+# Siemens SCALANCE (SC-600, S615): an IP service, an ICMP service and an IP protocol have names of up to 32 characters (the CLI
+# manuals: string(32)); which characters they take is not published. Names written are kept to letters, digits, "_", "-" and
+# ".", a letter first.
+SCALANCE = NameRules(32, re.compile(r"[^A-Za-z0-9_.-]"), True, True)
+
+# Belden/Hirschmann HiSecOS: rules have an index and a description of up to 32 characters (HM2-FW-MIB, hm2L3Description);
+# no character set is published. Descriptions written are kept to letters, digits, ".", "_" and "-", so that they need no
+# quotes in a script.
+HISECOS_TEXT = NameRules(32, re.compile(r"[^A-Za-z0-9._-]"), False)
+
+# Phoenix Contact mGuard: Phoenix publishes no character set or length for the name of an IP or port group. A rule names a
+# group where it could name an address, so a name must not look like one: names written are a letter, then letters, digits,
+# "_", "-" and ".", and at most 32 characters.
+MGUARD = NameRules(32, re.compile(r"[^A-Za-z0-9_.-]"), True, True)
+
+# Kubernetes and Calico: the name of an object (a NetworkPolicy, a GlobalNetworkPolicy) is a DNS subdomain, lower-case
+# letters, digits, "-" and ".", alphanumeric first and last, up to 253 characters; a label value has up to 63 letters,
+# digits, "-", "_" and ".", alphanumeric first and last (the Kubernetes documentation of names and labels). The emitters
+# lower-case names and take what is not alphanumeric off the end.
+KUBERNETES = NameRules(253, re.compile(r"[^a-z0-9.-]"), True)
+KUBERNETES_LABEL = NameRules(63, re.compile(r"[^A-Za-z0-9._-]"), True)

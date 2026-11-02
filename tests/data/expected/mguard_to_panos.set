@@ -1,0 +1,280 @@
+set tag fwshift:mguard-port-forwarding
+set address historian.example.com fqdn historian.example.com
+set address mguard-extern ip-netmask 203.0.113.2
+set address mguard-extern description "the external address of the mGuard"
+set address r-192.168.10.20-192.168.10.29 ip-range 192.168.10.20-192.168.10.29
+set address h-192.168.10.40 ip-netmask 192.168.10.40
+set address-group plc_cell1 static [ r-192.168.10.20-192.168.10.29 h-192.168.10.40 ]
+set address-group plc_cell1 description "PLCs of cell 1"
+set address n-198.51.100.0_28 ip-netmask 198.51.100.0/28
+set address-group scada static [ n-198.51.100.0_28 historian.example.com ]
+set address-group scada description "SCADA servers at the control centre"
+set address n-198.51.100.64_27 ip-netmask 198.51.100.64/27
+set address-group vendor_vpn static n-198.51.100.64_27
+set service tcp-8443 protocol tcp port 8443
+set service udp-47808 protocol udp port 47808
+set service tcp-502 protocol tcp port 502
+set service tcp-web protocol tcp port 80,443
+set service udp-161 protocol udp port 161
+set service tcp-22 protocol tcp port 22
+set service tcp-s7_iso protocol tcp port 102,20000-20010
+set service tcp-8000-8080-from-1024-65535 protocol tcp port 8000-8080
+set service tcp-8000-8080-from-1024-65535 protocol tcp source-port 1024-65535
+set service udp-53 protocol udp port 53
+set service tcp-102 protocol tcp port 102
+set service tcp-1433 protocol tcp port 1433
+set rulebase security rules portforward-1 from external
+set rulebase security rules portforward-1 to internal
+set rulebase security rules portforward-1 source 0.0.0.0/0
+set rulebase security rules portforward-1 destination mguard-extern
+set rulebase security rules portforward-1 source-user any
+set rulebase security rules portforward-1 category any
+set rulebase security rules portforward-1 application any
+set rulebase security rules portforward-1 service tcp-8443
+set rulebase security rules portforward-1 action allow
+set rulebase security rules portforward-1 log-end yes
+set rulebase security rules portforward-1 description "port forwarding portforward-1: it skips the packet filter"
+set rulebase security rules portforward-1 tag fwshift:mguard-port-forwarding
+set rulebase security rules portforward-2 from external
+set rulebase security rules portforward-2 to dmz
+set rulebase security rules portforward-2 source vendor_vpn
+set rulebase security rules portforward-2 destination 203.0.113.3
+set rulebase security rules portforward-2 source-user any
+set rulebase security rules portforward-2 category any
+set rulebase security rules portforward-2 application any
+set rulebase security rules portforward-2 service udp-47808
+set rulebase security rules portforward-2 action allow
+set rulebase security rules portforward-2 log-end no
+set rulebase security rules portforward-2 description "port forwarding portforward-2: it skips the packet filter"
+set rulebase security rules portforward-2 tag fwshift:mguard-port-forwarding
+set rulebase security rules incoming-1 from external
+set rulebase security rules incoming-1 to internal
+set rulebase security rules incoming-1 source scada
+set rulebase security rules incoming-1 destination plc_cell1
+set rulebase security rules incoming-1 source-user any
+set rulebase security rules incoming-1 category any
+set rulebase security rules incoming-1 application any
+set rulebase security rules incoming-1 service tcp-502
+set rulebase security rules incoming-1 action allow
+set rulebase security rules incoming-1 log-end yes
+set rulebase security rules incoming-1 description "Modbus/TCP from 'SCADA' to the PLCs"
+set rulebase security rules incoming-2 from external
+set rulebase security rules incoming-2 to internal
+set rulebase security rules incoming-2 source 198.51.100.0/24
+set rulebase security rules incoming-2 destination [ 192.168.10.0/24 203.0.113.8/29 ]
+set rulebase security rules incoming-2 source-user any
+set rulebase security rules incoming-2 category any
+set rulebase security rules incoming-2 application [ icmp ping ]
+set rulebase security rules incoming-2 service application-default
+set rulebase security rules incoming-2 action allow
+set rulebase security rules incoming-2 log-end no
+set rulebase security rules incoming-2 description "ping from the control centre"
+set rulebase security rules incoming-3 from external
+set rulebase security rules incoming-3 to internal
+set rulebase security rules incoming-3 source 0.0.0.0/0
+set rulebase security rules incoming-3 destination [ 192.168.10.0/24 203.0.113.8/29 ]
+set rulebase security rules incoming-3 source-user any
+set rulebase security rules incoming-3 category any
+set rulebase security rules incoming-3 application any
+set rulebase security rules incoming-3 service tcp-web
+set rulebase security rules incoming-3 action drop
+set rulebase security rules incoming-3 log-end yes
+set rulebase security rules incoming-3 description "no web from outside"
+set rulebase security rules incoming-4 from external
+set rulebase security rules incoming-4 to internal
+set rulebase security rules incoming-4 source 0.0.0.0/0
+set rulebase security rules incoming-4 destination 0.0.0.0/0
+set rulebase security rules incoming-4 source-user any
+set rulebase security rules incoming-4 category any
+set rulebase security rules incoming-4 application any
+set rulebase security rules incoming-4 service udp-161
+set rulebase security rules incoming-4 action reset-both
+set rulebase security rules incoming-4 log-end no
+set rulebase security rules incoming-4 description "SNMP refused"
+set rulebase security rules incoming-5.maintenance-1 from external
+set rulebase security rules incoming-5.maintenance-1 to internal
+set rulebase security rules incoming-5.maintenance-1 source 0.0.0.0/0
+set rulebase security rules incoming-5.maintenance-1 destination [ 192.168.10.0/24 203.0.113.8/29 ]
+set rulebase security rules incoming-5.maintenance-1 source-user any
+set rulebase security rules incoming-5.maintenance-1 category any
+set rulebase security rules incoming-5.maintenance-1 application any
+set rulebase security rules incoming-5.maintenance-1 service tcp-22
+set rulebase security rules incoming-5.maintenance-1 action allow
+set rulebase security rules incoming-5.maintenance-1 log-end yes
+set rulebase security rules incoming-5.maintenance-1 disabled yes
+set rulebase security rules incoming-5.maintenance-1 description "FWSHIFT: disabled by the converter, see the report. SSH while the key switch is on"
+set rulebase security rules incoming-6.vendor-1 from external
+set rulebase security rules incoming-6.vendor-1 to internal
+set rulebase security rules incoming-6.vendor-1 source vendor_vpn
+set rulebase security rules incoming-6.vendor-1 destination [ 192.168.10.0/24 203.0.113.8/29 ]
+set rulebase security rules incoming-6.vendor-1 source-user any
+set rulebase security rules incoming-6.vendor-1 category any
+set rulebase security rules incoming-6.vendor-1 application any
+set rulebase security rules incoming-6.vendor-1 service tcp-s7_iso
+set rulebase security rules incoming-6.vendor-1 action allow
+set rulebase security rules incoming-6.vendor-1 log-end no
+set rulebase security rules incoming-6.vendor-1 description "S7 for the vendor"
+set rulebase security rules incoming-6.vendor-2 from external
+set rulebase security rules incoming-6.vendor-2 to internal
+set rulebase security rules incoming-6.vendor-2 source vendor_vpn
+set rulebase security rules incoming-6.vendor-2 destination 0.0.0.0/0
+set rulebase security rules incoming-6.vendor-2 source-user any
+set rulebase security rules incoming-6.vendor-2 category any
+set rulebase security rules incoming-6.vendor-2 application any
+set rulebase security rules incoming-6.vendor-2 service any
+set rulebase security rules incoming-6.vendor-2 action drop
+set rulebase security rules incoming-6.vendor-2 log-end yes
+set rulebase security rules incoming-6.vendor-2 description "nothing else from the vendor"
+set rulebase security rules incoming-7 from external
+set rulebase security rules incoming-7 to internal
+set rulebase security rules incoming-7 source 198.51.100.7
+set rulebase security rules incoming-7 destination 192.168.10.5
+set rulebase security rules incoming-7 source-user any
+set rulebase security rules incoming-7 category any
+set rulebase security rules incoming-7 application gre
+set rulebase security rules incoming-7 service application-default
+set rulebase security rules incoming-7 action allow
+set rulebase security rules incoming-7 log-end no
+set rulebase security rules incoming-7 description "GRE of a legacy tunnel; the port is ignored"
+set rulebase security rules incoming-8 from external
+set rulebase security rules incoming-8 to internal
+set rulebase security rules incoming-8 source 198.51.100.0/24
+set rulebase security rules incoming-8 destination [ 192.168.10.50 203.0.113.10 ]
+set rulebase security rules incoming-8 source-user any
+set rulebase security rules incoming-8 category any
+set rulebase security rules incoming-8 application any
+set rulebase security rules incoming-8 service tcp-8000-8080-from-1024-65535
+set rulebase security rules incoming-8 action allow
+set rulebase security rules incoming-8 log-end no
+set rulebase security rules incoming-8 description "HMI web, published by 1:1 NAT (the rule names the real address)"
+set rulebase security rules incoming-9 from external
+set rulebase security rules incoming-9 to internal
+set rulebase security rules incoming-9 source 0.0.0.0/0
+set rulebase security rules incoming-9 destination [ 192.168.10.0/24 203.0.113.8/29 ]
+set rulebase security rules incoming-9 source-user any
+set rulebase security rules incoming-9 category any
+set rulebase security rules incoming-9 application any
+set rulebase security rules incoming-9 service any
+set rulebase security rules incoming-9 action allow
+set rulebase security rules incoming-9 log-end no
+set rulebase security rules incoming-9 disabled yes
+set rulebase security rules incoming-9 description "FWSHIFT: disabled by the converter, see the report. names a group the profile does not have"
+set rulebase security rules outgoing-1 from internal
+set rulebase security rules outgoing-1 to [ external internal ]
+set rulebase security rules outgoing-1 source plc_cell1
+set rulebase security rules outgoing-1 destination 0.0.0.0/0
+set rulebase security rules outgoing-1 source-user any
+set rulebase security rules outgoing-1 category any
+set rulebase security rules outgoing-1 application any
+set rulebase security rules outgoing-1 service any
+set rulebase security rules outgoing-1 action drop
+set rulebase security rules outgoing-1 log-end yes
+set rulebase security rules outgoing-1 description "the PLCs do not talk out"
+set rulebase security rules outgoing-2 from internal
+set rulebase security rules outgoing-2 to [ external internal ]
+set rulebase security rules outgoing-2 source 192.168.10.0/24
+set rulebase security rules outgoing-2 destination 192.168.10.1
+set rulebase security rules outgoing-2 source-user any
+set rulebase security rules outgoing-2 category any
+set rulebase security rules outgoing-2 application any
+set rulebase security rules outgoing-2 service udp-53
+set rulebase security rules outgoing-2 action allow
+set rulebase security rules outgoing-2 log-end no
+set rulebase security rules outgoing-2 description DNS
+set rulebase security rules outgoing-3 from internal
+set rulebase security rules outgoing-3 to [ external internal ]
+set rulebase security rules outgoing-3 source 192.168.10.0/24
+set rulebase security rules outgoing-3 destination 0.0.0.0/0
+set rulebase security rules outgoing-3 source-user any
+set rulebase security rules outgoing-3 category any
+set rulebase security rules outgoing-3 application any
+set rulebase security rules outgoing-3 service tcp-web
+set rulebase security rules outgoing-3 action allow
+set rulebase security rules outgoing-3 log-end no
+set rulebase security rules outgoing-3 description "web out"
+set rulebase security rules outgoing-4 from internal
+set rulebase security rules outgoing-4 to [ external internal ]
+set rulebase security rules outgoing-4 source 192.168.20.0/24
+set rulebase security rules outgoing-4 destination 192.168.10.0/24
+set rulebase security rules outgoing-4 source-user any
+set rulebase security rules outgoing-4 category any
+set rulebase security rules outgoing-4 application any
+set rulebase security rules outgoing-4 service tcp-102
+set rulebase security rules outgoing-4 action allow
+set rulebase security rules outgoing-4 log-end no
+set rulebase security rules outgoing-4 description "engineering VLAN 20 to the S7 PLCs"
+set rulebase security rules wan-dmz-1 from external
+set rulebase security rules wan-dmz-1 to dmz
+set rulebase security rules wan-dmz-1 source 0.0.0.0/0
+set rulebase security rules wan-dmz-1 destination 172.16.30.10
+set rulebase security rules wan-dmz-1 source-user any
+set rulebase security rules wan-dmz-1 category any
+set rulebase security rules wan-dmz-1 application any
+set rulebase security rules wan-dmz-1 service tcp-web
+set rulebase security rules wan-dmz-1 action allow
+set rulebase security rules wan-dmz-1 log-end no
+set rulebase security rules wan-dmz-1 description "the DMZ web server"
+set rulebase security rules dmz-lan-1 from dmz
+set rulebase security rules dmz-lan-1 to internal
+set rulebase security rules dmz-lan-1 source 172.16.30.10
+set rulebase security rules dmz-lan-1 destination 192.168.10.60
+set rulebase security rules dmz-lan-1 source-user any
+set rulebase security rules dmz-lan-1 category any
+set rulebase security rules dmz-lan-1 application any
+set rulebase security rules dmz-lan-1 service tcp-1433
+set rulebase security rules dmz-lan-1 action allow
+set rulebase security rules dmz-lan-1 log-end no
+set rulebase security rules dmz-lan-1 description "web server to the historian database"
+set rulebase security rules lan-dmz-1 from internal
+set rulebase security rules lan-dmz-1 to dmz
+set rulebase security rules lan-dmz-1 source 0.0.0.0/0
+set rulebase security rules lan-dmz-1 destination 0.0.0.0/0
+set rulebase security rules lan-dmz-1 source-user any
+set rulebase security rules lan-dmz-1 category any
+set rulebase security rules lan-dmz-1 application any
+set rulebase security rules lan-dmz-1 service any
+set rulebase security rules lan-dmz-1 action allow
+set rulebase security rules lan-dmz-1 log-end no
+set rulebase security rules lan-dmz-1 description "LAN to DMZ: everything (the factory rule)"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules portforward-1 from external
+set rulebase nat rules portforward-1 to internal
+set rulebase nat rules portforward-1 source 0.0.0.0/0
+set rulebase nat rules portforward-1 destination mguard-extern
+set rulebase nat rules portforward-1 service tcp-8443
+set rulebase nat rules portforward-1 destination-translation translated-address 192.168.10.30
+set rulebase nat rules portforward-1 destination-translation translated-port 443
+set rulebase nat rules portforward-1 description "remote HMI"
+set rulebase nat rules portforward-2 from external
+set rulebase nat rules portforward-2 to dmz
+set rulebase nat rules portforward-2 source vendor_vpn
+set rulebase nat rules portforward-2 destination 203.0.113.3
+set rulebase nat rules portforward-2 service udp-47808
+set rulebase nat rules portforward-2 destination-translation translated-address 172.16.30.20
+set rulebase nat rules portforward-2 description "BACnet gateway in the DMZ"
+set rulebase nat rules 1to1-1 from internal
+set rulebase nat rules 1to1-1 to external
+set rulebase nat rules 1to1-1 source 192.168.10.48/29
+set rulebase nat rules 1to1-1 destination any
+set rulebase nat rules 1to1-1 service any
+set rulebase nat rules 1to1-1 source-translation static-ip translated-address 203.0.113.8/29
+set rulebase nat rules 1to1-1 source-translation static-ip bi-directional yes
+set rulebase nat rules 1to1-1 description "HMI subnet published"
+set rulebase nat rules masquerade-1 from any
+set rulebase nat rules masquerade-1 to external
+set rulebase nat rules masquerade-1 source 192.168.10.0/24
+set rulebase nat rules masquerade-1 destination any
+set rulebase nat rules masquerade-1 service any
+set rulebase nat rules masquerade-1 source-translation dynamic-ip-and-port translated-address 203.0.113.2
+set rulebase nat rules masquerade-1 description "LAN out to the WAN"

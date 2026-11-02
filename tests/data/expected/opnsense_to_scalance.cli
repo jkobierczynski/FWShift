@@ -1,0 +1,407 @@
+configure terminal
+firewall
+service name FWS_tcp-25 proto tcp src all dst port 25
+service name FWS_tcp_5060 proto tcp src all dst port 5060
+service name FWS_udp_5060 proto udp src all dst port 5060
+service name FWS_tcp-22 proto tcp src all dst port 22
+service name FWS_tcp_53 proto tcp src all dst port 53
+service name FWS_udp_53 proto udp src all dst port 53
+icmp name FWS_icmp-echoreq type 8 code 0 ver ipv4
+service name FWS_tcp_80 proto tcp src all dst port 80
+service name FWS_tcp_443 proto tcp src all dst port 443
+service name FWS_tcp_8000-8080 proto tcp src all dst range 8000 - 8080
+icmp name FWS_icmp6_128_0 type 128 code 0 ver ipv6
+icmp name FWS_icmp6_135_0 type 135 code 0 ver ipv6
+icmp name FWS_icmp6_136_0 type 136 code 0 ver ipv6
+service name FWS_tcp proto tcp src all dst all
+service name FWS_udp-123 proto udp src all dst port 123
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 198.51.100.0-198.51.100.6 action drop log info prior 1
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 198.51.100.8-198.51.100.255 action drop log info prior 1
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 203.0.113.128/25 action drop log info prior 1
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 198.51.100.0-198.51.100.6 action drop log info prior 1
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 198.51.100.8-198.51.100.255 action drop log info prior 1
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 203.0.113.128/25 action drop log info prior 1
+ipv4rule from LAN to DMZ srcip 0.0.0.0/0 dstip 198.51.100.0-198.51.100.6 action drop log info prior 1
+ipv4rule from LAN to DMZ srcip 0.0.0.0/0 dstip 198.51.100.8-198.51.100.255 action drop log info prior 1
+ipv4rule from LAN to DMZ srcip 0.0.0.0/0 dstip 203.0.113.128/25 action drop log info prior 1
+ipv4rule from DMZ to WAN srcip 0.0.0.0/0 dstip 198.51.100.0-198.51.100.6 action drop log info prior 1
+ipv4rule from DMZ to WAN srcip 0.0.0.0/0 dstip 198.51.100.8-198.51.100.255 action drop log info prior 1
+ipv4rule from DMZ to WAN srcip 0.0.0.0/0 dstip 203.0.113.128/25 action drop log info prior 1
+ipv4rule from GUEST to WAN srcip 0.0.0.0/0 dstip 198.51.100.0-198.51.100.6 action drop log info prior 1
+ipv4rule from GUEST to WAN srcip 0.0.0.0/0 dstip 198.51.100.8-198.51.100.255 action drop log info prior 1
+ipv4rule from GUEST to WAN srcip 0.0.0.0/0 dstip 203.0.113.128/25 action drop log info prior 1
+ipv4rule from GUEST to DMZ srcip 0.0.0.0/0 dstip 198.51.100.0-198.51.100.6 action drop log info prior 1
+ipv4rule from GUEST to DMZ srcip 0.0.0.0/0 dstip 198.51.100.8-198.51.100.255 action drop log info prior 1
+ipv4rule from GUEST to DMZ srcip 0.0.0.0/0 dstip 203.0.113.128/25 action drop log info prior 1
+ipv4rule from VPNSITE to WAN srcip 0.0.0.0/0 dstip 198.51.100.0-198.51.100.6 action drop log info prior 1
+ipv4rule from VPNSITE to WAN srcip 0.0.0.0/0 dstip 198.51.100.8-198.51.100.255 action drop log info prior 1
+ipv4rule from VPNSITE to WAN srcip 0.0.0.0/0 dstip 203.0.113.128/25 action drop log info prior 1
+ipv4rule from VPNSITE to DMZ srcip 0.0.0.0/0 dstip 198.51.100.0-198.51.100.6 action drop log info prior 1
+ipv4rule from VPNSITE to DMZ srcip 0.0.0.0/0 dstip 198.51.100.8-198.51.100.255 action drop log info prior 1
+ipv4rule from VPNSITE to DMZ srcip 0.0.0.0/0 dstip 203.0.113.128/25 action drop log info prior 1
+ipv4rule from OpenVPN to WAN srcip 0.0.0.0/0 dstip 198.51.100.0-198.51.100.6 action drop log info prior 1
+ipv4rule from OpenVPN to WAN srcip 0.0.0.0/0 dstip 198.51.100.8-198.51.100.255 action drop log info prior 1
+ipv4rule from OpenVPN to WAN srcip 0.0.0.0/0 dstip 203.0.113.128/25 action drop log info prior 1
+ipv4rule from OpenVPN to DMZ srcip 0.0.0.0/0 dstip 198.51.100.0-198.51.100.6 action drop log info prior 1
+ipv4rule from OpenVPN to DMZ srcip 0.0.0.0/0 dstip 198.51.100.8-198.51.100.255 action drop log info prior 1
+ipv4rule from OpenVPN to DMZ srcip 0.0.0.0/0 dstip 203.0.113.128/25 action drop log info prior 1
+ipv4rule from DMZ to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop service FWS_tcp-25 log no prior 2
+ipv4rule from WAN to LAN srcip 198.51.100.0/24 dstip 172.16.20.20 action acc service FWS_tcp_5060 log no prior 3
+ipv4rule from WAN to LAN srcip 198.51.100.0/24 dstip 172.16.20.20 action acc service FWS_udp_5060 log no prior 3
+ipv4rule from WAN to LAN srcip 198.51.100.0/24 dstip 203.0.113.2 action acc service FWS_tcp_5060 log no prior 3
+ipv4rule from WAN to LAN srcip 198.51.100.0/24 dstip 203.0.113.2 action acc service FWS_udp_5060 log no prior 3
+ipv4rule from WAN to DMZ srcip 198.51.100.0/24 dstip 172.16.20.20 action acc service FWS_tcp_5060 log no prior 3
+ipv4rule from WAN to DMZ srcip 198.51.100.0/24 dstip 172.16.20.20 action acc service FWS_udp_5060 log no prior 3
+ipv4rule from WAN to DMZ srcip 198.51.100.0/24 dstip 203.0.113.2 action acc service FWS_tcp_5060 log no prior 3
+ipv4rule from WAN to DMZ srcip 198.51.100.0/24 dstip 203.0.113.2 action acc service FWS_udp_5060 log no prior 3
+ipv4rule from WAN to GUEST srcip 198.51.100.0/24 dstip 172.16.20.20 action acc service FWS_tcp_5060 log no prior 3
+ipv4rule from WAN to GUEST srcip 198.51.100.0/24 dstip 172.16.20.20 action acc service FWS_udp_5060 log no prior 3
+ipv4rule from WAN to GUEST srcip 198.51.100.0/24 dstip 203.0.113.2 action acc service FWS_tcp_5060 log no prior 3
+ipv4rule from WAN to GUEST srcip 198.51.100.0/24 dstip 203.0.113.2 action acc service FWS_udp_5060 log no prior 3
+ipv4rule from WAN to VPNSITE srcip 198.51.100.0/24 dstip 172.16.20.20 action acc service FWS_tcp_5060 log no prior 3
+ipv4rule from WAN to VPNSITE srcip 198.51.100.0/24 dstip 172.16.20.20 action acc service FWS_udp_5060 log no prior 3
+ipv4rule from WAN to VPNSITE srcip 198.51.100.0/24 dstip 203.0.113.2 action acc service FWS_tcp_5060 log no prior 3
+ipv4rule from WAN to VPNSITE srcip 198.51.100.0/24 dstip 203.0.113.2 action acc service FWS_udp_5060 log no prior 3
+ipv4rule from WAN to OpenVPN srcip 198.51.100.0/24 dstip 172.16.20.20 action acc service FWS_tcp_5060 log no prior 3
+ipv4rule from WAN to OpenVPN srcip 198.51.100.0/24 dstip 172.16.20.20 action acc service FWS_udp_5060 log no prior 3
+ipv4rule from WAN to OpenVPN srcip 198.51.100.0/24 dstip 203.0.113.2 action acc service FWS_tcp_5060 log no prior 3
+ipv4rule from WAN to OpenVPN srcip 198.51.100.0/24 dstip 203.0.113.2 action acc service FWS_udp_5060 log no prior 3
+ipv4rule from WAN to LAN srcip 10.0.0.0/8 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to LAN srcip 100.64.0.0/10 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to LAN srcip 169.254.0.0/16 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to LAN srcip 172.16.0.0/12 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to LAN srcip 192.168.0.0/16 dstip 0.0.0.0/0 action drop log no prior 4
+ipv6rule from WAN to LAN srcip fd00::/8 dstip ::/0 action drop log no prior 4
+ipv6rule from WAN to LAN srcip fe80::/10 dstip ::/0 action drop log no prior 4
+ipv4rule from WAN to DMZ srcip 10.0.0.0/8 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to DMZ srcip 100.64.0.0/10 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to DMZ srcip 169.254.0.0/16 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to DMZ srcip 172.16.0.0/12 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to DMZ srcip 192.168.0.0/16 dstip 0.0.0.0/0 action drop log no prior 4
+ipv6rule from WAN to DMZ srcip fd00::/8 dstip ::/0 action drop log no prior 4
+ipv6rule from WAN to DMZ srcip fe80::/10 dstip ::/0 action drop log no prior 4
+ipv4rule from WAN to GUEST srcip 10.0.0.0/8 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to GUEST srcip 100.64.0.0/10 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to GUEST srcip 169.254.0.0/16 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to GUEST srcip 172.16.0.0/12 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to GUEST srcip 192.168.0.0/16 dstip 0.0.0.0/0 action drop log no prior 4
+ipv6rule from WAN to GUEST srcip fd00::/8 dstip ::/0 action drop log no prior 4
+ipv6rule from WAN to GUEST srcip fe80::/10 dstip ::/0 action drop log no prior 4
+ipv4rule from WAN to VPNSITE srcip 10.0.0.0/8 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to VPNSITE srcip 100.64.0.0/10 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to VPNSITE srcip 169.254.0.0/16 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to VPNSITE srcip 172.16.0.0/12 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to VPNSITE srcip 192.168.0.0/16 dstip 0.0.0.0/0 action drop log no prior 4
+ipv6rule from WAN to VPNSITE srcip fd00::/8 dstip ::/0 action drop log no prior 4
+ipv6rule from WAN to VPNSITE srcip fe80::/10 dstip ::/0 action drop log no prior 4
+ipv4rule from WAN to OpenVPN srcip 10.0.0.0/8 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to OpenVPN srcip 100.64.0.0/10 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to OpenVPN srcip 169.254.0.0/16 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to OpenVPN srcip 172.16.0.0/12 dstip 0.0.0.0/0 action drop log no prior 4
+ipv4rule from WAN to OpenVPN srcip 192.168.0.0/16 dstip 0.0.0.0/0 action drop log no prior 4
+ipv6rule from WAN to OpenVPN srcip fd00::/8 dstip ::/0 action drop log no prior 4
+ipv6rule from WAN to OpenVPN srcip fe80::/10 dstip ::/0 action drop log no prior 4
+ipv4rule from OpenVPN to WAN srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 5
+ipv4rule from OpenVPN to LAN srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 5
+ipv4rule from OpenVPN to DMZ srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 5
+ipv4rule from OpenVPN to GUEST srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 5
+ipv4rule from OpenVPN to VPNSITE srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 5
+ipv4rule from VPNSITE to WAN srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 5
+ipv4rule from VPNSITE to LAN srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 5
+ipv4rule from VPNSITE to DMZ srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 5
+ipv4rule from VPNSITE to GUEST srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 5
+ipv4rule from VPNSITE to OpenVPN srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 5
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_tcp_53 log no prior 6
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_udp_53 log no prior 6
+ipv4rule from LAN to DMZ srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_tcp_53 log no prior 6
+ipv4rule from LAN to DMZ srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_udp_53 log no prior 6
+ipv4rule from LAN to GUEST srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_tcp_53 log no prior 6
+ipv4rule from LAN to GUEST srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_udp_53 log no prior 6
+ipv4rule from LAN to VPNSITE srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_tcp_53 log no prior 6
+ipv4rule from LAN to VPNSITE srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_udp_53 log no prior 6
+ipv4rule from LAN to OpenVPN srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_tcp_53 log no prior 6
+ipv4rule from LAN to OpenVPN srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_udp_53 log no prior 6
+ipv4rule from DMZ to WAN srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_tcp_53 log no prior 6
+ipv4rule from DMZ to WAN srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_udp_53 log no prior 6
+ipv4rule from DMZ to LAN srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_tcp_53 log no prior 6
+ipv4rule from DMZ to LAN srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_udp_53 log no prior 6
+ipv4rule from DMZ to GUEST srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_tcp_53 log no prior 6
+ipv4rule from DMZ to GUEST srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_udp_53 log no prior 6
+ipv4rule from DMZ to VPNSITE srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_tcp_53 log no prior 6
+ipv4rule from DMZ to VPNSITE srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_udp_53 log no prior 6
+ipv4rule from DMZ to OpenVPN srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_tcp_53 log no prior 6
+ipv4rule from DMZ to OpenVPN srcip 0.0.0.0/0 dstip 192.0.2.53 action rej service FWS_udp_53 log no prior 6
+ipv4rule from LAN to WAN srcip 172.16.20.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from LAN to WAN srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from LAN to DMZ srcip 172.16.20.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from LAN to DMZ srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from LAN to GUEST srcip 172.16.20.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from LAN to GUEST srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from LAN to VPNSITE srcip 172.16.20.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from LAN to VPNSITE srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from LAN to OpenVPN srcip 172.16.20.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from LAN to OpenVPN srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from DMZ to WAN srcip 172.16.20.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from DMZ to WAN srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from DMZ to LAN srcip 172.16.20.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from DMZ to LAN srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from DMZ to GUEST srcip 172.16.20.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from DMZ to GUEST srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from DMZ to VPNSITE srcip 172.16.20.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from DMZ to VPNSITE srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from DMZ to OpenVPN srcip 172.16.20.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from DMZ to OpenVPN srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc service FWS_icmp-echoreq log no prior 7
+ipv4rule from LAN to WAN srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc log no prior 7
+ipv6rule from LAN to WAN srcip 2001:db8:10::/64 dstip ::/0 action acc log no prior 7
+ipv6rule from LAN to WAN srcip fe80::/10 dstip ::/0 action acc log no prior 7
+ipv4rule from LAN to DMZ srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc log no prior 7
+ipv6rule from LAN to DMZ srcip 2001:db8:10::/64 dstip ::/0 action acc log no prior 7
+ipv6rule from LAN to DMZ srcip fe80::/10 dstip ::/0 action acc log no prior 7
+ipv4rule from LAN to GUEST srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc log no prior 7
+ipv6rule from LAN to GUEST srcip 2001:db8:10::/64 dstip ::/0 action acc log no prior 7
+ipv6rule from LAN to GUEST srcip fe80::/10 dstip ::/0 action acc log no prior 7
+ipv4rule from LAN to VPNSITE srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc log no prior 7
+ipv6rule from LAN to VPNSITE srcip 2001:db8:10::/64 dstip ::/0 action acc log no prior 7
+ipv6rule from LAN to VPNSITE srcip fe80::/10 dstip ::/0 action acc log no prior 7
+ipv4rule from LAN to OpenVPN srcip 192.168.10.0/24 dstip 0.0.0.0/0 action acc log no prior 7
+ipv6rule from LAN to OpenVPN srcip 2001:db8:10::/64 dstip ::/0 action acc log no prior 7
+ipv6rule from LAN to OpenVPN srcip fe80::/10 dstip ::/0 action acc log no prior 7
+ipv4rule from WAN to LAN srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_80 log info prior 8
+ipv4rule from WAN to LAN srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_443 log info prior 8
+ipv4rule from WAN to LAN srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_8000-8080 log info prior 8
+ipv6rule from WAN to LAN srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_80 log info prior 8
+ipv6rule from WAN to LAN srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_443 log info prior 8
+ipv6rule from WAN to LAN srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_8000-8080 log info prior 8
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_80 log info prior 8
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_443 log info prior 8
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_8000-8080 log info prior 8
+ipv6rule from WAN to DMZ srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_80 log info prior 8
+ipv6rule from WAN to DMZ srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_443 log info prior 8
+ipv6rule from WAN to DMZ srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_8000-8080 log info prior 8
+ipv4rule from WAN to GUEST srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_80 log info prior 8
+ipv4rule from WAN to GUEST srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_443 log info prior 8
+ipv4rule from WAN to GUEST srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_8000-8080 log info prior 8
+ipv6rule from WAN to GUEST srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_80 log info prior 8
+ipv6rule from WAN to GUEST srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_443 log info prior 8
+ipv6rule from WAN to GUEST srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_8000-8080 log info prior 8
+ipv4rule from WAN to VPNSITE srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_80 log info prior 8
+ipv4rule from WAN to VPNSITE srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_443 log info prior 8
+ipv4rule from WAN to VPNSITE srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_8000-8080 log info prior 8
+ipv6rule from WAN to VPNSITE srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_80 log info prior 8
+ipv6rule from WAN to VPNSITE srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_443 log info prior 8
+ipv6rule from WAN to VPNSITE srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_8000-8080 log info prior 8
+ipv4rule from WAN to OpenVPN srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_80 log info prior 8
+ipv4rule from WAN to OpenVPN srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_443 log info prior 8
+ipv4rule from WAN to OpenVPN srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp_8000-8080 log info prior 8
+ipv6rule from WAN to OpenVPN srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_80 log info prior 8
+ipv6rule from WAN to OpenVPN srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_443 log info prior 8
+ipv6rule from WAN to OpenVPN srcip ::/0 dstip 2001:db8:20::10 action acc service FWS_tcp_8000-8080 log info prior 8
+ipv6rule from DMZ to WAN srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_128_0 log no prior 9
+ipv6rule from DMZ to WAN srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_135_0 log no prior 9
+ipv6rule from DMZ to WAN srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_136_0 log no prior 9
+ipv6rule from DMZ to WAN srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_128_0 log no prior 9
+ipv6rule from DMZ to WAN srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_135_0 log no prior 9
+ipv6rule from DMZ to WAN srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_136_0 log no prior 9
+ipv6rule from DMZ to LAN srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_128_0 log no prior 9
+ipv6rule from DMZ to LAN srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_135_0 log no prior 9
+ipv6rule from DMZ to LAN srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_136_0 log no prior 9
+ipv6rule from DMZ to LAN srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_128_0 log no prior 9
+ipv6rule from DMZ to LAN srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_135_0 log no prior 9
+ipv6rule from DMZ to LAN srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_136_0 log no prior 9
+ipv6rule from DMZ to GUEST srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_128_0 log no prior 9
+ipv6rule from DMZ to GUEST srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_135_0 log no prior 9
+ipv6rule from DMZ to GUEST srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_136_0 log no prior 9
+ipv6rule from DMZ to GUEST srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_128_0 log no prior 9
+ipv6rule from DMZ to GUEST srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_135_0 log no prior 9
+ipv6rule from DMZ to GUEST srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_136_0 log no prior 9
+ipv6rule from DMZ to VPNSITE srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_128_0 log no prior 9
+ipv6rule from DMZ to VPNSITE srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_135_0 log no prior 9
+ipv6rule from DMZ to VPNSITE srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_136_0 log no prior 9
+ipv6rule from DMZ to VPNSITE srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_128_0 log no prior 9
+ipv6rule from DMZ to VPNSITE srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_135_0 log no prior 9
+ipv6rule from DMZ to VPNSITE srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_136_0 log no prior 9
+ipv6rule from DMZ to OpenVPN srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_128_0 log no prior 9
+ipv6rule from DMZ to OpenVPN srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_135_0 log no prior 9
+ipv6rule from DMZ to OpenVPN srcip 2001:db8:20::/64 dstip ::/0 action acc service FWS_icmp6_136_0 log no prior 9
+ipv6rule from DMZ to OpenVPN srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_128_0 log no prior 9
+ipv6rule from DMZ to OpenVPN srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_135_0 log no prior 9
+ipv6rule from DMZ to OpenVPN srcip fe80::/10 dstip ::/0 action acc service FWS_icmp6_136_0 log no prior 9
+ipv4rule from DMZ to WAN srcip 172.16.20.10 dstip 172.16.20.10 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to WAN srcip 172.16.20.10 dstip 172.16.20.20 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to LAN srcip 172.16.20.10 dstip 172.16.20.10 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to LAN srcip 172.16.20.10 dstip 172.16.20.20 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to GUEST srcip 172.16.20.10 dstip 172.16.20.10 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to GUEST srcip 172.16.20.10 dstip 172.16.20.20 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to VPNSITE srcip 172.16.20.10 dstip 172.16.20.10 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to VPNSITE srcip 172.16.20.10 dstip 172.16.20.20 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to OpenVPN srcip 172.16.20.10 dstip 172.16.20.10 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to OpenVPN srcip 172.16.20.10 dstip 172.16.20.20 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to WAN srcip 172.16.20.20 dstip 172.16.20.10 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to WAN srcip 172.16.20.20 dstip 172.16.20.20 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to LAN srcip 172.16.20.20 dstip 172.16.20.10 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to LAN srcip 172.16.20.20 dstip 172.16.20.20 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to GUEST srcip 172.16.20.20 dstip 172.16.20.10 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to GUEST srcip 172.16.20.20 dstip 172.16.20.20 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to VPNSITE srcip 172.16.20.20 dstip 172.16.20.10 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to VPNSITE srcip 172.16.20.20 dstip 172.16.20.20 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to OpenVPN srcip 172.16.20.20 dstip 172.16.20.10 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from DMZ to OpenVPN srcip 172.16.20.20 dstip 172.16.20.20 action acc service FWS_tcp_443 log no prior 9
+ipv4rule from GUEST to WAN srcip 0.0.0.0/0 dstip 172.16.20.0/24 action drop log info prior 10
+ipv4rule from GUEST to WAN srcip 0.0.0.0/0 dstip 192.168.10.0/24 action drop log info prior 10
+ipv4rule from GUEST to LAN srcip 0.0.0.0/0 dstip 172.16.20.0/24 action drop log info prior 10
+ipv4rule from GUEST to LAN srcip 0.0.0.0/0 dstip 192.168.10.0/24 action drop log info prior 10
+ipv4rule from GUEST to DMZ srcip 0.0.0.0/0 dstip 172.16.20.0/24 action drop log info prior 10
+ipv4rule from GUEST to DMZ srcip 0.0.0.0/0 dstip 192.168.10.0/24 action drop log info prior 10
+ipv4rule from GUEST to VPNSITE srcip 0.0.0.0/0 dstip 172.16.20.0/24 action drop log info prior 10
+ipv4rule from GUEST to VPNSITE srcip 0.0.0.0/0 dstip 192.168.10.0/24 action drop log info prior 10
+ipv4rule from GUEST to OpenVPN srcip 0.0.0.0/0 dstip 172.16.20.0/24 action drop log info prior 10
+ipv4rule from GUEST to OpenVPN srcip 0.0.0.0/0 dstip 192.168.10.0/24 action drop log info prior 10
+ipv4rule from GUEST to WAN srcip 192.168.30.0/24 dstip 192.0.2.80 action acc log no prior 11
+ipv4rule from GUEST to LAN srcip 192.168.30.0/24 dstip 192.0.2.80 action acc log no prior 11
+ipv4rule from GUEST to DMZ srcip 192.168.30.0/24 dstip 192.0.2.80 action acc log no prior 11
+ipv4rule from GUEST to VPNSITE srcip 192.168.30.0/24 dstip 192.0.2.80 action acc log no prior 11
+ipv4rule from GUEST to OpenVPN srcip 192.168.30.0/24 dstip 192.0.2.80 action acc log no prior 11
+ipv4rule from OpenVPN to WAN srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_443 log no prior 11
+ipv4rule from OpenVPN to LAN srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_443 log no prior 11
+ipv4rule from OpenVPN to DMZ srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_443 log no prior 11
+ipv4rule from OpenVPN to GUEST srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_443 log no prior 11
+ipv4rule from OpenVPN to VPNSITE srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_443 log no prior 11
+ipv4rule from VPNSITE to WAN srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_443 log no prior 11
+ipv4rule from VPNSITE to LAN srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_443 log no prior 11
+ipv4rule from VPNSITE to DMZ srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_443 log no prior 11
+ipv4rule from VPNSITE to GUEST srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_443 log no prior 11
+ipv4rule from VPNSITE to OpenVPN srcip 0.0.0.0/0 dstip 192.168.10.0/24 action acc service FWS_tcp_443 log no prior 11
+ipv4rule from WAN to LAN srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 11
+ipv4rule from WAN to LAN srcip 0.0.0.0/0 dstip 203.0.113.2 action acc service FWS_tcp-22 log no prior 11
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 11
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 203.0.113.2 action acc service FWS_tcp-22 log no prior 11
+ipv4rule from WAN to GUEST srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 11
+ipv4rule from WAN to GUEST srcip 0.0.0.0/0 dstip 203.0.113.2 action acc service FWS_tcp-22 log no prior 11
+ipv4rule from WAN to VPNSITE srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 11
+ipv4rule from WAN to VPNSITE srcip 0.0.0.0/0 dstip 203.0.113.2 action acc service FWS_tcp-22 log no prior 11
+ipv4rule from WAN to OpenVPN srcip 0.0.0.0/0 dstip 172.16.20.10 action acc service FWS_tcp-22 log no prior 11
+ipv4rule from WAN to OpenVPN srcip 0.0.0.0/0 dstip 203.0.113.2 action acc service FWS_tcp-22 log no prior 11
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log no prior 12
+ipv4rule from LAN to DMZ srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log no prior 12
+ipv4rule from LAN to GUEST srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log no prior 12
+ipv4rule from LAN to VPNSITE srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log no prior 12
+ipv4rule from LAN to OpenVPN srcip 0.0.0.0/0 dstip 198.51.100.0/24 action drop log no prior 12
+ipv4rule from WAN to LAN srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from WAN to GUEST srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from WAN to VPNSITE srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from WAN to OpenVPN srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from LAN to DMZ srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from LAN to GUEST srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from LAN to VPNSITE srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from LAN to OpenVPN srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from DMZ to WAN srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from DMZ to LAN srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from DMZ to GUEST srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from DMZ to VPNSITE srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from DMZ to OpenVPN srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from GUEST to WAN srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from GUEST to LAN srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from GUEST to DMZ srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from GUEST to VPNSITE srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from GUEST to OpenVPN srcip 0.0.0.0/0 dstip 192.0.2.123 action acc service FWS_udp-123 log no prior 13
+ipv4rule from WAN to LAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from WAN to LAN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from WAN to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from WAN to DMZ srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from WAN to GUEST srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from WAN to GUEST srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from WAN to VPNSITE srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from WAN to VPNSITE srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from WAN to OpenVPN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from WAN to OpenVPN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from LAN to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from LAN to WAN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from LAN to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from LAN to DMZ srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from LAN to GUEST srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from LAN to GUEST srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from LAN to VPNSITE srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from LAN to VPNSITE srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from LAN to OpenVPN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from LAN to OpenVPN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from DMZ to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from DMZ to WAN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from DMZ to LAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from DMZ to LAN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from DMZ to GUEST srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from DMZ to GUEST srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from DMZ to VPNSITE srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from DMZ to VPNSITE srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from DMZ to OpenVPN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from DMZ to OpenVPN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from GUEST to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from GUEST to WAN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from GUEST to LAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from GUEST to LAN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from GUEST to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from GUEST to DMZ srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from GUEST to VPNSITE srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from GUEST to VPNSITE srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from GUEST to OpenVPN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from GUEST to OpenVPN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from VPNSITE to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from VPNSITE to WAN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from VPNSITE to LAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from VPNSITE to LAN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from VPNSITE to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from VPNSITE to DMZ srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from VPNSITE to GUEST srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from VPNSITE to GUEST srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from VPNSITE to OpenVPN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from VPNSITE to OpenVPN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from OpenVPN to WAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from OpenVPN to WAN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from OpenVPN to LAN srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from OpenVPN to LAN srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from OpenVPN to DMZ srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from OpenVPN to DMZ srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from OpenVPN to GUEST srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from OpenVPN to GUEST srcip ::/0 dstip ::/0 action drop log no prior 14
+ipv4rule from OpenVPN to VPNSITE srcip 0.0.0.0/0 dstip 0.0.0.0/0 action drop log no prior 14
+ipv6rule from OpenVPN to VPNSITE srcip ::/0 dstip ::/0 action drop log no prior 14
+exit
+firewallnat
+netmap source srcint LAN dstint WAN type ipv4 srcip 172.16.20.50 dstip 0.0.0.0/0 transip 203.0.113.50/32
+netmap source srcint DMZ dstint WAN type ipv4 srcip 172.16.20.50 dstip 0.0.0.0/0 transip 203.0.113.50/32
+netmap source srcint GUEST dstint WAN type ipv4 srcip 172.16.20.50 dstip 0.0.0.0/0 transip 203.0.113.50/32
+netmap source srcint VPNSITE dstint WAN type ipv4 srcip 172.16.20.50 dstip 0.0.0.0/0 transip 203.0.113.50/32
+netmap source srcint OpenVPN dstint WAN type ipv4 srcip 172.16.20.50 dstip 0.0.0.0/0 transip 203.0.113.50/32
+src-nat srcint LAN dstint WAN type ipv4 srcip 172.16.20.0/24 dstip 0.0.0.0/0 transip 203.0.113.10
+src-nat srcint DMZ dstint WAN type ipv4 srcip 172.16.20.0/24 dstip 0.0.0.0/0 transip 203.0.113.10
+src-nat srcint GUEST dstint WAN type ipv4 srcip 172.16.20.0/24 dstip 0.0.0.0/0 transip 203.0.113.10
+src-nat srcint VPNSITE dstint WAN type ipv4 srcip 172.16.20.0/24 dstip 0.0.0.0/0 transip 203.0.113.10
+src-nat srcint OpenVPN dstint WAN type ipv4 srcip 172.16.20.0/24 dstip 0.0.0.0/0 transip 203.0.113.10
+src-nat srcint LAN dstint WAN type ipv4 srcip 192.168.30.0/24 dstip 0.0.0.0/0 transip 203.0.113.30
+src-nat srcint DMZ dstint WAN type ipv4 srcip 192.168.30.0/24 dstip 0.0.0.0/0 transip 203.0.113.30
+src-nat srcint GUEST dstint WAN type ipv4 srcip 192.168.30.0/24 dstip 0.0.0.0/0 transip 203.0.113.30
+src-nat srcint VPNSITE dstint WAN type ipv4 srcip 192.168.30.0/24 dstip 0.0.0.0/0 transip 203.0.113.30
+src-nat srcint OpenVPN dstint WAN type ipv4 srcip 192.168.30.0/24 dstip 0.0.0.0/0 transip 203.0.113.30
+src-nat srcint LAN dstint WAN type ipv4 srcip 192.168.10.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint LAN dstint WAN type ipv4 srcip 172.16.20.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint LAN dstint WAN type ipv4 srcip 192.168.30.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint LAN dstint WAN type ipv4 srcip 127.0.0.0/8 dstip 0.0.0.0/0 transip auto
+src-nat srcint DMZ dstint WAN type ipv4 srcip 192.168.10.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint DMZ dstint WAN type ipv4 srcip 172.16.20.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint DMZ dstint WAN type ipv4 srcip 192.168.30.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint DMZ dstint WAN type ipv4 srcip 127.0.0.0/8 dstip 0.0.0.0/0 transip auto
+src-nat srcint GUEST dstint WAN type ipv4 srcip 192.168.10.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint GUEST dstint WAN type ipv4 srcip 172.16.20.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint GUEST dstint WAN type ipv4 srcip 192.168.30.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint GUEST dstint WAN type ipv4 srcip 127.0.0.0/8 dstip 0.0.0.0/0 transip auto
+src-nat srcint VPNSITE dstint WAN type ipv4 srcip 192.168.10.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint VPNSITE dstint WAN type ipv4 srcip 172.16.20.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint VPNSITE dstint WAN type ipv4 srcip 192.168.30.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint VPNSITE dstint WAN type ipv4 srcip 127.0.0.0/8 dstip 0.0.0.0/0 transip auto
+src-nat srcint OpenVPN dstint WAN type ipv4 srcip 192.168.10.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint OpenVPN dstint WAN type ipv4 srcip 172.16.20.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint OpenVPN dstint WAN type ipv4 srcip 192.168.30.0/24 dstip 0.0.0.0/0 transip auto
+src-nat srcint OpenVPN dstint WAN type ipv4 srcip 127.0.0.0/8 dstip 0.0.0.0/0 transip auto
+exit
+end
